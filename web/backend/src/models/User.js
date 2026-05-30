@@ -1,5 +1,21 @@
 import mongoose from "mongoose";
 
+// Sub-schema cho roles nhúng vào user (theo mongodb_schema.md)
+const embeddedRoleSchema = new mongoose.Schema(
+  {
+    role_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+    role_name: {
+      type: String,
+      required: true,
+      enum: ["admin", "mentor", "contestant"],
+    },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     full_name: {
@@ -7,16 +23,16 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    hashedPassword: {
-      type: String,
-      required: true,
-    },
     email: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
       trim: true,
+    },
+    password_hash: {
+      type: String,
+      required: true,
     },
     provider: {
       type: String,
@@ -29,30 +45,24 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      sparse: true, // cho pheps null , nhưng không được trùng
+      default: "",
     },
     is_verified: {
       type: Boolean,
       default: false,
     },
+    roles: {
+      type: [embeddedRoleSchema],
+      default: [],
+    },
   },
   {
-    timestamps: true,
-  },
+    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+  }
 );
+
+// Indexes
+userSchema.index({ "roles.role_name": 1 });
 
 const User = mongoose.model("User", userSchema);
 export default User;
-
-// users [icon: user, color: purple] {
-//   _id ObjectId pk
-//   full_name string
-//   email string unique
-//   hashedPassword string
-//   provider string
-//   avatar_url string
-//   phone string
-//   is_verified boolean
-//   created_at timestamp
-//   updated_at timestamp
-// }

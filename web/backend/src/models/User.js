@@ -32,12 +32,16 @@ const userSchema = new mongoose.Schema(
     },
     password_hash: {
       type: String,
-      required: true,
+      default: null,
     },
     provider: {
       type: String,
       enum: ["local", "google", "github"],
       default: "local",
+    },
+    provider_id: {
+      type: String,
+      default: null,
     },
     avatar_url: {
       type: String,

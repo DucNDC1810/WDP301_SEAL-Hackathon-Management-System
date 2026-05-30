@@ -94,6 +94,52 @@ export const authenticateUser = async ({ email, password }) => {
   };
 };
 
+// ─── OAuth ──────────────────────────────────────────────────────────────────
+
+/**
+ * Tìm hoặc tạo user từ OAuth provider (Google / GitHub).
+ * @returns {Object} user document
+ */
+export const findOrCreateOAuthUser = async ({
+  provider,
+  provider_id,
+  email,
+  full_name,
+  avatar_url,
+}) => {
+  // 1. Tìm theo provider + provider_id
+  let user = await User.findOne({ provider, provider_id });
+  if (user) return user;
+
+  // 2. Tìm theo email → link tài khoản
+  user = await User.findOne({ email: email.toLowerCase() });
+  if (user) {
+    user.provider = provider;
+    user.provider_id = provider_id;
+    if (avatar_url) user.avatar_url = avatar_url;
+    await user.save();
+    return user;
+  }
+
+  // 3. Tạo user mới
+  const newUser = new User({
+    full_name,
+    email: email.toLowerCase(),
+    provider,
+    provider_id,
+    avatar_url: avatar_url || "",
+    is_verified: true,
+    roles: [
+      {
+        role_id: new mongoose.Types.ObjectId(),
+        role_name: "contestant",
+      },
+    ],
+  });
+  await newUser.save();
+  return newUser;
+};
+
 // ─── refresh ────────────────────────────────────────────────────────────────
 
 /**

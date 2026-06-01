@@ -4,6 +4,9 @@ import Footer from './components/Footer';
 import HomePage from './pages/homepage/HomePage';
 import LoginPage from './pages/login/LoginPage';
 import OAuthCallback from './pages/oauth-callback/OAuthCallback';
+import ContestFormPage from './pages/admin/contest/ContestFormPage';
+import TopicManagerPage from './pages/admin/topic/TopicManagerPage';
+import TeamDashboardPage from './pages/admin/team/TeamDashboardPage';
 
 import './App.css';
 
@@ -23,6 +26,9 @@ function App() {
               <Navbar />
               <Routes>
                 <Route path="/" element={<HomePage />} />
+                <Route path="/admin/contest/create" element={<ContestFormPage />} />
+                <Route path="/admin/contests/:contestId/topics" element={<TopicManagerPage />} />
+                <Route path="/admin/contests/:contestId/dashboard" element={<TeamDashboardPage />} />
               </Routes>
               <Footer />
             </>

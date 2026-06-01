@@ -4,6 +4,8 @@ import {
   signIn,
   signOut,
   refresh,
+  sendVerificationCode,
+  verifyEmail,
 } from "../controllers/authController.js";
 
 const router = express.Router();
@@ -19,5 +21,11 @@ router.post("/signout", signOut);
 
 // POST /api/auth/refresh  — làm mới access token
 router.post("/refresh", refresh);
+
+// POST /api/auth/send-verification-code  — admin gửi mã xác thực
+router.post("/send-verification-code", sendVerificationCode);
+
+// POST /api/auth/verify-email  — contestant xác thực email
+router.post("/verify-email", verifyEmail);
 
 export default router;

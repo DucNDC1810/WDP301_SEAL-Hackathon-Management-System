@@ -5,6 +5,7 @@ import {
   getAllUsers,
   assignRole,
   removeRole,
+  updateGithub,
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -13,6 +14,9 @@ const router = express.Router();
 
 // GET /api/users/me — lấy thông tin bản thân
 router.get("/me", authenticate, getMe);
+
+// PUT /api/users/me/github — cập nhật thông tin GitHub
+router.put("/me/github", authenticate, updateGithub);
 
 // ─── admin-only routes ──────────────────────────────────────────────────────
 

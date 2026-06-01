@@ -51,7 +51,16 @@ function LoginPage() {
       // save token & user
       localStorage.setItem('accessToken', data.data.accessToken);
       localStorage.setItem('user', JSON.stringify(data.data));
-      navigate('/');
+
+      // redirect based on role
+      const roles = data.data.roles?.map((r) => r.role_name) || [];
+      if (roles.includes('admin')) {
+        navigate('/admin');
+      } else if (roles.includes('contestant')) {
+        navigate('/contestant');
+      } else {
+        navigate('/');
+      }
     } catch {
       setError('Không thể kết nối đến server');
     } finally {

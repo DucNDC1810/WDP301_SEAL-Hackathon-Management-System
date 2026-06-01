@@ -2,6 +2,8 @@ import {
   createUser,
   authenticateUser,
   refreshAccessToken,
+  sendVerificationCodeToUser,
+  verifyUserEmail,
 } from "../services/authService.js";
 
 // ─── cookie config ──────────────────────────────────────────────────────────
@@ -126,6 +128,67 @@ export const refresh = async (req, res) => {
     });
   } catch (error) {
     console.error("[refresh]", error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── sendVerificationCode ───────────────────────────────────────────────────
+// Admin sends verification code to user's email
+
+export const sendVerificationCode = async (req, res) => {
+  try {
+    const { user_id } = req.body;
+
+    // validate input
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp user_id",
+      });
+    }
+
+    // delegate to service
+    const result = await sendVerificationCodeToUser(user_id);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error("[sendVerificationCode]", error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── verifyEmail ────────────────────────────────────────────────────────────
+// Contestant verifies email using verification code
+
+export const verifyEmail = async (req, res) => {
+  try {
+    const { user_id, verification_code } = req.body;
+
+    // validate input
+    if (!user_id || !verification_code) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp user_id và verification_code",
+      });
+    }
+
+    // delegate to service
+    const user = await verifyUserEmail(user_id, verification_code);
+
+    res.status(200).json({
+      success: true,
+      message: "Email đã được xác thực thành công",
+      data: user,
+    });
+  } catch (error) {
+    console.error("[verifyEmail]", error);
     res
       .status(error.statusCode || 500)
       .json({ success: false, message: error.message || "Lỗi máy chủ" });

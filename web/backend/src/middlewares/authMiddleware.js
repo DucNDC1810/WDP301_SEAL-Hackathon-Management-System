@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import UserRole from "../models/UserRole.js";
 
 /**
  * Middleware xác thực JWT access token.
@@ -27,15 +28,22 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    const user = await User.findById(payload.id).select("-password_hash");
-    if (!user) {
+    const userDoc = await User.findById(payload.id).select("-password_hash").lean();
+    if (!userDoc) {
       return res.status(401).json({
         success: false,
         message: "Người dùng không tồn tại",
       });
     }
 
-    req.user = user;
+    // Lấy roles từ UserRole
+    const userRolesList = await UserRole.find({ user_id: userDoc._id }).populate("role_id");
+    userDoc.roles = userRolesList.map((ur) => ({
+      role_id: ur.role_id?._id,
+      role_name: ur.role_id?.role_name,
+    }));
+
+    req.user = userDoc;
     next();
   } catch (error) {
     console.error("[authenticate]", error);

@@ -2,6 +2,13 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import User from "../models/User.js";
+import Role from "../models/Role.js";
+import UserRole from "../models/UserRole.js";
+import TeamMember from "../models/TeamMember.js";
+import {
+  generateVerificationCode,
+  sendVerificationEmail,
+} from "./emailService.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -34,21 +41,23 @@ export const createUser = async ({ full_name, email, password, phone }) => {
   // hash password
   const password_hash = await bcrypt.hash(password, 10);
 
-  // create user — tự động gán role "contestant"
+  // create user
   const newUser = new User({
     full_name,
     email,
     password_hash,
     phone: phone || "",
     provider: "local",
-    roles: [
-      {
-        role_id: new mongoose.Types.ObjectId(),
-        role_name: "contestant",
-      },
-    ],
   });
   await newUser.save();
+
+  // assign default role "contestant"
+  let contestantRole = await Role.findOne({ role_name: "contestant" });
+  if (!contestantRole) {
+    contestantRole = new Role({ role_name: "contestant" });
+    await contestantRole.save();
+  }
+  await UserRole.create({ user_id: newUser._id, role_id: contestantRole._id });
 
   // trả về user không có password_hash
   const user = newUser.toObject();
@@ -81,13 +90,34 @@ export const authenticateUser = async ({ email, password }) => {
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
 
+  // Fetch roles from UserRole
+  const userRolesList = await UserRole.find({ user_id: user._id }).populate("role_id");
+  const roles = userRolesList.map((ur) => ({
+    role_id: ur.role_id._id,
+    role_name: ur.role_id.role_name,
+  }));
+
+  // Check if user is in any team
+  const teamMembership = await TeamMember.findOne({
+    user_id: user._id,
+  }).populate("team_id");
+
   return {
     user: {
       _id: user._id,
       full_name: user.full_name,
       email: user.email,
+      phone: user.phone,
       avatar_url: user.avatar_url,
-      roles: user.roles,
+      is_verified: user.is_verified,
+      roles,
+      team: teamMembership
+        ? {
+            _id: teamMembership.team_id._id,
+            team_name: teamMembership.team_id.team_name,
+            is_leader: teamMembership.is_leader,
+          }
+        : null,
     },
     accessToken,
     refreshToken,
@@ -129,14 +159,17 @@ export const findOrCreateOAuthUser = async ({
     provider_id,
     avatar_url: avatar_url || "",
     is_verified: true,
-    roles: [
-      {
-        role_id: new mongoose.Types.ObjectId(),
-        role_name: "contestant",
-      },
-    ],
   });
   await newUser.save();
+
+  // assign default role "contestant"
+  let contestantRole = await Role.findOne({ role_name: "contestant" });
+  if (!contestantRole) {
+    contestantRole = new Role({ role_name: "contestant" });
+    await contestantRole.save();
+  }
+  await UserRole.create({ user_id: newUser._id, role_id: contestantRole._id });
+
   return newUser;
 };
 
@@ -171,4 +204,98 @@ export const refreshAccessToken = async (token) => {
   }
 
   return generateAccessToken(user._id);
+};
+
+// ─── Email Verification ─────────────────────────────────────────────────────
+
+/**
+ * Admin gửi mã xác nhận email cho user (contestant)
+ * @param {string} userId - ID của user cần xác nhận
+ * @returns {Object} { success: true }
+ * @throws {Error} nếu user không tồn tại hoặc email service lỗi
+ */
+export const sendVerificationCodeToUser = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    const err = new Error("Người dùng không tồn tại");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (user.is_verified) {
+    const err = new Error("Email của user này đã được xác thực");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Generate verification code
+  const verificationCode = generateVerificationCode();
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+  // Save code to database
+  user.verification_code = verificationCode;
+  user.verification_code_expires_at = expiresAt;
+  await user.save();
+
+  // Send email
+  await sendVerificationEmail(user.email, user.full_name, verificationCode);
+
+  return {
+    success: true,
+    message: "Mã xác thực đã được gửi tới email của user",
+  };
+};
+
+/**
+ * Contestant xác nhận email bằng mã xác thực
+ * @param {string} userId - ID của user
+ * @param {string} verificationCode - mã xác thực 6 chữ số
+ * @returns {Object} user document
+ * @throws {Error} nếu mã không hợp lệ hoặc hết hạn
+ */
+export const verifyUserEmail = async (userId, verificationCode) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    const err = new Error("Người dùng không tồn tại");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (user.is_verified) {
+    const err = new Error("Email của user này đã được xác thực");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check if code exists
+  if (!user.verification_code) {
+    const err = new Error("Chưa có mã xác thực nào được gửi");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check if code is expired
+  if (new Date() > user.verification_code_expires_at) {
+    const err = new Error("Mã xác thực đã hết hạn");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check if code matches
+  if (user.verification_code !== verificationCode) {
+    const err = new Error("Mã xác thực không đúng");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Mark email as verified
+  user.is_verified = true;
+  user.verification_code = null;
+  user.verification_code_expires_at = null;
+  await user.save();
+
+  // Return user without password hash
+  const verifiedUser = user.toObject();
+  delete verifiedUser.password_hash;
+  return verifiedUser;
 };

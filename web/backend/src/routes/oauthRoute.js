@@ -30,14 +30,24 @@ const handleOAuthCallback = (req, res) => {
   res.redirect(`${CLIENT_URL}/oauth-callback?token=${accessToken}`);
 };
 
+// Helper: returns middleware that blocks the route if the OAuth strategy isn't configured
+const requireStrategy = (name) => (req, res, next) => {
+  if (!passport._strategy(name)) {
+    return res.status(501).json({ message: `${name} login is not configured on this server` });
+  }
+  next();
+};
+
 // ─── Google ──────────────────────────────────────────────────────────────────
 router.get(
   "/google",
+  requireStrategy("google"),
   passport.authenticate("google", { session: false, scope: ["profile", "email"] })
 );
 
 router.get(
   "/google/callback",
+  requireStrategy("google"),
   passport.authenticate("google", {
     session: false,
     failureRedirect: `${CLIENT_URL}/login?error=google_failed`,
@@ -48,11 +58,13 @@ router.get(
 // ─── GitHub ──────────────────────────────────────────────────────────────────
 router.get(
   "/github",
+  requireStrategy("github"),
   passport.authenticate("github", { session: false, scope: ["user:email"] })
 );
 
 router.get(
   "/github/callback",
+  requireStrategy("github"),
   passport.authenticate("github", {
     session: false,
     failureRedirect: `${CLIENT_URL}/login?error=github_failed`,

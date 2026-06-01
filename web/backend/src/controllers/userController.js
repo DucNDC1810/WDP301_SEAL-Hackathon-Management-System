@@ -2,6 +2,7 @@ import {
   getAllUsers as getAllUsersService,
   assignRoleToUser,
   removeRoleFromUser,
+  updateGithubInfo as updateGithubInfoService,
 } from "../services/userService.js";
 
 // ─── getMe ──────────────────────────────────────────────────────────────────
@@ -87,6 +88,29 @@ export const removeRole = async (req, res) => {
     });
   } catch (error) {
     console.error("[removeRole]", error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── updateGithub ────────────────────────────────────────────────────────────
+
+/**
+ * PUT /api/users/me/github
+ */
+export const updateGithub = async (req, res) => {
+  try {
+    const { github_username, github_link } = req.body;
+    const result = await updateGithubInfoService(req.user._id, github_username, github_link);
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật thông tin GitHub thành công",
+      data: result,
+    });
+  } catch (error) {
+    console.error("[updateGithub]", error);
     res
       .status(error.statusCode || 500)
       .json({ success: false, message: error.message || "Lỗi máy chủ" });

@@ -17,8 +17,7 @@ const resourceSchema = new mongoose.Schema(
       enum: ["drive", "github", "doc", "other"],
       default: "other",
     },
-  },
-  { _id: false }
+  }
 );
 
 const topicSchema = new mongoose.Schema(

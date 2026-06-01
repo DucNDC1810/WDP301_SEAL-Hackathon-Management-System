@@ -7,6 +7,11 @@ import OAuthCallback from './pages/oauth-callback/OAuthCallback';
 import ContestFormPage from './pages/admin/contest/ContestFormPage';
 import TopicManagerPage from './pages/admin/topic/TopicManagerPage';
 import TeamDashboardPage from './pages/admin/team/TeamDashboardPage';
+import MentorDashboardPage from './pages/mentor/MentorDashboardPage';
+import ScoreFormPage from './pages/mentor/ScoreFormPage';
+import LeaderboardPage from './pages/leaderboard/LeaderboardPage';
+import ContestHistoryPage from './pages/history/ContestHistoryPage';
+import AppealsPage from './pages/appeals/AppealsPage';
 
 import './App.css';
 
@@ -29,6 +34,11 @@ function App() {
                 <Route path="/admin/contest/create" element={<ContestFormPage />} />
                 <Route path="/admin/contests/:contestId/topics" element={<TopicManagerPage />} />
                 <Route path="/admin/contests/:contestId/dashboard" element={<TeamDashboardPage />} />
+                <Route path="/mentor/contests/:contestId/rounds/:roundId" element={<MentorDashboardPage />} />
+                <Route path="/mentor/score/:scoreId" element={<ScoreFormPage />} />
+                <Route path="/leaderboard/:contestId/:roundId" element={<LeaderboardPage />} />
+                <Route path="/history" element={<ContestHistoryPage />} />
+                <Route path="/appeals/:contestId" element={<AppealsPage />} />
               </Routes>
               <Footer />
             </>

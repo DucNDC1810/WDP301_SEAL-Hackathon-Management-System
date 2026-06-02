@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import './LoginPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -11,6 +12,7 @@ const OAUTH_ERRORS = {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -48,10 +50,11 @@ function LoginPage() {
         return;
       }
 
-      // save token & user
-      localStorage.setItem('accessToken', data.data.accessToken);
-      localStorage.setItem('user', JSON.stringify(data.data));
-      navigate('/');
+      // save token & user via AuthContext
+      login(data.data);
+
+      const isAdmin = data.data.roles?.some((r) => r.role_name === 'admin');
+      navigate(isAdmin ? '/admin/dashboard' : '/');
     } catch {
       setError('Không thể kết nối đến server');
     } finally {

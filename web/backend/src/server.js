@@ -6,6 +6,10 @@ import cors from "cors";
 import authRoute from "./routes/authRoute.js";
 import userRoute from "./routes/userRoute.js";
 import oauthRoute from "./routes/oauthRoute.js";
+import contestRoute from "./routes/contestRoute.js";
+import topicRoute from "./routes/topicRoute.js";
+import teamRoute from "./routes/teamRoute.js";
+import poolRoute from "./routes/poolRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 
@@ -30,6 +34,10 @@ app.use("/api/auth", oauthRoute);
 
 // ─── private routes ─────────────────────────────────────────────────────────
 app.use("/api/users", userRoute);
+app.use("/api/contests", contestRoute);
+app.use("/api/topics", topicRoute);
+app.use("/api/teams", teamRoute);
+app.use("/api/pools", poolRoute);
 
 // ─── start server ───────────────────────────────────────────────────────────
 connectDB().then(() => {

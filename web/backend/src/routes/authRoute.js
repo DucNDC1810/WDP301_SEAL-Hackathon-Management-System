@@ -4,7 +4,9 @@ import {
   signIn,
   signOut,
   refresh,
+  getMe,
 } from "../controllers/authController.js";
+import { authenticate } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -19,5 +21,8 @@ router.post("/signout", signOut);
 
 // POST /api/auth/refresh  — làm mới access token
 router.post("/refresh", refresh);
+
+// GET /api/auth/me        — thông tin user hiện tại
+router.get("/me", authenticate, getMe);
 
 export default router;

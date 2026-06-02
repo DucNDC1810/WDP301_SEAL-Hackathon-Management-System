@@ -61,10 +61,12 @@ export default function AdminLayout() {
               </div>
             )}
           </div>
-          <button className="al-toggle" onClick={() => setCollapsed(v => !v)}>
-            <Ico d={collapsed ? CR : CL} size={13} sw={2.5} />
-          </button>
         </div>
+
+        {/* Toggle — absolute trên cạnh phải sidebar */}
+        <button className="al-toggle" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}>
+          <Ico d={collapsed ? CR : CL} size={13} sw={2.5} />
+        </button>
 
         <nav className="al-nav">
           {NAV.map(({ key, label, path, d }) => (

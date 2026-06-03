@@ -22,6 +22,7 @@ import ScoreFormPage from './pages/mentor/ScoreFormPage';
 import LeaderboardPage from './pages/leaderboard/LeaderboardPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
+import TeamVerifyPage from './pages/team-verify/TeamVerifyPage';
 
 import './App.css';
 
@@ -34,6 +35,7 @@ function App() {
           {/* Auth pages */}
           <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
           <Route path="/oauth-callback" element={<OAuthCallback />} />
+          <Route path="/team-verify" element={<TeamVerifyPage />} />
 
           {/* Admin layout — sidebar persists across all /admin/* pages */}
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>

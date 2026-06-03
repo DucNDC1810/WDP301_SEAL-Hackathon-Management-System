@@ -3,7 +3,7 @@
 .contest-list-page {
   position: relative;
   min-height: 100vh;
-  background: #060b16;
+  background: var(--al-bg);
   padding: 120px 0 80px; /* Offset for floating navbar */
   overflow: hidden;
 }
@@ -15,7 +15,7 @@
   left: 5%;
   width: 450px;
   height: 450px;
-  background: radial-gradient(circle, rgba(0, 240, 255, 0.1) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--cyan-glow) 0%, transparent 70%);
   z-index: 1;
   pointer-events: none;
   filter: blur(80px);
@@ -63,23 +63,23 @@
   font-size: 2.2rem;
   font-weight: 700;
   letter-spacing: 0.5px;
-  background: linear-gradient(135deg, #00d4ff, #a855f7);
+  background: linear-gradient(135deg, var(--cyan), #a855f7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+  text-shadow: 0 0 30px var(--cyan-glow);
   margin-bottom: 8px;
 }
 
 .contest-list-subtitle {
-  color: #3a5068;
+  color: var(--al-text-muted);
   font-size: 1rem;
 }
 
 /* Table styling override for Ant Design Table integration with background */
 .contest-list-table-wrapper {
-  background: #0b1120;
-  border: 1px solid #162036;
+  background: var(--al-sidebar-bg);
+  border: 1px solid var(--al-border);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   padding: 16px;
@@ -87,7 +87,7 @@
 }
 
 .cell-title {
-  color: #c9d6e8;
+  color: var(--al-text);
   font-size: 1.05rem;
 }
 

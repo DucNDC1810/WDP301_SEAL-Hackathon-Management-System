@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfigProvider, theme, Table, Button, Tag, Spin, Alert, Empty, Space, Select, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import { useTheme } from '../../../context/ThemeContext';
 import './ContestListPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 function ContestListPage() {
   const navigate = useNavigate();
+  const { theme: appTheme } = useTheme();
   const [contests, setContests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -178,20 +180,20 @@ function ContestListPage() {
   return (
     <ConfigProvider
       theme={{
-        algorithm: theme.darkAlgorithm,
+        algorithm: appTheme === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#00d4ff',
-          colorBgBase: '#060b16',
-          colorBgContainer: '#0b1120',
-          colorBorder: '#162036',
-          colorText: '#c9d6e8',
-          colorTextDescription: '#3a5068',
+          colorPrimary: appTheme === 'dark' ? '#00d4ff' : '#0098b5',
+          colorBgBase: appTheme === 'dark' ? '#060b16' : '#f0f4f8',
+          colorBgContainer: appTheme === 'dark' ? '#0b1120' : '#ffffff',
+          colorBorder: appTheme === 'dark' ? '#162036' : '#e2e8f0',
+          colorText: appTheme === 'dark' ? '#c9d6e8' : '#1e293b',
+          colorTextDescription: appTheme === 'dark' ? '#3a5068' : '#94a3b8',
         },
         components: {
           Table: {
-            headerBg: 'rgba(10, 14, 23, 0.6)',
-            headerColor: '#3a5068',
-            rowHoverBg: 'rgba(0, 212, 255, 0.03)',
+            headerBg: appTheme === 'dark' ? 'rgba(10, 14, 23, 0.6)' : 'rgba(226, 232, 240, 0.6)',
+            headerColor: appTheme === 'dark' ? '#3a5068' : '#64748b',
+            rowHoverBg: appTheme === 'dark' ? 'rgba(0, 212, 255, 0.03)' : 'rgba(0, 152, 181, 0.03)',
           },
         },
       }}

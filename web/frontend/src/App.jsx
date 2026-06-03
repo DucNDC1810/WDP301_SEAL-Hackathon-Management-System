@@ -9,6 +9,7 @@ import LoginPage from './pages/login/LoginPage';
 import OAuthCallback from './pages/oauth-callback/OAuthCallback';
 import AdminDashboard from './pages/admin/dashboard/AdminDashboard';
 import ContestFormPage from './pages/admin/contest/ContestFormPage';
+import ContestListPage from './pages/admin/contest/ContestListPage';
 import TopicManagerPage from './pages/admin/topic/TopicManagerPage';
 import TeamDashboardPage from './pages/admin/team/TeamDashboardPage';
 import TeamRegistrationPage from './pages/admin/team-registration/TeamRegistrationPage';
@@ -31,6 +32,8 @@ function App() {
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route path="dashboard"                       element={<AdminDashboard />} />
             <Route path="contest/create"                  element={<ContestFormPage />} />
+            <Route path="contests"                        element={<ContestListPage />} />
+            <Route path="contests/create"                  element={<ContestFormPage />} />
             <Route path="contests/:contestId/topics"      element={<TopicManagerPage />} />
             <Route path="contests/:contestId/dashboard"   element={<TeamDashboardPage />} />
             <Route path="team"                            element={<TeamRegistrationPage />} />

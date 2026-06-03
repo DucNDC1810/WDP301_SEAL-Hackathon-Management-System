@@ -1,0 +1,119 @@
+/* ===== Contest List Page Styling ===== */
+
+.contest-list-page {
+  position: relative;
+  min-height: 100vh;
+  background: #060b16;
+  padding: 120px 0 80px; /* Offset for floating navbar */
+  overflow: hidden;
+}
+
+/* Background Glowing Orb */
+.contest-list-page__glow {
+  position: absolute;
+  top: 10%;
+  left: 5%;
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.1) 0%, transparent 70%);
+  z-index: 1;
+  pointer-events: none;
+  filter: blur(80px);
+  animation: pulse-glow-left 10s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-glow-left {
+  0% {
+    transform: scale(1) translate(0, 0);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.15) translate(-20px, 30px);
+    opacity: 0.7;
+  }
+}
+
+.contest-list-container {
+  position: relative;
+  z-index: 2;
+}
+
+/* Header */
+.contest-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  gap: 20px;
+  animation: fade-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (max-width: 576px) {
+  .contest-list-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  #btn-create-contest {
+    width: 100%;
+  }
+}
+
+.contest-list-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #00d4ff, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+  margin-bottom: 8px;
+}
+
+.contest-list-subtitle {
+  color: #3a5068;
+  font-size: 1rem;
+}
+
+/* Table styling override for Ant Design Table integration with background */
+.contest-list-table-wrapper {
+  background: #0b1120;
+  border: 1px solid #162036;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  animation: scale-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.cell-title {
+  color: #c9d6e8;
+  font-size: 1.05rem;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+/* Animations */
+@keyframes fade-down {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scale-up {
+  from {
+    transform: scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

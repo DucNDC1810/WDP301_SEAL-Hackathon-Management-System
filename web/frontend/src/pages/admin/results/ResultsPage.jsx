@@ -61,7 +61,7 @@ export default function ResultsPage() {
         `${API_URL}/api/rankings/contests/${contestId}/rounds/${roundId || 'latest'}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       if (rankRes.ok) {
         const rankings = await rankRes.json();
         const leaderboard = (Array.isArray(rankings) ? rankings : rankings.data || [])
@@ -72,17 +72,17 @@ export default function ResultsPage() {
             score: r.final_score || 0,
             category: r.category || 'General',
           }));
-        
+
         setData(prev => ({ ...prev, leaderboard }));
-        
+
         // Calculate metrics from rankings
         if (Array.isArray(rankings) || rankings.data) {
           const allRankings = Array.isArray(rankings) ? rankings : rankings.data || [];
           const scores = allRankings.map(r => r.final_score || 0);
-          const avgScore = scores.length > 0 
+          const avgScore = scores.length > 0
             ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
             : 78.4;
-          
+
           setData(prev => ({
             ...prev,
             metrics: {
@@ -91,7 +91,7 @@ export default function ResultsPage() {
               avgScore: parseFloat(avgScore),
             }
           }));
-          
+
           // Generate score distribution
           const distribution = [
             { range: '90-100', count: scores.filter(s => s >= 90).length },
@@ -109,7 +109,7 @@ export default function ResultsPage() {
         `${API_URL}/api/scores/contests/${contestId}/progress/${roundId || 'latest'}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       if (scoresRes.ok) {
         const scores = await scoresRes.json();
         // Calculate completion rate
@@ -268,7 +268,7 @@ export default function ResultsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="#162036" />
               <XAxis dataKey="range" stroke="#7f9bb3" />
               <YAxis stroke="#7f9bb3" />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ backgroundColor: '#081223', border: '1px solid #162036', borderRadius: '8px' }}
                 labelStyle={{ color: '#00d4ff' }}
               />
@@ -308,7 +308,7 @@ export default function ResultsPage() {
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ backgroundColor: '#081223', border: '1px solid #162036', borderRadius: '8px' }}
                     labelStyle={{ color: '#00d4ff' }}
                   />
@@ -330,8 +330,8 @@ export default function ResultsPage() {
                 <p className="judge-name">{judge.name}</p>
                 <div className="judge-bar-container">
                   <div className="judge-bar">
-                    <div 
-                      className="judge-progress" 
+                    <div
+                      className="judge-progress"
                       style={{ width: `${(judge.value / judge.total) * 100}%` }}
                     ></div>
                   </div>
@@ -352,14 +352,14 @@ export default function ResultsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="#162036" />
               <XAxis dataKey="day" stroke="#7f9bb3" />
               <YAxis stroke="#7f9bb3" />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ backgroundColor: '#081223', border: '1px solid #162036', borderRadius: '8px' }}
                 labelStyle={{ color: '#00d4ff' }}
               />
-              <Line 
-                type="monotone" 
-                dataKey="submissions" 
-                stroke="#00d4ff" 
+              <Line
+                type="monotone"
+                dataKey="submissions"
+                stroke="#00d4ff"
                 dot={{ fill: '#00d4ff', r: 4 }}
                 strokeWidth={2}
               />

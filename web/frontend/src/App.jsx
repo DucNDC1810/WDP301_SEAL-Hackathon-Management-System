@@ -33,49 +33,49 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-        <Routes>
-          {/* Auth pages */}
-          <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
-          <Route path="/oauth-callback" element={<OAuthCallback />} />
-          <Route path="/team-verify" element={<TeamVerifyPage />} />
+          <Routes>
+            {/* Auth pages */}
+            <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+            <Route path="/oauth-callback" element={<OAuthCallback />} />
+            <Route path="/team-verify" element={<TeamVerifyPage />} />
 
-          {/* Admin layout — sidebar persists across all /admin/* pages */}
-          <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="contest/create" element={<ContestFormPage />} />
-            <Route path="contests" element={<ContestListPage />} />
-            <Route path="contests/create" element={<ContestFormPage />} />
-            <Route path="contests/:contestId/topics" element={<TopicManagerPage />} />
-            <Route path="contests/:contestId/dashboard" element={<TeamDashboardPage />} />
-            <Route path="team" element={<TeamRegistrationPage />} />
-            <Route path="ai-assistant" element={<AIAssistantPage />} />
-            <Route path="results" element={<ResultsPage />} />
-            <Route path="hackathons" element={<HackathonListPage />} />
-            <Route path="hackathons/:id" element={<HackathonDetailPage />} />
-            <Route path="users" element={<UserManagementPage />} />
-          </Route>
+            {/* Admin layout — sidebar persists across all /admin/* pages */}
+            <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="contest/create" element={<ContestFormPage />} />
+              <Route path="contests" element={<ContestListPage />} />
+              <Route path="contests/create" element={<ContestFormPage />} />
+              <Route path="contests/:contestId/topics" element={<TopicManagerPage />} />
+              <Route path="contests/:contestId/dashboard" element={<TeamDashboardPage />} />
+              <Route path="team" element={<TeamRegistrationPage />} />
+              <Route path="ai-assistant" element={<AIAssistantPage />} />
+              <Route path="results" element={<ResultsPage />} />
+              <Route path="hackathons" element={<HackathonListPage />} />
+              <Route path="hackathons/:id" element={<HackathonDetailPage />} />
+              <Route path="users" element={<UserManagementPage />} />
+            </Route>
 
-          {/* Public layout with navbar + footer */}
-          <Route
-            path="/*"
-            element={
-              <>
-                <Navbar />
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/mentor/contests/:contestId/rounds/:roundId" element={<MentorDashboardPage />} />
-                  <Route path="/mentor/score/:scoreId" element={<ScoreFormPage />} />
-                  <Route path="/leaderboard/:contestId/:roundId" element={<LeaderboardPage />} />
-                  <Route path="/history" element={<ContestHistoryPage />} />
-                  <Route path="/appeals/:contestId" element={<AppealsPage />} />
-                </Routes>
-                <Footer />
-              </>
-            }
-          />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            {/* Public layout with navbar + footer */}
+            <Route
+              path="/*"
+              element={
+                <>
+                  <Navbar />
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/mentor/contests/:contestId/rounds/:roundId" element={<MentorDashboardPage />} />
+                    <Route path="/mentor/score/:scoreId" element={<ScoreFormPage />} />
+                    <Route path="/leaderboard/:contestId/:roundId" element={<LeaderboardPage />} />
+                    <Route path="/history" element={<ContestHistoryPage />} />
+                    <Route path="/appeals/:contestId" element={<AppealsPage />} />
+                  </Routes>
+                  <Footer />
+                </>
+              }
+            />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

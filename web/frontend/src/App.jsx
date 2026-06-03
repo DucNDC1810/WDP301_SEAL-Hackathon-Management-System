@@ -37,6 +37,8 @@ function App() {
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route path="dashboard"                     element={<AdminDashboard />} />
             <Route path="contest/create"                element={<ContestFormPage />} />
+            <Route path="contests"                      element={<ContestListPage />} />
+            <Route path="contests/create"               element={<ContestFormPage />} />
             <Route path="contests/:contestId/topics"    element={<TopicManagerPage />} />
             <Route path="contests/:contestId/dashboard" element={<TeamDashboardPage />} />
             <Route path="team"                          element={<TeamRegistrationPage />} />

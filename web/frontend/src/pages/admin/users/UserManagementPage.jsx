@@ -27,18 +27,26 @@ const ROLES = ['admin','mentor','contestant'];
 export default function UserManagementPage() {
   const [users,  setUsers]  = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error,  setError]  = useState('');
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
-  const [addingRole, setAddingRole] = useState(null);   // userId
+  const [addingRole, setAddingRole] = useState(null);
   const [newRole, setNewRole] = useState('contestant');
   const [saving, setSaving] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
+    setError('');
     try {
       const r = await fetch(`${API_URL}/api/users`, { headers: hdrs() });
       const d = await r.json();
-      if (d.success) setUsers(d.data || []);
+      if (d.success) {
+        setUsers(d.data || []);
+      } else {
+        setError(d.message || 'Không thể tải danh sách users');
+      }
+    } catch {
+      setError('Không thể kết nối đến server');
     } finally { setLoading(false); }
   };
 
@@ -89,9 +97,20 @@ export default function UserManagementPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="um-error">
+          ⚠ {error}
+          {error.includes('token') || error.includes('xác thực') || error.includes('access') ? (
+            <span> — <a href="/login">Đăng nhập lại</a></span>
+          ) : (
+            <button onClick={fetchUsers} className="um-retry-btn">Thử lại</button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="um-loading"><div className="um-spinner"/><span>Đang tải...</span></div>
-      ) : (
+      ) : error ? null : (
         <div className="um-table-wrap">
           <table className="um-table">
             <thead>

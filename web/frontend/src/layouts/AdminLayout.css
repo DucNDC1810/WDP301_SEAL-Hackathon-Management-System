@@ -17,6 +17,7 @@
   --al-user-bg: #0f1827;
   --al-logout-hover-bg: #1a1020;
   --al-logout-hover-text: #ff6b6b;
+  --bg-nest-item: #0c1524;
 }
 
 [data-theme="light"] .al-root {
@@ -37,6 +38,7 @@
   --al-user-bg: #f8fafc;
   --al-logout-hover-bg: #fff1f2;
   --al-logout-hover-text: #ef4444;
+  --bg-nest-item: #ffffff;
 }
 
 .al-root {

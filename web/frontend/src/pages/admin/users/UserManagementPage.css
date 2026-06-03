@@ -1,4 +1,7 @@
-.um-page { padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+.um-page { padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; background: var(--pg-bg, #060b16); min-height: 100vh; }
+.um-error { padding: 12px 16px; background: #2a0c0c; border: 1px solid #f8717128; border-radius: 8px; color: #f87171; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+.um-error a { color: #f87171; font-weight: 700; }
+.um-retry-btn { background: #f8717118; border: 1px solid #f8717140; border-radius: 5px; color: #f87171; padding: 3px 10px; font-size: 0.78rem; cursor: pointer; margin-left: 4px; }
 .um-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .um-title { margin: 0 0 4px; font-size: 1.5rem; font-weight: 800; background: linear-gradient(90deg,#00d4ff,#7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 .um-subtitle { margin: 0; font-size: 0.85rem; color: #4a6080; }

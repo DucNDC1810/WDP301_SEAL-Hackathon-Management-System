@@ -9,6 +9,7 @@ import LoginPage from './pages/login/LoginPage';
 import OAuthCallback from './pages/oauth-callback/OAuthCallback';
 import AdminDashboard from './pages/admin/dashboard/AdminDashboard';
 import ContestFormPage from './pages/admin/contest/ContestFormPage';
+import ContestListPage from './pages/admin/contest/ContestListPage';
 import TopicManagerPage from './pages/admin/topic/TopicManagerPage';
 import TeamDashboardPage from './pages/admin/team/TeamDashboardPage';
 import TeamRegistrationPage from './pages/admin/team-registration/TeamRegistrationPage';

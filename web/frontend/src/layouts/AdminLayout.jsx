@@ -24,7 +24,7 @@ const LOGOUT = ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4','M16 17l5-5-5-5','M21 
 
 const NAV = [
   { key: 'dashboard',  label: 'Dashboard',        path: '/admin/dashboard',        d: GRID  },
-  { key: 'admin',      label: 'Admin Panel',       path: '/admin/contest/create',   d: GEAR  },
+  { key: 'admin',      label: 'Contest Setup',     path: '/admin/contests',         d: GEAR  },
   { key: 'ai',         label: 'AI Assistant',      path: '/admin/ai-assistant',     d: BRAIN },
   { key: 'team',       label: 'Team Registration', path: '/admin/team',             d: USER  },
   { key: 'insights',   label: 'AI Insights',       path: '/admin/ai-insights',      d: ZAP   },

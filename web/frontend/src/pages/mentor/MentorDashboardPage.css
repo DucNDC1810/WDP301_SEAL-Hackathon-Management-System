@@ -1,0 +1,13 @@
+.mentor-dashboard {
+  max-width: 960px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+.mentor-dashboard__progress {
+  margin-bottom: 24px;
+}
+.mentor-dashboard__progress span {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}

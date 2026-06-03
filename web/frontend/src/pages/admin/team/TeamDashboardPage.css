@@ -300,7 +300,7 @@
 .team-table th {
   color: var(--text-secondary);
   font-weight: 600;
-  background: rgba(17, 24, 39, 0.5);
+  background: var(--bg-header);
   border-bottom: 1px solid var(--border);
 }
 
@@ -309,7 +309,7 @@
 }
 
 .team-row-main:hover {
-  background: rgba(0, 240, 255, 0.02);
+  background: var(--bg-row-hover);
 }
 
 .team-row-main--expanded {
@@ -396,7 +396,7 @@
 
 /* Nested Members List Row */
 .team-row-detail {
-  background: rgba(10, 14, 23, 0.6);
+  background: var(--bg-nest);
 }
 
 .team-row-detail td {
@@ -423,7 +423,7 @@
 }
 
 .member-detail-card {
-  background: rgba(10, 14, 23, 0.4);
+  background: var(--bg-nest-item);
   border: 1px solid rgba(168, 85, 247, 0.1);
   border-radius: 8px;
   padding: 16px;
@@ -542,7 +542,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(17, 24, 39, 0.8);
+  background-color: var(--bg-nest);
   border: 1px solid var(--border);
   transition: .4s;
 }
@@ -581,8 +581,8 @@ input:checked + .slider:before {
 .btn-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(10, 14, 23, 0.3);
-  border-top-color: #0a0e17;
+  border: 2px solid var(--border);
+  border-top-color: var(--cyan);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -647,7 +647,7 @@ input:checked + .slider:before {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: rgba(17, 24, 39, 0.5);
+  background: var(--bg-header);
   border-bottom: 1px solid var(--border);
 }
 
@@ -687,7 +687,7 @@ input:checked + .slider:before {
 
 .pool-card__topic--none {
   padding: 12px 20px;
-  background: rgba(10, 14, 23, 0.2);
+  background: var(--bg-primary);
   border-bottom: 1px dashed var(--border);
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -708,8 +708,8 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(10, 14, 23, 0.4);
-  border: 1px solid rgba(0, 240, 255, 0.03);
+  background: var(--bg-nest-item);
+  border: 1px solid var(--border);
   padding: 10px 14px;
   border-radius: 8px;
 }

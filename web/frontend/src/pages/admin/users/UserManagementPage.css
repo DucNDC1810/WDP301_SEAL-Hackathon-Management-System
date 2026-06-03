@@ -1,0 +1,43 @@
+.um-page { padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+.um-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.um-title { margin: 0 0 4px; font-size: 1.5rem; font-weight: 800; background: linear-gradient(90deg,#00d4ff,#7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.um-subtitle { margin: 0; font-size: 0.85rem; color: #4a6080; }
+.um-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.um-search-wrap { display: flex; align-items: center; gap: 8px; background: #0c1524; border: 1px solid #162036; border-radius: 8px; padding: 8px 14px; color: #4a6080; flex: 1; min-width: 220px; }
+.um-search { background: none; border: none; outline: none; color: #c9d6e8; font-size: 0.85rem; width: 100%; }
+.um-search::placeholder { color: #2a4060; }
+.um-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.um-filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid #162036; background: transparent; color: #4a6080; font-size: 0.78rem; cursor: pointer; transition: all .15s; }
+.um-filter-btn:hover { border-color: #00d4ff44; color: #00d4ff; }
+.um-filter-btn.active { background: #00d4ff18; color: #00d4ff; border-color: #00d4ff44; }
+.um-loading { display: flex; align-items: center; gap: 10px; padding: 40px; color: #4a6080; }
+.um-spinner { width: 18px; height: 18px; border: 2px solid #162036; border-top-color: #00d4ff; border-radius: 50%; animation: um-spin .7s linear infinite; }
+@keyframes um-spin { to { transform: rotate(360deg); } }
+.um-table-wrap { background: #0c1524; border: 1px solid #162036; border-radius: 12px; overflow: hidden; }
+.um-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+.um-table thead tr { background: #0a1220; border-bottom: 1px solid #162036; }
+.um-table th { padding: 12px 16px; text-align: left; font-size: 0.72rem; font-weight: 700; color: #3a5068; text-transform: uppercase; letter-spacing: .5px; }
+.um-row { border-bottom: 1px solid #0f1a2e; transition: background .15s; }
+.um-row:last-child { border-bottom: none; }
+.um-row:hover { background: #0f1e30; }
+.um-table td { padding: 12px 16px; vertical-align: middle; }
+.um-col-name { display: flex; align-items: center; gap: 10px; }
+.um-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#00d4ff,#7c3aed); color: #fff; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.um-col-email { color: #6a88a8; font-size: 0.8rem; }
+.um-col-date  { color: #3a5068; font-size: 0.78rem; }
+.um-roles-wrap { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.um-role { display: flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; }
+.um-role--red   { background: #2a0c0c; color: #f87171; border: 1px solid #f8717128; }
+.um-role--blue  { background: #0c1e38; color: #00d4ff; border: 1px solid #00d4ff28; }
+.um-role--green { background: #0c2a1a; color: #22c55e; border: 1px solid #22c55e28; }
+.um-role-del { background: none; border: none; color: inherit; cursor: pointer; padding: 0; opacity: .6; font-size: 0.75rem; line-height: 1; transition: opacity .15s; }
+.um-role-del:hover { opacity: 1; }
+.um-role-add-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px dashed #2a4060; background: transparent; color: #3a5068; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.um-role-add-btn:hover { border-color: #00d4ff; color: #00d4ff; }
+.um-role-adder { display: flex; align-items: center; gap: 4px; }
+.um-role-select { background: #080e1a; border: 1px solid #162036; border-radius: 5px; padding: 3px 6px; color: #c9d6e8; font-size: 0.76rem; outline: none; cursor: pointer; }
+.um-role-confirm { padding: 3px 8px; border-radius: 5px; border: none; background: #00d4ff22; color: #00d4ff; font-size: 0.76rem; cursor: pointer; }
+.um-role-cancel  { padding: 3px 8px; border-radius: 5px; border: none; background: #2a1a1a; color: #f87171; font-size: 0.76rem; cursor: pointer; }
+.um-verified     { font-size: 0.75rem; font-weight: 600; }
+.um-verified--yes { color: #22c55e; }
+.um-verified--no  { color: #f87171; }

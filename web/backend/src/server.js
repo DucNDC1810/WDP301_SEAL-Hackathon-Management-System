@@ -18,6 +18,7 @@ import appealRoute from "./routes/appealRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
+import { autoCloseContests } from "./jobs/autoCloseContests.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -46,5 +47,13 @@ app.use("/api/appeals", appealRoute);
 initSocket(httpServer);
 
 connectDB().then(() => {
-  httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  httpServer.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+
+  // Chạy auto close ngay khi khởi động
+  autoCloseContests();
+
+  // Chạy mỗi 5 phút
+  setInterval(autoCloseContests, 5 * 60 * 1000);
 });

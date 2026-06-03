@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './Navbar.css';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, isAdmin, logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,12 +52,37 @@ function Navbar() {
         </ul>
 
         <div className="navbar__actions">
-          <Link to="/login" className="navbar__btn navbar__btn--ghost" id="btn-signin">
-            Đăng Nhập
-          </Link>
-          <Link to="/signup" className="navbar__btn navbar__btn--primary" id="btn-signup">
-            Đăng Ký
-          </Link>
+          {user ? (
+            <>
+              <button
+                className="navbar__btn navbar__btn--ghost"
+                onClick={() => navigate(isAdmin ? '/admin/dashboard' : '/')}
+                id="btn-dashboard"
+              >
+                {isAdmin ? 'Dashboard' : 'Trang Chủ'}
+              </button>
+              <button
+                className="navbar__btn navbar__btn--primary"
+                onClick={async () => {
+                  await fetch(`${API_URL}/api/auth/signout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+                  logout();
+                  navigate('/login');
+                }}
+                id="btn-signout"
+              >
+                Đăng Xuất
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="navbar__btn navbar__btn--ghost" id="btn-signin">
+                Đăng Nhập
+              </Link>
+              <Link to="/signup" className="navbar__btn navbar__btn--primary" id="btn-signup">
+                Đăng Ký
+              </Link>
+            </>
+          )}
         </div>
 
         <button

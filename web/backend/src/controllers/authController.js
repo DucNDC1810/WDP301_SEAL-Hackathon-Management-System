@@ -111,6 +111,15 @@ export const signOut = async (req, res) => {
   }
 };
 
+// ─── me ─────────────────────────────────────────────────────────────────────
+
+export const getMe = async (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: req.user,
+  });
+};
+
 // ─── refresh ────────────────────────────────────────────────────────────────
 
 export const refresh = async (req, res) => {

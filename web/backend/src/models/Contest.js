@@ -19,8 +19,7 @@ const criteriaSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-  },
-  { _id: false }
+  }
 );
 
 const roundSchema = new mongoose.Schema(

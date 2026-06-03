@@ -4,19 +4,30 @@ import Team from "../models/Team.js";
 import Contest from "../models/Contest.js";
 import User from "../models/User.js";
 
+const hashToken = (token) => 
+  crypto.createHash('sha256').update(token).digest('hex');
+
+let _transporter = null;
+const getTransporter = () => {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST || 'smtp.gmail.com',
+      port: Number(process.env.MAIL_PORT) || 587,
+      secure: Number(process.env.MAIL_PORT) === 465,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
+  }
+  return _transporter;
+};
+
 /**
  * Gửi email xác thực tham gia đội thi.
  */
 export const sendVerifyEmail = async (email, full_name, token) => {
-  const transporter = nodemailer.createTransport({
-    host: process.env.MAIL_HOST || "smtp.gmail.com",
-    port: Number(process.env.MAIL_PORT) || 587,
-    secure: Number(process.env.MAIL_PORT) === 465,
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  });
+  const transporter = getTransporter();
 
   const verifyUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/team-verify?token=${token}`;
 
@@ -87,6 +98,8 @@ export const createTeam = async (
 
   // 3. Xử lý danh sách thành viên và sinh token xác thực
   const processedMembers = [];
+  const rawTokenMap = new Map();
+
   for (const m of members) {
     const emailLower = m.email.toLowerCase();
     const isLeader = emailLower === leader.email.toLowerCase();
@@ -94,11 +107,16 @@ export const createTeam = async (
     // Tìm xem email này đã đăng ký tài khoản User chưa
     const memberUser = await User.findOne({ email: emailLower });
 
-    const verifyToken = isLeader ? null : crypto.randomUUID();
+    const rawToken = isLeader ? null : crypto.randomUUID();
+    const verifyToken = rawToken ? hashToken(rawToken) : null;
     const verifyTokenExpires = isLeader
       ? null
       : new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 giờ
     const emailVerified = isLeader;
+
+    if (rawToken) {
+      rawTokenMap.set(emailLower, rawToken);
+    }
 
     processedMembers.push({
       user_id: memberUser ? memberUser._id : null,
@@ -125,10 +143,11 @@ export const createTeam = async (
   for (const member of newTeam.members) {
     if (!member.email_verified && member.verify_token) {
       try {
+        const rawToken = rawTokenMap.get(member.email);
         await sendVerifyEmail(
           member.email,
           member.full_name,
-          member.verify_token
+          rawToken
         );
       } catch (mailError) {
         console.error(`[Mail Error] Gửi mail xác nhận tới ${member.email} thất bại:`, mailError);
@@ -151,11 +170,13 @@ export const createTeam = async (
  * Xác thực email của thành viên thông qua token.
  */
 export const verifyMemberEmail = async (token) => {
+  const hashedToken = hashToken(token);
+
   // Tìm team có member tương ứng và token chưa hết hạn
   const team = await Team.findOne({
     members: {
       $elemMatch: {
-        verify_token: token,
+        verify_token: hashedToken,
         verify_token_expires: { $gt: new Date() },
       },
     },
@@ -168,7 +189,7 @@ export const verifyMemberEmail = async (token) => {
   }
 
   // Cập nhật trạng thái verified của thành viên
-  const member = team.members.find((m) => m.verify_token === token);
+  const member = team.members.find((m) => m.verify_token === hashedToken);
   if (member) {
     member.email_verified = true;
     member.verify_token = null;

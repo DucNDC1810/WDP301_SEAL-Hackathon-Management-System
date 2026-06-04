@@ -179,7 +179,7 @@
 .hl-card:hover {
   transform: translateY(-4px);
   border-color: var(--border-hover);
-  box-shadow: 0 10px 25px -5px rgba(0, 240, 255, 0.1), 0 8px 16px -6px rgba(168, 85, 247, 0.1);
+  box-shadow: 0 10px 25px -5px var(--cyan-dim), 0 8px 16px -6px var(--purple-dim);
 }
 
 .hl-card-banner-wrap {
@@ -300,8 +300,13 @@
 /* Card Footer Actions */
 .hl-card-footer {
   padding: 14px 20px;
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.02);
   border-top: 1px solid var(--border);
+}
+
+/* Dark theme specific adjustment for footer background */
+[data-theme="dark"] .hl-card-footer {
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .hl-actions {
@@ -317,7 +322,7 @@
   padding: 8px 16px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--bg-secondary);
   color: var(--text-secondary);
   font-size: 0.8rem;
   font-weight: 600;

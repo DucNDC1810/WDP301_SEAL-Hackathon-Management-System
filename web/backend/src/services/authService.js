@@ -7,7 +7,7 @@ import User from "../models/User.js";
 
 const generateAccessToken = (userId) =>
   jwt.sign({ id: userId }, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "7d",
   });
 
 const generateRefreshToken = (userId) =>

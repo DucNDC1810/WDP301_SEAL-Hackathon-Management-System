@@ -1,1 +1,2 @@
 /* App-level styles - minimal, layout handled by components */
+@import './styles/admin-theme.css';

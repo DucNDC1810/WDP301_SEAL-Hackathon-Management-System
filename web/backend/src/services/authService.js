@@ -308,7 +308,9 @@ export const refreshAccessToken = async (token) => {
     throw err;
   }
 
-  const user = await User.findById(payload.id).select("-password_hash");
+  const user = await User.findById(payload.id).select(
+    "-password_hash -verify_token -verify_token_expires -reset_token -reset_token_expires"
+  );
   if (!user) {
     const err = new Error("Người dùng không tồn tại");
     err.statusCode = 403;

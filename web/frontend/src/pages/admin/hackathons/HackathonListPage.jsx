@@ -20,13 +20,13 @@ const CAL    = ['M8 2v4','M16 2v4','M3 10h18','M21 8a2 2 0 0 0-2-2H5a2 2 0 0 0-2
 
 const STATUS_CFG = {
   draft:  { label: 'Draft',  cls: 'hl-badge--gray'   },
-  open:   { label: 'Open',   cls: 'hl-badge--green'  },
+  open:   { label: 'Ongoing',cls: 'hl-badge--green'  },
   closed: { label: 'Closed', cls: 'hl-badge--red'    },
 };
 
 function fmt(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('vi-VN');
+  return new Date(d).toLocaleDateString('vi-VN', { month: '2-digit', day: '2-digit', year: 'numeric' });
 }
 
 export default function HackathonListPage() {
@@ -58,6 +58,19 @@ export default function HackathonListPage() {
       const d = await r.json();
       if (d.success) setContests(prev => prev.filter(c => c._id !== id));
     } finally { setDeleting(null); }
+  };
+
+  // Helper to load customized config (banner, season, year) for each contest
+  const getCustomConfig = (contestId) => {
+    const saved = localStorage.getItem(`hackathon_config_${contestId}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
   };
 
   const filtered = contests.filter(c => {
@@ -97,45 +110,67 @@ export default function HackathonListPage() {
       ) : filtered.length === 0 ? (
         <div className="hl-empty">Không có cuộc thi nào.</div>
       ) : (
-        <div className="hl-table-wrap">
-          <table className="hl-table">
-            <thead>
-              <tr>
-                <th>Tên cuộc thi</th>
-                <th>Trạng thái</th>
-                <th>Hạn đăng ký</th>
-                <th>Bắt đầu</th>
-                <th>Kết thúc</th>
-                <th>Vòng thi</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(c => {
-                const st = STATUS_CFG[c.status] || STATUS_CFG.draft;
-                return (
-                  <tr key={c._id} className="hl-row">
-                    <td className="hl-col-name">
-                      <span className="hl-contest-name">{c.title}</span>
-                      {c.description && <span className="hl-contest-desc">{c.description.slice(0,60)}{c.description.length>60?'…':''}</span>}
-                    </td>
-                    <td><span className={`hl-badge ${st.cls}`}>{st.label}</span></td>
-                    <td className="hl-col-date"><Ico d={CAL} size={12} sw={2}/> {fmt(c.registration_deadline)}</td>
-                    <td className="hl-col-date">{fmt(c.start_date)}</td>
-                    <td className="hl-col-date">{fmt(c.end_date)}</td>
-                    <td className="hl-col-center">{c.rounds?.length || 0}</td>
-                    <td>
-                      <div className="hl-actions">
-                        <button className="hl-act-btn hl-act-btn--view"  title="Chi tiết" onClick={() => navigate(`/admin/hackathons/${c._id}`)}><Ico d={EYE}   size={14} sw={2}/></button>
-                        <button className="hl-act-btn hl-act-btn--edit"  title="Chỉnh sửa" onClick={() => navigate(`/admin/hackathons/${c._id}/edit`)}><Ico d={EDIT}  size={14} sw={2}/></button>
-                        <button className="hl-act-btn hl-act-btn--del"   title="Xóa" disabled={deleting===c._id} onClick={() => handleDelete(c._id, c.title)}><Ico d={TRASH} size={14} sw={2}/></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="hl-grid">
+          {filtered.map(c => {
+            const st = STATUS_CFG[c.status] || STATUS_CFG.draft;
+            const custom = getCustomConfig(c._id);
+            const bannerUrl = custom?.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600';
+            const season = custom?.season || 'Summer';
+            const year = custom?.year || 2026;
+            const roundsCount = custom?.tracks?.reduce((sum, t) => sum + (t.rounds?.length || 0), 0) || c.rounds?.length || 0;
+
+            return (
+              <div key={c._id} className="hl-card">
+                {/* Banner image wrapper */}
+                <div className="hl-card-banner-wrap">
+                  <img 
+                    src={bannerUrl} 
+                    alt={c.title} 
+                    className="hl-card-banner"
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600'; }}
+                  />
+                  <div className="hl-card-badge-overlay">
+                    <span className={`hl-badge ${st.cls}`}>{st.label}</span>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="hl-card-body">
+                  <div className="hl-card-meta-row">
+                    <span className="hl-card-season">{season} {year}</span>
+                    <span className="hl-card-rounds-count">🛡️ {roundsCount} Vòng thi</span>
+                  </div>
+                  <h3 className="hl-card-title">{c.title}</h3>
+                  <p className="hl-card-desc">
+                    {c.description ? c.description : 'Không có mô tả cho cuộc thi này.'}
+                  </p>
+
+                  <div className="hl-card-dates">
+                    <div className="hl-card-date-item">
+                      <span className="hl-date-label">Hạn đăng ký:</span>
+                      <span className="hl-date-val"><Ico d={CAL} size={11} /> {fmt(c.registration_deadline)}</span>
+                    </div>
+                    <div className="hl-card-date-item">
+                      <span className="hl-date-label">Thi đấu chính thức:</span>
+                      <span className="hl-date-val"><Ico d={CAL} size={11} /> {fmt(c.start_date)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Footer Actions */}
+                <div className="hl-card-footer">
+                  <div className="hl-actions" style={{ width: '100%', justifyContent: 'flex-end' }}>
+                    <button className="hl-act-btn hl-act-btn--view" title="Cấu hình & Chi tiết" onClick={() => navigate(`/admin/hackathons/${c._id}`)}>
+                      <Ico d={EYE} size={14} sw={2}/> <span>Cấu hình</span>
+                    </button>
+                    <button className="hl-act-btn hl-act-btn--del" title="Xóa" disabled={deleting===c._id} onClick={() => handleDelete(c._id, c.title)}>
+                      <Ico d={TRASH} size={14} sw={2}/>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

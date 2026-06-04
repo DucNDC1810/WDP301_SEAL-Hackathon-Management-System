@@ -1,7 +1,12 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import User from "../models/User.js";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "./emailService.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -34,6 +39,10 @@ export const createUser = async ({ full_name, email, password, phone }) => {
   // hash password
   const password_hash = await bcrypt.hash(password, 10);
 
+  // generate email verification token
+  const verifyToken = crypto.randomBytes(32).toString("hex");
+  const verifyTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
   // create user — tự động gán role "contestant"
   const newUser = new User({
     full_name,
@@ -41,6 +50,9 @@ export const createUser = async ({ full_name, email, password, phone }) => {
     password_hash,
     phone: phone || "",
     provider: "local",
+    is_verified: false,
+    verify_token: verifyToken,
+    verify_token_expires: verifyTokenExpires,
     roles: [
       {
         role_id: new mongoose.Types.ObjectId(),
@@ -50,9 +62,18 @@ export const createUser = async ({ full_name, email, password, phone }) => {
   });
   await newUser.save();
 
-  // trả về user không có password_hash
+  // gửi email xác nhận (không throw nếu lỗi để tránh rollback)
+  sendVerificationEmail(email, verifyToken).catch((err) =>
+    console.error("[sendVerificationEmail]", err)
+  );
+
+  // trả về user không có thông tin nhạy cảm
   const user = newUser.toObject();
   delete user.password_hash;
+  delete user.verify_token;
+  delete user.verify_token_expires;
+  delete user.reset_token;
+  delete user.reset_token_expires;
   return user;
 };
 
@@ -148,6 +169,120 @@ export const findOrCreateOAuthUser = async ({
   });
   await newUser.save();
   return newUser;
+};
+
+// ─── verifyEmail ────────────────────────────────────────────────────────────
+
+/**
+ * Xác nhận email bằng token.
+ * @throws {Error} nếu token không hợp lệ hoặc đã hết hạn
+ */
+export const verifyEmail = async (token) => {
+  if (!token) {
+    const err = new Error("Token xác nhận không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await User.findOne({
+    verify_token: token,
+    verify_token_expires: { $gt: new Date() },
+  });
+
+  if (!user) {
+    const err = new Error("Token xác nhận không hợp lệ hoặc đã hết hạn");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  user.is_verified = true;
+  user.verify_token = null;
+  user.verify_token_expires = null;
+  await user.save();
+};
+
+// ─── resendVerificationEmail ─────────────────────────────────────────────────
+
+/**
+ * Gửi lại email xác nhận.
+ * @throws {Error} nếu email không tồn tại hoặc đã xác nhận rồi
+ */
+export const resendVerificationEmail = async (email) => {
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) {
+    const err = new Error("Email không tồn tại trong hệ thống");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (user.is_verified) {
+    const err = new Error("Email này đã được xác nhận");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const verifyToken = crypto.randomBytes(32).toString("hex");
+  user.verify_token = verifyToken;
+  user.verify_token_expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await user.save();
+
+  await sendVerificationEmail(email, verifyToken);
+};
+
+// ─── forgotPassword ──────────────────────────────────────────────────────────
+
+/**
+ * Gửi email reset mật khẩu.
+ * Luôn trả về thành công để tránh lộ thông tin user.
+ */
+export const forgotPassword = async (email) => {
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user || user.provider !== "local") return;
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  user.reset_token = resetToken;
+  user.reset_token_expires = new Date(Date.now() + 60 * 60 * 1000); // 1h
+  await user.save();
+
+  sendPasswordResetEmail(email, resetToken).catch((err) =>
+    console.error("[sendPasswordResetEmail]", err)
+  );
+};
+
+// ─── resetPassword ───────────────────────────────────────────────────────────
+
+/**
+ * Đặt lại mật khẩu bằng reset token.
+ * @throws {Error} nếu token không hợp lệ hoặc đã hết hạn
+ */
+export const resetPassword = async (token, newPassword) => {
+  if (!token || !newPassword) {
+    const err = new Error("Token và mật khẩu mới là bắt buộc");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (newPassword.length < 6) {
+    const err = new Error("Mật khẩu phải có ít nhất 6 ký tự");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await User.findOne({
+    reset_token: token,
+    reset_token_expires: { $gt: new Date() },
+  });
+
+  if (!user) {
+    const err = new Error("Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  user.password_hash = await bcrypt.hash(newPassword, 10);
+  user.reset_token = null;
+  user.reset_token_expires = null;
+  await user.save();
 };
 
 // ─── refresh ────────────────────────────────────────────────────────────────

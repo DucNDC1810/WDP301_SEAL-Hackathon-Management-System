@@ -15,6 +15,7 @@ import mentorAssignmentRoute from "./routes/mentorAssignmentRoute.js";
 import scoreRoute from "./routes/scoreRoute.js";
 import rankingRoute from "./routes/rankingRoute.js";
 import appealRoute from "./routes/appealRoute.js";
+import invitationRoute from "./routes/invitationRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -43,6 +44,7 @@ app.use("/api/mentor-assignments", mentorAssignmentRoute);
 app.use("/api/scores", scoreRoute);
 app.use("/api/rankings", rankingRoute);
 app.use("/api/appeals", appealRoute);
+app.use("/api/invitations", invitationRoute);
 
 initSocket(httpServer);
 

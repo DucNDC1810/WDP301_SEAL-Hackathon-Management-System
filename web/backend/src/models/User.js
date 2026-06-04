@@ -55,6 +55,22 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    verify_token: {
+      type: String,
+      default: null,
+    },
+    verify_token_expires: {
+      type: Date,
+      default: null,
+    },
+    reset_token: {
+      type: String,
+      default: null,
+    },
+    reset_token_expires: {
+      type: Date,
+      default: null,
+    },
     roles: {
       type: [embeddedRoleSchema],
       default: [],

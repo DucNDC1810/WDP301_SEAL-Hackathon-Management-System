@@ -64,19 +64,20 @@ export const signUp = async (req, res) => {
 
 export const signIn = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, identifier, password } = req.body;
+    const loginIdentifier = email || identifier;
 
     // validate input
-    if (!email || !password) {
+    if (!loginIdentifier || !password) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng nhập email và mật khẩu",
+        message: "Vui lòng nhập email/username và mật khẩu",
       });
     }
 
     // delegate to service
     const { user, accessToken, refreshToken } = await authenticateUser({
-      email,
+      identifier: loginIdentifier,
       password,
     });
 

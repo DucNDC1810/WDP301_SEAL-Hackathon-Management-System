@@ -5,6 +5,7 @@ import {
   removeRoleFromUser,
   updateProfile,
   changePassword,
+  deleteUser,
 } from "../services/userService.js";
 
 // ─── getMe ──────────────────────────────────────────────────────────────────
@@ -28,18 +29,38 @@ export const getMe = async (req, res) => {
 // ─── getAllUsers (admin only) ────────────────────────────────────────────────
 
 /**
- * GET /api/users
+ * GET /api/users?role=mentor&search=nguyen&page=1&limit=20
  */
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await getAllUsersService();
+    const { role, search, page, limit } = req.query;
+    const result = await getAllUsersService({ role, search, page, limit });
     res.status(200).json({
       success: true,
-      count: users.length,
-      data: users,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      data: result.users,
     });
   } catch (error) {
     console.error("[getAllUsers]", error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── deleteUser (admin only) ─────────────────────────────────────────────────
+
+/**
+ * DELETE /api/users/:id
+ */
+export const deleteUserHandler = async (req, res) => {
+  try {
+    await deleteUser(req.params.id, req.user._id.toString());
+    res.status(200).json({ success: true, message: "Đã xóa user thành công" });
+  } catch (error) {
+    console.error("[deleteUser]", error);
     res
       .status(error.statusCode || 500)
       .json({ success: false, message: error.message || "Lỗi máy chủ" });

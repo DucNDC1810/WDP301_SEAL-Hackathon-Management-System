@@ -30,10 +30,67 @@ export const getUserById = async (id) => {
 // ─── getAllUsers ─────────────────────────────────────────────────────────────
 
 /**
- * Lấy danh sách tất cả users.
+ * Lấy danh sách users với filter tuỳ chọn.
+ * @param {object} options - { role, search, page, limit }
  */
-export const getAllUsers = async () => {
-  return User.find().select("-password_hash").sort({ created_at: -1 });
+export const getAllUsers = async ({ role, search, page = 1, limit = 20 } = {}) => {
+  const query = {};
+
+  if (role) {
+    if (!VALID_ROLES.includes(role)) {
+      const err = new Error(`role không hợp lệ. Chỉ chấp nhận: ${VALID_ROLES.join(", ")}`);
+      err.statusCode = 400;
+      throw err;
+    }
+    query["roles.role_name"] = role;
+  }
+
+  if (search) {
+    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    query.$or = [
+      { full_name: { $regex: escaped, $options: "i" } },
+      { email: { $regex: escaped, $options: "i" } },
+    ];
+  }
+
+  const skip = (Math.max(1, page) - 1) * limit;
+  const [users, total] = await Promise.all([
+    User.find(query)
+      .select("-password_hash -verify_token -verify_token_expires -reset_token -reset_token_expires")
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(limit),
+    User.countDocuments(query),
+  ]);
+
+  return { users, total, page: Number(page), limit: Number(limit) };
+};
+
+// ─── deleteUser ──────────────────────────────────────────────────────────────
+
+/**
+ * Xóa user theo ID (admin only).
+ * @throws {Error} nếu cố xóa chính mình hoặc user không tồn tại
+ */
+export const deleteUser = async (userId, requesterId) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error("User ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (userId === requesterId) {
+    const err = new Error("Không thể xóa chính tài khoản của mình");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await User.findByIdAndDelete(userId);
+  if (!user) {
+    const err = new Error("Không tìm thấy user");
+    err.statusCode = 404;
+    throw err;
+  }
 };
 
 // ─── assignRole ─────────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import {
   getUserByIdHandler,
   updateProfileHandler,
   changePasswordHandler,
+  deleteUserHandler,
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -31,10 +32,13 @@ router.get("/", authenticate, authorize("admin"), getAllUsers);
 // GET    /api/users/:id          — lấy user theo ID
 router.get("/:id", authenticate, authorize("admin"), getUserByIdHandler);
 
-// PUT    /api/users/:id/roles    — gán role cho user
+// PUT    /api/users/:id/roles          — gán role cho user
 router.put("/:id/roles", authenticate, authorize("admin"), assignRole);
 
 // DELETE /api/users/:id/roles/:role_name — xóa role của user
 router.delete("/:id/roles/:role_name", authenticate, authorize("admin"), removeRole);
+
+// DELETE /api/users/:id                — xóa user
+router.delete("/:id", authenticate, authorize("admin"), deleteUserHandler);
 
 export default router;

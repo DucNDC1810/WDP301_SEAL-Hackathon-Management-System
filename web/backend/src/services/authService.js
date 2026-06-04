@@ -58,13 +58,23 @@ export const createUser = async ({ full_name, email, password, phone }) => {
 
 // ─── signIn ─────────────────────────────────────────────────────────────────
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
- * Xác thực user bằng email + password.
+ * Xác thực user bằng email hoặc username + password.
  * @returns {{ user, accessToken, refreshToken }}
  * @throws {Error} nếu sai credentials
  */
-export const authenticateUser = async ({ email, password }) => {
-  const user = await User.findOne({ email: email.toLowerCase() });
+export const authenticateUser = async ({ identifier, password }) => {
+  const normalizedIdentifier = identifier.trim();
+  const normalizedEmail = normalizedIdentifier.toLowerCase();
+
+  const user = await User.findOne({
+    $or: [
+      { email: normalizedEmail },
+      { full_name: new RegExp(`^${escapeRegExp(normalizedIdentifier)}$`, "i") },
+    ],
+  });
   if (!user) {
     const err = new Error("Email hoặc mật khẩu không đúng");
     err.statusCode = 401;

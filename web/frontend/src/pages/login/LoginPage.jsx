@@ -14,7 +14,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [searchParams] = useSearchParams();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ identifier: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -118,8 +118,8 @@ function LoginPage() {
           {/* Form */}
           <form className="login-card__form" onSubmit={handleSubmit} id="login-form">
             <div className="login-card__field">
-              <label htmlFor="email" className="login-card__label">
-                Email
+              <label htmlFor="identifier" className="login-card__label">
+                Email hoặc username
               </label>
               <div className="login-card__input-wrap">
                 <svg className="login-card__input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -127,15 +127,15 @@ function LoginPage() {
                   <polyline points="22,6 12,13 2,6" />
                 </svg>
                 <input
-                  type="email"
-                  id="email"
-                  name="email"
+                  type="text"
+                  id="identifier"
+                  name="identifier"
                   className="login-card__input"
-                  placeholder="your@email.com"
-                  value={formData.email}
+                  placeholder="username hoặc email"
+                  value={formData.identifier}
                   onChange={handleChange}
                   required
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
             </div>

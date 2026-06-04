@@ -31,6 +31,24 @@ export const sendVerificationEmail = async (to, token) => {
   });
 };
 
+// ─── sendMemberInviteEmail ───────────────────────────────────────────────────
+
+export const sendMemberInviteEmail = async (to, full_name, token) => {
+  const link = `${CLIENT_URL}/team-verify?token=${token}`;
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: "[SEAL Hackathon] Xác nhận tham gia đội thi",
+    html: `
+      <p>Chào <strong>${full_name || to}</strong>,</p>
+      <p>Bạn đã được mời tham gia một đội thi trên hệ thống SEAL Hackathon.</p>
+      <p>Nhấn vào liên kết bên dưới để xác nhận tham gia (có hiệu lực trong <strong>24 giờ</strong>):</p>
+      <p><a href="${link}">${link}</a></p>
+      <p>Nếu bạn không biết về lời mời này, hãy bỏ qua email này.</p>
+    `,
+  });
+};
+
 // ─── sendPasswordResetEmail ──────────────────────────────────────────────────
 
 export const sendPasswordResetEmail = async (to, token) => {

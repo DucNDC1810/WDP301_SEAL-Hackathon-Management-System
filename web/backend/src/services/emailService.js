@@ -31,6 +31,25 @@ export const sendVerificationEmail = async (to, token) => {
   });
 };
 
+// ─── sendInvitationEmail ─────────────────────────────────────────────────────
+
+export const sendInvitationEmail = async (to, contestTitle, token) => {
+  const link = `${CLIENT_URL}/invitation/accept?token=${token}`;
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `[SEAL Hackathon] Lời mời tham gia ban giám khảo - ${contestTitle}`,
+    html: `
+      <p>Xin chào,</p>
+      <p>Bạn được mời tham gia làm <strong>mentor / giám khảo</strong> cho cuộc thi
+         <strong>${contestTitle}</strong> trên hệ thống SEAL Hackathon.</p>
+      <p>Nhấn vào liên kết bên dưới để xác nhận tham gia (có hiệu lực trong <strong>7 ngày</strong>):</p>
+      <p><a href="${link}">${link}</a></p>
+      <p>Nếu bạn muốn từ chối, hãy bỏ qua email này.</p>
+    `,
+  });
+};
+
 // ─── sendMemberInviteEmail ───────────────────────────────────────────────────
 
 export const sendMemberInviteEmail = async (to, full_name, token) => {

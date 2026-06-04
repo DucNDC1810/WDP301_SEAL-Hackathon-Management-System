@@ -1,0 +1,12 @@
+.profile-page {
+  max-width: 800px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+.profile-page__card { padding: 8px; }
+.profile-page__avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 8px;
+}

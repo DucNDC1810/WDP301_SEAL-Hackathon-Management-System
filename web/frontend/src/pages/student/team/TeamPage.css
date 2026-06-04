@@ -1,0 +1,10 @@
+.team-page {
+  max-width: 960px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+.team-page__loading {
+  display: flex;
+  justify-content: center;
+  margin-top: 80px;
+}

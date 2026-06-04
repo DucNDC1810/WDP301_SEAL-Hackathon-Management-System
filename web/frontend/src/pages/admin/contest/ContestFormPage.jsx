@@ -200,7 +200,6 @@ function ContestFormPage() {
                         className="contest-input"
                         value={contestData.season}
                         onChange={handleContestChange}
-                        style={{ background: '#0a0e17' }}
                         required
                       >
                         <option value="Spring">Spring (Mùa Xuân)</option>

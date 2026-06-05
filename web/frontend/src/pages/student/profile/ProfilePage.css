@@ -1,0 +1,12 @@
+.profile-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.profile-page__avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0 8px;
+}

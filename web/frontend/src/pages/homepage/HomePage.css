@@ -16,7 +16,7 @@ section.section--visible, #hero { opacity: 1; transform: translateY(0); }
 .btn--lg { padding: 16px 36px; font-size: 16px; border-radius: 14px; }
 
 /* ===== HERO ===== */
-.hero { position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--bg-primary); opacity: 1; transform: none; }
+.hero { position: relative; min-height: 100vh; margin-top: -72px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--bg-primary); opacity: 1; transform: none; }
 .binary-rain { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .hero__overlay { position: absolute; inset: 0; z-index: 2; background: radial-gradient(ellipse at center, rgba(10,14,23,0.3) 0%, rgba(10,14,23,0.8) 70%, var(--bg-primary) 100%); }
 .hero__particles { position: absolute; inset: 0; z-index: 2; }

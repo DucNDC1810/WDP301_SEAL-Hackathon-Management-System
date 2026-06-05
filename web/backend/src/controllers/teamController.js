@@ -4,14 +4,25 @@ import {
   getTeamsByContest,
   getTeamById,
   getMyTeam,
+  getMyTeams,
   updateTeam,
   deleteTeam,
   disqualifyTeam,
   resendMemberVerification,
 } from "../services/teamService.js";
 
-// ─── handleCreateTeam ────────────────────────────────────────────────────────
-
+/**
+ * GET /me
+ * Lấy danh sách đội thi của user hiện tại.
+ */
+export const handleGetMyTeams = async (req, res) => {
+  try {
+    const teams = await getMyTeams(req.user._id, req.user.email);
+    res.json(teams);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ message: err.message });
+  }
+};
 export const handleCreateTeam = async (req, res) => {
   try {
     const { contestId } = req.params;

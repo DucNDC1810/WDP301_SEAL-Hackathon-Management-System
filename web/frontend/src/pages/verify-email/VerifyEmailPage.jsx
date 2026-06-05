@@ -4,27 +4,25 @@ import '../team-verify/TeamVerifyPage.css';
 
 const API = import.meta.env.VITE_API_URL || '';
 
-export default function InvitationVerifyPage() {
+export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
 
-  const [status,   setStatus]   = useState(() => (token ? 'loading' : 'error'));
-  const [message,  setMessage]  = useState(() => token ? '' : 'Link xác thực không hợp lệ hoặc đã hết hạn.');
-  const [teamName, setTeamName] = useState('');
+  const [status,  setStatus]  = useState(() => (token ? 'loading' : 'error'));
+  const [message, setMessage] = useState(() => token ? '' : 'Link xác thực không hợp lệ hoặc đã hết hạn.');
 
   useEffect(() => {
     if (!token) return;
-    fetch(`${API}/api/teams/verify?token=${token}`, { credentials: 'include' })
+    fetch(`${API}/api/auth/verify-email?token=${token}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
           setStatus('success');
-          setTeamName(data.data?.teamName || data.data?.team_name || data.data?.name || '');
-          setMessage(data.message || 'Email của bạn đã được xác nhận. Chào mừng đến với đội thi!');
+          setMessage(data.message || 'Tài khoản của bạn đã được kích hoạt thành công!');
         } else {
           setStatus('error');
-          setMessage(data.message || 'Link xác nhận không hợp lệ hoặc đã hết hạn (24 giờ).');
+          setMessage(data.message || 'Link xác thực không hợp lệ hoặc đã hết hạn.');
         }
       })
       .catch(() => {
@@ -45,7 +43,7 @@ export default function InvitationVerifyPage() {
         {status === 'loading' && (
           <div className="verify-state">
             <div className="verify-spinner" />
-            <p className="verify-title">Đang xác nhận lời mời...</p>
+            <p className="verify-title">Đang xác thực email...</p>
             <p className="verify-desc">Vui lòng chờ trong giây lát.</p>
           </div>
         )}
@@ -57,16 +55,11 @@ export default function InvitationVerifyPage() {
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <p className="verify-title">Tham gia đội thành công!</p>
-            {teamName && (
-              <p className="verify-team">
-                Đội thi: <strong>{teamName}</strong>
-              </p>
-            )}
+            <p className="verify-title">Email đã xác thực!</p>
             <p className="verify-desc">{message}</p>
             <div className="verify-actions">
-              <button className="verify-btn verify-btn--primary" onClick={() => navigate('/dashboard')}>
-                Đến Dashboard
+              <button className="verify-btn verify-btn--primary" onClick={() => navigate('/login')}>
+                Đăng nhập ngay
               </button>
               <button className="verify-btn verify-btn--ghost" onClick={() => navigate('/')}>
                 Trang chủ
@@ -83,11 +76,11 @@ export default function InvitationVerifyPage() {
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </div>
-            <p className="verify-title">Xác nhận thất bại</p>
+            <p className="verify-title">Xác thực thất bại</p>
             <p className="verify-desc">{message}</p>
             <div className="verify-actions">
               <button className="verify-btn verify-btn--primary" onClick={() => navigate('/login')}>
-                Đăng nhập
+                Về trang đăng nhập
               </button>
               <button className="verify-btn verify-btn--ghost" onClick={() => navigate('/')}>
                 Trang chủ

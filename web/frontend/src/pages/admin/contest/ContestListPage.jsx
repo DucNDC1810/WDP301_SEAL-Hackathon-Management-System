@@ -5,7 +5,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useTheme } from '../../../context/ThemeContext';
 import './ContestListPage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 function ContestListPage() {
   const navigate = useNavigate();

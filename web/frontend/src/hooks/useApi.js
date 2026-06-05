@@ -1,33 +1,58 @@
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API = import.meta.env.VITE_API_URL || '';
 
-export const useApi = () => {
-  const getHeaders = (extra = {}) => ({
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
-    ...extra,
+const doFetch = async (path, options = {}) => {
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
+      ...(options.headers || {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
+  let data;
+  try { data = await res.json(); } catch { data = {}; }
+
+  if (!res.ok) {
+    const err = new Error(data.message || res.statusText || 'Lỗi server');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+};
+
+const tryRefresh = async () => {
+  const res = await fetch(`${API}/api/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  const data = await res.json();
+  if (!res.ok || !data.data?.accessToken) {
+    throw new Error('Refresh failed');
+  }
+  localStorage.setItem('accessToken', data.data.accessToken);
+};
+
+export const useApi = () => {
   const request = async (path, options = {}) => {
-    const res = await fetch(`${API}${path}`, {
-      ...options,
-      credentials: 'include',
-      headers: getHeaders(options.headers),
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    });
-
-    let data;
     try {
-      data = await res.json();
-    } catch {
-      data = {};
-    }
-
-    if (!res.ok) {
-      const err = new Error(data.message || res.statusText || 'Lỗi server');
-      err.status = res.status;
+      return await doFetch(path, options);
+    } catch (err) {
+      if (err.status === 401) {
+        try {
+          await tryRefresh();
+          return await doFetch(path, options);
+        } catch {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+          return;
+        }
+      }
       throw err;
     }
-    return data;
   };
 
   return { request };

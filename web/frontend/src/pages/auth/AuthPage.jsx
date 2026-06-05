@@ -4,7 +4,7 @@ import { Tabs, Form, Input, Button, message } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import './AuthPage.css';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API = import.meta.env.VITE_API_URL || '';
 
 const OAUTH_ERRORS = {
   google_failed: 'Đăng nhập Google thất bại, vui lòng thử lại.',
@@ -97,7 +97,7 @@ function RegisterForm({ onSuccess }) {
       <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
         <Input placeholder="your@email.com" autoComplete="email" />
       </Form.Item>
-      <Form.Item name="phone" label="Số điện thoại" rules={[{ required: true }]}>
+      <Form.Item name="phone" label="Số điện thoại">
         <Input placeholder="0912345678" />
       </Form.Item>
       <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, min: 6 }]}>

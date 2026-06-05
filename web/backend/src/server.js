@@ -27,7 +27,17 @@ const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 5001;
 
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173", credentials: true }));
+app.use(cors({
+  origin: (origin, cb) => {
+    const allowed = process.env.CLIENT_URL || "http://localhost:5173";
+    if (!origin || origin === allowed || /^http:\/\/localhost:\d+$/.test(origin)) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());

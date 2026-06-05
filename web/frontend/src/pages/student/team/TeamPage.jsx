@@ -86,14 +86,24 @@ export default function TeamPage() {
       .catch(() => message.info(`Mã đội: ${myTeam._id}`));
   };
 
+  const leaderEmail = myTeam?.leader_id?.email ?? myTeam?.leader_id;
+
   const memberColumns = [
-    { title: 'Email', dataIndex: 'email', key: 'email' },
-    { title: 'Tên', dataIndex: 'full_name', key: 'full_name' },
     {
-      title: 'Trạng thái',
+      title: 'Vai trò',
+      key: 'role',
+      width: 130,
+      render: (_, record) => record.email === leaderEmail
+        ? <Tag color="gold">👑 Trưởng nhóm</Tag>
+        : <Tag color="blue">Thành viên</Tag>,
+    },
+    { title: 'Tên', dataIndex: 'full_name', key: 'full_name' },
+    { title: 'Email', dataIndex: 'email', key: 'email' },
+    {
+      title: 'Xác nhận',
       dataIndex: 'email_verified',
       key: 'status',
-      render: (v) => <Tag color={v ? 'green' : 'orange'}>{v ? '✅ Đã xác nhận' : '⏳ Chờ xác nhận'}</Tag>,
+      render: (v) => <Tag color={v ? 'green' : 'orange'}>{v ? '✅ Đã xác nhận' : '⏳ Chờ'}</Tag>,
     },
   ];
 

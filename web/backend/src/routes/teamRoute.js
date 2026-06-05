@@ -2,6 +2,7 @@ import express from "express";
 import {
   handleCreateTeam,
   handleVerifyMemberEmail,
+  handleGetMyTeams,
   handleGetTeamsByContest,
   handleGetTeamById,
   handleGetMyTeam,
@@ -19,7 +20,11 @@ const router = express.Router();
 // GET /api/teams/verify?token=   — xác nhận email thành viên
 router.get("/verify", handleVerifyMemberEmail);
 
-// ─── Contestant / authenticated ───────────────────────────────────────────────
+// GET /api/teams/me — lấy tất cả đội của user hiện tại
+router.get("/me", authenticate, handleGetMyTeams);
+
+// POST /api/teams/contests/:contestId/teams — đăng ký đội (alias)
+router.post("/contests/:contestId/teams", authenticate, handleCreateTeam);
 
 // POST /api/teams/contests/:contestId         — đăng ký đội thi mới
 router.post("/contests/:contestId", authenticate, handleCreateTeam);

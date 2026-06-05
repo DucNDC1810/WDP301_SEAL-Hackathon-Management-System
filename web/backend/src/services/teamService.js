@@ -151,6 +151,23 @@ export const verifyMemberEmail = async (token) => {
 };
 
 /**
+ * Lấy danh sách đội thi của user hiện tại (là leader hoặc member).
+ */
+export const getMyTeams = async (userId, userEmail) => {
+  return Team.find({
+    $or: [
+      { leader_id: userId },
+      { "members.user_id": userId },
+      { "members.email": userEmail },
+    ],
+  })
+    .populate("leader_id", "full_name email")
+    .populate("members.user_id", "full_name email")
+    .populate("topic_id", "title")
+    .sort({ created_at: -1 });
+};
+
+/**
  * Lấy danh sách đội thi theo cuộc thi, hỗ trợ filter status.
  */
 export const getTeamsByContest = async (contestId, { status } = {}) => {

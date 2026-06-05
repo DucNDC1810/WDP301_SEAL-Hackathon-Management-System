@@ -26,6 +26,7 @@ function LoginForm({ onSuccess }) {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.message);
+      if (!data.data) throw new Error('Phản hồi từ server không hợp lệ');
       onSuccess(data.data);
     } catch (err) {
       message.error(err.message || 'Không thể kết nối đến server');
@@ -63,11 +64,10 @@ function RegisterForm({ onSuccess }) {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          full_name: values.full_name,
           email: values.email,
           password: values.password,
           phone: values.phone,
-          firstName: values.firstName,
-          lastName: values.lastName,
         }),
       });
       const data = await res.json();
@@ -91,11 +91,8 @@ function RegisterForm({ onSuccess }) {
 
   return (
     <Form form={form} layout="vertical" onFinish={handleSubmit} size="large">
-      <Form.Item name="lastName" label="Họ" rules={[{ required: true }]}>
-        <Input placeholder="Nguyễn" />
-      </Form.Item>
-      <Form.Item name="firstName" label="Tên" rules={[{ required: true }]}>
-        <Input placeholder="Văn A" />
+      <Form.Item name="full_name" label="Tên hiển thị" rules={[{ required: true }]}>
+        <Input placeholder="Nguyễn Văn A" />
       </Form.Item>
       <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
         <Input placeholder="your@email.com" autoComplete="email" />
@@ -138,7 +135,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (user) navigate(isAdmin ? '/admin/dashboard' : '/dashboard', { replace: true });
-  }, [user]);
+  }, [user, isAdmin, navigate]);
 
   useEffect(() => {
     const errorKey = searchParams.get('error');

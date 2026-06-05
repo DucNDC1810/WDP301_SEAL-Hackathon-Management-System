@@ -14,8 +14,19 @@ export const useApi = () => {
       headers: getHeaders(options.headers),
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Lỗi server');
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      data = {};
+    }
+
+    if (!res.ok) {
+      const err = new Error(data.message || res.statusText || 'Lỗi server');
+      err.status = res.status;
+      throw err;
+    }
     return data;
   };
 

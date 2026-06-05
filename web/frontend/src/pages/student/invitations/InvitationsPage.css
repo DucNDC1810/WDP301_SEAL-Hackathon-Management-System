@@ -1,10 +1,12 @@
 .invitations {
   max-width: 960px;
-  margin: 32px auto;
-  padding: 0 16px;
+  margin: 0 auto;
+  padding: 40px 24px;
 }
+
 .invitations__loading {
   display: flex;
   justify-content: center;
-  margin-top: 80px;
+  align-items: center;
+  min-height: 60vh;
 }

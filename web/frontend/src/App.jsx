@@ -20,7 +20,6 @@ import TopicManagerPage from './pages/admin/topic/TopicManagerPage';
 import TeamDashboardPage from './pages/admin/team/TeamDashboardPage';
 import TeamRegistrationPage from './pages/admin/team-registration/TeamRegistrationPage';
 import AIAssistantPage from './pages/admin/ai-assistant/AIAssistantPage';
-import AIInsightsPage from './pages/admin/ai-insights/AIInsightsPage';
 import ResultsPage from './pages/admin/results/ResultsPage';
 import HackathonListPage from './pages/admin/hackathons/HackathonListPage';
 import HackathonDetailPage from './pages/admin/hackathons/HackathonDetailPage';
@@ -77,7 +76,6 @@ function App() {
                 <Route path="contests/:contestId/dashboard" element={<TeamDashboardPage />} />
                 <Route path="team"                          element={<TeamRegistrationPage />} />
                 <Route path="ai-assistant"                  element={<AIAssistantPage />} />
-                <Route path="ai-insights"                   element={<AIInsightsPage />} />
                 <Route path="results"                       element={<ResultsPage />} />
                 <Route path="hackathons"                    element={<HackathonListPage />} />
                 <Route path="hackathons/:id"                element={<HackathonDetailPage />} />

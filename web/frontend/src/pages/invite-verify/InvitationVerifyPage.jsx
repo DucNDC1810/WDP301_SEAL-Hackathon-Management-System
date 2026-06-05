@@ -16,15 +16,16 @@ export default function InvitationVerifyPage() {
     fetch(`${API}/api/teams/verify?token=${token}`, { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
-        if (data.success !== false && !data.error) {
-          setTeamName(data.team_name || data.data?.team_name || data.data?.teamName || '');
+        if (data && !data.message?.includes('hạn') && !data.message?.includes('không')) {
+          const name = data.team_name || data.data?.team_name || '';
+          setTeamName(name);
           setStatus('success');
         } else {
           setStatus('error');
         }
       })
       .catch(() => setStatus('error'));
-  }, []);
+  }, [searchParams]);
 
   if (status === 'loading') {
     return (

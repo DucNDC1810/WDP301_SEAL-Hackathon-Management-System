@@ -1,25 +1,58 @@
 .dashboard {
   max-width: 1100px;
-  margin: 32px auto;
-  padding: 0 16px;
+  margin: 0 auto;
+  padding: 40px 24px;
 }
+
 .dashboard__loading {
   display: flex;
   justify-content: center;
-  margin-top: 80px;
+  align-items: center;
+  min-height: 60vh;
 }
-.dashboard__card { height: 100%; }
-.dashboard__team-item {
+
+.dashboard__card {
+  height: 100%;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(8px);
+  transition: border-color var(--transition-base);
+}
+.dashboard__card:hover {
+  border-color: var(--border-hover) !important;
+}
+
+.dashboard__no-team {
+  text-align: center;
   padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+}
+.dashboard__team-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.dashboard__team-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.dashboard__team-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
 }
 .dashboard__team-item:last-child { border-bottom: none; }
-.dashboard__team-members { margin-top: 4px; }
+
 .dashboard__contest-item {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition-fast);
 }
 .dashboard__contest-item:last-child { border-bottom: none; }

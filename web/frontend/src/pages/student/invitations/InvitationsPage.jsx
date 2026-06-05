@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, Tag, Typography, Spin, Empty } from 'antd';
+import { Table, Tag, Typography, Spin, Empty, message } from 'antd';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
 import './InvitationsPage.css';
@@ -18,7 +18,9 @@ export default function InvitationsPage() {
         const list = Array.isArray(data) ? data : data?.data ?? [];
         setTeams(list);
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err.status !== 404) message.error('Không thể tải danh sách lời mời');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -39,7 +41,8 @@ export default function InvitationsPage() {
       key: 'my_status',
       render: (_, record) => {
         const me = record.members?.find((m) => m.email === user?.email);
-        return me?.email_verified
+        if (!me) return <Tag color="default">—</Tag>;
+        return me.email_verified
           ? <Tag color="green">✅ Đã xác nhận</Tag>
           : <Tag color="orange">⏳ Chờ xác nhận email</Tag>;
       },

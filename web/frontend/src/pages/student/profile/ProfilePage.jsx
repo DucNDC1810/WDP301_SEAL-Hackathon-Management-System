@@ -19,7 +19,8 @@ export default function ProfilePage() {
     setEditLoading(true);
     try {
       const data = await request('/api/users/me', { method: 'PUT', body: values });
-      login({ ...user, ...data.data, accessToken: localStorage.getItem('accessToken') });
+      const updated = data?.data || data;
+      login({ ...user, ...updated, accessToken: localStorage.getItem('accessToken') });
       message.success('Cập nhật thành công');
     } catch (err) {
       message.error(err.message || 'Tính năng đang phát triển');

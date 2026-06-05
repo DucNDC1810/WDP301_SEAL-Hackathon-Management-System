@@ -1,11 +1,13 @@
 import express from "express";
 import {
   handleCreateTeam,
+  handleJoinTeam,
   handleVerifyMemberEmail,
   handleGetMyTeams,
   handleGetTeamsByContest,
   handleGetTeamById,
   handleGetMyTeam,
+  handleApproveTeam,
   handleUpdateTeam,
   handleDeleteTeam,
   handleDisqualifyTeam,
@@ -22,6 +24,9 @@ router.get("/verify", handleVerifyMemberEmail);
 
 // GET /api/teams/me — lấy tất cả đội của user hiện tại
 router.get("/me", authenticate, handleGetMyTeams);
+
+// POST /api/teams/join — tham gia đội bằng mã đội (team_code = _id)
+router.post("/join", authenticate, handleJoinTeam);
 
 // POST /api/teams/contests/:contestId/teams — đăng ký đội (alias)
 router.post("/contests/:contestId/teams", authenticate, handleCreateTeam);
@@ -53,6 +58,9 @@ router.get(
   authorize("admin", "mentor"),
   handleGetTeamsByContest
 );
+
+// PUT /api/teams/:id/approve                  — admin duyệt đội (pending → confirmed)
+router.put("/:id/approve", authenticate, authorize("admin"), handleApproveTeam);
 
 // PUT /api/teams/:id/disqualify               — loại đội thi
 router.put("/:id/disqualify", authenticate, authorize("admin"), handleDisqualifyTeam);

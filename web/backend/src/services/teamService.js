@@ -302,6 +302,100 @@ export const deleteTeam = async (teamId, requesterId, isAdmin = false) => {
 };
 
 /**
+ * Admin duyệt đội (pending → confirmed).
+ */
+export const approveTeam = async (teamId) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.status !== "pending") {
+    const err = new Error(`Đội hiện tại ở trạng thái "${team.status}", không thể duyệt`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  team.status = "confirmed";
+  await team.save();
+  return team;
+};
+
+/**
+ * Tham gia đội bằng mã đội (team_code = team._id).
+ * User đã xác thực nên email_verified = true ngay.
+ */
+export const joinTeam = async (teamCode, userId, userEmail) => {
+  if (!mongoose.Types.ObjectId.isValid(teamCode)) {
+    const err = new Error("Mã đội không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamCode);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội với mã này");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.status === "disqualified") {
+    const err = new Error("Đội này đã bị loại khỏi cuộc thi");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const isLeader = team.leader_id.toString() === userId.toString();
+  const isMember = team.members.some(
+    (m) =>
+      (m.user_id && m.user_id.toString() === userId.toString()) ||
+      m.email === userEmail.toLowerCase()
+  );
+  if (isLeader || isMember) {
+    const err = new Error("Bạn đã là thành viên của đội này");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // Kiểm tra user chưa có đội trong cùng contest
+  const existingTeam = await Team.findOne({
+    contest_id: team.contest_id,
+    $or: [
+      { leader_id: userId },
+      { "members.user_id": userId },
+      { "members.email": userEmail.toLowerCase() },
+    ],
+  });
+  if (existingTeam) {
+    const err = new Error("Bạn đã tham gia một đội khác trong cuộc thi này");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const joiner = await User.findById(userId);
+
+  team.members.push({
+    user_id: userId,
+    email: userEmail.toLowerCase(),
+    full_name: joiner?.full_name || "",
+    email_verified: true,
+    verify_token: null,
+    verify_token_expires: null,
+  });
+
+  await team.save();
+  return team;
+};
+
+/**
  * Gửi lại email xác nhận cho thành viên chưa verify.
  * Chỉ leader mới được thực hiện.
  */

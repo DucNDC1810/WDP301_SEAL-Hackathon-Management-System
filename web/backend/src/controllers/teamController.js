@@ -5,6 +5,8 @@ import {
   getTeamById,
   getMyTeam,
   getMyTeams,
+  joinTeam,
+  approveTeam,
   updateTeam,
   deleteTeam,
   disqualifyTeam,
@@ -23,6 +25,19 @@ export const handleGetMyTeams = async (req, res) => {
     res.status(err.statusCode || 500).json({ message: err.message });
   }
 };
+export const handleJoinTeam = async (req, res) => {
+  try {
+    const { team_code } = req.body;
+    if (!team_code) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp mã đội (team_code)" });
+    }
+    const team = await joinTeam(team_code, req.user._id, req.user.email);
+    res.status(200).json({ success: true, message: "Tham gia đội thành công!", data: team });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
 export const handleCreateTeam = async (req, res) => {
   try {
     const { contestId } = req.params;
@@ -141,6 +156,15 @@ export const handleDeleteTeam = async (req, res) => {
 };
 
 // ─── handleDisqualifyTeam ────────────────────────────────────────────────────
+
+export const handleApproveTeam = async (req, res) => {
+  try {
+    const team = await approveTeam(req.params.id);
+    res.status(200).json({ success: true, message: "Duyệt đội thi thành công", data: team });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
 
 export const handleDisqualifyTeam = async (req, res) => {
   try {

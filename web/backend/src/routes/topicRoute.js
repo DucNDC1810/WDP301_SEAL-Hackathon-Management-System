@@ -7,6 +7,8 @@ import {
   handleDeleteTopic,
   handleAddResource,
   handleRemoveResource,
+  handleGetProposalsByContest,
+  handleReviewProposal,
 } from "../controllers/topicController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
@@ -23,8 +25,19 @@ router.post(
 // GET /api/topics/contests/:contestId/topics - Lấy danh sách đề tài của cuộc thi (đã đăng nhập)
 router.get("/contests/:contestId/topics", authenticate, handleGetTopicsByContest);
 
+// GET /api/topics/contests/:contestId/proposals - Admin xem đề xuất đang chờ duyệt
+router.get(
+  "/contests/:contestId/proposals",
+  authenticate,
+  authorize("admin"),
+  handleGetProposalsByContest
+);
+
 // GET /api/topics/:id - Lấy chi tiết một đề tài (đã đăng nhập)
 router.get("/:id", authenticate, handleGetTopicById);
+
+// PATCH /api/topics/:id/review - Admin duyệt/từ chối đề xuất
+router.patch("/:id/review", authenticate, authorize("admin"), handleReviewProposal);
 
 // PUT /api/topics/:id - Cập nhật thông tin đề tài (chỉ Admin)
 router.put("/:id", authenticate, authorize("admin"), handleUpdateTopic);

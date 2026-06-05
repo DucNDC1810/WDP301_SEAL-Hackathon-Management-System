@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Team from "../models/Team.js";
 import Contest from "../models/Contest.js";
 import User from "../models/User.js";
+import Topic from "../models/Topic.js";
 import { sendMemberInviteEmail } from "./emailService.js";
 
 const hashToken = (token) =>
@@ -163,7 +164,7 @@ export const getMyTeams = async (userId, userEmail) => {
   })
     .populate("leader_id", "full_name email avatar_url")
     .populate("members.user_id", "full_name email avatar_url")
-    .populate("topic_id", "title")
+    .populate("topic_id", "title description difficulty status admin_note resources")
     .sort({ created_at: -1 });
 };
 
@@ -177,7 +178,7 @@ export const getTeamsByContest = async (contestId, { status } = {}) => {
   const teams = await Team.find(query)
     .populate("leader_id", "full_name email avatar_url")
     .populate("members.user_id", "full_name email avatar_url")
-    .populate("topic_id", "title")
+    .populate("topic_id", "title description difficulty status admin_note resources")
     .sort({ created_at: -1 });
 
   return teams;
@@ -190,7 +191,7 @@ export const getTeamById = async (teamId) => {
   const team = await Team.findById(teamId)
     .populate("leader_id", "full_name email")
     .populate("members.user_id", "full_name email")
-    .populate("topic_id", "title");
+    .populate("topic_id", "title description difficulty status admin_note resources");
 
   if (!team) {
     const err = new Error("Không tìm thấy đội thi");
@@ -227,7 +228,7 @@ export const getMyTeam = async (contestId, userId) => {
   })
     .populate("leader_id", "full_name email avatar_url")
     .populate("members.user_id", "full_name email avatar_url")
-    .populate("topic_id", "title");
+    .populate("topic_id", "title description difficulty status admin_note resources");
 
   return team;
 };
@@ -511,4 +512,122 @@ export const inviteMember = async (teamId, inviteeEmail, leaderId) => {
   await sendMemberInviteEmail(email, inviteeUser.full_name || email, rawToken);
 
   return team;
+};
+
+export const selectTopic = async (teamId, topicId, userId) => {
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.leader_id.toString() !== userId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có thể chọn đề tài");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const contest = await Contest.findById(team.contest_id);
+  if (!contest) {
+    const err = new Error("Không tìm thấy cuộc thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (new Date() >= new Date(contest.start_date)) {
+    const err = new Error("Không thể chọn đề tài sau khi contest đã bắt đầu");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (team.topic_id) {
+    const existingTopic = await Topic.findById(team.topic_id);
+    if (existingTopic && existingTopic.status !== "rejected") {
+      const err = new Error("Đội đã có đề tài");
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  const topic = await Topic.findById(topicId);
+  if (!topic) {
+    const err = new Error("Không tìm thấy đề tài");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (topic.status !== "active") {
+    const err = new Error("Đề tài không khả dụng");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (topic.is_assigned) {
+    const err = new Error("Đề tài đã được chọn bởi đội khác");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (topic.contest_id.toString() !== contest._id.toString()) {
+    const err = new Error("Đề tài không thuộc cuộc thi này");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  topic.is_assigned = true;
+  await topic.save();
+
+  team.topic_id = topic._id;
+  await team.save();
+
+  return topic;
+};
+
+export const proposeTopic = async (teamId, { title, description }, userId) => {
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.leader_id.toString() !== userId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có thể đề xuất đề tài");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const contest = await Contest.findById(team.contest_id);
+  if (!contest) {
+    const err = new Error("Không tìm thấy cuộc thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (new Date() >= new Date(contest.start_date)) {
+    const err = new Error("Không thể đề xuất đề tài sau khi contest đã bắt đầu");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (team.topic_id) {
+    const existingTopic = await Topic.findById(team.topic_id);
+    if (existingTopic && existingTopic.status !== "rejected") {
+      const err = new Error("Đội đã có đề tài đang xử lý");
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  const newTopic = new Topic({
+    contest_id: team.contest_id,
+    title,
+    description: description || "",
+    status: "pending",
+    proposed_by_team_id: teamId,
+  });
+  await newTopic.save();
+
+  team.topic_id = newTopic._id;
+  await team.save();
+
+  return newTopic;
 };

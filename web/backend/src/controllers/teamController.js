@@ -12,6 +12,8 @@ import {
   disqualifyTeam,
   resendMemberVerification,
   inviteMember,
+  selectTopic,
+  proposeTopic,
 } from "../services/teamService.js";
 
 /**
@@ -205,6 +207,36 @@ export const handleInviteMember = async (req, res) => {
     res.status(200).json({ success: true, message: "Đã gửi lời mời tham gia đội qua email", data: team });
   } catch (error) {
     console.error("[handleInviteMember]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleSelectTopic = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { topic_id } = req.body;
+    if (!topic_id) {
+      return res.status(400).json({ success: false, message: "Thiếu topic_id" });
+    }
+    const topic = await selectTopic(id, topic_id, req.user._id);
+    res.status(200).json({ success: true, message: "Chọn đề tài thành công", data: topic });
+  } catch (error) {
+    console.error("[handleSelectTopic]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleProposeTopic = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description } = req.body;
+    if (!title) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập tên đề tài" });
+    }
+    const topic = await proposeTopic(id, { title, description }, req.user._id);
+    res.status(201).json({ success: true, message: "Đề xuất đề tài thành công", data: topic });
+  } catch (error) {
+    console.error("[handleProposeTopic]", error);
     res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };

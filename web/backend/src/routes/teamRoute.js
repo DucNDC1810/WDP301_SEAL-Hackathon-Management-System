@@ -13,6 +13,8 @@ import {
   handleDisqualifyTeam,
   handleResendMemberVerification,
   handleInviteMember,
+  handleSelectTopic,
+  handleProposeTopic,
 } from "../controllers/teamController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
@@ -52,6 +54,12 @@ router.post("/:id/resend-verification", authenticate, handleResendMemberVerifica
 
 // POST /api/teams/:id/members                — leader mời thành viên mới qua email
 router.post("/:id/members", authenticate, handleInviteMember);
+
+// POST /api/teams/:id/select-topic           — leader chọn đề tài có sẵn
+router.post("/:id/select-topic", authenticate, handleSelectTopic);
+
+// POST /api/teams/:id/propose-topic          — leader đề xuất đề tài riêng
+router.post("/:id/propose-topic", authenticate, handleProposeTopic);
 
 // ─── Admin only ───────────────────────────────────────────────────────────────
 

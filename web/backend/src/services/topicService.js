@@ -30,7 +30,7 @@ export const createTopic = async (
  * Lấy tất cả đề tài của một cuộc thi.
  */
 export const getTopicsByContest = async (contestId) => {
-  const topics = await Topic.find({ contest_id: contestId }).sort({
+  const topics = await Topic.find({ contest_id: contestId, status: "active" }).sort({
     created_at: -1,
   });
   return topics;
@@ -133,5 +133,42 @@ export const removeResource = async (topicId, resourceId) => {
 
   topic.resources.pull(resourceId);
   await topic.save();
+  return topic;
+};
+
+export const getProposalsByContest = async (contestId) => {
+  return Topic.find({ contest_id: contestId, status: "pending" })
+    .populate("proposed_by_team_id", "team_name")
+    .sort({ created_at: -1 });
+};
+
+export const reviewProposal = async (topicId, { status, admin_note }) => {
+  if (!["approved", "rejected"].includes(status)) {
+    const err = new Error("Status phải là approved hoặc rejected");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const topic = await Topic.findById(topicId);
+  if (!topic) {
+    const err = new Error("Không tìm thấy đề tài");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (topic.status !== "pending") {
+    const err = new Error("Đề tài không ở trạng thái chờ duyệt");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  topic.status = status;
+  if (status === "approved") {
+    topic.is_assigned = true;
+  }
+  if (admin_note) {
+    topic.admin_note = admin_note;
+  }
+  await topic.save();
+
   return topic;
 };

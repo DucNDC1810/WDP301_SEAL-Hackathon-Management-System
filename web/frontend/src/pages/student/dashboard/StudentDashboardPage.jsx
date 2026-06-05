@@ -10,6 +10,8 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
 import ProfilePage from '../profile/ProfilePage';
+import { TopicCard } from './TopicCard';
+import { TopicActions } from './TopicActions';
 import './StudentDashboardPage.css';
 
 const { Title, Text } = Typography;
@@ -325,6 +327,48 @@ export default function StudentDashboardPage() {
           </>
         )}
       </Card>
+
+      {/* Topic section */}
+      {myTeam && (() => {
+        const topic = myTeam.topic_id && typeof myTeam.topic_id === 'object' ? myTeam.topic_id : null;
+        const topicContestId = myTeam.contest_id?._id ?? myTeam.contest_id;
+        const beforeStart = activeContest ? Date.now() < new Date(activeContest.start_date) : false;
+        const isRejected = topic?.status === 'rejected';
+
+        return (
+          <Card
+            className="dashboard__card"
+            style={{ marginBottom: 24 }}
+            title="Đề tài"
+          >
+            {topic && !isRejected && <TopicCard topic={topic} />}
+
+            {isRejected && (
+              <>
+                <TopicCard topic={topic} />
+                {beforeStart && (
+                  <TopicActions teamId={myTeam._id} contestId={topicContestId} onSuccess={refresh} />
+                )}
+              </>
+            )}
+
+            {!topic && beforeStart && (
+              <>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  Đội chưa có đề tài. Chọn từ danh sách hoặc tự đề xuất.
+                </Text>
+                <TopicActions teamId={myTeam._id} contestId={topicContestId} onSuccess={refresh} />
+              </>
+            )}
+
+            {!topic && !beforeStart && (
+              <Text type="warning" style={{ fontSize: 13 }}>
+                Contest đã bắt đầu. Không thể chọn hoặc đề xuất đề tài.
+              </Text>
+            )}
+          </Card>
+        );
+      })()}
 
       {/* Profile section */}
       <Divider orientation="left" style={{ fontSize: 16, fontWeight: 600 }}>

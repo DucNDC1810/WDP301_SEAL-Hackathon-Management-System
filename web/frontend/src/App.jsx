@@ -38,6 +38,7 @@ import ProfilePage from './pages/student/profile/ProfilePage';
 import InvitationsPage from './pages/student/invitations/InvitationsPage';
 import InvitationVerifyPage from './pages/invite-verify/InvitationVerifyPage';
 import TeamVerifyPage from './pages/team-verify/TeamVerifyPage';
+import VerifyEmailPage from './pages/verify-email/VerifyEmailPage';
 
 import './App.css';
 
@@ -64,6 +65,7 @@ function App() {
               <Route path="/oauth-callback" element={<OAuthCallback />} />
               <Route path="/verify-invitation" element={<InvitationVerifyPage />} />
               <Route path="/team-verify" element={<TeamVerifyPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
 
               {/* Admin */}
               <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>

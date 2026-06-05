@@ -161,8 +161,8 @@ export const getMyTeams = async (userId, userEmail) => {
       { "members.email": userEmail },
     ],
   })
-    .populate("leader_id", "full_name email")
-    .populate("members.user_id", "full_name email")
+    .populate("leader_id", "full_name email avatar_url")
+    .populate("members.user_id", "full_name email avatar_url")
     .populate("topic_id", "title")
     .sort({ created_at: -1 });
 };

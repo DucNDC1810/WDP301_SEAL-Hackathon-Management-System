@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
   Avatar, Button, Card, Divider, Empty, Form, Input, message,
-  Modal, Spin, Table, Tag, Tooltip, Typography,
+  Modal, Select, Spin, Table, Tag, Tooltip, Typography,
 } from 'antd';
 import {
-  CheckCircleOutlined, ClockCircleOutlined, CopyOutlined,
-  MailOutlined, PlusOutlined, TeamOutlined, UserOutlined,
+  CheckCircleOutlined, ClockCircleOutlined, CopyOutlined, CrownOutlined,
+  MailOutlined, PlusOutlined, TeamOutlined, TrophyOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
@@ -16,6 +16,18 @@ const { Title, Text } = Typography;
 
 const STATUS_COLOR = { pending: 'orange', confirmed: 'green', disqualified: 'red' };
 const STATUS_LABEL = { pending: 'Chờ duyệt', confirmed: 'Đã xác nhận', disqualified: 'Bị loại' };
+
+const getContestPhase = (contest) => {
+  if (!contest) return null;
+  const now   = Date.now();
+  const reg   = new Date(contest.registration_deadline);
+  const start = new Date(contest.start_date);
+  const end   = new Date(contest.end_date);
+  if (now < reg)   return { label: 'Hạn đăng ký',   date: reg,   hours: Math.floor((reg   - now) / 3_600_000) };
+  if (now < start) return { label: 'Ngày bắt đầu',  date: start, hours: Math.floor((start - now) / 3_600_000) };
+  if (now < end)   return { label: 'Ngày kết thúc', date: end,   hours: Math.floor((end   - now) / 3_600_000) };
+  return null;
+};
 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
@@ -52,7 +64,7 @@ export default function StudentDashboardPage() {
       }
       if (contestsRes.status === 'fulfilled') {
         const list = Array.isArray(contestsRes.value) ? contestsRes.value : contestsRes.value?.data ?? [];
-        setContests(list.filter((c) => c.status === 'open'));
+        setContests(list);
       }
       setLoading(false);
     };
@@ -77,10 +89,14 @@ export default function StudentDashboardPage() {
   };
 
   const handleCreate = async (values) => {
-    if (!contests.length) { message.warning('Không có cuộc thi nào đang mở'); return; }
+    if (!openContests.length) { message.warning('Không có cuộc thi nào đang mở'); return; }
     setCreateLoading(true);
     try {
-      await request(`/api/teams/contests/${contests[0]._id}`, { method: 'POST', body: { team_name: values.team_name } });
+      const contestId = values.contest_id ?? openContests[0]._id;
+      await request(`/api/teams/contests/${contestId}`, {
+        method: 'POST',
+        body: { team_name: values.team_name, members: [{ email: user.email, full_name: user.full_name }] },
+      });
       message.success('Tạo đội thành công!');
       setCreateOpen(false);
       createForm.resetFields();
@@ -112,35 +128,52 @@ export default function StudentDashboardPage() {
     message.success('Đã copy mã đội!');
   };
 
-  const verifiedCount = myTeam?.members?.filter((m) => m.email_verified).length ?? 0;
-  const totalMembers  = myTeam?.members?.length ?? 0;
-  const isLeader      = myTeam?.leader_id?._id === user?._id || myTeam?.leader_id === user?._id;
+  const verifiedCount  = myTeam?.members?.filter((m) => m.email_verified).length ?? 0;
+  const totalMembers   = myTeam?.members?.length ?? 0;
+  const isLeader       = myTeam?.leader_id?._id === user?._id || myTeam?.leader_id === user?._id;
+  const openContests   = contests.filter((c) => c.status === 'open');
+  const contestId      = myTeam?.contest_id?._id ?? myTeam?.contest_id;
+  const activeContest  = myTeam ? (contests.find((c) => c._id === contestId) ?? null) : null;
+  const contestPhase   = getContestPhase(activeContest);
 
   const memberColumns = [
     {
       key: 'avatar',
       width: 48,
-      render: (_, record) => (
-        <Avatar
-          src={record.avatar_url || undefined}
-          icon={<UserOutlined />}
-          style={{ background: 'linear-gradient(135deg, #00d4ff, #7c3aed)' }}
-        >
-          {(record.full_name?.[0] || '?').toUpperCase()}
-        </Avatar>
-      ),
+      render: (_, record) => {
+        const populated = record.user_id && typeof record.user_id === 'object' ? record.user_id : null;
+        const avatarSrc = populated?.avatar_url || undefined;
+        const initials  = (populated?.full_name || record.full_name || '?')[0].toUpperCase();
+        return (
+          <Avatar
+            src={avatarSrc}
+            icon={<UserOutlined />}
+            style={{ background: 'linear-gradient(135deg, #00d4ff, #7c3aed)' }}
+          >
+            {initials}
+          </Avatar>
+        );
+      },
     },
     {
       title: 'Tên',
       key: 'name',
-      render: (_, record) => (
+      render: (_, record) => {
+        const populated = record.user_id && typeof record.user_id === 'object' ? record.user_id : null;
+        const name = populated?.full_name || record.full_name || '—';
+        return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Text strong>{record.full_name || '—'}</Text>
-          {(record.user_id === myTeam?.leader_id || record.user_id?._id === myTeam?.leader_id || record.user_id === myTeam?.leader_id?._id) && (
-            <Tag color="gold" style={{ fontSize: 11, padding: '0 6px' }}>Leader</Tag>
+          <Text strong>{name}</Text>
+          {(() => {
+            const lid = myTeam?.leader_id?._id?.toString() ?? myTeam?.leader_id?.toString();
+            const uid = record.user_id?._id?.toString() ?? record.user_id?.toString();
+            return lid && uid && lid === uid;
+          })() && (
+            <CrownOutlined style={{ color: '#f59e0b', fontSize: 14 }} title="Leader" />
           )}
         </div>
-      ),
+        );
+      },
     },
     {
       title: 'Email',
@@ -180,6 +213,29 @@ export default function StudentDashboardPage() {
           <Text type="secondary" style={{ fontSize: 13 }}>{user?.email}</Text>
         </div>
       </div>
+
+      {/* Contest banner */}
+      {activeContest && (
+        <div className="dashboard__contest-banner">
+          <div className="dashboard__contest-banner__left">
+            <TrophyOutlined className="dashboard__contest-banner__icon" />
+            <span className="dashboard__contest-banner__name">{activeContest.title}</span>
+          </div>
+          {contestPhase ? (
+            <div className="dashboard__contest-banner__right">
+              <span className="dashboard__contest-banner__phase">{contestPhase.label}:</span>
+              <span className="dashboard__contest-banner__date">
+                {contestPhase.date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <span className="dashboard__contest-banner__hours">· còn {contestPhase.hours} giờ</span>
+            </div>
+          ) : (
+            <div className="dashboard__contest-banner__right">
+              <span className="dashboard__contest-banner__phase">Cuộc thi đã kết thúc</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="dashboard__stats">
@@ -304,13 +360,28 @@ export default function StudentDashboardPage() {
         footer={null}
         destroyOnClose
       >
-        {contests.length === 0 ? (
+        {openContests.length === 0 ? (
           <Empty description="Không có cuộc thi nào đang mở để đăng ký đội" />
         ) : (
-          <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-            <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-              Tham gia cuộc thi: <Text strong>{contests[0]?.title}</Text>
-            </Text>
+          <Form
+            form={createForm}
+            layout="vertical"
+            onFinish={handleCreate}
+            initialValues={{ contest_id: openContests[0]?._id }}
+          >
+            {openContests.length === 1 ? (
+              <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+                Cuộc thi: <Text strong>{openContests[0].title}</Text>
+              </Text>
+            ) : (
+              <Form.Item name="contest_id" label="Chọn cuộc thi" rules={[{ required: true, message: 'Chọn cuộc thi' }]}>
+                <Select size="large" placeholder="Chọn cuộc thi...">
+                  {openContests.map((c) => (
+                    <Select.Option key={c._id} value={c._id}>{c.title}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            )}
             <Form.Item name="team_name" label="Tên đội" rules={[{ required: true, message: 'Nhập tên đội' }]}>
               <Input placeholder="Tên đội của bạn" size="large" />
             </Form.Item>

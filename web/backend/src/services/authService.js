@@ -117,6 +117,7 @@ export const authenticateUser = async ({ identifier, password }) => {
       _id: user._id,
       full_name: user.full_name,
       email: user.email,
+      phone: user.phone,
       avatar_url: user.avatar_url,
       roles: user.roles,
     },

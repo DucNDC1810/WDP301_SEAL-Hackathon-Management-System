@@ -4,7 +4,7 @@ import { Tabs, Form, Input, Button, message } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import './AuthPage.css';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API = import.meta.env.VITE_API_URL || '';
 
 const OAUTH_ERRORS = {
   google_failed: 'Đăng nhập Google thất bại, vui lòng thử lại.',

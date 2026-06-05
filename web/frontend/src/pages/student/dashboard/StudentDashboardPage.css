@@ -56,3 +56,76 @@
   transition: background var(--transition-fast);
 }
 .dashboard__contest-item:last-child { border-bottom: none; }
+
+/* Welcome header */
+.dashboard__welcome {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.dashboard__welcome-avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, #00d4ff, #7c3aed);
+  color: #fff; font-weight: 800; font-size: 1.3rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Stats row */
+.dashboard__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dashboard__stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: rgba(17, 24, 39, 0.7);
+  border: 1px solid rgba(0, 240, 255, 0.12);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.2s;
+}
+.dashboard__stat-card:hover {
+  border-color: rgba(0, 240, 255, 0.3);
+}
+.dashboard__stat-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.dashboard__stat-icon--team    { background: rgba(0, 212, 255, 0.12); color: #00d4ff; }
+.dashboard__stat-icon--member  { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+.dashboard__stat-icon--contest { background: rgba(168, 85, 247, 0.12); color: #a855f7; }
+
+.dashboard__stat-val   { margin-bottom: 2px; }
+.dashboard__stat-num   { font-size: 1.4rem; font-weight: 700; color: #e2e8f0; }
+.dashboard__stat-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Team detail */
+.dashboard__team-detail { padding: 4px 0; }
+.dashboard__team-meta   { margin-top: 6px; }
+
+/* Member table */
+.dashboard__member-table .ant-table {
+  background: transparent !important;
+}
+.dashboard__member-table .ant-table-cell {
+  background: transparent !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary);
+}
+.dashboard__member-table .ant-table-thead .ant-table-cell {
+  color: #64748b !important;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dashboard__member-table .ant-table-row:hover .ant-table-cell {
+  background: rgba(0, 240, 255, 0.04) !important;
+}

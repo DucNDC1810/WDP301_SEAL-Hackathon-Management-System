@@ -11,6 +11,7 @@ import {
   deleteTeam,
   disqualifyTeam,
   resendMemberVerification,
+  inviteMember,
 } from "../services/teamService.js";
 
 /**
@@ -188,6 +189,22 @@ export const handleResendMemberVerification = async (req, res) => {
     res.status(200).json({ success: true, message: "Đã gửi lại email xác nhận cho thành viên" });
   } catch (error) {
     console.error("[handleResendMemberVerification]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── handleInviteMember ───────────────────────────────────────────────────────
+
+export const handleInviteMember = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp email thành viên muốn mời" });
+    }
+    const team = await inviteMember(req.params.id, email, req.user._id);
+    res.status(200).json({ success: true, message: "Đã gửi lời mời tham gia đội qua email", data: team });
+  } catch (error) {
+    console.error("[handleInviteMember]", error);
     res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };

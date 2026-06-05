@@ -4,7 +4,7 @@ import { Table, Tag, Button, Typography, message } from 'antd';
 import './ContestHistoryPage.css';
 
 const { Title } = Typography;
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API = import.meta.env.VITE_API_URL || '';
 
 export default function ContestHistoryPage() {
   const [contests, setContests] = useState([]);

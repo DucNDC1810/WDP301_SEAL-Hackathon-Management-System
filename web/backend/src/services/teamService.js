@@ -442,3 +442,73 @@ export const resendMemberVerification = async (teamId, memberEmail, leaderId) =>
 
   await sendMemberInviteEmail(member.email, member.full_name, rawToken);
 };
+
+/**
+ * Mời thành viên mới vào đội.
+ * Chỉ leader mới được thực hiện.
+ */
+export const inviteMember = async (teamId, inviteeEmail, leaderId) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.leader_id.toString() !== leaderId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có thể mời thành viên");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const email = inviteeEmail.toLowerCase().trim();
+
+  // Kiểm tra email tồn tại trong hệ thống
+  const inviteeUser = await User.findOne({ email });
+  if (!inviteeUser) {
+    const err = new Error("Email này chưa đăng ký trong hệ thống");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Kiểm tra đã có trong đội chưa
+  const alreadyInTeam = team.members.some((m) => m.email === email);
+  if (alreadyInTeam) {
+    const err = new Error("Thành viên này đã có trong đội");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // Kiểm tra đã có trong đội khác trong cùng contest chưa
+  const conflictTeam = await Team.findOne({
+    _id: { $ne: teamId },
+    contest_id: team.contest_id,
+    "members.email": email,
+  });
+  if (conflictTeam) {
+    const err = new Error("Người dùng này đã tham gia một đội khác trong cùng cuộc thi");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const rawToken = crypto.randomUUID();
+  team.members.push({
+    user_id: inviteeUser._id,
+    email,
+    full_name: inviteeUser.full_name || "",
+    email_verified: false,
+    verify_token: hashToken(rawToken),
+    verify_token_expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  });
+
+  await team.save();
+  await sendMemberInviteEmail(email, inviteeUser.full_name || email, rawToken);
+
+  return team;
+};

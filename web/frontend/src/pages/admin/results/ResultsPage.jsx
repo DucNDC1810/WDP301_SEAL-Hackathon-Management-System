@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import './ResultsPage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 // Icon components
 const Ico = ({ d, size = 18, sw = 1.8, color = 'currentColor' }) => (

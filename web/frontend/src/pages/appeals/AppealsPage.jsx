@@ -4,7 +4,7 @@ import { Table, Form, Input, Button, Tag, Select, Card, Tabs, Typography, messag
 import './AppealsPage.css';
 
 const { Title } = Typography;
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API = import.meta.env.VITE_API_URL || '';
 
 export default function AppealsPage() {
   const { contestId } = useParams();

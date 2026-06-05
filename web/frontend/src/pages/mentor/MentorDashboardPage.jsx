@@ -4,7 +4,7 @@ import { Table, Progress, Tag, Button, Typography, message } from 'antd';
 import './MentorDashboardPage.css';
 
 const { Title } = Typography;
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API = import.meta.env.VITE_API_URL || '';
 
 export default function MentorDashboardPage() {
   const { contestId, roundId } = useParams();

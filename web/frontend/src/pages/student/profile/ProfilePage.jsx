@@ -51,7 +51,7 @@ export default function ProfilePage() {
 
       <Card className="profile-page__card">
         <div className="profile-page__avatar-section">
-          <Avatar size={80} src={user?.avatar_url} icon={<UserOutlined />} />
+          <Avatar size={80} src={user?.avatar_url || undefined} icon={<UserOutlined />} />
           <div>
             <Title level={4} style={{ margin: 0 }}>{user?.full_name}</Title>
             <Text type="secondary">{user?.email}</Text>

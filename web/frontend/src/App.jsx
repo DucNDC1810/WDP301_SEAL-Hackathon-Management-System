@@ -35,7 +35,6 @@ import AppealsPage from './pages/appeals/AppealsPage';
 // Student
 import StudentDashboardPage from './pages/student/dashboard/StudentDashboardPage';
 import ProfilePage from './pages/student/profile/ProfilePage';
-import TeamPage from './pages/student/team/TeamPage';
 import InvitationsPage from './pages/student/invitations/InvitationsPage';
 import InvitationVerifyPage from './pages/invite-verify/InvitationVerifyPage';
 import TeamVerifyPage from './pages/team-verify/TeamVerifyPage';
@@ -82,7 +81,7 @@ function App() {
                 <Route path="users"                         element={<UserManagementPage />} />
               </Route>
 
-              {/* Public + Student pages with Navbar/Footer */}
+              {/* All pages with Navbar/Footer */}
               <Route
                 path="/*"
                 element={
@@ -91,10 +90,14 @@ function App() {
                     <main style={{ flex: 1, paddingTop: '72px' }}>
                       <Routes>
                         <Route path="/" element={<HomePage />} />
+
+                        {/* Student (auth required) */}
                         <Route path="/dashboard"   element={<AuthRoute><StudentDashboardPage /></AuthRoute>} />
+                        <Route path="/team"        element={<AuthRoute><StudentDashboardPage /></AuthRoute>} />
                         <Route path="/profile"     element={<AuthRoute><ProfilePage /></AuthRoute>} />
-                        <Route path="/team"        element={<AuthRoute><TeamPage /></AuthRoute>} />
                         <Route path="/invitations" element={<AuthRoute><InvitationsPage /></AuthRoute>} />
+
+                        {/* Public */}
                         <Route path="/mentor/contests/:contestId/rounds/:roundId" element={<MentorDashboardPage />} />
                         <Route path="/mentor/score/:scoreId"                      element={<ScoreFormPage />} />
                         <Route path="/leaderboard/:contestId/:roundId"            element={<LeaderboardPage />} />

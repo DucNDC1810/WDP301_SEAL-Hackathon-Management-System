@@ -12,6 +12,7 @@ import {
   handleDeleteTeam,
   handleDisqualifyTeam,
   handleResendMemberVerification,
+  handleInviteMember,
 } from "../controllers/teamController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
@@ -48,6 +49,9 @@ router.delete("/:id", authenticate, handleDeleteTeam);
 
 // POST /api/teams/:id/resend-verification     — leader gửi lại email cho thành viên
 router.post("/:id/resend-verification", authenticate, handleResendMemberVerification);
+
+// POST /api/teams/:id/members                — leader mời thành viên mới qua email
+router.post("/:id/members", authenticate, handleInviteMember);
 
 // ─── Admin only ───────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './UserManagementPage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 const tok  = () => localStorage.getItem('accessToken');
 const hdrs = () => ({ 'Content-Type':'application/json', Authorization: `Bearer ${tok()}` });
 

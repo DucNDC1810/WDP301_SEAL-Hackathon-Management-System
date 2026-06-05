@@ -5,7 +5,7 @@ import { useSocket } from '../../hooks/useSocket';
 import './LeaderboardPage.css';
 
 const { Title } = Typography;
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API = import.meta.env.VITE_API_URL || '';
 
 export default function LeaderboardPage() {
   const { contestId, roundId } = useParams();

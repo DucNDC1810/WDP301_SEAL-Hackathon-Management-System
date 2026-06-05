@@ -4,30 +4,52 @@ import {
   handleVerifyMemberEmail,
   handleGetTeamsByContest,
   handleGetTeamById,
+  handleGetMyTeam,
+  handleUpdateTeam,
+  handleDeleteTeam,
   handleDisqualifyTeam,
+  handleResendMemberVerification,
 } from "../controllers/teamController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// GET /api/teams/verify - Xác nhận email thành viên (Public)
+// ─── Public ──────────────────────────────────────────────────────────────────
+
+// GET /api/teams/verify?token=   — xác nhận email thành viên
 router.get("/verify", handleVerifyMemberEmail);
 
-// POST /api/teams/contests/:contestId/teams - Đăng ký đội thi mới (Đã đăng nhập)
-router.post("/contests/:contestId/teams", authenticate, handleCreateTeam);
+// ─── Contestant / authenticated ───────────────────────────────────────────────
 
-// GET /api/teams/contests/:contestId/teams - Lấy toàn bộ đội thi của cuộc thi (Chỉ Admin)
+// POST /api/teams/contests/:contestId         — đăng ký đội thi mới
+router.post("/contests/:contestId", authenticate, handleCreateTeam);
+
+// GET  /api/teams/contests/:contestId/my      — xem đội của mình trong contest
+router.get("/contests/:contestId/my", authenticate, handleGetMyTeam);
+
+// GET  /api/teams/:id                         — xem chi tiết đội thi
+router.get("/:id", authenticate, handleGetTeamById);
+
+// PATCH /api/teams/:id                        — leader cập nhật tên đội
+router.patch("/:id", authenticate, handleUpdateTeam);
+
+// DELETE /api/teams/:id                       — leader/admin xóa đội (pending only)
+router.delete("/:id", authenticate, handleDeleteTeam);
+
+// POST /api/teams/:id/resend-verification     — leader gửi lại email cho thành viên
+router.post("/:id/resend-verification", authenticate, handleResendMemberVerification);
+
+// ─── Admin only ───────────────────────────────────────────────────────────────
+
+// GET /api/teams/contests/:contestId/all      — danh sách tất cả đội của contest
 router.get(
-  "/contests/:contestId/teams",
+  "/contests/:contestId/all",
   authenticate,
-  authorize("admin"),
+  authorize("admin", "mentor"),
   handleGetTeamsByContest
 );
 
-// GET /api/teams/:id - Lấy chi tiết đội thi (Đã đăng nhập)
-router.get("/:id", authenticate, handleGetTeamById);
-
-// PUT /api/teams/:id/disqualify - Loại đội thi khỏi cuộc thi (Chỉ Admin)
+// PUT /api/teams/:id/disqualify               — loại đội thi
 router.put("/:id/disqualify", authenticate, authorize("admin"), handleDisqualifyTeam);
 
 export default router;

@@ -1,50 +1,12 @@
 import crypto from "crypto";
-import nodemailer from "nodemailer";
+import mongoose from "mongoose";
 import Team from "../models/Team.js";
 import Contest from "../models/Contest.js";
 import User from "../models/User.js";
+import { sendMemberInviteEmail } from "./emailService.js";
 
-/**
- * Gửi email xác thực tham gia đội thi.
- */
-export const sendVerifyEmail = async (email, full_name, token) => {
-  const transporter = nodemailer.createTransport({
-    host: process.env.MAIL_HOST || "smtp.gmail.com",
-    port: Number(process.env.MAIL_PORT) || 587,
-    secure: Number(process.env.MAIL_PORT) === 465,
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  });
-
-  const verifyUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/team-verify?token=${token}`;
-
-  const mailOptions = {
-    from: `"SEAL Hackathon" <${process.env.MAIL_USER}>`,
-    to: email,
-    subject: "Xác thực tham gia đội thi - SEAL Hackathon",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #007bff; text-align: center;">SEAL Hackathon</h2>
-        <p>Chào <strong>${full_name || email}</strong>,</p>
-        <p>Bạn đã được mời tham gia vào một đội thi trên hệ thống quản lý cuộc thi SEAL Hackathon.</p>
-        <p>Vui lòng click vào nút bên dưới để xác nhận đồng ý tham gia đội thi (liên kết có giá trị trong vòng 24 giờ):</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${verifyUrl}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
-            Xác nhận tham gia
-          </a>
-        </div>
-        <p>Nếu nút trên không hoạt động, bạn có thể sao chép liên kết dưới đây vào trình duyệt của mình:</p>
-        <p style="word-break: break-all; color: #555;"><a href="${verifyUrl}">${verifyUrl}</a></p>
-        <hr style="border: none; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
-        <p style="font-size: 12px; color: #888; text-align: center;">Đây là email tự động từ hệ thống SEAL Hackathon. Vui lòng không phản hồi lại email này.</p>
-      </div>
-    `,
-  };
-
-  await transporter.sendMail(mailOptions);
-};
+const hashToken = (token) =>
+  crypto.createHash("sha256").update(token).digest("hex");
 
 /**
  * Đăng ký đội thi mới.
@@ -87,6 +49,8 @@ export const createTeam = async (
 
   // 3. Xử lý danh sách thành viên và sinh token xác thực
   const processedMembers = [];
+  const rawTokenMap = new Map();
+
   for (const m of members) {
     const emailLower = m.email.toLowerCase();
     const isLeader = emailLower === leader.email.toLowerCase();
@@ -94,11 +58,16 @@ export const createTeam = async (
     // Tìm xem email này đã đăng ký tài khoản User chưa
     const memberUser = await User.findOne({ email: emailLower });
 
-    const verifyToken = isLeader ? null : crypto.randomUUID();
+    const rawToken = isLeader ? null : crypto.randomUUID();
+    const verifyToken = rawToken ? hashToken(rawToken) : null;
     const verifyTokenExpires = isLeader
       ? null
       : new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 giờ
     const emailVerified = isLeader;
+
+    if (rawToken) {
+      rawTokenMap.set(emailLower, rawToken);
+    }
 
     processedMembers.push({
       user_id: memberUser ? memberUser._id : null,
@@ -124,16 +93,10 @@ export const createTeam = async (
   // 4. Gửi email verify cho từng member (trừ leader đã được verify sẵn)
   for (const member of newTeam.members) {
     if (!member.email_verified && member.verify_token) {
-      try {
-        await sendVerifyEmail(
-          member.email,
-          member.full_name,
-          member.verify_token
-        );
-      } catch (mailError) {
-        console.error(`[Mail Error] Gửi mail xác nhận tới ${member.email} thất bại:`, mailError);
-        // Trong môi trường dev, không ném lỗi ra ngoài làm sập luồng tạo team
-      }
+      const rawToken = rawTokenMap.get(member.email);
+      sendMemberInviteEmail(member.email, member.full_name, rawToken).catch((err) =>
+        console.error(`[sendMemberInviteEmail] ${member.email}:`, err)
+      );
     }
   }
 
@@ -151,11 +114,13 @@ export const createTeam = async (
  * Xác thực email của thành viên thông qua token.
  */
 export const verifyMemberEmail = async (token) => {
+  const hashedToken = hashToken(token);
+
   // Tìm team có member tương ứng và token chưa hết hạn
   const team = await Team.findOne({
     members: {
       $elemMatch: {
-        verify_token: token,
+        verify_token: hashedToken,
         verify_token_expires: { $gt: new Date() },
       },
     },
@@ -168,7 +133,7 @@ export const verifyMemberEmail = async (token) => {
   }
 
   // Cập nhật trạng thái verified của thành viên
-  const member = team.members.find((m) => m.verify_token === token);
+  const member = team.members.find((m) => m.verify_token === hashedToken);
   if (member) {
     member.email_verified = true;
     member.verify_token = null;
@@ -186,12 +151,15 @@ export const verifyMemberEmail = async (token) => {
 };
 
 /**
- * Lấy danh sách đội thi theo cuộc thi.
+ * Lấy danh sách đội thi theo cuộc thi, hỗ trợ filter status.
  */
-export const getTeamsByContest = async (contestId) => {
-  const teams = await Team.find({ contest_id: contestId })
-    .populate("leader_id", "full_name email")
-    .populate("members.user_id", "full_name email")
+export const getTeamsByContest = async (contestId, { status } = {}) => {
+  const query = { contest_id: contestId };
+  if (status) query.status = status;
+
+  const teams = await Team.find(query)
+    .populate("leader_id", "full_name email avatar_url")
+    .populate("members.user_id", "full_name email avatar_url")
     .populate("topic_id", "title")
     .sort({ created_at: -1 });
 
@@ -230,4 +198,136 @@ export const disqualifyTeam = async (teamId) => {
   team.status = "disqualified";
   await team.save();
   return team;
+};
+
+/**
+ * Lấy đội của user hiện tại trong một contest.
+ */
+export const getMyTeam = async (contestId, userId) => {
+  const team = await Team.findOne({
+    contest_id: contestId,
+    $or: [{ leader_id: userId }, { "members.user_id": userId }],
+  })
+    .populate("leader_id", "full_name email avatar_url")
+    .populate("members.user_id", "full_name email avatar_url")
+    .populate("topic_id", "title");
+
+  return team;
+};
+
+/**
+ * Cập nhật tên đội (chỉ leader, khi status còn pending).
+ */
+export const updateTeam = async (teamId, leaderId, { team_name }) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.leader_id.toString() !== leaderId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có thể cập nhật thông tin đội");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (team.status === "disqualified") {
+    const err = new Error("Không thể cập nhật đội đã bị loại");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (team_name) team.team_name = team_name.trim();
+  await team.save();
+
+  return Team.findById(teamId)
+    .populate("leader_id", "full_name email avatar_url")
+    .populate("members.user_id", "full_name email avatar_url");
+};
+
+/**
+ * Xóa đội thi (chỉ leader hoặc admin, khi status còn pending).
+ */
+export const deleteTeam = async (teamId, requesterId, isAdmin = false) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!isAdmin && team.leader_id.toString() !== requesterId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm hoặc admin mới có thể xóa đội thi");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (!isAdmin && team.status !== "pending") {
+    const err = new Error("Chỉ có thể xóa đội thi khi đang ở trạng thái chờ xác nhận");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await Team.findByIdAndDelete(teamId);
+};
+
+/**
+ * Gửi lại email xác nhận cho thành viên chưa verify.
+ * Chỉ leader mới được thực hiện.
+ */
+export const resendMemberVerification = async (teamId, memberEmail, leaderId) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.leader_id.toString() !== leaderId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có thể gửi lại email xác nhận");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const member = team.members.find(
+    (m) => m.email === memberEmail.toLowerCase()
+  );
+
+  if (!member) {
+    const err = new Error("Không tìm thấy thành viên với email này");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (member.email_verified) {
+    const err = new Error("Thành viên này đã xác nhận email rồi");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const rawToken = crypto.randomUUID();
+  member.verify_token = hashToken(rawToken);
+  member.verify_token_expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await team.save();
+
+  await sendMemberInviteEmail(member.email, member.full_name, rawToken);
 };

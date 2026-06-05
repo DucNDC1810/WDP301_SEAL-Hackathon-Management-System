@@ -1,7 +1,9 @@
+import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import User from "../models/User.js";
 
 const VALID_ROLES = ["admin", "mentor", "contestant"];
+const FPT_EMAIL_DOMAINS = ["@fpt.edu.vn", "@fe.edu.vn", "@fpt.com.vn"];
 
 // ─── getUserById ────────────────────────────────────────────────────────────
 
@@ -28,10 +30,67 @@ export const getUserById = async (id) => {
 // ─── getAllUsers ─────────────────────────────────────────────────────────────
 
 /**
- * Lấy danh sách tất cả users.
+ * Lấy danh sách users với filter tuỳ chọn.
+ * @param {object} options - { role, search, page, limit }
  */
-export const getAllUsers = async () => {
-  return User.find().select("-password_hash").sort({ created_at: -1 });
+export const getAllUsers = async ({ role, search, page = 1, limit = 20 } = {}) => {
+  const query = {};
+
+  if (role) {
+    if (!VALID_ROLES.includes(role)) {
+      const err = new Error(`role không hợp lệ. Chỉ chấp nhận: ${VALID_ROLES.join(", ")}`);
+      err.statusCode = 400;
+      throw err;
+    }
+    query["roles.role_name"] = role;
+  }
+
+  if (search) {
+    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    query.$or = [
+      { full_name: { $regex: escaped, $options: "i" } },
+      { email: { $regex: escaped, $options: "i" } },
+    ];
+  }
+
+  const skip = (Math.max(1, page) - 1) * limit;
+  const [users, total] = await Promise.all([
+    User.find(query)
+      .select("-password_hash -verify_token -verify_token_expires -reset_token -reset_token_expires")
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(limit),
+    User.countDocuments(query),
+  ]);
+
+  return { users, total, page: Number(page), limit: Number(limit) };
+};
+
+// ─── deleteUser ──────────────────────────────────────────────────────────────
+
+/**
+ * Xóa user theo ID (admin only).
+ * @throws {Error} nếu cố xóa chính mình hoặc user không tồn tại
+ */
+export const deleteUser = async (userId, requesterId) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error("User ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (userId === requesterId) {
+    const err = new Error("Không thể xóa chính tài khoản của mình");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await User.findByIdAndDelete(userId);
+  if (!user) {
+    const err = new Error("Không tìm thấy user");
+    err.statusCode = 404;
+    throw err;
+  }
 };
 
 // ─── assignRole ─────────────────────────────────────────────────────────────
@@ -62,6 +121,20 @@ export const assignRoleToUser = async (userId, role_name) => {
     const err = new Error("Không tìm thấy user");
     err.statusCode = 404;
     throw err;
+  }
+
+  // FPT email validation cho mentor
+  if (role_name === "mentor") {
+    const isFptEmail = FPT_EMAIL_DOMAINS.some((domain) =>
+      user.email.endsWith(domain)
+    );
+    if (!isFptEmail) {
+      const err = new Error(
+        `Chỉ tài khoản có email FPT (${FPT_EMAIL_DOMAINS.join(", ")}) mới được gán role mentor`
+      );
+      err.statusCode = 403;
+      throw err;
+    }
   }
 
   // check duplicate role
@@ -128,4 +201,81 @@ export const removeRoleFromUser = async (userId, role_name) => {
   await user.save();
 
   return User.findById(userId).select("-password_hash");
+};
+
+// ─── updateProfile ───────────────────────────────────────────────────────────
+
+/**
+ * Cập nhật thông tin cá nhân của user.
+ * Chỉ cho phép sửa full_name, phone, avatar_url.
+ */
+export const updateProfile = async (userId, { full_name, phone, avatar_url }) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error("User ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    const err = new Error("Không tìm thấy user");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (full_name !== undefined) user.full_name = full_name.trim();
+  if (phone !== undefined) user.phone = phone.trim();
+  if (avatar_url !== undefined) user.avatar_url = avatar_url.trim();
+
+  await user.save();
+  return User.findById(userId).select("-password_hash");
+};
+
+// ─── changePassword ──────────────────────────────────────────────────────────
+
+/**
+ * Đổi mật khẩu cho user đang đăng nhập.
+ * Chỉ áp dụng cho tài khoản local (không phải OAuth).
+ */
+export const changePassword = async (userId, { current_password, new_password }) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error("User ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!current_password || !new_password) {
+    const err = new Error("Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (new_password.length < 6) {
+    const err = new Error("Mật khẩu mới phải có ít nhất 6 ký tự");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    const err = new Error("Không tìm thấy user");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (user.provider !== "local" || !user.password_hash) {
+    const err = new Error("Tài khoản OAuth không hỗ trợ đổi mật khẩu");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const isMatch = await bcrypt.compare(current_password, user.password_hash);
+  if (!isMatch) {
+    const err = new Error("Mật khẩu hiện tại không đúng");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  user.password_hash = await bcrypt.hash(new_password, 10);
+  await user.save();
 };

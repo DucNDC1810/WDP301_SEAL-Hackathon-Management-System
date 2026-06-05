@@ -2,6 +2,10 @@ import {
   createUser,
   authenticateUser,
   refreshAccessToken,
+  verifyEmail,
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
 } from "../services/authService.js";
 
 // ─── cookie config ──────────────────────────────────────────────────────────
@@ -64,19 +68,20 @@ export const signUp = async (req, res) => {
 
 export const signIn = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, identifier, password } = req.body;
+    const loginIdentifier = email || identifier;
 
     // validate input
-    if (!email || !password) {
+    if (!loginIdentifier || !password) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng nhập email và mật khẩu",
+        message: "Vui lòng nhập email/username và mật khẩu",
       });
     }
 
     // delegate to service
     const { user, accessToken, refreshToken } = await authenticateUser({
-      email,
+      identifier: loginIdentifier,
       password,
     });
 
@@ -118,6 +123,74 @@ export const getMe = async (req, res) => {
     success: true,
     data: req.user,
   });
+};
+
+// ─── verifyEmail ─────────────────────────────────────────────────────────────
+
+export const verifyEmailHandler = async (req, res) => {
+  try {
+    const { token } = req.query;
+    await verifyEmail(token);
+    res.status(200).json({ success: true, message: "Xác nhận email thành công" });
+  } catch (error) {
+    console.error("[verifyEmail]", error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── resendVerification ───────────────────────────────────────────────────────
+
+export const resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp email" });
+    }
+    await resendVerificationEmail(email);
+    res.status(200).json({ success: true, message: "Đã gửi lại email xác nhận" });
+  } catch (error) {
+    console.error("[resendVerification]", error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── forgotPassword ───────────────────────────────────────────────────────────
+
+export const forgotPasswordHandler = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp email" });
+    }
+    await forgotPassword(email);
+    // Luôn trả 200 để tránh lộ thông tin tài khoản
+    res.status(200).json({
+      success: true,
+      message: "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu",
+    });
+  } catch (error) {
+    console.error("[forgotPassword]", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ" });
+  }
+};
+
+// ─── resetPassword ────────────────────────────────────────────────────────────
+
+export const resetPasswordHandler = async (req, res) => {
+  try {
+    const { token, new_password } = req.body;
+    await resetPassword(token, new_password);
+    res.status(200).json({ success: true, message: "Đặt lại mật khẩu thành công" });
+  } catch (error) {
+    console.error("[resetPassword]", error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
 };
 
 // ─── refresh ────────────────────────────────────────────────────────────────

@@ -45,6 +45,18 @@ const roundSchema = new mongoose.Schema(
       type: [criteriaSchema],
       default: [],
     },
+    is_active: {
+      type: Boolean,
+      default: false,
+    },
+    scoring_locked: {
+      type: Boolean,
+      default: false,
+    },
+    force_lock_reason: {
+      type: String,
+      default: null,
+    },
   }
 );
 

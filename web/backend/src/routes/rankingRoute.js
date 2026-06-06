@@ -1,19 +1,16 @@
-import express from "express";
-import { handleCalculateRankings, handleGetRankings } from "../controllers/rankingController.js";
-import { authenticate, authorize } from "../middlewares/authMiddleware.js";
-import { blockContestantScoreAccess } from "../middlewares/scoreAccessMiddleware.js";
+import { Router } from "express";
+import { authenticate, requireRole } from "../middlewares/authMiddleware.js";
+import { recalculate, list, leaderboard } from "../controllers/rankingController.js";
 
-const router = express.Router();
+const router = Router({ mergeParams: true });
 
-router.post(
-  "/contests/:contestId/rounds/:roundId/calculate",
-  authenticate, authorize("admin"),
-  handleCalculateRankings
-);
-router.get(
-  "/contests/:contestId/rounds/:roundId",
-  authenticate, blockContestantScoreAccess,
-  handleGetRankings
-);
+// GET /api/contests/:contestId/rounds/:roundId/leaderboard
+router.get("/leaderboard", authenticate, leaderboard);
+
+// GET /api/contests/:contestId/rounds/:roundId/rankings
+router.get("/rankings", authenticate, list);
+
+// POST /api/contests/:contestId/rounds/:roundId/rankings/recalculate
+router.post("/rankings/recalculate", authenticate, requireRole("admin"), recalculate);
 
 export default router;

@@ -4,7 +4,7 @@ const mentorAssignmentSchema = new mongoose.Schema(
   {
     contest_id:  { type: mongoose.Schema.Types.ObjectId, ref: "Contest", required: true },
     round_id:    { type: mongoose.Schema.Types.ObjectId, required: true },
-    board_id:    { type: mongoose.Schema.Types.ObjectId, ref: "Pool",    required: true },
+    board_id:    { type: mongoose.Schema.Types.ObjectId, ref: "Pool",    default: null },
     team_id:     { type: mongoose.Schema.Types.ObjectId, ref: "Team",    required: true },
     mentor_id:   { type: mongoose.Schema.Types.ObjectId, ref: "User",    required: true },
     assigned_by: { type: mongoose.Schema.Types.ObjectId, ref: "User",    required: true },

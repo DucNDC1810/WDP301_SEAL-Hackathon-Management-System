@@ -134,7 +134,10 @@ export default function AuthPage() {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    if (user) navigate(isAdmin ? '/admin/dashboard' : '/dashboard', { replace: true });
+    if (!user) return;
+    if (isAdmin) navigate('/admin/dashboard', { replace: true });
+    else if (user?.roles?.some(r => r.role_name === 'mentor')) navigate('/mentor/dashboard', { replace: true });
+    else navigate('/dashboard', { replace: true });
   }, [user, isAdmin, navigate]);
 
   useEffect(() => {
@@ -142,10 +145,13 @@ export default function AuthPage() {
     if (errorKey && OAUTH_ERRORS[errorKey]) message.error(OAUTH_ERRORS[errorKey]);
   }, [searchParams]);
 
-  const handleSuccess = (userData) => {
-    login(userData);
+  const handleSuccess = async (userData) => {
+    await login(userData);
     const admin = userData.roles?.some((r) => r.role_name === 'admin');
-    navigate(admin ? '/admin/dashboard' : '/dashboard', { replace: true });
+    const mentor = userData.roles?.some((r) => r.role_name === 'mentor');
+    if (admin) navigate('/admin/dashboard', { replace: true });
+    else if (mentor) navigate('/mentor/dashboard', { replace: true });
+    else navigate('/dashboard', { replace: true });
   };
 
   const particles = Array.from({ length: 20 }).map((_, i) => ({

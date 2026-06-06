@@ -45,6 +45,13 @@ const ACCOUNTS = [
     role_name: "contestant",
     is_verified: true,
   },
+  {
+    full_name: "Dr. Nguyen Van Mentor",
+    email: "mentor@fpt.edu.vn",
+    password: "Mentor@123456",
+    role_name: "mentor",
+    is_verified: true,
+  },
 ];
 
 async function seed() {

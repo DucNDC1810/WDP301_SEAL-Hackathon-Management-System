@@ -1,0 +1,322 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Tag, Progress, Tooltip, Badge } from 'antd';
+import { useAuth } from '../../context/AuthContext';
+import './MentorHomePage.css';
+
+// ─── Mock Data ───────────────────────────────────────────────────────────────
+const MOCK_HACKATHONS = [
+  {
+    id: 'hk1',
+    name: 'SEAL Hackathon Summer 2026',
+    status: 'ongoing',
+    banner: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)',
+    accentColor: '#00d4ff',
+    startDate: '2026-06-01',
+    endDate: '2026-06-15',
+    myRoles: ['mentor', 'judge'],
+    assignedTeams: 3,
+    rounds: [
+      { id: 'r1', name: 'Vòng Ý Tưởng',  status: 'active',   scoredTeams: 2, totalTeams: 3 },
+      { id: 'r2', name: 'Vòng Prototype', status: 'upcoming', scoredTeams: 0, totalTeams: 3 },
+      { id: 'r3', name: 'Vòng Chung Kết', status: 'upcoming', scoredTeams: 0, totalTeams: 3 },
+    ],
+    pendingActions: 2,
+  },
+  {
+    id: 'hk2',
+    name: 'FPT AI Challenge 2026',
+    status: 'upcoming',
+    banner: 'linear-gradient(135deg, #1a0533, #2d1b69, #11998e)',
+    accentColor: '#a855f7',
+    startDate: '2026-07-10',
+    endDate: '2026-07-20',
+    myRoles: ['mentor'],
+    assignedTeams: 2,
+    rounds: [
+      { id: 'r1', name: 'Vòng Loại',     status: 'upcoming', scoredTeams: 0, totalTeams: 2 },
+      { id: 'r2', name: 'Vòng Chung Kết', status: 'upcoming', scoredTeams: 0, totalTeams: 2 },
+    ],
+    pendingActions: 0,
+  },
+];
+
+const HACKATHON_STATUS = {
+  ongoing:   { label: 'Đang diễn ra', color: 'green' },
+  upcoming:  { label: 'Sắp tới',      color: 'blue' },
+  ended:     { label: 'Đã kết thúc',  color: 'default' },
+};
+
+const ROUND_STATUS = {
+  active:   { label: 'Đang mở', color: '#10b981' },
+  upcoming: { label: 'Sắp tới', color: '#60a5fa' },
+  ended:    { label: 'Đã đóng', color: '#6b7280' },
+};
+
+const ROLE_CFG = {
+  mentor: { label: 'Mentor', icon: '🎯', bg: 'rgba(168,85,247,0.12)', color: '#a855f7', border: 'rgba(168,85,247,0.3)' },
+  judge:  { label: 'Judge',  icon: '⚖',  bg: 'rgba(0,212,255,0.1)',   color: '#00d4ff', border: 'rgba(0,212,255,0.25)' },
+};
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// ─── Stats Summary ─────────────────────────────────────────────────────────
+function StatsBar({ hackathons }) {
+  const total = hackathons.length;
+  const ongoing = hackathons.filter(h => h.status === 'ongoing').length;
+  const totalTeams = hackathons.reduce((s, h) => s + h.assignedTeams, 0);
+  const pending = hackathons.reduce((s, h) => s + h.pendingActions, 0);
+
+  const stats = [
+    { label: 'Hackathon tham gia', value: total,      color: 'var(--cyan, #00d4ff)',     icon: '🏆' },
+    { label: 'Đang diễn ra',       value: ongoing,    color: '#10b981',                  icon: '▶' },
+    { label: 'Đội được phân công', value: totalTeams, color: 'var(--purple, #a855f7)',   icon: '👥' },
+    { label: 'Cần xử lý',          value: pending,    color: pending > 0 ? '#f59e0b' : '#6b7280', icon: '⏳' },
+  ];
+
+  return (
+    <div className="mh-stats-bar">
+      {stats.map((s, i) => (
+        <div key={i} className="mh-stat">
+          <div className="mh-stat-icon">{s.icon}</div>
+          <div className="mh-stat-num" style={{ color: s.color }}>{s.value}</div>
+          <div className="mh-stat-lbl">{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Hackathon Card ─────────────────────────────────────────────────────────
+function HackathonCard({ hackathon }) {
+  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(hackathon.status === 'ongoing');
+  const sc = HACKATHON_STATUS[hackathon.status];
+  const activeRound = hackathon.rounds.find(r => r.status === 'active');
+  const isJudge = hackathon.myRoles.includes('judge');
+  const isMentor = hackathon.myRoles.includes('mentor');
+
+  const totalScored = hackathon.rounds.reduce((s, r) => s + r.scoredTeams, 0);
+  const totalPossible = hackathon.rounds.reduce((s, r) => s + r.totalTeams, 0);
+  const overallProgress = totalPossible > 0 ? Math.round((totalScored / totalPossible) * 100) : 0;
+
+  return (
+    <div className="mh-hackathon-card" style={{ '--accent': hackathon.accentColor }}>
+      {/* Banner */}
+      <div className="mh-card-banner" style={{ background: hackathon.banner }}>
+        <div className="mh-card-banner-overlay" />
+        <div className="mh-card-banner-content">
+          <div className="mh-card-banner-left">
+            <div className="mh-card-name">{hackathon.name}</div>
+            <div className="mh-card-date">
+              {fmtDate(hackathon.startDate)} → {fmtDate(hackathon.endDate)}
+            </div>
+            <div className="mh-role-badges">
+              {hackathon.myRoles.map(role => {
+                const cfg = ROLE_CFG[role];
+                return (
+                  <span key={role} className="mh-role-badge" style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}>
+                    {cfg.icon} {cfg.label}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <div className="mh-card-banner-right">
+            <Tag color={sc.color} style={{ fontSize: '0.75rem', padding: '2px 10px' }}>{sc.label}</Tag>
+            {hackathon.pendingActions > 0 && (
+              <div className="mh-pending-badge">
+                <span className="mh-pending-dot" />
+                {hackathon.pendingActions} cần xử lý
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="mh-card-body">
+        {/* Quick actions for active round */}
+        {activeRound && (
+          <div className="mh-active-round-bar">
+            <div className="mh-active-round-info">
+              <span className="mh-active-dot" />
+              <span className="mh-active-round-name">
+                <strong>{activeRound.name}</strong> đang mở — {activeRound.scoredTeams}/{activeRound.totalTeams} đội
+              </span>
+            </div>
+            <div className="mh-active-round-actions">
+              {isJudge && (
+                <button
+                  className="mh-action-btn mh-action-btn--judge"
+                  onClick={() => navigate(`/mentor/judge/${hackathon.id}/rounds/${activeRound.id}`)}
+                >
+                  ⚖ Chấm điểm (Judge)
+                </button>
+              )}
+              {isMentor && (
+                <button
+                  className="mh-action-btn mh-action-btn--mentor"
+                  onClick={() => navigate(`/mentor/portal/${hackathon.id}/${activeRound.id}`)}
+                >
+                  🎯 Mentor Portal
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Progress */}
+        <div className="mh-card-progress">
+          <div className="mh-card-progress-row">
+            <span className="mh-card-progress-label">Tiến độ tổng: {totalScored}/{totalPossible}</span>
+            <span className="mh-card-progress-pct">{overallProgress}%</span>
+          </div>
+          <Progress
+            percent={overallProgress}
+            strokeColor={hackathon.accentColor}
+            trailColor="rgba(255,255,255,0.07)"
+            showInfo={false}
+            size={[undefined, 6]}
+          />
+        </div>
+
+        {/* Rounds expandable */}
+        <button className="mh-expand-btn" onClick={() => setExpanded(e => !e)}>
+          <span>Vòng thi ({hackathon.rounds.length})</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}
+            style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+
+        {expanded && (
+          <div className="mh-rounds-list">
+            {hackathon.rounds.map((round, idx) => {
+              const rcfg = ROUND_STATUS[round.status];
+              const pct = round.totalTeams > 0 ? Math.round((round.scoredTeams / round.totalTeams) * 100) : 0;
+              const isActive = round.status === 'active';
+              return (
+                <div key={round.id} className={`mh-round-row ${isActive ? 'mh-round-row--active' : ''}`}>
+                  <div className="mh-round-seq">{idx + 1}</div>
+                  <div className="mh-round-info-col">
+                    <div className="mh-round-row-name">{round.name}</div>
+                    <div className="mh-round-scored">{round.scoredTeams}/{round.totalTeams} đã chấm</div>
+                  </div>
+                  <div className="mh-round-progress-col">
+                    <Progress
+                      percent={pct}
+                      strokeColor={rcfg.color}
+                      trailColor="rgba(255,255,255,0.07)"
+                      showInfo={false}
+                      size={[80, 4]}
+                    />
+                  </div>
+                  <div className="mh-round-status-dot" style={{ color: rcfg.color, fontSize: '0.7rem', fontWeight: 700 }}>
+                    {rcfg.label}
+                  </div>
+                  {isActive && (
+                    <div className="mh-round-actions">
+                      {isJudge && (
+                        <Tooltip title="Mở Judge Portal để chấm điểm">
+                          <button className="mh-round-btn mh-round-btn--judge"
+                            onClick={() => navigate(`/mentor/judge/${hackathon.id}/rounds/${round.id}`)}>
+                            ⚖
+                          </button>
+                        </Tooltip>
+                      )}
+                      {isMentor && (
+                        <Tooltip title="Mở Mentor Portal">
+                          <button className="mh-round-btn mh-round-btn--mentor"
+                            onClick={() => navigate(`/mentor/portal/${hackathon.id}/${round.id}`)}>
+                            🎯
+                          </button>
+                        </Tooltip>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ───────────────────────────────────────────────────────────────────
+export default function MentorHomePage() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const isMentor = user?.roles?.some(r => r.role_name === 'mentor');
+  const isJudge = user?.roles?.some(r => r.role_name === 'mentor' || r.role_name === 'judge');
+
+  return (
+    <div className="mh-page">
+      {/* ─── Topbar ─── */}
+      <div className="mh-topbar">
+        <div className="mh-topbar-brand">
+          <span className="mh-topbar-logo">SEAL</span>
+          <span className="mh-topbar-divider" />
+          <span className="mh-topbar-subtitle">Mentor & Judge Portal</span>
+        </div>
+        <div className="mh-topbar-right">
+          <div className="mh-user-pill">
+            <div className="mh-user-avatar">{(user?.full_name || 'M')[0]}</div>
+            <div className="mh-user-info">
+              <div className="mh-user-name">{user?.full_name || 'Mentor'}</div>
+              <div className="mh-user-roles">
+                {user?.roles?.map(r => (
+                  <span key={r.role_name} className="mh-user-role-tag" style={{ color: ROLE_CFG[r.role_name]?.color || '#94a3b8' }}>
+                    {ROLE_CFG[r.role_name]?.icon} {r.role_name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <button className="mh-logout-btn" onClick={logout}>Đăng xuất</button>
+        </div>
+      </div>
+
+      {/* ─── Hero ─── */}
+      <div className="mh-hero">
+        <div className="mh-hero-text">
+          <h1 className="mh-hero-title">
+            Xin chào, <span className="mh-hero-name">{user?.full_name?.split(' ').pop() || 'Mentor'}</span> 👋
+          </h1>
+          <p className="mh-hero-sub">
+            {isMentor && isJudge
+              ? 'Bạn có vai trò Mentor & Judge. Theo dõi tiến độ và chấm điểm các đội bên dưới.'
+              : isMentor
+              ? 'Theo dõi tiến độ các đội được phân công và hỗ trợ mentor.'
+              : 'Chấm điểm các đội trong phạm vi được phân công.'}
+          </p>
+        </div>
+        <StatsBar hackathons={MOCK_HACKATHONS} />
+      </div>
+
+      {/* ─── Hackathon List ─── */}
+      <div className="mh-content">
+        <div className="mh-section-header">
+          <h2 className="mh-section-title">Hackathon của tôi</h2>
+          <span className="mh-section-count">{MOCK_HACKATHONS.length} hackathon</span>
+        </div>
+
+        <div className="mh-cards-list">
+          {MOCK_HACKATHONS.map(h => <HackathonCard key={h.id} hackathon={h} />)}
+        </div>
+
+        {MOCK_HACKATHONS.length === 0 && (
+          <div className="mh-empty">
+            <div className="mh-empty-icon">📋</div>
+            <div className="mh-empty-text">Bạn chưa được phân công hackathon nào</div>
+            <div className="mh-empty-sub">Liên hệ Admin để được phân công</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

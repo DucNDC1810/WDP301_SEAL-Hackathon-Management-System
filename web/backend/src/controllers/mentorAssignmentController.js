@@ -4,11 +4,11 @@ export const handleAssignMentor = async (req, res) => {
   try {
     const { contestId, roundId } = req.params;
     const { board_id, team_id, mentor_id } = req.body;
-    const result = await service.assignMentor({
+    const { assignment, warnings } = await service.assignMentor({
       contest_id: contestId, round_id: roundId,
       board_id, team_id, mentor_id, assigned_by: req.user._id,
     });
-    res.status(201).json(result);
+    res.status(201).json({ message: "Phân công mentor thành công", assignment, warnings });
   } catch (err) {
     res.status(err.statusCode || 500).json({ message: err.message });
   }

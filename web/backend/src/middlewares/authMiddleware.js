@@ -74,3 +74,5 @@ export const authorize = (...allowedRoles) => {
     next();
   };
 };
+
+export const requireRole = (...allowedRoles) => authorize(...allowedRoles);

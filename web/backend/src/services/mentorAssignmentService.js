@@ -3,13 +3,18 @@ import Contest from "../models/Contest.js";
 import Team from "../models/Team.js";
 import User from "../models/User.js";
 
+const FPT_DOMAINS = ["@fpt.edu.vn", "@fe.edu.vn", "@fpt.com.vn"];
+const MAX_TEAMS_PER_MENTOR_PER_ROUND = 3;
+
 export const assignMentor = async ({ contest_id, round_id, board_id, team_id, mentor_id, assigned_by }) => {
-  const mentor = await User.findById(mentor_id).select("email");
+  const mentor = await User.findById(mentor_id).select("email full_name");
   if (!mentor) {
     const err = new Error("Không tìm thấy mentor"); err.statusCode = 404; throw err;
   }
-  if (!mentor.email.endsWith("@fpt.edu.vn")) {
-    const err = new Error("Mentor phải có email @fpt.edu.vn"); err.statusCode = 400; throw err;
+  const isFptEmail = FPT_DOMAINS.some((d) => mentor.email.endsWith(d));
+  if (!isFptEmail) {
+    const err = new Error("Mentor phải có email FPT (@fpt.edu.vn / @fe.edu.vn / @fpt.com.vn)");
+    err.statusCode = 400; throw err;
   }
 
   const contest = await Contest.findById(contest_id);
@@ -26,17 +31,30 @@ export const assignMentor = async ({ contest_id, round_id, board_id, team_id, me
     const err = new Error("Không tìm thấy đội thi"); err.statusCode = 404; throw err;
   }
 
+  // Đếm số teams mentor đang phụ trách trong cùng round
+  const currentCount = await MentorAssignment.countDocuments({
+    mentor_id, contest_id, round_id,
+  });
+  const warnings = [];
+  if (currentCount >= MAX_TEAMS_PER_MENTOR_PER_ROUND) {
+    warnings.push(
+      `Mentor "${mentor.full_name}" đã phụ trách ${currentCount} đội trong vòng này (vượt giới hạn ${MAX_TEAMS_PER_MENTOR_PER_ROUND}). Hãy kiểm tra lại.`
+    );
+  }
+
   const assignment = new MentorAssignment({
     contest_id, round_id, board_id, team_id, mentor_id,
     assigned_by, assigned_at: new Date(),
   });
   await assignment.save();
 
-  return assignment.populate([
+  await assignment.populate([
     { path: "mentor_id", select: "full_name email" },
     { path: "team_id",   select: "team_name status" },
     { path: "board_id",  select: "pool_name" },
   ]);
+
+  return { assignment, warnings };
 };
 
 export const getAssignmentsByRound = async (contestId, roundId) => {

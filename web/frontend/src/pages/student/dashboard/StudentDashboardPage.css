@@ -133,10 +133,11 @@
 
 /* Stats row */
 .dashboard__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 24px;
+  align-items: stretch;
 }
 
 .dashboard__stat-card {
@@ -161,6 +162,13 @@
 .dashboard__stat-icon--team    { background: rgba(0, 212, 255, 0.12); color: #00d4ff; }
 .dashboard__stat-icon--member  { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
 .dashboard__stat-icon--contest { background: rgba(168, 85, 247, 0.12); color: #a855f7; }
+.dashboard__stat-icon--topic   { background: rgba(250, 173, 20, 0.12); color: #faad14; }
+
+.dashboard__stat-card--topic {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
 
 .dashboard__stat-val   { margin-bottom: 2px; }
 .dashboard__stat-num   { font-size: 1.4rem; font-weight: 700; color: #e2e8f0; }

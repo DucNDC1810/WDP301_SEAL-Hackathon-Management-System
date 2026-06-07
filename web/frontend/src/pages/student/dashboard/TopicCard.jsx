@@ -21,26 +21,28 @@ export function TopicCard({ topic }) {
   const borderColor = BORDER_COLOR[cfg.color] ?? '#52c41a';
 
   return (
-    <div style={{ borderLeft: `3px solid ${borderColor}`, paddingLeft: 12, marginTop: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <Text strong style={{ fontSize: 14 }}>{topic.title}</Text>
-        <Tag color={cfg.color} icon={cfg.icon} style={{ whiteSpace: 'nowrap' }}>{cfg.label}</Tag>
+    <div style={{ borderLeft: `3px solid ${borderColor}`, paddingLeft: 12, width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Text strong style={{ fontSize: 13, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {topic.title}
+        </Text>
+        <Tag color={cfg.color} icon={cfg.icon} style={{ whiteSpace: 'nowrap', flexShrink: 0, margin: 0 }}>{cfg.label}</Tag>
       </div>
 
       {topic.description && (
-        <Paragraph type="secondary" style={{ margin: '4px 0 0', fontSize: 13 }}>
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
           {topic.description}
-        </Paragraph>
+        </Text>
       )}
 
       {topic.status === 'rejected' && topic.admin_note && (
-        <Paragraph type="danger" italic style={{ margin: '4px 0 0', fontSize: 12 }}>
+        <Text type="danger" italic style={{ fontSize: 12, display: 'block', marginTop: 3 }}>
           &ldquo;{topic.admin_note}&rdquo;
-        </Paragraph>
+        </Text>
       )}
 
       {(topic.status === 'active' || topic.status === 'approved') && topic.difficulty && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 3 }}>
           Độ khó: {topic.difficulty}
           {topic.resources?.length > 0 && ` · ${topic.resources.length} tài nguyên`}
         </Text>

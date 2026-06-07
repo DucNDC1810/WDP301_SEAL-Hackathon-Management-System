@@ -9,9 +9,9 @@ export function TopicActions({ teamId, contestId, onSuccess }) {
 
   return (
     <>
-      <Space style={{ marginTop: 12 }}>
-        <Button onClick={() => setSelectOpen(true)}>Chọn đề tài có sẵn</Button>
-        <Button type="primary" onClick={() => setProposeOpen(true)}>Đề xuất đề tài</Button>
+      <Space wrap style={{ marginTop: 8 }}>
+        <Button size="small" onClick={() => setSelectOpen(true)}>Chọn đề tài có sẵn</Button>
+        <Button size="small" type="primary" onClick={() => setProposeOpen(true)}>Đề xuất đề tài</Button>
       </Space>
 
       <SelectTopicModal

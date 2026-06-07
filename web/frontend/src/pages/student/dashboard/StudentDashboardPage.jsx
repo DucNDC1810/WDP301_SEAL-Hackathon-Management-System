@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, CopyOutlined, CrownOutlined,
-  MailOutlined, PlusOutlined, TeamOutlined, TrophyOutlined, UserOutlined,
+  FileTextOutlined, MailOutlined, PlusOutlined, TeamOutlined, TrophyOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
@@ -241,7 +241,7 @@ export default function StudentDashboardPage() {
 
       {/* Stats */}
       <div className="dashboard__stats">
-        <div className="dashboard__stat-card">
+        <div className="dashboard__stat-card" style={{ width: 'fit-content', flexShrink: 0 }}>
           <div className="dashboard__stat-icon dashboard__stat-icon--team"><TeamOutlined /></div>
           <div>
             <div className="dashboard__stat-val">
@@ -252,14 +252,67 @@ export default function StudentDashboardPage() {
             <div className="dashboard__stat-label">Trạng thái đội</div>
           </div>
         </div>
-        <div className="dashboard__stat-card">
-          <div className="dashboard__stat-icon dashboard__stat-icon--member"><CheckCircleOutlined /></div>
-          <div>
-            <div className="dashboard__stat-val dashboard__stat-num">
-              {myTeam ? `${verifiedCount}/${totalMembers}` : '—'}
-            </div>
-            <div className="dashboard__stat-label">Thành viên xác nhận</div>
-          </div>
+        <div className="dashboard__stat-card dashboard__stat-card--topic">
+          {(() => {
+            if (!myTeam) return (
+              <>
+                <div className="dashboard__stat-icon dashboard__stat-icon--topic"><FileTextOutlined /></div>
+                <div>
+                  <div className="dashboard__stat-val" style={{ color: '#64748b' }}>Chưa có đội</div>
+                  <div className="dashboard__stat-label">Đề tài</div>
+                </div>
+              </>
+            );
+
+            const topic = myTeam.topic_id && typeof myTeam.topic_id === 'object' ? myTeam.topic_id : null;
+            const topicContestId = myTeam.contest_id?._id ?? myTeam.contest_id;
+            const beforeStart = activeContest ? Date.now() < new Date(activeContest.start_date) : false;
+            const STATUS_TAG = {
+              active:   <Tag color="success" icon={<CheckCircleOutlined />}>Đã xác nhận</Tag>,
+              approved: <Tag color="success" icon={<CheckCircleOutlined />}>Đã duyệt</Tag>,
+              pending:  <Tag color="warning" icon={<ClockCircleOutlined />}>Chờ duyệt</Tag>,
+              rejected: <Tag color="error"   icon={<ClockCircleOutlined />}>Từ chối</Tag>,
+            };
+
+            if (topic) return (
+              <>
+                <div className="dashboard__stat-icon dashboard__stat-icon--topic"><FileTextOutlined /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="dashboard__stat-val" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <Text strong style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>
+                      {topic.title}
+                    </Text>
+                    {STATUS_TAG[topic.status]}
+                  </div>
+                  <div className="dashboard__stat-label">Đề tài · {topic.difficulty ?? ''}</div>
+                </div>
+                {topic.status === 'rejected' && beforeStart && (
+                  <TopicActions teamId={myTeam._id} contestId={topicContestId} onSuccess={refresh} />
+                )}
+              </>
+            );
+
+            if (!beforeStart) return (
+              <>
+                <div className="dashboard__stat-icon dashboard__stat-icon--topic"><FileTextOutlined /></div>
+                <div>
+                  <div className="dashboard__stat-val" style={{ color: '#64748b' }}>Chưa có đề tài</div>
+                  <div className="dashboard__stat-label">Đề tài · Contest đã bắt đầu</div>
+                </div>
+              </>
+            );
+
+            return (
+              <>
+                <div className="dashboard__stat-icon dashboard__stat-icon--topic"><FileTextOutlined /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="dashboard__stat-val" style={{ color: '#64748b' }}>Chưa có đề tài</div>
+                  <div className="dashboard__stat-label">Đề tài</div>
+                </div>
+                <TopicActions teamId={myTeam._id} contestId={topicContestId} onSuccess={refresh} />
+              </>
+            );
+          })()}
         </div>
       </div>
 
@@ -327,48 +380,6 @@ export default function StudentDashboardPage() {
           </>
         )}
       </Card>
-
-      {/* Topic section */}
-      {myTeam && (() => {
-        const topic = myTeam.topic_id && typeof myTeam.topic_id === 'object' ? myTeam.topic_id : null;
-        const topicContestId = myTeam.contest_id?._id ?? myTeam.contest_id;
-        const beforeStart = activeContest ? Date.now() < new Date(activeContest.start_date) : false;
-        const isRejected = topic?.status === 'rejected';
-
-        return (
-          <Card
-            className="dashboard__card"
-            style={{ marginBottom: 24 }}
-            title="Đề tài"
-          >
-            {topic && !isRejected && <TopicCard topic={topic} />}
-
-            {isRejected && (
-              <>
-                <TopicCard topic={topic} />
-                {beforeStart && (
-                  <TopicActions teamId={myTeam._id} contestId={topicContestId} onSuccess={refresh} />
-                )}
-              </>
-            )}
-
-            {!topic && beforeStart && (
-              <>
-                <Text type="secondary" style={{ fontSize: 13 }}>
-                  Đội chưa có đề tài. Chọn từ danh sách hoặc tự đề xuất.
-                </Text>
-                <TopicActions teamId={myTeam._id} contestId={topicContestId} onSuccess={refresh} />
-              </>
-            )}
-
-            {!topic && !beforeStart && (
-              <Text type="warning" style={{ fontSize: 13 }}>
-                Contest đã bắt đầu. Không thể chọn hoặc đề xuất đề tài.
-              </Text>
-            )}
-          </Card>
-        );
-      })()}
 
       {/* Profile section */}
       <Divider orientation="left" style={{ fontSize: 16, fontWeight: 600 }}>

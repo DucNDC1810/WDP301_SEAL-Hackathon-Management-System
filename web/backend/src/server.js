@@ -20,6 +20,8 @@ import appealRoute from "./routes/appealRoute.js";
 import invitationRoute from "./routes/invitationRoute.js";
 import notificationRoute from "./routes/notificationRoute.js";
 import auditLogRoute from "./routes/auditLogRoute.js";
+import submissionRoute from "./routes/submissionRoute.js";
+import be2RoundRoute from "./routes/be2RoundRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -65,6 +67,8 @@ app.use("/api/appeals", appealRoute);
 app.use("/api/invitations", invitationRoute);
 app.use("/api/notifications", notificationRoute);
 app.use("/api/audit-logs", auditLogRoute);
+app.use("/api/submissions", submissionRoute);
+app.use("/api/rounds", be2RoundRoute);
 
 initSocket(httpServer);
 

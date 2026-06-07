@@ -13,6 +13,7 @@ import {
   handleDisqualifyTeam,
   handleResendMemberVerification,
   handleInviteMember,
+  handleEliminateTeam,
 } from "../controllers/teamController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import { audit } from "../middlewares/auditMiddleware.js";
@@ -69,5 +70,8 @@ router.put("/:id/approve", authenticate, authorize("admin"), handleApproveTeam);
 
 // PUT /api/teams/:id/disqualify               — loại đội thi
 router.put("/:id/disqualify", authenticate, authorize("admin"), audit("TEAM", "DISQUALIFY"), handleDisqualifyTeam);
+
+// PATCH /api/teams/:id/eliminate              — loại đội thi và re-rank (COORDINATOR/admin)
+router.patch("/:id/eliminate", authenticate, authorize("admin"), handleEliminateTeam);
 
 export default router;

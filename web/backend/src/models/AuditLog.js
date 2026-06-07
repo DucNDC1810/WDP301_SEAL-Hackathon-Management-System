@@ -22,7 +22,7 @@ const auditLogSchema = new mongoose.Schema(
       enum: [
         "USER", "TEAM", "CONTEST", "POOL", "TOPIC",
         "SCORE", "RANKING", "INVITATION", "MENTOR_ASSIGNMENT",
-        "APPEAL", "NOTIFICATION",
+        "APPEAL", "NOTIFICATION", "SUBMISSION", "ROUND",
       ],
     },
     resource_id: {

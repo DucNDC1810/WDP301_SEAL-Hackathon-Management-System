@@ -41,6 +41,14 @@ const roundSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    submission_deadline: {
+      type: Date,
+      default: null,
+    },
+    problem_released_at: {
+      type: Date,
+      default: null,
+    },
     score_criteria: {
       type: [criteriaSchema],
       default: [],

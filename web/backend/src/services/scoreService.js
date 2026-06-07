@@ -3,6 +3,7 @@ import ScoreDetail from "../models/ScoreDetail.js";
 import MentorAssignment from "../models/MentorAssignment.js";
 import JudgeAssignment from "../models/JudgeAssignment.js";
 import Contest from "../models/Contest.js";
+import User from "../models/User.js";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,21 @@ export const createScore = async ({
   const round = await getRound(contest_id, round_id);
   if (round.scoring_locked) {
     const err = new Error("Vòng thi đã bị khóa chấm điểm, không thể nhập điểm mới");
+    err.statusCode = 403; throw err;
+  }
+
+  // Conflict of interest: mentor không được chấm team mình đang hướng dẫn
+  const isMentorOfThisTeam = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id });
+  if (isMentorOfThisTeam) {
+    const err = new Error("Bạn không thể chấm điểm đội mà bạn đang làm mentor (conflict of interest)");
+    err.statusCode = 403; throw err;
+  }
+
+  // Timing check: judge-role user chỉ chấm được sau khi vòng kết thúc
+  const actor = await User.findById(actorId).select("roles").lean();
+  const actorRoles = (actor?.roles || []).map(r => r.role_name);
+  if (actorRoles.includes("judge") && !actorRoles.includes("mentor") && round.is_active) {
+    const err = new Error("Giám khảo chỉ có thể chấm điểm sau khi vòng thi kết thúc");
     err.statusCode = 403; throw err;
   }
 

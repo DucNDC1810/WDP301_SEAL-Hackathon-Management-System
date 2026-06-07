@@ -20,7 +20,6 @@ const ROUND_STATUS = {
 
 const ROLE_CFG = {
   mentor: { label: 'Mentor', icon: '🎯', bg: 'rgba(168,85,247,0.12)', color: '#a855f7', border: 'rgba(168,85,247,0.3)' },
-  judge:  { label: 'Judge',  icon: '⚖',  bg: 'rgba(0,212,255,0.1)',   color: '#00d4ff', border: 'rgba(0,212,255,0.25)' },
 };
 
 function fmtDate(iso) {
@@ -61,7 +60,6 @@ function HackathonCard({ hackathon }) {
   const [expanded, setExpanded] = useState(hackathon.status === 'ongoing');
   const sc = HACKATHON_STATUS[hackathon.status];
   const activeRound = hackathon.rounds.find(r => r.status === 'active');
-  const isJudge = hackathon.myRoles.includes('judge');
   const isMentor = hackathon.myRoles.includes('mentor');
 
   const totalScored = hackathon.rounds.reduce((s, r) => s + r.scoredTeams, 0);
@@ -116,20 +114,21 @@ function HackathonCard({ hackathon }) {
               </span>
             </div>
             <div className="mh-active-round-actions">
-              {isJudge && (
-                <button
-                  className="mh-action-btn mh-action-btn--judge"
-                  onClick={() => navigate(`/mentor/judge/${hackathon.id}/rounds/${activeRound.id}`)}
-                >
-                  ⚖ Chấm điểm (Judge)
-                </button>
-              )}
               {isMentor && (
                 <button
                   className="mh-action-btn mh-action-btn--mentor"
                   onClick={() => navigate(`/mentor/portal/${hackathon.id}/${activeRound.id}`)}
                 >
                   🎯 Mentor Portal
+                </button>
+              )}
+              {isMentor && (
+                <button
+                  className="mh-action-btn"
+                  style={{ background: 'rgba(0,212,255,0.08)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.25)' }}
+                  onClick={() => navigate(`/mentor/scoring/${hackathon.id}/rounds/${activeRound.id}`)}
+                >
+                  📝 Chấm điểm
                 </button>
               )}
             </div>
@@ -193,24 +192,21 @@ function HackathonCard({ hackathon }) {
                       <div className="mh-round-status-dot" style={{ color: rcfg.color, fontSize: '0.7rem', fontWeight: 700 }}>
                         {rcfg.label}
                       </div>
-                      {isActive && (
+                      {isActive && isMentor && (
                         <div className="mh-round-actions">
-                          {isJudge && (
-                            <Tooltip title="Mở Judge Portal để chấm điểm">
-                              <button className="mh-round-btn mh-round-btn--judge"
-                                onClick={() => navigate(`/mentor/judge/${hackathon.id}/rounds/${round.id}`)}>
-                                ⚖
-                              </button>
-                            </Tooltip>
-                          )}
-                          {isMentor && (
-                            <Tooltip title="Mở Mentor Portal">
-                              <button className="mh-round-btn mh-round-btn--mentor"
-                                onClick={() => navigate(`/mentor/portal/${hackathon.id}/${round.id}`)}>
-                                🎯
-                              </button>
-                            </Tooltip>
-                          )}
+                          <Tooltip title="Mở Mentor Portal">
+                            <button className="mh-round-btn mh-round-btn--mentor"
+                              onClick={() => navigate(`/mentor/portal/${hackathon.id}/${round.id}`)}>
+                              🎯
+                            </button>
+                          </Tooltip>
+                          <Tooltip title="Trang chấm điểm">
+                            <button className="mh-round-btn"
+                              style={{ color: '#00d4ff', borderColor: 'rgba(0,212,255,0.3)' }}
+                              onClick={() => navigate(`/mentor/scoring/${hackathon.id}/rounds/${round.id}`)}>
+                              📝
+                            </button>
+                          </Tooltip>
                         </div>
                       )}
                     </div>
@@ -239,20 +235,8 @@ export default function MentorHomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [contestsRes, assignmentsRes] = await Promise.all([
-          request('/api/contests'),
-          request('/api/judge-assignments/me'),
-        ]);
-
+        const contestsRes = await request('/api/contests');
         const contests = Array.isArray(contestsRes) ? contestsRes : (contestsRes?.data ?? []);
-        const assignments = Array.isArray(assignmentsRes) ? assignmentsRes : (assignmentsRes?.data ?? []);
-
-        // Build map: contestId → count of assigned teams
-        const assignMap = {};
-        assignments.forEach(a => {
-          const cid = (a.contest_id?._id || a.contest_id)?.toString();
-          if (cid) assignMap[cid] = (assignMap[cid] || 0) + 1;
-        });
 
         const statusMap = { open: 'ongoing', draft: 'upcoming', closed: 'ended' };
         const ACCENT_COLORS = ['#00d4ff', '#a855f7', '#10b981', '#f59e0b', '#ef4444'];
@@ -262,16 +246,10 @@ export default function MentorHomePage() {
           'linear-gradient(135deg, #0d1b2a, #1b4332, #081c15)',
         ];
 
-        // Show all open/closed contests (mentor sees all active contests)
-        const filtered = contests.filter(c => c.status !== 'draft' || assignMap[c._id?.toString()]);
+        // Show all open/closed contests
+        const filtered = contests.filter(c => c.status !== 'draft');
 
         const hacks = filtered.map((c, i) => {
-          const cid = c._id?.toString();
-          const myRoles = [];
-          if (isMentor) myRoles.push('mentor');
-          if (assignMap[cid]) myRoles.push('judge');
-          if (myRoles.length === 0) myRoles.push('mentor');
-
           return {
             id: c._id,
             name: c.title,
@@ -280,8 +258,8 @@ export default function MentorHomePage() {
             accentColor: ACCENT_COLORS[i % ACCENT_COLORS.length],
             startDate: c.start_date,
             endDate: c.end_date,
-            myRoles,
-            assignedTeams: assignMap[cid] || 0,
+            myRoles: ['mentor'],
+            assignedTeams: 0,
             rounds: (c.rounds || []).map(r => ({
               id: r._id,
               name: r.name,
@@ -312,7 +290,7 @@ export default function MentorHomePage() {
         <div className="mh-topbar-brand">
           <span className="mh-topbar-logo">SEAL</span>
           <span className="mh-topbar-divider" />
-          <span className="mh-topbar-subtitle">Mentor & Judge Portal</span>
+          <span className="mh-topbar-subtitle">Mentor Portal</span>
         </div>
         <div className="mh-topbar-right">
           <div className="mh-user-pill">

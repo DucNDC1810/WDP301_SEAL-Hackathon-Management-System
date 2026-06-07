@@ -107,7 +107,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   }, [selectedRound, fetchAssignments]);
 
   // Derived lists
-  const judges = allUsers.filter(u => u.roles?.some(r => r.role_name === 'mentor'));
+  const judges = allUsers.filter(u => u.roles?.some(r => r.role_name === 'judge'));
   const mentors = allUsers.filter(u => u.roles?.some(r => r.role_name === 'mentor'));
   const poolOptions = pools.map(p => ({ value: p._id, label: p.pool_name }));
 

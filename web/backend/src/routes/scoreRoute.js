@@ -4,17 +4,17 @@ import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", authenticate, authorize("mentor"), handleCreateScore);
-router.put("/:id", authenticate, authorize("mentor"), handleUpdateScore);
+router.post("/", authenticate, authorize("mentor", "judge"), handleCreateScore);
+router.put("/:id", authenticate, authorize("mentor", "judge"), handleUpdateScore);
 router.get(
   "/contests/:contestId/rounds/:roundId/progress",
-  authenticate, authorize("admin", "mentor"),
+  authenticate, authorize("admin", "mentor", "judge"),
   handleGetProgress
 );
 
 router.get(
   "/contests/:contestId/rounds/:roundId/my-scores",
-  authenticate, authorize("admin", "mentor"),
+  authenticate, authorize("admin", "mentor", "judge"),
   handleGetMyScores
 );
 

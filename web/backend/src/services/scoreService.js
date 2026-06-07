@@ -135,6 +135,18 @@ export const getScoringProgress = async (contestId, roundId) => {
   return { total, done, remaining: Math.max(0, total - done) };
 };
 
+// ─── getMyScores ──────────────────────────────────────────────────────────────
+
+export const getMyScores = async (contestId, roundId, judgeId) => {
+  const scores = await Score.find({ contest_id: contestId, round_id: roundId, judge_id: judgeId });
+  const scoreIds = scores.map(s => s._id);
+  const details = await ScoreDetail.find({ score_id: { $in: scoreIds } });
+  return scores.map(s => ({
+    ...s.toObject(),
+    score_details: details.filter(d => d.score_id.toString() === s._id.toString()),
+  }));
+};
+
 // ─── getScoresByRound ─────────────────────────────────────────────────────────
 
 export const getScoresByRound = async (contestId, roundId, { score_type } = {}) => {

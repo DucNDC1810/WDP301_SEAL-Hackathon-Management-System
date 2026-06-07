@@ -5,7 +5,8 @@ import {
 } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, CopyOutlined, CrownOutlined,
-  FileTextOutlined, MailOutlined, PlusOutlined, TeamOutlined, TrophyOutlined, UserOutlined,
+  FileTextOutlined, MailOutlined, PlusOutlined, TeamOutlined, TrophyOutlined,
+  UserOutlined, AppstoreOutlined, OrderedListOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
@@ -35,6 +36,8 @@ export default function StudentDashboardPage() {
   const { user } = useAuth();
   const { request } = useApi();
   const [myTeam,         setMyTeam]         = useState(null);
+  const [myPool,         setMyPool]         = useState(null);
+  const [myRank,         setMyRank]         = useState(null);
   const [loading,        setLoading]         = useState(true);
   const [joinOpen,       setJoinOpen]        = useState(false);
   const [joinLoading,    setJoinLoading]     = useState(false);
@@ -55,19 +58,67 @@ export default function StudentDashboardPage() {
     let active = true;
     const load = async () => {
       setLoading(true);
+      setMyPool(null);
+      setMyRank(null);
+
       const [teamsRes, contestsRes] = await Promise.allSettled([
         request('/api/teams/me'),
         request('/api/contests'),
       ]);
       if (!active) return;
+
+      let team = null;
       if (teamsRes.status === 'fulfilled') {
         const list = Array.isArray(teamsRes.value) ? teamsRes.value : teamsRes.value?.data ?? [];
-        setMyTeam(list[0] || null);
+        team = list[0] || null;
+        setMyTeam(team);
       }
       if (contestsRes.status === 'fulfilled') {
         const list = Array.isArray(contestsRes.value) ? contestsRes.value : contestsRes.value?.data ?? [];
         setContests(list);
       }
+
+      // Fetch pool & ranking after we have team + contest
+      if (team) {
+        const cid = team.contest_id?._id ?? team.contest_id;
+        if (cid) {
+          const [poolsRes] = await Promise.allSettled([
+            request(`/api/pools/contests/${cid}/pools`),
+          ]);
+          if (active && poolsRes.status === 'fulfilled') {
+            const pools = Array.isArray(poolsRes.value) ? poolsRes.value : poolsRes.value?.data ?? [];
+            const found = pools.find(p =>
+              (p.teams || []).some(t => {
+                const tid = t._id ?? t.team_id?._id ?? t.team_id;
+                return tid?.toString() === team._id?.toString();
+              })
+            );
+            setMyPool(found || null);
+
+            // If pool has a round, try to get ranking
+            if (found) {
+              // Find latest active round from pool's contest
+              const contestData = contestsRes.status === 'fulfilled'
+                ? (Array.isArray(contestsRes.value) ? contestsRes.value : contestsRes.value?.data ?? []).find(c => c._id === cid)
+                : null;
+              const rounds = contestData?.rounds ?? [];
+              const activeRound = rounds.find(r => r.status === 'active') ?? rounds[rounds.length - 1];
+              if (activeRound?._id) {
+                const rankRes = await request(`/api/contests/${cid}/rounds/${activeRound._id}/rankings`).catch(() => null);
+                if (active && rankRes) {
+                  const rankList = Array.isArray(rankRes) ? rankRes : rankRes?.data ?? [];
+                  const myEntry = rankList.find(r => {
+                    const rid = r.team_id?._id ?? r.team_id;
+                    return rid?.toString() === team._id?.toString();
+                  });
+                  setMyRank(myEntry || null);
+                }
+              }
+            }
+          }
+        }
+      }
+
       setLoading(false);
     };
     load();
@@ -252,6 +303,36 @@ export default function StudentDashboardPage() {
             <div className="dashboard__stat-label">Trạng thái đội</div>
           </div>
         </div>
+        {/* Pool / bracket card */}
+        <div className="dashboard__stat-card">
+          <div className="dashboard__stat-icon dashboard__stat-icon--team">
+            <AppstoreOutlined />
+          </div>
+          <div>
+            <div className="dashboard__stat-val">
+              {myPool
+                ? <Tag color="blue">{myPool.pool_name ?? myPool.name ?? 'Bảng ?'}</Tag>
+                : <Tag color="default">{myTeam ? 'Chưa phân bảng' : '—'}</Tag>}
+            </div>
+            <div className="dashboard__stat-label">Bảng đấu</div>
+          </div>
+        </div>
+
+        {/* Ranking card */}
+        <div className="dashboard__stat-card">
+          <div className="dashboard__stat-icon dashboard__stat-icon--team">
+            <OrderedListOutlined />
+          </div>
+          <div>
+            <div className="dashboard__stat-val">
+              {myRank
+                ? <span style={{ fontWeight: 700, color: '#00d4ff' }}>#{myRank.rank_position}</span>
+                : <Tag color="default">{myTeam ? 'Chưa có dữ liệu' : '—'}</Tag>}
+            </div>
+            <div className="dashboard__stat-label">Xếp hạng hiện tại</div>
+          </div>
+        </div>
+
         <div className="dashboard__stat-card dashboard__stat-card--topic">
           {(() => {
             if (!myTeam) return (

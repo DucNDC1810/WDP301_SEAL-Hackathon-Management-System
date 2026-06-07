@@ -1,102 +1,134 @@
-import { useState } from 'react';
-import { Button, Tag, Modal, Input, Alert, Table, message } from 'antd';
+import { useState, useEffect, useCallback } from 'react';
+import { Select, Button, Tag, Modal, Input, Alert, message, Spin, Tooltip } from 'antd';
+import { useApi } from '../../../../hooks/useApi';
 
 const { TextArea } = Input;
 
-const INIT_TEAMS = [
-  { id: 't1', name: 'Team Alpha',   pool: 'Bảng A', track: 'AI & ML',    score: 91.5, eliminated: false, violation: null, eliminatedAt: null },
-  { id: 't2', name: 'Team Beta',    pool: 'Bảng A', track: 'AI & ML',    score: 87.2, eliminated: false, violation: null, eliminatedAt: null },
-  { id: 't3', name: 'Team Gamma',   pool: 'Bảng B', track: 'AI & ML',    score: 85.0, eliminated: false, violation: null, eliminatedAt: null },
-  { id: 't4', name: 'Team Delta',   pool: 'Bảng B', track: 'Web3',       score: 82.3, eliminated: false, violation: null, eliminatedAt: null },
-  { id: 't5', name: 'Team Epsilon', pool: 'Bảng C', track: 'Web3',       score: 79.8, eliminated: false, violation: null, eliminatedAt: null },
-  { id: 't6', name: 'Team Zeta',    pool: 'Bảng C', track: 'Web3',       score: 77.1, eliminated: false, violation: null, eliminatedAt: null },
-  { id: 't7', name: 'Team Eta',     pool: 'Bảng A', track: 'AI & ML',    score: 74.5, eliminated: false, violation: null, eliminatedAt: null },
-  { id: 't8', name: 'Team Theta',   pool: 'Bảng B', track: 'AI & ML',    score: 71.0, eliminated: false, violation: null, eliminatedAt: null },
-];
-
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
-const MEDAL_COLOR = { 1: '#FFD700', 2: '#C0C0C0', 3: '#CD7F32' };
 
-function rankedActive(teams) {
-  return teams
-    .filter(t => !t.eliminated)
-    .sort((a, b) => b.score - a.score)
-    .map((t, i) => ({ ...t, rank: i + 1 }));
-}
-
-export default function TeamEliminationTab() {
-  const [teams, setTeams]       = useState(INIT_TEAMS);
-  const [target, setTarget]     = useState(null);
-  const [reason, setReason]     = useState('');
-  const [auditLog, setAuditLog] = useState([]);
-  const [showAudit, setShowAudit] = useState(false);
+export default function TeamEliminationTab({ config, contestId, contest }) {
+  const { request } = useApi();
   const [messageApi, contextHolder] = message.useMessage();
 
-  const ranked   = rankedActive(teams);
-  const eliminated = teams.filter(t => t.eliminated);
+  const rounds = contest?.rounds
+    ? contest.rounds.map(r => ({ id: r._id, name: r.name }))
+    : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name })));
 
-  const doEliminate = () => {
-    if (!reason.trim()) { messageApi.error('Vui lòng nhập lý do vi phạm!'); return; }
-    const now = new Date().toISOString();
-    setTeams(prev => prev.map(t =>
-      t.id === target.id ? { ...t, eliminated: true, violation: reason, eliminatedAt: now } : t
-    ));
-    setAuditLog(prev => [...prev, { teamId: target.id, teamName: target.name, reason, eliminatedAt: now, performedBy: 'Admin' }]);
-    setTarget(null); setReason('');
-    messageApi.success(`Đã loại "${target.name}"! Leaderboard đã cập nhật.`);
+  const [selectedRound, setSelectedRound] = useState(rounds[0]?.id || null);
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [target, setTarget] = useState(null);
+  const [reason, setReason] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [showAudit, setShowAudit] = useState(false);
+  const [auditLog, setAuditLog] = useState([]);
+
+  const fetchTeams = useCallback(async (rid) => {
+    if (!contestId || !rid) return;
+    setLoading(true);
+    try {
+      // Try rankings endpoint first; fall back to all teams
+      let list = [];
+      try {
+        const rankings = await request(`/api/contests/${contestId}/rounds/${rid}/rankings`);
+        list = Array.isArray(rankings) ? rankings : (rankings?.data ?? []);
+        list = list.map((item, idx) => ({
+          id: (item.team_id?._id || item.team_id || item._id)?.toString(),
+          name: item.team_id?.team_name || item.team_id?.name || item.team_name || item.name || '—',
+          poolName: item.pool_id?.pool_name || item.pool_name || '—',
+          score: typeof item.total_score === 'number' ? item.total_score : (item.score ?? null),
+          eliminated: item.is_eliminated || item.eliminated || false,
+          eliminatedAt: item.eliminated_at || null,
+          eliminationReason: item.elimination_reason || null,
+          rank: item.rank || idx + 1,
+        }));
+      } catch {
+        // Fallback: get all teams for this contest
+        const allTeams = await request(`/api/teams/contests/${contestId}/all`);
+        const teamList = Array.isArray(allTeams) ? allTeams : (allTeams?.data ?? []);
+        list = teamList.map((t, idx) => ({
+          id: (t._id || t.id)?.toString(),
+          name: t.team_name || t.name || '—',
+          poolName: t.pool_id?.pool_name || '—',
+          score: null,
+          eliminated: t.is_eliminated || false,
+          eliminatedAt: t.eliminated_at || null,
+          eliminationReason: t.elimination_reason || null,
+          rank: idx + 1,
+        }));
+      }
+      setTeams(list);
+    } catch {
+      messageApi.error('Không thể tải danh sách đội');
+    } finally {
+      setLoading(false);
+    }
+  }, [contestId, request]);
+
+  useEffect(() => {
+    if (selectedRound) fetchTeams(selectedRound);
+  }, [selectedRound, fetchTeams]);
+
+  const doEliminate = async () => {
+    if (!target) return;
+    if (!reason.trim()) { messageApi.error('Vui lòng nhập lý do!'); return; }
+    setProcessing(true);
+    try {
+      await request(`/api/teams/${target.id}/eliminate`, {
+        method: 'PATCH',
+        body: { reason: reason.trim() },
+      });
+      const now = new Date().toISOString();
+      setTeams(prev => prev.map(t =>
+        t.id === target.id
+          ? { ...t, eliminated: true, eliminatedAt: now, eliminationReason: reason.trim() }
+          : t
+      ));
+      setAuditLog(prev => [{
+        id: Date.now(), teamName: target.name, reason: reason.trim(), at: now,
+      }, ...prev]);
+      setTarget(null);
+      setReason('');
+      messageApi.success(`Đã loại ${target.name} khỏi cuộc thi`);
+    } catch (e) {
+      messageApi.error(e.message || 'Không thể loại đội');
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const doRestore = (teamId, teamName) => {
+  const doRestore = async (team) => {
     Modal.confirm({
-      title: `Khôi phục "${teamName}"?`,
-      content: 'Đội sẽ được đưa trở lại leaderboard và xếp hạng lại tự động.',
+      title: 'Khôi phục đội?',
+      content: `Khôi phục "${team.name}" để tiếp tục tham gia?`,
       okText: 'Khôi phục', cancelText: 'Hủy',
-      onOk: () => {
-        setTeams(prev => prev.map(t =>
-          t.id === teamId ? { ...t, eliminated: false, violation: null, eliminatedAt: null } : t
-        ));
-        messageApi.success('Đã khôi phục đội!');
+      onOk: async () => {
+        try {
+          await request(`/api/teams/${team.id}/eliminate`, {
+            method: 'PATCH',
+            body: { restore: true },
+          });
+          setTeams(prev => prev.map(t =>
+            t.id === team.id ? { ...t, eliminated: false, eliminatedAt: null, eliminationReason: null } : t
+          ));
+          messageApi.success(`Đã khôi phục ${team.name}`);
+        } catch {
+          // Restore may not be supported — update local only
+          setTeams(prev => prev.map(t =>
+            t.id === team.id ? { ...t, eliminated: false, eliminatedAt: null, eliminationReason: null } : t
+          ));
+          messageApi.info(`Đã khôi phục ${team.name} (local)`);
+        }
       },
     });
   };
 
-  const lbColumns = [
-    {
-      title: 'Hạng', dataIndex: 'rank', width: 70,
-      render: rank => (
-        <div className="flex items-center justify-center w-9 h-9 rounded-full font-bold"
-          style={{ background: MEDAL_COLOR[rank] ? `${MEDAL_COLOR[rank]}22` : 'transparent', color: MEDAL_COLOR[rank] || 'var(--text-secondary)', fontSize: rank <= 3 ? '1.1rem' : '0.9rem' }}>
-          {MEDAL[rank] || `#${rank}`}
-        </div>
-      ),
-    },
-    {
-      title: 'Đội thi', key: 'team',
-      render: (_, r) => (
-        <div>
-          <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{r.name}</div>
-          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.pool} · {r.track}</div>
-        </div>
-      ),
-    },
-    {
-      title: 'Điểm số', dataIndex: 'score',
-      render: s => <span className="font-bold text-base" style={{ color: 'var(--cyan)' }}>{s.toFixed(1)}</span>,
-    },
-    {
-      title: 'Thao tác', key: 'action',
-      render: (_, r) => (
-        <Button danger size="small" onClick={() => { setTarget(r); setReason(''); }}>⛔ Loại đội</Button>
-      ),
-    },
-  ];
+  const active = teams.filter(t => !t.eliminated).sort((a, b) => {
+    if (a.score !== null && b.score !== null) return b.score - a.score;
+    return 0;
+  }).map((t, i) => ({ ...t, rank: i + 1 }));
 
-  const auditColumns = [
-    { title: 'Đội', dataIndex: 'teamName', render: n => <span className="font-bold">{n}</span> },
-    { title: 'Lý do vi phạm', dataIndex: 'reason' },
-    { title: 'Thời gian', dataIndex: 'eliminatedAt', render: d => new Date(d).toLocaleString('vi-VN') },
-    { title: 'Thực hiện bởi', dataIndex: 'performedBy' },
-  ];
+  const eliminated = teams.filter(t => t.eliminated);
 
   return (
     <div className="p-6 space-y-6">
@@ -104,80 +136,132 @@ export default function TeamEliminationTab() {
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-lg font-bold m-0" style={{ color: 'var(--text-primary)' }}>Leaderboard & Loại đội vi phạm</h2>
+          <h2 className="text-lg font-bold m-0" style={{ color: 'var(--text-primary)' }}>Loại Đội</h2>
           <p className="text-sm mt-1 m-0" style={{ color: 'var(--text-secondary)' }}>
-            Chọn đội và nhập lý do vi phạm để loại. Leaderboard tự cập nhật sau mỗi lần ELIMINATE.
+            Loại đội vi phạm hoặc không đủ điều kiện tiếp tục thi đấu.
           </p>
         </div>
-        {auditLog.length > 0 && (
-          <Button onClick={() => setShowAudit(true)}>📋 Audit Log ({auditLog.length})</Button>
-        )}
+        <Button size="small" onClick={() => setShowAudit(true)}>📋 Audit Log ({auditLog.length})</Button>
       </div>
 
-      {/* Active leaderboard */}
-      <div className="rounded-xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-          <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>
-            🏆 Leaderboard hiện tại ({ranked.length} đội)
-          </h3>
-          <Tag color="green" style={{ fontSize: '0.7rem' }}>Tự cập nhật sau ELIMINATE</Tag>
-        </div>
-        <Table dataSource={ranked} columns={lbColumns} rowKey="id" size="small" pagination={false}
-          locale={{ emptyText: 'Không còn đội nào trong leaderboard' }} />
+      {/* Round selector */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Vòng thi:</span>
+        <Select value={selectedRound} onChange={v => { setSelectedRound(v); setTeams([]); }} style={{ width: 260 }}
+          options={rounds.map(r => ({ value: r.id, label: r.trackName ? `${r.trackName} — ${r.name}` : r.name }))}
+        />
       </div>
 
-      {/* Eliminated teams */}
-      {eliminated.length > 0 && (
-        <div className="rounded-xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          <div className="p-4 border-b" style={{ borderColor: 'var(--border)' }}>
-            <h3 className="text-sm font-bold m-0" style={{ color: '#f87171' }}>⛔ Đội bị loại ({eliminated.length})</h3>
-          </div>
-          {eliminated.map((team, idx) => (
-            <div key={team.id} className="p-4 flex items-center justify-between gap-4"
-              style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="font-bold text-sm" style={{ color: '#f87171' }}>{team.name}</span>
-                  <Tag color="red">ELIMINATED</Tag>
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{team.pool} · {team.track}</span>
-                </div>
-                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  Lý do: {team.violation}
-                  {team.eliminatedAt && <span> · {new Date(team.eliminatedAt).toLocaleString('vi-VN')}</span>}
-                </div>
-              </div>
-              <Button size="small" onClick={() => doRestore(team.id, team.name)}>Khôi phục</Button>
+      {loading && <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>}
+
+      {!loading && (
+        <>
+          {/* Active teams leaderboard */}
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <div className="px-5 py-3 border-b flex items-center justify-between"
+              style={{ borderColor: 'var(--border)', background: 'rgba(0,0,0,0.1)' }}>
+              <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>
+                Bảng xếp hạng ({active.length} đội)
+              </h3>
             </div>
-          ))}
-        </div>
+
+            {active.length === 0 && (
+              <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+                Chưa có dữ liệu đội thi
+              </div>
+            )}
+
+            {active.map((team, idx) => (
+              <div key={team.id} className="flex items-center gap-4 px-5 py-3 flex-wrap"
+                style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
+                <div className="w-10 text-center flex-shrink-0">
+                  {MEDAL[team.rank]
+                    ? <span style={{ fontSize: '1.2rem' }}>{MEDAL[team.rank]}</span>
+                    : <span className="font-bold text-sm" style={{ color: 'var(--text-muted)' }}>#{team.rank}</span>
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{team.name}</div>
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{team.poolName}</div>
+                </div>
+                {team.score !== null && (
+                  <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--cyan)' }}>
+                    {typeof team.score === 'number' ? team.score.toFixed(1) : team.score}
+                  </div>
+                )}
+                <Button size="small" danger
+                  onClick={() => { setTarget(team); setReason(''); }}>
+                  Loại
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Eliminated teams */}
+          {eliminated.length > 0 && (
+            <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div className="px-5 py-3 border-b" style={{ borderColor: 'var(--border)', background: 'rgba(0,0,0,0.1)' }}>
+                <h3 className="text-sm font-bold m-0" style={{ color: '#f87171' }}>Đội đã bị loại ({eliminated.length})</h3>
+              </div>
+              {eliminated.map((team, idx) => (
+                <div key={team.id} className="flex items-center gap-4 px-5 py-3 flex-wrap"
+                  style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none', opacity: 0.7 }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm line-through" style={{ color: 'var(--text-muted)' }}>{team.name}</div>
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {team.eliminatedAt ? new Date(team.eliminatedAt).toLocaleString('vi-VN') : ''}
+                      {team.eliminationReason ? ` — ${team.eliminationReason}` : ''}
+                    </div>
+                  </div>
+                  <Tag color="red" style={{ fontSize: '0.65rem' }}>Đã loại</Tag>
+                  <Tooltip title="Khôi phục đội (nếu backend hỗ trợ)">
+                    <Button size="small" onClick={() => doRestore(team)}>Khôi phục</Button>
+                  </Tooltip>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Eliminate Modal */}
-      <Modal title="⛔ Loại đội vi phạm" open={!!target}
-        onOk={doEliminate} onCancel={() => { setTarget(null); setReason(''); }}
-        okText="Xác nhận loại đội" okButtonProps={{ danger: true }} cancelText="Hủy">
-        <div className="space-y-4 py-2">
+      <Modal
+        title={`⚠ Loại đội: ${target?.name}`}
+        open={!!target}
+        onOk={doEliminate}
+        onCancel={() => { setTarget(null); setReason(''); }}
+        okText="Xác nhận loại" okButtonProps={{ danger: true }}
+        cancelText="Hủy" confirmLoading={processing}
+      >
+        <div className="space-y-3 py-2">
           <Alert type="error" showIcon
-            message={`Loại "${target?.name}" khỏi giải đấu`}
-            description="Đội sẽ bị loại vĩnh viễn. Leaderboard sẽ được xếp hạng lại ngay lập tức. Hành động có thể khôi phục bằng nút 'Khôi phục'."
+            message={`Loại "${target?.name}" khỏi cuộc thi`}
+            description="Đội bị loại sẽ không được tiếp tục tham gia. Hành động này có thể được khôi phục nếu backend hỗ trợ."
           />
           <div>
-            <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
-              Lý do vi phạm * <span style={{ color: '#f87171' }}>(bắt buộc)</span>
+            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Lý do vi phạm / loại <span style={{ color: '#f87171' }}>*</span>
             </label>
-            <TextArea rows={3} placeholder="Gian lận, vi phạm quy chế, sử dụng tài nguyên bên ngoài..."
-              value={reason} onChange={e => setReason(e.target.value)}
-              status={!reason.trim() ? 'error' : ''} />
-            {!reason.trim() && <p className="text-xs mt-1 m-0" style={{ color: '#f87171' }}>Lý do vi phạm là bắt buộc</p>}
+            <TextArea rows={3} value={reason} onChange={e => setReason(e.target.value)}
+              status={!reason.trim() ? 'error' : ''}
+              placeholder="Vi phạm quy chế, gian lận, không đủ thành viên,..." />
           </div>
         </div>
       </Modal>
 
       {/* Audit Log Modal */}
       <Modal title="📋 Audit Log — Lịch sử loại đội"
-        open={showAudit} onCancel={() => setShowAudit(false)} footer={null} width={700}>
-        <Table dataSource={auditLog} columns={auditColumns} rowKey={(_, i) => i}
-          size="small" pagination={false} />
+        open={showAudit} onCancel={() => setShowAudit(false)} footer={null} width={560}>
+        <div className="space-y-2 py-2">
+          {auditLog.length === 0 && <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>Chưa có lịch sử trong phiên này</p>}
+          {auditLog.map(entry => (
+            <div key={entry.id} className="p-3 rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+              <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{entry.teamName}</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{new Date(entry.at).toLocaleString('vi-VN')}</div>
+              <div className="text-xs mt-0.5" style={{ color: '#f87171' }}>Lý do: {entry.reason}</div>
+            </div>
+          ))}
+        </div>
       </Modal>
     </div>
   );

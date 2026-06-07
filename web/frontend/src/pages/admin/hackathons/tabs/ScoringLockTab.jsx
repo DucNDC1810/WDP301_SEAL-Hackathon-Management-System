@@ -1,67 +1,124 @@
-import { useState } from 'react';
-import { Select, Button, Tag, Modal, Input, Alert, Progress, message } from 'antd';
+import { useState, useEffect, useCallback } from 'react';
+import { Select, Button, Tag, Modal, Input, Alert, Progress, message, Spin } from 'antd';
+import { useApi } from '../../../../hooks/useApi';
 
 const { TextArea } = Input;
 
-const MOCK_PROGRESS = {
-  r1: [
-    { judgeId: 'j1', name: 'Dr. Nguyễn Văn An',  type: 'INTERNAL', scored: 3, total: 3 },
-    { judgeId: 'j2', name: 'TS. Trần Thị Bình',  type: 'INTERNAL', scored: 2, total: 3 },
-    { judgeId: 'j3', name: 'Mr. Lê Văn Cường',   type: 'EXTERNAL', scored: 3, total: 3 },
-  ],
-  r2: [
-    { judgeId: 'j1', name: 'Dr. Nguyễn Văn An',  type: 'INTERNAL', scored: 0, total: 2 },
-    { judgeId: 'j4', name: 'Ms. Phạm Thu Dung',  type: 'EXTERNAL', scored: 0, total: 2 },
-  ],
-};
+export default function ScoringLockTab({ config, contestId, contest }) {
+  const { request } = useApi();
+  const [messageApi, contextHolder] = message.useMessage();
 
-const AUDIT_INIT = [
-  { id: 1, roundName: 'Vòng Thử nghiệm', lockedAt: '2026-05-20T15:00:00', lockedBy: 'Admin', type: 'normal', reason: null },
-];
+  const rounds = contest?.rounds
+    ? contest.rounds.map(r => ({ id: r._id, name: r.name, scoring_locked: r.scoring_locked, force_lock_reason: r.force_lock_reason }))
+    : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name })));
 
-export default function ScoringLockTab({ config }) {
-  const tracks = config?.tracks || [];
-  const rounds = tracks.flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name })));
+  const [selectedRound, setSelectedRound] = useState(rounds[0]?.id || null);
+  const [judgeProgress, setJudgeProgress] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [lockedRounds, setLockedRounds] = useState(() => {
+    const map = {};
+    (contest?.rounds || []).forEach(r => {
+      if (r.scoring_locked) {
+        map[r._id] = { type: r.force_lock_reason ? 'force' : 'normal', reason: r.force_lock_reason || null, lockedAt: r.updated_at };
+      }
+    });
+    return map;
+  });
 
-  const [selectedRound, setSelectedRound] = useState(rounds[0]?.id || 'r1');
-  const [locked, setLocked]               = useState({});
-  const [showForce, setShowForce]         = useState(false);
-  const [forceReason, setForceReason]     = useState('');
-  const [auditLog, setAuditLog]           = useState(AUDIT_INIT);
-  const [showAudit, setShowAudit]         = useState(false);
-  const [messageApi, contextHolder]       = message.useMessage();
+  const [showForce, setShowForce] = useState(false);
+  const [forceReason, setForceReason] = useState('');
+  const [showAudit, setShowAudit] = useState(false);
+  const [auditLog, setAuditLog] = useState([]);
+  const [locking, setLocking] = useState(false);
 
-  const judgeProgress = MOCK_PROGRESS[selectedRound] || [];
-  const allDone = judgeProgress.length > 0 && judgeProgress.every(j => j.scored >= j.total);
+  const fetchProgress = useCallback(async (rid) => {
+    if (!contestId || !rid) return;
+    setLoading(true);
+    try {
+      const data = await request(`/api/contests/${contestId}/rounds/${rid}/judge-completion`);
+      const judges = Array.isArray(data?.data) ? data.data : [];
+      setJudgeProgress(judges.map(j => ({
+        judgeId: j.judge_id,
+        name: j.judge_name || '—',
+        type: 'INTERNAL',
+        scored: j.scored || 0,
+        total: j.total || 0,
+      })));
+    } catch {
+      // Fallback to aggregate progress
+      try {
+        const progress = await request(`/api/scores/contests/${contestId}/rounds/${rid}/progress`);
+        if (progress) {
+          setJudgeProgress([{
+            judgeId: 'aggregate',
+            name: 'Tổng cộng',
+            type: 'AGGREGATE',
+            scored: progress.done || 0,
+            total: progress.total || 0,
+          }]);
+        }
+      } catch {
+        setJudgeProgress([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [contestId, request]);
+
+  useEffect(() => {
+    if (selectedRound) fetchProgress(selectedRound);
+  }, [selectedRound, fetchProgress]);
+
+  const allDone = judgeProgress.length > 0 && judgeProgress.every(j => j.scored >= j.total && j.total > 0);
   const totalScored = judgeProgress.reduce((s, j) => s + j.scored, 0);
   const totalPossible = judgeProgress.reduce((s, j) => s + j.total, 0);
   const overallPct = totalPossible > 0 ? Math.round((totalScored / totalPossible) * 100) : 0;
-  const isLocked = !!locked[selectedRound];
+  const isLocked = !!lockedRounds[selectedRound];
   const currentRound = rounds.find(r => r.id === selectedRound);
+
+  const doLock = async (force = false) => {
+    if (force && !forceReason.trim()) { messageApi.error('Vui lòng nhập lý do force-lock!'); return; }
+    setLocking(true);
+    try {
+      const body = force
+        ? { force: true, force_lock_reason: forceReason }
+        : { force: false };
+      const result = await request(`/api/contests/${contestId}/rounds/${selectedRound}/lock-scoring`, {
+        method: 'POST',
+        body,
+      });
+      const now = new Date().toISOString();
+      const entry = {
+        id: Date.now(),
+        roundName: currentRound?.name || selectedRound,
+        lockedAt: now,
+        lockedBy: 'Admin',
+        type: force ? 'force' : 'normal',
+        reason: force ? forceReason : null,
+      };
+      setLockedRounds(prev => ({ ...prev, [selectedRound]: entry }));
+      setAuditLog(prev => [...prev, entry]);
+      if (force) { setShowForce(false); setForceReason(''); }
+      messageApi.success(force ? '⚠ Force-lock đã được áp dụng!' : '✓ Đã khóa chấm điểm!');
+    } catch (e) {
+      messageApi.error(e.message || 'Không thể khóa chấm điểm');
+    } finally {
+      setLocking(false);
+    }
+  };
 
   const doNormalLock = () => {
     Modal.confirm({
       title: '🔒 Khóa chấm điểm',
       content: `Khóa vòng "${currentRound?.name || selectedRound}"? Sau khi khóa, judge không thể sửa điểm.`,
-      okText: 'Khóa chính thức',
-      cancelText: 'Hủy',
-      onOk: () => {
-        const entry = { id: Date.now(), roundName: currentRound?.name || selectedRound, lockedAt: new Date().toISOString(), lockedBy: 'Admin', type: 'normal', reason: null };
-        setLocked(prev => ({ ...prev, [selectedRound]: entry }));
-        setAuditLog(prev => [...prev, entry]);
-        messageApi.success('✓ Đã khóa chấm điểm!');
-      },
+      okText: 'Khóa chính thức', cancelText: 'Hủy',
+      onOk: () => doLock(false),
     });
   };
 
   const doForceLock = () => {
     if (!forceReason.trim()) { messageApi.error('Vui lòng nhập lý do force-lock!'); return; }
-    const entry = { id: Date.now(), roundName: currentRound?.name || selectedRound, lockedAt: new Date().toISOString(), lockedBy: 'Admin', type: 'force', reason: forceReason };
-    setLocked(prev => ({ ...prev, [selectedRound]: entry }));
-    setAuditLog(prev => [...prev, entry]);
-    setShowForce(false);
-    setForceReason('');
-    messageApi.warning('⚠ Force-lock đã được áp dụng!');
+    doLock(true);
   };
 
   return (
@@ -81,65 +138,71 @@ export default function ScoringLockTab({ config }) {
       {/* Round selector */}
       <div className="flex items-center gap-3">
         <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Vòng thi:</span>
-        <Select value={selectedRound} onChange={setSelectedRound} style={{ width: 260 }}
-          options={rounds.length
-            ? rounds.map(r => ({ value: r.id, label: `${r.trackName} — ${r.name}` }))
-            : [{ value: 'r1', label: 'Vòng Ý Tưởng (demo)' }, { value: 'r2', label: 'Vòng Prototype (demo)' }]}
+        <Select value={selectedRound} onChange={v => { setSelectedRound(v); setJudgeProgress([]); }} style={{ width: 260 }}
+          options={rounds.map(r => ({ value: r.id, label: r.trackName ? `${r.trackName} — ${r.name}` : r.name }))}
         />
       </div>
 
       {/* Lock status banner */}
       {isLocked && (
         <Alert
-          type={locked[selectedRound].type === 'force' ? 'warning' : 'success'}
+          type={lockedRounds[selectedRound].type === 'force' ? 'warning' : 'success'}
           showIcon
-          message={`${locked[selectedRound].type === 'force' ? '⚠ Force-locked' : '✓ Đã khóa chính thức'} — ${new Date(locked[selectedRound].lockedAt).toLocaleString('vi-VN')}`}
-          description={locked[selectedRound].reason ? `Lý do: ${locked[selectedRound].reason}` : undefined}
+          message={`${lockedRounds[selectedRound].type === 'force' ? '⚠ Force-locked' : '✓ Đã khóa chính thức'} — ${lockedRounds[selectedRound].lockedAt ? new Date(lockedRounds[selectedRound].lockedAt).toLocaleString('vi-VN') : ''}`}
+          description={lockedRounds[selectedRound].reason ? `Lý do: ${lockedRounds[selectedRound].reason}` : undefined}
         />
       )}
 
       {/* Overall progress */}
-      <div className="rounded-xl border p-4 space-y-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Tiến độ tổng</span>
-          <span className="text-sm font-bold" style={{ color: allDone ? '#10b981' : 'var(--cyan)' }}>
-            {totalScored}/{totalPossible} lượt chấm
-          </span>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
+      ) : (
+        <div className="rounded-xl border p-4 space-y-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Tiến độ tổng</span>
+            <span className="text-sm font-bold" style={{ color: allDone ? '#10b981' : 'var(--cyan)' }}>
+              {totalScored}/{totalPossible} lượt chấm
+            </span>
+          </div>
+          <Progress percent={overallPct} strokeColor={allDone ? '#10b981' : '#00d4ff'} trailColor="rgba(255,255,255,0.08)" />
         </div>
-        <Progress percent={overallPct} strokeColor={allDone ? '#10b981' : '#00d4ff'} trailColor="rgba(255,255,255,0.08)" />
-      </div>
+      )}
 
       {/* Per-judge progress */}
-      <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>Tiến độ từng Judge</h3>
-        </div>
-        {judgeProgress.length === 0 && (
-          <div className="p-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Chưa có dữ liệu chấm điểm cho vòng này</div>
-        )}
-        {judgeProgress.map((j, idx) => {
-          const pct = j.total > 0 ? Math.round((j.scored / j.total) * 100) : 0;
-          const done = j.scored >= j.total;
-          return (
-            <div key={j.judgeId} className="flex items-center gap-4 px-4 py-3 flex-wrap"
-              style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
-                style={{ background: 'rgba(0,212,255,0.12)', color: 'var(--cyan)' }}>
-                {j.name[0]}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{j.name}</span>
-                  <Tag color={j.type === 'INTERNAL' ? 'blue' : 'purple'} style={{ fontSize: '0.65rem' }}>{j.type}</Tag>
-                  <Tag color={done ? 'green' : 'orange'} style={{ fontSize: '0.65rem' }}>{done ? '✓ Hoàn thành' : 'Chưa xong'}</Tag>
+      {!loading && (
+        <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+            <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>Tiến độ từng Judge</h3>
+          </div>
+          {judgeProgress.length === 0 && (
+            <div className="p-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Chưa có dữ liệu chấm điểm cho vòng này</div>
+          )}
+          {judgeProgress.map((j, idx) => {
+            const pct = j.total > 0 ? Math.round((j.scored / j.total) * 100) : 0;
+            const done = j.scored >= j.total && j.total > 0;
+            return (
+              <div key={j.judgeId} className="flex items-center gap-4 px-4 py-3 flex-wrap"
+                style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                  style={{ background: 'rgba(0,212,255,0.12)', color: 'var(--cyan)' }}>
+                  {(j.name || '?')[0]}
                 </div>
-                <Progress percent={pct} size="small" strokeColor={done ? '#10b981' : '#f59e0b'}
-                  trailColor="rgba(255,255,255,0.08)" format={() => `${j.scored}/${j.total}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{j.name}</span>
+                    {j.type !== 'AGGREGATE' && (
+                      <Tag color={j.type === 'INTERNAL' ? 'blue' : 'purple'} style={{ fontSize: '0.65rem' }}>{j.type}</Tag>
+                    )}
+                    <Tag color={done ? 'green' : 'orange'} style={{ fontSize: '0.65rem' }}>{done ? '✓ Hoàn thành' : 'Chưa xong'}</Tag>
+                  </div>
+                  <Progress percent={pct} size="small" strokeColor={done ? '#10b981' : '#f59e0b'}
+                    trailColor="rgba(255,255,255,0.08)" format={() => `${j.scored}/${j.total}`} />
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Action buttons */}
       {!isLocked && (
@@ -148,11 +211,12 @@ export default function ScoringLockTab({ config }) {
             type="primary"
             disabled={!allDone || judgeProgress.length === 0}
             onClick={doNormalLock}
+            loading={locking}
             title={!allDone ? 'Chờ tất cả judge hoàn thành' : ''}
           >
             🔒 Khóa chấm điểm
           </Button>
-          {!allDone && (
+          {!allDone && judgeProgress.length > 0 && (
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
               (Disabled — còn {judgeProgress.filter(j => j.scored < j.total).length} judge chưa hoàn thành)
             </span>
@@ -166,7 +230,7 @@ export default function ScoringLockTab({ config }) {
       {/* Force-lock Modal */}
       <Modal title="⚡ Force-lock chấm điểm" open={showForce}
         onOk={doForceLock} onCancel={() => setShowForce(false)}
-        okText="Force-lock" okButtonProps={{ danger: true }} cancelText="Hủy">
+        okText="Force-lock" okButtonProps={{ danger: true }} cancelText="Hủy" confirmLoading={locking}>
         <div className="space-y-3 py-2">
           <Alert type="error" showIcon
             message="Force-lock sẽ khóa ngay lập tức"
@@ -188,7 +252,7 @@ export default function ScoringLockTab({ config }) {
       <Modal title="📋 Audit Log — Lịch sử khóa chấm điểm"
         open={showAudit} onCancel={() => setShowAudit(false)} footer={null} width={640}>
         <div className="space-y-2 py-2">
-          {auditLog.length === 0 && <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>Chưa có lịch sử</p>}
+          {auditLog.length === 0 && <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>Chưa có lịch sử trong phiên này</p>}
           {auditLog.map(entry => (
             <div key={entry.id} className="p-3 rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
               <div className="flex items-center gap-2 flex-wrap">

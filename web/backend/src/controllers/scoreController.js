@@ -1,4 +1,5 @@
 import * as service from "../services/scoreService.js";
+import ScoreDetail from "../models/ScoreDetail.js";
 
 export const handleCreateScore = async (req, res) => {
   try {
@@ -30,6 +31,16 @@ export const handleGetProgress = async (req, res) => {
     const { contestId, roundId } = req.params;
     const progress = await service.getScoringProgress(contestId, roundId);
     res.json(progress);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ message: err.message });
+  }
+};
+
+export const handleGetMyScores = async (req, res) => {
+  try {
+    const { contestId, roundId } = req.params;
+    const scores = await service.getMyScores(contestId, roundId, req.user._id);
+    res.json(scores);
   } catch (err) {
     res.status(err.statusCode || 500).json({ message: err.message });
   }

@@ -21,7 +21,11 @@ export function AdminRoute({ children }) {
 export function GuestRoute({ children }) {
   const { user, isAdmin, loading } = useAuth();
   if (loading) return <AuthLoading />;
-  if (user) return <Navigate to={isAdmin ? '/admin/dashboard' : '/dashboard'} replace />;
+  if (user) {
+    if (isAdmin) return <Navigate to="/admin/dashboard" replace />;
+    if (user?.roles?.some(r => r.role_name === 'mentor')) return <Navigate to="/mentor/dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
+  }
   return children;
 }
 
@@ -29,5 +33,24 @@ export function AuthRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <AuthLoading />;
   if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
+export function MentorRoute({ children }) {
+  const { user, isAdmin, loading } = useAuth();
+  if (loading) return <AuthLoading />;
+  if (!user) return <Navigate to="/login" replace />;
+  const isMentor = isAdmin || user?.roles?.some(r => r.role_name === 'mentor');
+  if (!isMentor) return <Navigate to="/" replace />;
+  return children;
+}
+
+export function JudgeRoute({ children }) {
+  const { user, isAdmin, loading } = useAuth();
+  if (loading) return <AuthLoading />;
+  if (!user) return <Navigate to="/login" replace />;
+  // Judges share the mentor role in this system
+  const isJudge = isAdmin || user?.roles?.some(r => r.role_name === 'mentor' || r.role_name === 'judge');
+  if (!isJudge) return <Navigate to="/" replace />;
   return children;
 }

@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { AdminRoute, GuestRoute, AuthRoute } from './components/ProtectedRoute';
+import { AdminRoute, GuestRoute, AuthRoute, MentorRoute, JudgeRoute } from './components/ProtectedRoute';
 import AdminLayout from './layouts/AdminLayout';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -25,8 +25,11 @@ import HackathonListPage from './pages/admin/hackathons/HackathonListPage';
 import HackathonDetailPage from './pages/admin/hackathons/HackathonDetailPage';
 import UserManagementPage from './pages/admin/users/UserManagementPage';
 
-// Mentor / Grading
+// Mentor / Judge / Grading
+import MentorHomePage from './pages/mentor/MentorHomePage';
 import MentorDashboardPage from './pages/mentor/MentorDashboardPage';
+import MentorPortalPage from './pages/mentor/MentorPortalPage';
+import JudgeScoringPage from './pages/mentor/JudgeScoringPage';
 import ScoreFormPage from './pages/mentor/ScoreFormPage';
 import LeaderboardPage from './pages/leaderboard/LeaderboardPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
@@ -83,7 +86,14 @@ function App() {
                 <Route path="users"                         element={<UserManagementPage />} />
               </Route>
 
-              {/* All pages with Navbar/Footer */}
+              {/* Mentor & Judge — own topbar, no Navbar/Footer */}
+              <Route path="/mentor/dashboard"                           element={<MentorRoute><MentorHomePage /></MentorRoute>} />
+              <Route path="/mentor/portal/:contestId/:roundId"          element={<MentorRoute><MentorPortalPage /></MentorRoute>} />
+              <Route path="/mentor/judge/:contestId/rounds/:roundId"    element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
+              <Route path="/mentor/contests/:contestId/rounds/:roundId" element={<MentorRoute><MentorDashboardPage /></MentorRoute>} />
+              <Route path="/mentor/score/:scoreId"                      element={<MentorRoute><ScoreFormPage /></MentorRoute>} />
+
+              {/* All public pages with Navbar/Footer */}
               <Route
                 path="/*"
                 element={
@@ -100,11 +110,9 @@ function App() {
                         <Route path="/invitations" element={<AuthRoute><InvitationsPage /></AuthRoute>} />
 
                         {/* Public */}
-                        <Route path="/mentor/contests/:contestId/rounds/:roundId" element={<MentorDashboardPage />} />
-                        <Route path="/mentor/score/:scoreId"                      element={<ScoreFormPage />} />
-                        <Route path="/leaderboard/:contestId/:roundId"            element={<LeaderboardPage />} />
-                        <Route path="/history"                                    element={<ContestHistoryPage />} />
-                        <Route path="/appeals/:contestId"                         element={<AppealsPage />} />
+                        <Route path="/leaderboard/:contestId/:roundId" element={<LeaderboardPage />} />
+                        <Route path="/history"                         element={<ContestHistoryPage />} />
+                        <Route path="/appeals/:contestId"              element={<AppealsPage />} />
                       </Routes>
                     </main>
                     <Footer />

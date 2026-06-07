@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Modal as AntModal, Tooltip } from 'antd';
+import JudgeAssignmentTab from './tabs/JudgeAssignmentTab';
+import ProblemReleaseTab from './tabs/ProblemReleaseTab';
+import SubmissionReviewTab from './tabs/SubmissionReviewTab';
+import ScoringLockTab from './tabs/ScoringLockTab';
+import TeamEliminationTab from './tabs/TeamEliminationTab';
 import './HackathonDetailPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -25,7 +31,19 @@ const ALERT      = ['M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L
 const ROCKET     = ['M4.5 16.5c-1.5 1.5-2.5 3.5-2.5 5.5 2 0 4-1 5.5-2.5L22 5.5c.5-.5.5-1.5 0-2s-1.5-.5-2 0L4.5 16.5z', 'M12 12l2.5-2.5', 'M9 15l2.5-2.5'];
 const COPY       = ['M9 15H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2', 'M13 9h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z'];
 
-const TABS = ['Tổng quan', 'Quản lý Track & Round', 'Tiêu chí chấm điểm', 'Bảng đấu (Pools)', 'Review & ONGOING', 'Lịch trình'];
+const TABS = [
+  'Tổng quan',                // 0
+  'Quản lý Track & Round',    // 1
+  'Tiêu chí chấm điểm',       // 2
+  'Bảng đấu (Pools)',          // 3
+  'Phân công Judge & Mentor', // 4 - FE-1.1
+  'Phát đề bài',              // 5 - FE-1.3
+  'Duyệt Bài Nộp',            // 6 - FE-1.4
+  'Khóa Chấm Điểm',           // 7 - FE-1.5
+  'Loại Đội Vi Phạm',         // 8 - FE-1.6
+  'Review & ONGOING',          // 9
+  'Lịch trình',               // 10
+];
 
 export default function HackathonDetailPage() {
   const { id } = useParams();
@@ -511,6 +529,17 @@ export default function HackathonDetailPage() {
     updateConfigState({ ...config, tracks: updatedTracks });
   };
 
+  // FE-1.2: Kích hoạt chính thức 1 round per track
+  const handleActivateRound = (trackId, roundId) => {
+    const updatedTracks = config.tracks.map(t => {
+      if (t.id === trackId) {
+        return { ...t, rounds: t.rounds.map(r => ({ ...r, is_official_active: r.id === roundId })) };
+      }
+      return t;
+    });
+    updateConfigState({ ...config, tracks: updatedTracks });
+  };
+
   // Toggle active round
   const handleToggleRoundActive = (trackId, roundId) => {
     const updatedTracks = config.tracks.map(t => {
@@ -867,6 +896,11 @@ export default function HackathonDetailPage() {
                           <span className={`hd-badge ${round.active ? 'hd-badge--green' : 'hd-badge--gray'}`} style={{ fontSize: '0.65rem' }}>
                             {round.active ? 'Active (Bật)' : 'Inactive (Tắt)'}
                           </span>
+                          {round.is_official_active && (
+                            <span className="hd-badge" style={{ fontSize: '0.65rem', background: 'rgba(0,212,255,0.18)', color: 'var(--cyan)', border: '1px solid var(--cyan)' }}>
+                              ✓ Kích hoạt chính thức
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                           {/* Toggle Active Switch */}
@@ -877,6 +911,44 @@ export default function HackathonDetailPage() {
                               <span className="hd-switch-slider"></span>
                             </label>
                           </div>
+                          {/* FE-1.2: Official Round Activation */}
+                          {(() => {
+                            const wsum = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
+                            const valid = Math.abs(wsum - 1.0) < 0.001 && (round.criteria?.length || 0) > 0;
+                            const isOfficialActive = round.is_official_active;
+                            const tip = isOfficialActive ? 'Round đang kích hoạt chính thức'
+                              : !valid ? `Weight tổng = ${wsum.toFixed(2)} ≠ 1.0 — thêm tiêu chí để kích hoạt`
+                              : 'Kích hoạt làm Round chính thức (chỉ 1 round per track)';
+                            return (
+                              <Tooltip title={tip}>
+                                <button
+                                  type="button"
+                                  disabled={!valid || isOfficialActive}
+                                  onClick={() => {
+                                    AntModal.confirm({
+                                      title: `Kích hoạt "${round.name}"?`,
+                                      content: 'Chỉ 1 Round được active chính thức mỗi Track. Các Round còn lại sẽ bị hủy kích hoạt.',
+                                      okText: 'Kích hoạt',
+                                      cancelText: 'Hủy',
+                                      onOk: () => handleActivateRound(selectedTrack.id, round.id),
+                                    });
+                                  }}
+                                  style={{
+                                    padding: '4px 12px',
+                                    borderRadius: '6px',
+                                    border: isOfficialActive ? '1px solid #10b981' : valid ? '1px solid var(--cyan)' : '1px solid var(--border)',
+                                    background: isOfficialActive ? 'rgba(16,185,129,0.15)' : valid ? 'rgba(0,212,255,0.1)' : 'transparent',
+                                    color: isOfficialActive ? '#10b981' : valid ? 'var(--cyan)' : 'var(--text-muted)',
+                                    fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap',
+                                    cursor: valid && !isOfficialActive ? 'pointer' : 'not-allowed',
+                                    transition: 'all 0.15s',
+                                  }}
+                                >
+                                  {isOfficialActive ? '✓ Đang Active' : '▷ Kích hoạt'}
+                                </button>
+                              </Tooltip>
+                            );
+                          })()}
                           <button type="button" className="hd-btn-add-sm" onClick={() => handleEditRound(round)}>Sửa</button>
                           <button type="button" className="btn-text-danger" onClick={() => handleDeleteRound(round.id, round.name)}>Xóa</button>
                         </div>
@@ -887,6 +959,18 @@ export default function HackathonDetailPage() {
                         <div className="hd-meta-item"><span className="hd-meta-label">Thời gian làm bài</span><span className="hd-meta-value">{round.coding_duration_hours} giờ</span></div>
                         <div className="hd-meta-item"><span className="hd-meta-label">Top N đi tiếp</span><span className="hd-meta-value">{round.top_n_advance} đội</span></div>
                         <div className="hd-meta-item"><span className="hd-meta-label">Vé vớt (Wildcard)</span><span className="hd-meta-value">{round.wildcard_enabled ? 'Bật' : 'Tắt'}</span></div>
+                        <div className="hd-meta-item">
+                          <span className="hd-meta-label">Tổng trọng số</span>
+                          {(() => {
+                            const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
+                            const ok = Math.abs(ws - 1.0) < 0.001;
+                            return (
+                              <span className="hd-meta-value" style={{ color: ok ? 'var(--green, #10b981)' : 'var(--orange, #f59e0b)', fontWeight: 700 }}>
+                                {ws.toFixed(2)} {ok ? '✓' : '✗ (cần 1.0 để kích hoạt)'}
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <div className="hd-meta-item"><span className="hd-meta-label">Số Tiêu chí cấu hình</span><span className="hd-meta-value" style={{ color: 'var(--purple)' }}>{round.criteria?.length || 0}</span></div>
                       </div>
                     </div>
@@ -1096,8 +1180,33 @@ export default function HackathonDetailPage() {
         </div>
       )}
 
-      {/* ─── TAB 4: REVIEW & VALIDATE BEFORE ONGOING ─── */}
+      {/* ─── TAB 4: PHÂN CÔNG JUDGE & MENTOR (FE-1.1) ─── */}
       {tab === 4 && (
+        <JudgeAssignmentTab config={config} id={id} />
+      )}
+
+      {/* ─── TAB 5: PHÁT ĐỀ BÀI (FE-1.3) ─── */}
+      {tab === 5 && (
+        <ProblemReleaseTab config={config} id={id} />
+      )}
+
+      {/* ─── TAB 6: DUYỆT BÀI NỘP LATE (FE-1.4) ─── */}
+      {tab === 6 && (
+        <SubmissionReviewTab config={config} id={id} />
+      )}
+
+      {/* ─── TAB 7: KHÓA CHẤM ĐIỂM (FE-1.5) ─── */}
+      {tab === 7 && (
+        <ScoringLockTab config={config} id={id} />
+      )}
+
+      {/* ─── TAB 8: LOẠI ĐỘI VI PHẠM (FE-1.6) ─── */}
+      {tab === 8 && (
+        <TeamEliminationTab config={config} id={id} />
+      )}
+
+      {/* ─── TAB 9: REVIEW & VALIDATE BEFORE ONGOING ─── */}
+      {tab === 9 && (
         <div className="hd-section">
           <div className="hd-section-header">
             <h2 className="hd-section-title">Kiểm tra cấu hình giải đấu trước khi ONGOING</h2>
@@ -1289,8 +1398,8 @@ export default function HackathonDetailPage() {
         </div>
       )}
 
-      {/* ─── TAB 5: LỊCH TRÌNH TIMELINE ─── */}
-      {tab === 5 && (
+      {/* ─── TAB 10: LỊCH TRÌNH TIMELINE ─── */}
+      {tab === 10 && (
         <div className="hd-section">
           <h2 className="hd-section-title">Lịch trình thời gian chi tiết</h2>
           <div className="hd-timeline">

@@ -1,21 +1,30 @@
-import * as service from "../services/rankingService.js";
+import {
+  calculateRankings,
+  getRankings,
+  getLeaderboard,
+} from "../services/rankingService.js";
 
-export const handleCalculateRankings = async (req, res) => {
+export const recalculate = async (req, res, next) => {
   try {
     const { contestId, roundId } = req.params;
-    const rankings = await service.calculateRankings(contestId, roundId);
-    res.json({ message: "Xếp hạng đã được tính toán", count: rankings.length, rankings });
-  } catch (err) {
-    res.status(err.statusCode || 500).json({ message: err.message });
-  }
+    const rankings = await calculateRankings(contestId, roundId);
+    res.json({ message: "Tính xếp hạng thành công", rankings });
+  } catch (e) { next(e); }
 };
 
-export const handleGetRankings = async (req, res) => {
+export const list = async (req, res, next) => {
   try {
     const { contestId, roundId } = req.params;
-    const rankings = await service.getRankings(contestId, roundId);
+    const { pool_id } = req.query;
+    const rankings = await getRankings(contestId, roundId, { pool_id });
     res.json(rankings);
-  } catch (err) {
-    res.status(err.statusCode || 500).json({ message: err.message });
-  }
+  } catch (e) { next(e); }
+};
+
+export const leaderboard = async (req, res, next) => {
+  try {
+    const { contestId, roundId } = req.params;
+    const data = await getLeaderboard(contestId, roundId);
+    res.json(data);
+  } catch (e) { next(e); }
 };

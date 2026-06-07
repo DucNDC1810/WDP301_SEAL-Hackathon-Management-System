@@ -15,8 +15,10 @@ import {
   handleInviteMember,
   handleSelectTopic,
   handleProposeTopic,
+  handleEliminateTeam,
 } from "../controllers/teamController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
+import { audit } from "../middlewares/auditMiddleware.js";
 
 const router = express.Router();
 
@@ -35,7 +37,7 @@ router.post("/join", authenticate, handleJoinTeam);
 router.post("/contests/:contestId/teams", authenticate, handleCreateTeam);
 
 // POST /api/teams/contests/:contestId         — đăng ký đội thi mới
-router.post("/contests/:contestId", authenticate, handleCreateTeam);
+router.post("/contests/:contestId", authenticate, audit("TEAM", "CREATE"), handleCreateTeam);
 
 // GET  /api/teams/contests/:contestId/my      — xem đội của mình trong contest
 router.get("/contests/:contestId/my", authenticate, handleGetMyTeam);
@@ -44,10 +46,10 @@ router.get("/contests/:contestId/my", authenticate, handleGetMyTeam);
 router.get("/:id", authenticate, handleGetTeamById);
 
 // PATCH /api/teams/:id                        — leader cập nhật tên đội
-router.patch("/:id", authenticate, handleUpdateTeam);
+router.patch("/:id", authenticate, audit("TEAM", "UPDATE"), handleUpdateTeam);
 
 // DELETE /api/teams/:id                       — leader/admin xóa đội (pending only)
-router.delete("/:id", authenticate, handleDeleteTeam);
+router.delete("/:id", authenticate, audit("TEAM", "DELETE"), handleDeleteTeam);
 
 // POST /api/teams/:id/resend-verification     — leader gửi lại email cho thành viên
 router.post("/:id/resend-verification", authenticate, handleResendMemberVerification);
@@ -75,6 +77,9 @@ router.get(
 router.put("/:id/approve", authenticate, authorize("admin"), handleApproveTeam);
 
 // PUT /api/teams/:id/disqualify               — loại đội thi
-router.put("/:id/disqualify", authenticate, authorize("admin"), handleDisqualifyTeam);
+router.put("/:id/disqualify", authenticate, authorize("admin"), audit("TEAM", "DISQUALIFY"), handleDisqualifyTeam);
+
+// PATCH /api/teams/:id/eliminate              — loại đội thi và re-rank (COORDINATOR/admin)
+router.patch("/:id/eliminate", authenticate, authorize("admin"), handleEliminateTeam);
 
 export default router;

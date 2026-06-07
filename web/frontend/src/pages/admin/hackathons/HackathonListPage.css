@@ -186,7 +186,8 @@
   position: relative;
   height: 160px;
   overflow: hidden;
-  background: var(--bg-secondary);
+  /* gradient từ JS làm background — luôn hiện dù ảnh fail */
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
 }
 
 .hl-card-banner {
@@ -194,6 +195,7 @@
   height: 100%;
   object-fit: cover;
   transition: transform var(--transition-slow);
+  /* nếu ảnh lỗi → onError ẩn img, gradient background vẫn hiện */
 }
 
 .hl-card:hover .hl-card-banner {

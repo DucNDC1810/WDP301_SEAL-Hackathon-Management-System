@@ -5,6 +5,9 @@ import Contest from "../models/Contest.js";
 import User from "../models/User.js";
 import Topic from "../models/Topic.js";
 import { sendMemberInviteEmail } from "./emailService.js";
+import { writeLog } from "./auditLog.js";
+import { sendNotification } from "./notification.js";
+import { triggerReRank } from "./roundService.js";
 
 const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
@@ -630,4 +633,64 @@ export const proposeTopic = async (teamId, { title, description }, userId) => {
   await team.save();
 
   return newTopic;
+};
+
+/**
+ * Eliminates a team and triggers leaderboard re-rank.
+ */
+export const eliminateTeam = async (teamId, { reason }, actorId) => {
+  if (!reason || !reason.trim()) {
+    const err = new Error("Lý do loại đội thi là bắt buộc");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  team.status = "ELIMINATED";
+  await team.save();
+
+  await writeLog({
+    action: "TEAM_ELIMINATE",
+    actorId,
+    targetId: team._id,
+    targetModel: "Team",
+    detail: { reason },
+  });
+
+  const recipientIds = [];
+  if (team.leader_id) recipientIds.push(team.leader_id.toString());
+  if (team.members && team.members.length > 0) {
+    team.members.forEach((m) => {
+      if (m.user_id) recipientIds.push(m.user_id.toString());
+    });
+  }
+  const uniqueRecipients = [...new Set(recipientIds)];
+
+  await sendNotification({
+    recipientIds: uniqueRecipients,
+    type: "general",
+    payload: {
+      title: "Đội của bạn đã bị loại",
+      message: `Đội "${team.team_name}" đã bị loại khỏi cuộc thi. Lý do: ${reason}`,
+      ref_id: team._id,
+      ref_type: "Team",
+    },
+  });
+
+  const contest = await Contest.findById(team.contest_id);
+  let activeRoundId = null;
+  if (contest && contest.rounds) {
+    const activeRound = contest.rounds.find((r) => r.is_active);
+    if (activeRound) activeRoundId = activeRound._id;
+  }
+
+  await triggerReRank(team.contest_id, activeRoundId, team.pool_id);
+
+  return team;
 };

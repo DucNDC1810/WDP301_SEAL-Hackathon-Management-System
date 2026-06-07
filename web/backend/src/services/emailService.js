@@ -68,6 +68,70 @@ export const sendMemberInviteEmail = async (to, full_name, token) => {
   });
 };
 
+// ─── sendFinalistEmail ────────────────────────────────────────────────────────
+
+export const sendFinalistEmail = async (to, fullName, contestTitle) => {
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `[SEAL Hackathon] Chúc mừng! Đội bạn vào vòng chung kết - ${contestTitle}`,
+    html: `
+      <p>Chào <strong>${fullName}</strong>,</p>
+      <p>Chúc mừng! Đội thi của bạn đã được chọn vào <strong>vòng chung kết</strong> của cuộc thi <strong>${contestTitle}</strong>.</p>
+      <p>Hãy tiếp tục cố gắng và chuẩn bị tốt nhất cho vòng tiếp theo!</p>
+      <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
+    `,
+  });
+};
+
+// ─── sendDeadlineReminderEmail ────────────────────────────────────────────────
+
+export const sendDeadlineReminderEmail = async (to, fullName, contestTitle, hoursLeft) => {
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `[SEAL Hackathon] Nhắc nhở: Còn ${hoursLeft} giờ để nộp bài - ${contestTitle}`,
+    html: `
+      <p>Chào <strong>${fullName}</strong>,</p>
+      <p>Đây là nhắc nhở rằng còn <strong>${hoursLeft} giờ</strong> để nộp bài cho cuộc thi <strong>${contestTitle}</strong>.</p>
+      <p>Vui lòng hoàn thiện và nộp bài trước khi hết hạn!</p>
+      <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
+    `,
+  });
+};
+
+// ─── sendMissingSubmissionEmail ───────────────────────────────────────────────
+
+export const sendMissingSubmissionEmail = async (to, fullName, contestTitle) => {
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `[SEAL Hackathon] Cảnh báo: Đội bạn chưa nộp bài - ${contestTitle}`,
+    html: `
+      <p>Chào <strong>${fullName}</strong>,</p>
+      <p>Hệ thống ghi nhận đội thi của bạn <strong>chưa nộp bài</strong> cho cuộc thi <strong>${contestTitle}</strong>.</p>
+      <p>Vui lòng nộp bài ngay để tránh bị loại khỏi cuộc thi.</p>
+      <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
+    `,
+  });
+};
+
+// ─── sendMentorAssignedEmail ──────────────────────────────────────────────────
+
+export const sendMentorAssignedEmail = async (to, fullName, contestTitle, poolName) => {
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `[SEAL Hackathon] Bạn được phân công làm giám khảo - ${contestTitle}`,
+    html: `
+      <p>Chào <strong>${fullName}</strong>,</p>
+      <p>Bạn đã được phân công làm <strong>giám khảo</strong> cho bảng <strong>${poolName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
+      <p>Vui lòng đăng nhập vào hệ thống để xem danh sách đội thi được phân công.</p>
+      <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
+    `,
+  });
+};
+
 // ─── sendPasswordResetEmail ──────────────────────────────────────────────────
 
 export const sendPasswordResetEmail = async (to, token) => {

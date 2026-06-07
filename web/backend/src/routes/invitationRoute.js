@@ -8,6 +8,7 @@ import {
   handleGetInvitationsByContest,
 } from "../controllers/invitationController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
+import { audit } from "../middlewares/auditMiddleware.js";
 
 const router = express.Router();
 
@@ -29,6 +30,7 @@ router.post(
   "/contests/:contestId",
   authenticate,
   authorize("admin"),
+  audit("INVITATION", "SEND"),
   handleSendInvitation
 );
 
@@ -41,6 +43,6 @@ router.get(
 );
 
 // DELETE /api/invitations/:id                   — huỷ lời mời
-router.delete("/:id", authenticate, authorize("admin"), handleCancelInvitation);
+router.delete("/:id", authenticate, authorize("admin"), audit("INVITATION", "CANCEL"), handleCancelInvitation);
 
 export default router;

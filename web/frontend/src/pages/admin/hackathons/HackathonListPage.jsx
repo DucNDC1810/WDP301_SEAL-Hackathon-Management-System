@@ -60,18 +60,15 @@ export default function HackathonListPage() {
     } finally { setDeleting(null); }
   };
 
-  // Helper to load customized config (banner, season, year) for each contest
-  const getCustomConfig = (contestId) => {
-    const saved = localStorage.getItem(`hackathon_config_${contestId}`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return null;
-  };
+  // Gradient banners — luôn hiện dù không có ảnh từ network
+  const GRADIENTS = [
+    'linear-gradient(135deg,#0f2027,#203a43,#2c5364)',
+    'linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)',
+    'linear-gradient(135deg,#0d0d0d,#1a0533,#2d0b5a)',
+    'linear-gradient(135deg,#004e92,#000428)',
+    'linear-gradient(135deg,#1b2838,#0a0f1a,#102040)',
+    'linear-gradient(135deg,#0f0c29,#302b63,#24243e)',
+  ];
 
   const filtered = contests.filter(c => {
     const matchSearch = c.title?.toLowerCase().includes(search.toLowerCase());
@@ -111,23 +108,20 @@ export default function HackathonListPage() {
         <div className="hl-empty">Không có cuộc thi nào.</div>
       ) : (
         <div className="hl-grid">
-          {filtered.map(c => {
+          {filtered.map((c, idx) => {
             const st = STATUS_CFG[c.status] || STATUS_CFG.draft;
-            const custom = getCustomConfig(c._id);
-            const bannerUrl = custom?.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600';
-            const season = custom?.season || 'Summer';
-            const year = custom?.year || 2026;
-            const roundsCount = custom?.tracks?.reduce((sum, t) => sum + (t.rounds?.length || 0), 0) || c.rounds?.length || 0;
+            const roundsCount = c.rounds?.length || 0;
+            const gradient = GRADIENTS[idx % GRADIENTS.length];
 
             return (
               <div key={c._id} className="hl-card">
-                {/* Banner image wrapper */}
-                <div className="hl-card-banner-wrap">
-                  <img 
-                    src={bannerUrl} 
-                    alt={c.title} 
+                {/* Banner */}
+                <div className="hl-card-banner-wrap" style={{ background: gradient }}>
+                  <img
+                    src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600&auto=format&fit=crop"
+                    alt={c.title}
                     className="hl-card-banner"
-                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600'; }}
+                    onError={(e) => { e.target.style.display = 'none'; }}
                   />
                   <div className="hl-card-badge-overlay">
                     <span className={`hl-badge ${st.cls}`}>{st.label}</span>
@@ -137,7 +131,9 @@ export default function HackathonListPage() {
                 {/* Card Body */}
                 <div className="hl-card-body">
                   <div className="hl-card-meta-row">
-                    <span className="hl-card-season">{season} {year}</span>
+                    <span className="hl-card-season">
+                      {c.start_date ? new Date(c.start_date).getFullYear() : new Date().getFullYear()}
+                    </span>
                     <span className="hl-card-rounds-count">🛡️ {roundsCount} Vòng thi</span>
                   </div>
                   <h3 className="hl-card-title">{c.title}</h3>

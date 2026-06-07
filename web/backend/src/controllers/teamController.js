@@ -14,6 +14,7 @@ import {
   inviteMember,
   selectTopic,
   proposeTopic,
+  eliminateTeam,
 } from "../services/teamService.js";
 
 /**
@@ -238,5 +239,25 @@ export const handleProposeTopic = async (req, res) => {
   } catch (error) {
     console.error("[handleProposeTopic]", error);
     res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleEliminateTeam = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    if (!reason) {
+      return res.status(400).json({ success: false, message: "Lý do loại đội thi là bắt buộc" });
+    }
+    const team = await eliminateTeam(req.params.id, { reason }, req.user._id);
+    return res.status(200).json({
+      success: true,
+      message: "Loại đội thi thành công",
+      data: team,
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
   }
 };

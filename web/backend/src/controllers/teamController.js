@@ -3,19 +3,50 @@ import {
   verifyMemberEmail,
   getTeamsByContest,
   getTeamById,
+  getMyTeam,
+  getMyTeams,
+  joinTeam,
+  approveTeam,
+  updateTeam,
+  deleteTeam,
   disqualifyTeam,
+  resendMemberVerification,
+  inviteMember,
+  selectTopic,
+  proposeTopic,
+  eliminateTeam,
 } from "../services/teamService.js";
 
 /**
- * POST /contests/:contestId/teams
- * Đăng ký đội thi mới.
+ * GET /me
+ * Lấy danh sách đội thi của user hiện tại.
  */
+export const handleGetMyTeams = async (req, res) => {
+  try {
+    const teams = await getMyTeams(req.user._id, req.user.email);
+    res.json(teams);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ message: err.message });
+  }
+};
+export const handleJoinTeam = async (req, res) => {
+  try {
+    const { team_code } = req.body;
+    if (!team_code) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp mã đội (team_code)" });
+    }
+    const team = await joinTeam(team_code, req.user._id, req.user.email);
+    res.status(200).json({ success: true, message: "Tham gia đội thành công!", data: team });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
 export const handleCreateTeam = async (req, res) => {
   try {
     const { contestId } = req.params;
     const { team_name, members } = req.body;
 
-    // Validate required fields
     if (!team_name || !Array.isArray(members) || members.length === 0) {
       return res.status(400).json({
         success: false,
@@ -23,18 +54,9 @@ export const handleCreateTeam = async (req, res) => {
       });
     }
 
-    // Leader is the authenticated user
-    const leader_id = req.user ? req.user._id : null;
-    if (!leader_id) {
-      return res.status(401).json({
-        success: false,
-        message: "Bạn cần đăng nhập để tạo đội thi",
-      });
-    }
-
     const team = await createTeam(contestId, {
       team_name,
-      leader_id,
+      leader_id: req.user._id,
       members,
     });
 
@@ -45,107 +67,197 @@ export const handleCreateTeam = async (req, res) => {
     });
   } catch (error) {
     console.error("[handleCreateTeam]", error);
-    res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Lỗi máy chủ",
-    });
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };
 
-/**
- * GET /verify
- * Xác thực thành viên bằng token (gọi qua query string).
- */
+// ─── handleVerifyMemberEmail ─────────────────────────────────────────────────
+
 export const handleVerifyMemberEmail = async (req, res) => {
   try {
     const { token } = req.query;
-
     if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: "Không tìm thấy token xác thực",
-      });
+      return res.status(400).json({ success: false, message: "Không tìm thấy token xác thực" });
     }
 
     const team = await verifyMemberEmail(token);
-
-    res.status(200).json({
-      success: true,
-      message: "Xác thực thành viên thành công",
-      data: team,
-    });
+    res.status(200).json({ success: true, message: "Xác thực thành viên thành công", data: team });
   } catch (error) {
     console.error("[handleVerifyMemberEmail]", error);
-    res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Lỗi máy chủ",
-    });
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };
 
-/**
- * GET /contests/:contestId/teams
- * Lấy toàn bộ đội thi của cuộc thi.
- */
+// ─── handleGetTeamsByContest ─────────────────────────────────────────────────
+
 export const handleGetTeamsByContest = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const teams = await getTeamsByContest(contestId);
-
-    res.status(200).json({
-      success: true,
-      data: teams,
-    });
+    const { status } = req.query;
+    const teams = await getTeamsByContest(contestId, { status });
+    res.status(200).json({ success: true, count: teams.length, data: teams });
   } catch (error) {
     console.error("[handleGetTeamsByContest]", error);
-    res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Lỗi máy chủ",
-    });
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };
 
-/**
- * GET /:id
- * Lấy chi tiết đội thi.
- */
+// ─── handleGetTeamById ───────────────────────────────────────────────────────
+
 export const handleGetTeamById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const team = await getTeamById(id);
-
-    res.status(200).json({
-      success: true,
-      data: team,
-    });
+    const team = await getTeamById(req.params.id);
+    res.status(200).json({ success: true, data: team });
   } catch (error) {
     console.error("[handleGetTeamById]", error);
-    res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Lỗi máy chủ",
-    });
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };
 
-/**
- * PUT /:id/disqualify
- * Loại đội thi khỏi cuộc thi (Disqualify).
- */
+// ─── handleGetMyTeam ─────────────────────────────────────────────────────────
+
+export const handleGetMyTeam = async (req, res) => {
+  try {
+    const { contestId } = req.params;
+    const team = await getMyTeam(contestId, req.user._id);
+    if (!team) {
+      return res.status(404).json({ success: false, message: "Bạn chưa tham gia đội thi nào trong cuộc thi này" });
+    }
+    res.status(200).json({ success: true, data: team });
+  } catch (error) {
+    console.error("[handleGetMyTeam]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── handleUpdateTeam ────────────────────────────────────────────────────────
+
+export const handleUpdateTeam = async (req, res) => {
+  try {
+    const { team_name } = req.body;
+    if (!team_name) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp tên đội mới" });
+    }
+    const team = await updateTeam(req.params.id, req.user._id, { team_name });
+    res.status(200).json({ success: true, message: "Cập nhật đội thi thành công", data: team });
+  } catch (error) {
+    console.error("[handleUpdateTeam]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── handleDeleteTeam ────────────────────────────────────────────────────────
+
+export const handleDeleteTeam = async (req, res) => {
+  try {
+    const isAdmin = req.user.roles.some((r) => r.role_name === "admin");
+    await deleteTeam(req.params.id, req.user._id, isAdmin);
+    res.status(200).json({ success: true, message: "Đã xóa đội thi thành công" });
+  } catch (error) {
+    console.error("[handleDeleteTeam]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── handleDisqualifyTeam ────────────────────────────────────────────────────
+
+export const handleApproveTeam = async (req, res) => {
+  try {
+    const team = await approveTeam(req.params.id);
+    res.status(200).json({ success: true, message: "Duyệt đội thi thành công", data: team });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
 export const handleDisqualifyTeam = async (req, res) => {
   try {
-    const { id } = req.params;
-    const team = await disqualifyTeam(id);
+    const team = await disqualifyTeam(req.params.id);
+    res.status(200).json({ success: true, message: "Loại đội thi thành công", data: team });
+  } catch (error) {
+    console.error("[handleDisqualifyTeam]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
 
-    res.status(200).json({
+// ─── handleResendMemberVerification ─────────────────────────────────────────
+
+export const handleResendMemberVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp email thành viên" });
+    }
+    await resendMemberVerification(req.params.id, email, req.user._id);
+    res.status(200).json({ success: true, message: "Đã gửi lại email xác nhận cho thành viên" });
+  } catch (error) {
+    console.error("[handleResendMemberVerification]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── handleInviteMember ───────────────────────────────────────────────────────
+
+export const handleInviteMember = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp email thành viên muốn mời" });
+    }
+    const team = await inviteMember(req.params.id, email, req.user._id);
+    res.status(200).json({ success: true, message: "Đã gửi lời mời tham gia đội qua email", data: team });
+  } catch (error) {
+    console.error("[handleInviteMember]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleSelectTopic = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { topic_id } = req.body;
+    if (!topic_id) {
+      return res.status(400).json({ success: false, message: "Thiếu topic_id" });
+    }
+    const topic = await selectTopic(id, topic_id, req.user._id);
+    res.status(200).json({ success: true, message: "Chọn đề tài thành công", data: topic });
+  } catch (error) {
+    console.error("[handleSelectTopic]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleProposeTopic = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description } = req.body;
+    if (!title) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập tên đề tài" });
+    }
+    const topic = await proposeTopic(id, { title, description }, req.user._id);
+    res.status(201).json({ success: true, message: "Đề xuất đề tài thành công", data: topic });
+  } catch (error) {
+    console.error("[handleProposeTopic]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleEliminateTeam = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    if (!reason) {
+      return res.status(400).json({ success: false, message: "Lý do loại đội thi là bắt buộc" });
+    }
+    const team = await eliminateTeam(req.params.id, { reason }, req.user._id);
+    return res.status(200).json({
       success: true,
       message: "Loại đội thi thành công",
       data: team,
     });
   } catch (error) {
-    console.error("[handleDisqualifyTeam]", error);
-    res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Lỗi máy chủ",
-    });
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
   }
 };

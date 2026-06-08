@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import './LoginPage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const OAUTH_ERRORS = {
   google_failed: 'Đăng nhập Google thất bại, vui lòng thử lại.',
@@ -11,8 +12,9 @@ const OAUTH_ERRORS = {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [searchParams] = useSearchParams();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ identifier: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -48,10 +50,11 @@ function LoginPage() {
         return;
       }
 
-      // save token & user
-      localStorage.setItem('accessToken', data.data.accessToken);
-      localStorage.setItem('user', JSON.stringify(data.data));
-      navigate('/');
+      // save token & user via AuthContext
+      login(data.data);
+
+      const isAdmin = data.data.roles?.some((r) => r.role_name === 'admin');
+      navigate(isAdmin ? '/admin/dashboard' : '/');
     } catch {
       setError('Không thể kết nối đến server');
     } finally {
@@ -115,8 +118,8 @@ function LoginPage() {
           {/* Form */}
           <form className="login-card__form" onSubmit={handleSubmit} id="login-form">
             <div className="login-card__field">
-              <label htmlFor="email" className="login-card__label">
-                Email
+              <label htmlFor="identifier" className="login-card__label">
+                Email hoặc username
               </label>
               <div className="login-card__input-wrap">
                 <svg className="login-card__input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -124,15 +127,15 @@ function LoginPage() {
                   <polyline points="22,6 12,13 2,6" />
                 </svg>
                 <input
-                  type="email"
-                  id="email"
-                  name="email"
+                  type="text"
+                  id="identifier"
+                  name="identifier"
                   className="login-card__input"
-                  placeholder="your@email.com"
-                  value={formData.email}
+                  placeholder="username hoặc email"
+                  value={formData.identifier}
                   onChange={handleChange}
                   required
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
             </div>

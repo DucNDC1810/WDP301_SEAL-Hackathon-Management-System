@@ -27,7 +27,9 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    const user = await User.findById(payload.id).select("-password_hash");
+    const user = await User.findById(payload.id).select(
+      "-password_hash -verify_token -verify_token_expires -reset_token -reset_token_expires"
+    );
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -72,3 +74,5 @@ export const authorize = (...allowedRoles) => {
     next();
   };
 };
+
+export const requireRole = (...allowedRoles) => authorize(...allowedRoles);

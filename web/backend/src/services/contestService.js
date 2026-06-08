@@ -1,4 +1,7 @@
 import Contest from "../models/Contest.js";
+import Pool from '../models/Pool.js';
+import Team from '../models/Team.js';
+import Topic from '../models/Topic.js';
 
 /**
  * Tạo cuộc thi mới.
@@ -13,6 +16,26 @@ export const createContest = async ({
   max_teams_per_pool,
   created_by,
 }) => {
+  // Validate date logic
+  if (start_date && end_date && new Date(end_date) <= new Date(start_date)) {
+    const err = new Error('Thời gian kết thúc phải sau thời gian bắt đầu');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (registration_deadline && start_date && 
+      new Date(registration_deadline) >= new Date(start_date)) {
+    const err = new Error('Hạn đăng ký phải trước ngày bắt đầu cuộc thi');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (registration_deadline && new Date(registration_deadline) <= new Date()) {
+    const err = new Error('Hạn đăng ký không thể là thời điểm trong quá khứ');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const newContest = new Contest({
     title,
     description,
@@ -93,12 +116,26 @@ export const updateContest = async (contestId, updateData) => {
  * Xóa cuộc thi.
  */
 export const deleteContest = async (contestId) => {
-  const contest = await Contest.findByIdAndDelete(contestId);
+  const contest = await Contest.findById(contestId);
   if (!contest) {
-    const err = new Error("Không tìm thấy cuộc thi để xóa");
+    const err = new Error('Không tìm thấy cuộc thi để xóa');
     err.statusCode = 404;
     throw err;
   }
+
+  // Kiểm tra không cho xoá contest đang "open"
+  if (contest.status === 'open') {
+    const err = new Error('Không thể xóa cuộc thi đang mở đăng ký. Hãy đóng cuộc thi trước.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Cascade delete theo thứ tự: Pool → Team → Topic → Contest
+  await Pool.deleteMany({ contest_id: contestId });
+  await Team.deleteMany({ contest_id: contestId });
+  await Topic.deleteMany({ contest_id: contestId });
+  await Contest.findByIdAndDelete(contestId);
+
   return contest;
 };
 

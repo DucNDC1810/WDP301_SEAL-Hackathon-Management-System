@@ -56,7 +56,7 @@ const teamSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "disqualified"],
+      enum: ["pending", "confirmed", "disqualified", "ELIMINATED"],
       default: "pending",
     },
     pool_id: {
@@ -80,6 +80,28 @@ teamSchema.index({ contest_id: 1 });
 teamSchema.index({ status: 1 });
 teamSchema.index({ "members.email": 1 });
 teamSchema.index({ leader_id: 1 });
+
+// Post-save middleware to trigger re-rank when status is changed to ELIMINATED
+teamSchema.post("save", async function (doc) {
+  if (doc.status === "ELIMINATED") {
+    try {
+      const { triggerReRank } = await import("../services/roundService.js");
+      const Contest = mongoose.model("Contest");
+      const contest = await Contest.findById(doc.contest_id);
+      let activeRoundId = null;
+      if (contest && contest.rounds) {
+        const activeRound = contest.rounds.find((r) => r.is_active);
+        if (activeRound) {
+          activeRoundId = activeRound._id;
+        }
+      }
+      // Trigger re-rank/cache invalidation
+      await triggerReRank(doc.contest_id, activeRoundId, doc.pool_id);
+    } catch (err) {
+      console.error("[Team post-save hook re-rank error]", err);
+    }
+  }
+});
 
 const Team = mongoose.model("Team", teamSchema);
 export default Team;

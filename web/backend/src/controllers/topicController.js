@@ -6,6 +6,8 @@ import {
   deleteTopic,
   addResource,
   removeResource,
+  getProposalsByContest,
+  reviewProposal,
 } from "../services/topicService.js";
 
 /**
@@ -186,5 +188,31 @@ export const handleRemoveResource = async (req, res) => {
       success: false,
       message: error.message || "Lỗi máy chủ",
     });
+  }
+};
+
+export const handleGetProposalsByContest = async (req, res) => {
+  try {
+    const { contestId } = req.params;
+    const proposals = await getProposalsByContest(contestId);
+    res.status(200).json({ success: true, data: proposals });
+  } catch (error) {
+    console.error("[handleGetProposalsByContest]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleReviewProposal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, admin_note } = req.body;
+    if (!status) {
+      return res.status(400).json({ success: false, message: "Thiếu status (approved hoặc rejected)" });
+    }
+    const topic = await reviewProposal(id, { status, admin_note });
+    res.status(200).json({ success: true, message: "Duyệt đề tài thành công", data: topic });
+  } catch (error) {
+    console.error("[handleReviewProposal]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };

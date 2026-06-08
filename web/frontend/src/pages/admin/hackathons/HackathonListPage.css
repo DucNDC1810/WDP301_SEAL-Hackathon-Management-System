@@ -1,0 +1,350 @@
+/* ===== Premium Hackathon Grid & Card Styles ===== */
+
+.hl-page {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: var(--container-width);
+  margin: 0 auto;
+}
+
+.hl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.hl-title {
+  margin: 0 0 4px;
+  font-family: var(--font-display), monospace;
+  font-size: 2rem;
+  font-weight: 800;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hl-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.hl-btn-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 30px;
+  border: none;
+  background: var(--gradient-primary);
+  color: #050a12;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0 15px var(--cyan-glow);
+  transition: all var(--transition-base);
+}
+
+.hl-btn-create:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px var(--cyan-glow);
+}
+
+.hl-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.hl-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 260px;
+  max-width: 400px;
+  transition: border-color var(--transition-fast);
+}
+
+.hl-search-wrap:focus-within {
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan-dim);
+}
+
+.hl-search {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.hl-search::placeholder {
+  color: var(--text-muted);
+}
+
+.hl-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.hl-filter-btn {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.hl-filter-btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.hl-filter-btn.active {
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  border-color: var(--cyan);
+  text-shadow: 0 0 8px var(--cyan-glow);
+}
+
+.hl-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 300px;
+  color: var(--text-secondary);
+}
+
+.hl-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(0, 240, 255, 0.1);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: hl-spin 0.8s linear infinite;
+}
+
+@keyframes hl-spin {
+  to { transform: rotate(360deg); }
+}
+
+.hl-empty {
+  text-align: center;
+  padding: 80px;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+/* Card Grid Layout */
+.hl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.hl-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(8px);
+}
+
+.hl-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+  box-shadow: 0 10px 25px -5px var(--cyan-dim), 0 8px 16px -6px var(--purple-dim);
+}
+
+.hl-card-banner-wrap {
+  position: relative;
+  height: 160px;
+  overflow: hidden;
+  /* gradient từ JS làm background — luôn hiện dù ảnh fail */
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+}
+
+.hl-card-banner {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+  /* nếu ảnh lỗi → onError ẩn img, gradient background vẫn hiện */
+}
+
+.hl-card:hover .hl-card-banner {
+  transform: scale(1.05);
+}
+
+.hl-card-badge-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
+.hl-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hl-badge--gray  { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+.hl-badge--green { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+.hl-badge--red   { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+/* Card Body */
+.hl-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 12px;
+}
+
+.hl-card-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.hl-card-season {
+  color: var(--purple);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hl-card-rounds-count {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.hl-card-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.hl-card-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  min-height: 40px;
+}
+
+.hl-card-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px dashed var(--border);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+.hl-card-date-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.hl-date-label {
+  color: var(--text-muted);
+}
+
+.hl-date-val {
+  color: var(--text-primary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Card Footer Actions */
+.hl-card-footer {
+  padding: 14px 20px;
+  background: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid var(--border);
+}
+
+/* Dark theme specific adjustment for footer background */
+[data-theme="dark"] .hl-card-footer {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.hl-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hl-act-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.hl-act-btn--view {
+  flex: 1;
+}
+
+.hl-act-btn--view:hover {
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan-glow);
+}
+
+.hl-act-btn--del:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red);
+  border-color: var(--red);
+}

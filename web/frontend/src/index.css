@@ -1,11 +1,18 @@
+@tailwind utilities;
+
 /* ===== SEAL Hackathon - Design System ===== */
 
-:root {
+:root,
+[data-theme="dark"] {
   /* Colors - Cyber Dark Theme */
   --bg-primary: #0a0e17;
   --bg-secondary: #111827;
   --bg-card: rgba(17, 24, 39, 0.7);
   --bg-card-hover: rgba(17, 24, 39, 0.9);
+  --bg-row-hover: rgba(0, 240, 255, 0.02);
+  --bg-header: rgba(17, 24, 39, 0.5);
+  --bg-nest: rgba(10, 14, 23, 0.6);
+  --bg-nest-item: rgba(10, 14, 23, 0.4);
   --bg-glass: rgba(15, 23, 42, 0.6);
 
   /* Accent Colors */
@@ -54,6 +61,32 @@
   --transition-fast: 0.2s ease;
   --transition-base: 0.3s ease;
   --transition-slow: 0.5s ease;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f0f4f8;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card-hover: rgba(241, 245, 249, 0.9);
+  --bg-row-hover: rgba(0, 152, 181, 0.04);
+  --bg-header: rgba(226, 232, 240, 0.6);
+  --bg-nest: rgba(241, 245, 249, 0.7);
+  --bg-nest-item: #ffffff;
+  --bg-glass: rgba(240, 244, 248, 0.8);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border: rgba(0, 180, 216, 0.2);
+  --border-hover: rgba(0, 180, 216, 0.5);
+  --cyan: #0098b5;
+  --cyan-glow: rgba(0, 152, 181, 0.25);
+  --cyan-dim: rgba(0, 152, 181, 0.1);
+  --gradient-primary: linear-gradient(135deg, var(--cyan), #7c3aed);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.login-page, .signup-page {
+  color-scheme: dark;
 }
 
 /* ===== Reset & Base ===== */

@@ -188,7 +188,7 @@
 
 .contest-input,
 .contest-textarea {
-  background: rgba(10, 14, 23, 0.5);
+  background: var(--bg-primary);
   border: 1px solid var(--border);
   color: var(--text-primary);
   padding: 12px 16px;
@@ -266,7 +266,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(17, 24, 39, 0.8);
+  background-color: var(--bg-nest);
   border: 1px solid var(--border);
   transition: .4s;
 }
@@ -394,8 +394,8 @@ input:checked + .slider:before {
 .btn-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(10, 14, 23, 0.3);
-  border-top-color: #0a0e17;
+  border: 2px solid var(--border);
+  border-top-color: var(--cyan);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -424,7 +424,7 @@ input:checked + .slider:before {
   padding: 30px 20px;
   border: 1px dashed var(--border);
   border-radius: 8px;
-  background: rgba(17, 24, 39, 0.3);
+  background: var(--bg-nest);
 }
 
 .rounds-list {
@@ -436,7 +436,7 @@ input:checked + .slider:before {
 .round-item-wrapper {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(10, 14, 23, 0.4);
+  background: var(--bg-nest-item);
   overflow: hidden;
 }
 
@@ -445,7 +445,7 @@ input:checked + .slider:before {
   justify-content: space-between;
   align-items: center;
   padding: 14px 18px;
-  background: rgba(17, 24, 39, 0.5);
+  background: var(--bg-header);
 }
 
 .round-item-header__left {
@@ -478,7 +478,7 @@ input:checked + .slider:before {
 .round-item-detail {
   padding: 18px;
   border-top: 1px solid var(--border);
-  background: rgba(10, 14, 23, 0.2);
+  background: var(--bg-nest);
   animation: slide-down 0.3s ease-out forwards;
 }
 
@@ -528,7 +528,7 @@ input:checked + .slider:before {
 .criteria-table th {
   color: var(--text-secondary);
   font-weight: 500;
-  background: rgba(17, 24, 39, 0.3);
+  background: var(--bg-header);
 }
 
 .criteria-table td {
@@ -568,7 +568,7 @@ input:checked + .slider:before {
 
 /* Add round subform */
 .add-round-form {
-  background: rgba(17, 24, 39, 0.3);
+  background: var(--bg-nest);
   border: 1px dashed var(--border);
   border-radius: 8px;
   padding: 20px;

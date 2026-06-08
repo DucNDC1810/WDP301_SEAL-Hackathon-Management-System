@@ -1,8 +1,12 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 function OAuthCallback() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
@@ -14,13 +18,32 @@ function OAuthCallback() {
       return;
     }
 
-    if (token) {
-      localStorage.setItem('accessToken', token);
-      navigate('/');
-    } else {
+    if (!token) {
       navigate('/login');
+      return;
     }
-  }, [navigate, searchParams]);
+
+    // Fetch user info to get roles for redirect
+    fetch(`${API_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          const userData = { ...data.data, accessToken: token };
+          login(userData);
+          const isAdmin = data.data.roles?.some((r) => r.role_name === 'admin');
+          navigate(isAdmin ? '/admin/dashboard' : '/');
+        } else {
+          localStorage.setItem('accessToken', token);
+          navigate('/');
+        }
+      })
+      .catch(() => {
+        localStorage.setItem('accessToken', token);
+        navigate('/');
+      });
+  }, [navigate, searchParams, login]);
 
   return (
     <div style={{

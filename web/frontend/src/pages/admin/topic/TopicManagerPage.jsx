@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import './TopicManagerPage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 function TopicManagerPage() {
   const { contestId } = useParams();
+  const navigate = useNavigate();
 
   // ─── States ────────────────────────────────────────────────────────────────
   const [topics, setTopics] = useState([]);
@@ -273,14 +274,23 @@ function TopicManagerPage() {
             <h1 className="topic-title">Quản Lý Đề Tài</h1>
             <p className="topic-subtitle">Đăng tải, cập nhật đề bài và tài nguyên hỗ trợ cho cuộc thi</p>
           </div>
-          <button
-            type="button"
-            className="btn btn--primary"
-            onClick={() => setShowAddModal(true)}
-            id="btn-add-topic"
-          >
-            + Thêm Đề Tài Mới
-          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              type="button"
+              className="btn btn--outline"
+              onClick={() => navigate(`/admin/contests/${contestId}/dashboard`)}
+            >
+              Quản lý Đội Thi →
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => setShowAddModal(true)}
+              id="btn-add-topic"
+            >
+              + Thêm Đề Tài Mới
+            </button>
+          </div>
         </div>
 
         {/* Alerts */}

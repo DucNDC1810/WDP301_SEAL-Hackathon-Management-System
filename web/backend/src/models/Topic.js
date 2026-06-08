@@ -49,6 +49,20 @@ const topicSchema = new mongoose.Schema(
       type: [resourceSchema],
       default: [],
     },
+    proposed_by_team_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ["active", "pending", "approved", "rejected"],
+      default: "active",
+    },
+    admin_note: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

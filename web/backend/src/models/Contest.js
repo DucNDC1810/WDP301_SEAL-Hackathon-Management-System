@@ -19,8 +19,7 @@ const criteriaSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-  },
-  { _id: false }
+  }
 );
 
 const roundSchema = new mongoose.Schema(
@@ -42,9 +41,29 @@ const roundSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    submission_deadline: {
+      type: Date,
+      default: null,
+    },
+    problem_released_at: {
+      type: Date,
+      default: null,
+    },
     score_criteria: {
       type: [criteriaSchema],
       default: [],
+    },
+    is_active: {
+      type: Boolean,
+      default: false,
+    },
+    scoring_locked: {
+      type: Boolean,
+      default: false,
+    },
+    force_lock_reason: {
+      type: String,
+      default: null,
     },
   }
 );

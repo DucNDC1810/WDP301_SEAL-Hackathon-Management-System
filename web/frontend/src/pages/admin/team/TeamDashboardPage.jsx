@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import './TeamDashboardPage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 function TeamDashboardPage() {
   const { contestId } = useParams();
@@ -75,6 +75,29 @@ function TeamDashboardPage() {
       return () => clearInterval(interval);
     }
   }, [contestId]);
+
+  // ─── Approve Team ──────────────────────────────────────────────────────────
+  const handleApprove = async (teamId, teamName) => {
+    const confirm = window.confirm(`Duyệt đội thi "${teamName}"?`);
+    if (!confirm) return;
+
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await fetch(`${API_URL}/api/teams/${teamId}/approve`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+
+      setSuccess(`Đã duyệt đội thi "${teamName}" thành công.`);
+      fetchTeams(false);
+    } catch (err) {
+      setError(err.message || 'Lỗi khi duyệt đội thi.');
+    }
+  };
 
   // ─── Disqualify Team ───────────────────────────────────────────────────────
   const handleDisqualify = async (teamId, teamName) => {
@@ -323,14 +346,23 @@ function TeamDashboardPage() {
                                 {team.status}
                               </span>
                             </td>
-                            <td>
+                            <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {team.status === 'pending' && (
+                                <button
+                                  type="button"
+                                  className="btn btn--sm btn--outline-green"
+                                  onClick={() => handleApprove(team._id, team.team_name)}
+                                >
+                                  ✓ Duyệt
+                                </button>
+                              )}
                               {team.status !== 'disqualified' && (
                                 <button
                                   type="button"
                                   className="btn btn--sm btn--outline-red"
                                   onClick={() => handleDisqualify(team._id, team.team_name)}
                                 >
-                                  Loại bỏ (Disqualify)
+                                  Loại bỏ
                                 </button>
                               )}
                             </td>

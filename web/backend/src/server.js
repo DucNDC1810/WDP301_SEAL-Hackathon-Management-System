@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { createServer } from "http";
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -10,38 +11,75 @@ import contestRoute from "./routes/contestRoute.js";
 import topicRoute from "./routes/topicRoute.js";
 import teamRoute from "./routes/teamRoute.js";
 import poolRoute from "./routes/poolRoute.js";
+import mentorAssignmentRoute from "./routes/mentorAssignmentRoute.js";
+import scoreRoute from "./routes/scoreRoute.js";
+import rankingRoute from "./routes/rankingRoute.js";
+import roundRoute from "./routes/roundRoute.js";
+import judgeAssignmentRoute, { nestedRouter as judgeAssignmentNestedRoute } from "./routes/judgeAssignmentRoute.js";
+import appealRoute from "./routes/appealRoute.js";
+import invitationRoute from "./routes/invitationRoute.js";
+import notificationRoute from "./routes/notificationRoute.js";
+import auditLogRoute from "./routes/auditLogRoute.js";
+import submissionRoute from "./routes/submissionRoute.js";
+import be2RoundRoute from "./routes/be2RoundRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
-
+import { initSocket } from "./socket/index.js";
+import { autoCloseContests } from "./jobs/autoCloseContests.js";
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 5001;
 
-// ─── middlewares ─────────────────────────────────────────────────────────────
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: (origin, cb) => {
+    const allowed = process.env.CLIENT_URL || "http://localhost:5173";
+    if (!origin || origin === allowed || /^http:\/\/localhost:\d+$/.test(origin)) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
 
-// ─── public routes ──────────────────────────────────────────────────────────
+// Public
 app.use("/api/auth", authRoute);
 app.use("/api/auth", oauthRoute);
 
-// ─── private routes ─────────────────────────────────────────────────────────
+// Private
 app.use("/api/users", userRoute);
 app.use("/api/contests", contestRoute);
 app.use("/api/topics", topicRoute);
 app.use("/api/teams", teamRoute);
 app.use("/api/pools", poolRoute);
+app.use("/api/mentor-assignments", mentorAssignmentRoute);
+app.use("/api/scores", scoreRoute);
+app.use("/api/rankings", rankingRoute);
+app.use("/api/contests/:contestId/rounds", roundRoute);
+app.use("/api/contests/:contestId/rounds/:roundId/judge-assignments", judgeAssignmentNestedRoute);
+app.use("/api/judge-assignments", judgeAssignmentRoute);
+app.use("/api/contests/:contestId/rounds/:roundId", rankingRoute);
+app.use("/api/appeals", appealRoute);
+app.use("/api/invitations", invitationRoute);
+app.use("/api/notifications", notificationRoute);
+app.use("/api/audit-logs", auditLogRoute);
+app.use("/api/submissions", submissionRoute);
+app.use("/api/rounds", be2RoundRoute);
 
-// ─── start server ───────────────────────────────────────────────────────────
+initSocket(httpServer);
+
 connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  httpServer.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
   });
+
+  // Chạy auto close ngay khi khởi động
+  autoCloseContests();
+
+  // Chạy mỗi 5 phút
+  setInterval(autoCloseContests, 5 * 60 * 1000);
 });

@@ -10,7 +10,7 @@ const embeddedRoleSchema = new mongoose.Schema(
     role_name: {
       type: String,
       required: true,
-      enum: ["admin", "mentor", "contestant"],
+      enum: ["admin", "mentor", "judge", "contestant"],
     },
   },
   { _id: false }
@@ -55,9 +55,29 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    verify_token: {
+      type: String,
+      default: null,
+    },
+    verify_token_expires: {
+      type: Date,
+      default: null,
+    },
+    reset_token: {
+      type: String,
+      default: null,
+    },
+    reset_token_expires: {
+      type: Date,
+      default: null,
+    },
     roles: {
       type: [embeddedRoleSchema],
       default: [],
+    },
+    is_profile_complete: {
+      type: Boolean,
+      default: false,
     },
   },
   {

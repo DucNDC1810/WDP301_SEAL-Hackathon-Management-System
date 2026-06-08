@@ -398,7 +398,7 @@ function ContestFormPage() {
 
                   <div className="contest-divider" />
 
-                  <div className="contest-field contest-field--row">
+                  <div className="contest-field contest-field--row" style={{ marginTop: '15px' }}>
                     <div className="contest-toggle-info">
                       <label className="contest-label contest-label--toggle">Tự động khóa sổ</label>
                       <span className="contest-label-sub">Tự chuyển trạng thái khi hết hạn</span>

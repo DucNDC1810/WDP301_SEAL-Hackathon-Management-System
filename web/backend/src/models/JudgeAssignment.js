@@ -6,9 +6,12 @@ const judgeAssignmentSchema = new mongoose.Schema(
     round_id:    { type: mongoose.Schema.Types.ObjectId, required: true },
     pool_id:     { type: mongoose.Schema.Types.ObjectId, ref: "Pool",    default: null },
     team_id:     { type: mongoose.Schema.Types.ObjectId, ref: "Team",    required: true },
-    judge_id:    { type: mongoose.Schema.Types.ObjectId, ref: "User",    required: true },
-    judge_type:  { type: String, enum: ["INTERNAL", "EXTERNAL"], default: "INTERNAL" },
-    assigned_by: { type: mongoose.Schema.Types.ObjectId, ref: "User",    required: true },
+    judge_id:         { type: mongoose.Schema.Types.ObjectId, ref: "User",       default: null },
+    judge_type:       { type: String, enum: ["INTERNAL", "EXTERNAL"],              default: "INTERNAL" },
+    external_email:   { type: String, default: null },
+    invitation_id:    { type: mongoose.Schema.Types.ObjectId, ref: "Invitation",   default: null },
+    invitation_status:{ type: String, enum: ["active", "pending_invite"],          default: "active" },
+    assigned_by:      { type: mongoose.Schema.Types.ObjectId, ref: "User",         required: true },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );

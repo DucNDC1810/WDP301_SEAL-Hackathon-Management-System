@@ -50,6 +50,33 @@ export const sendInvitationEmail = async (to, contestTitle, token) => {
   });
 };
 
+// ─── sendJudgeInvitationEmail ─────────────────────────────────────────────────
+
+export const sendJudgeInvitationEmail = async (to, contestTitle, token) => {
+  const link = `${CLIENT_URL}/judge/accept-invite?token=${token}`;
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `[SEAL Hackathon] Lời mời làm Giám khảo - ${contestTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:560px;margin:auto">
+        <h2 style="color:#1a1a2e">SEAL Hackathon — Lời mời làm Giám khảo</h2>
+        <p>Xin chào,</p>
+        <p>Bạn được mời tham gia với vai trò <strong>Giám khảo (Judge)</strong> cho cuộc thi
+           <strong>${contestTitle}</strong> trên nền tảng SEAL Hackathon.</p>
+        <p>Nhấn vào nút bên dưới để xác nhận và kích hoạt tài khoản của bạn
+           (liên kết có hiệu lực trong <strong>7 ngày</strong>):</p>
+        <p style="text-align:center;margin:24px 0">
+          <a href="${link}" style="background:#4f46e5;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600">
+            Xác nhận tham gia
+          </a>
+        </p>
+        <p style="color:#666;font-size:0.85em">Nếu bạn không muốn tham gia, hãy bỏ qua email này.</p>
+      </div>
+    `,
+  });
+};
+
 // ─── sendMemberInviteEmail ───────────────────────────────────────────────────
 
 export const sendMemberInviteEmail = async (to, full_name, token) => {

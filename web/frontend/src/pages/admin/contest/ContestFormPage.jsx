@@ -1,147 +1,201 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DatePicker from 'react-datepicker';
+import { vi } from 'date-fns/locale';
+import 'react-datepicker/dist/react-datepicker.css';
 import './ContestFormPage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function fmtVN(date) {
+  if (!date) return null;
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function DateField({ label, hint, selected, onChange, minDate, disabled, error, placeholder }) {
+  return (
+    <div className={`contest-field${error ? ' contest-field--error' : ''}`}>
+      <label className="contest-label">
+        {label}
+        {hint && <span className="contest-label-hint">{hint}</span>}
+      </label>
+      <div className={`contest-dp-wrap${disabled ? ' contest-dp-wrap--disabled' : ''}`}>
+        <span className="contest-dp-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </span>
+        <DatePicker
+          selected={selected}
+          onChange={onChange}
+          minDate={minDate}
+          showTimeSelect
+          timeFormat="HH:mm"
+          timeIntervals={1}
+          dateFormat="dd/MM/yyyy  HH:mm"
+          timeCaption="Giờ"
+          locale={vi}
+          placeholderText={placeholder || 'Chọn ngày & giờ...'}
+          disabled={disabled}
+          className="contest-dp-input"
+          calendarClassName="contest-dp-calendar"
+          popperClassName="contest-dp-popper"
+          popperPlacement="bottom-start"
+          showPopperArrow={false}
+          isClearable={false}
+        />
+      </div>
+      {disabled && !selected && <span className="contest-field-hint">Chọn bước trước để mở khóa</span>}
+      {!disabled && selected && !error && <span className="contest-field-ok">✓ {fmtVN(selected)}</span>}
+      {error && <span className="contest-field-error">{error}</span>}
+    </div>
+  );
+}
 
 function ContestFormPage() {
   const navigate = useNavigate();
+  const now = new Date();
 
-  // ─── States ────────────────────────────────────────────────────────────────
   const [contestData, setContestData] = useState({
     title: '',
+    season: 'Spring',
+    year: new Date().getFullYear(),
     description: '',
-    start_date: '',
-    end_date: '',
-    registration_deadline: '',
-    auto_close: false,
+    rules: '1. Đăng ký nhóm từ 3-5 thành viên.\n2. Phát triển sản phẩm trong vòng 48h.\n3. Nộp mã nguồn và video demo sản phẩm trước thời hạn.',
+    banner: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800',
+    registration_open_date: null,
+    registration_deadline: null,
+    start_date: null,
+    end_date: null,
+    auto_close: true,
     max_teams_per_pool: 10,
   });
 
-  const [rounds, setRounds] = useState([]);
-  const [newRound, setNewRound] = useState({
-    round_number: 1,
-    name: '',
-    start_time: '',
-    end_time: '',
-  });
-
-  const [expandedRoundIndex, setExpandedRoundIndex] = useState(null);
-  const [newCriteria, setNewCriteria] = useState({
-    name: '',
-    max_score: 10,
-    weight: 1,
-  });
-
+  const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentStepText, setCurrentStepText] = useState('');
 
-  // ─── Handlers ──────────────────────────────────────────────────────────────
-  const handleContestChange = (e) => {
+  // ─── Derived min dates ────────────────────────────────────────────────────
+  const minOpen = now;
+
+  const minClose = contestData.registration_open_date
+    ? new Date(contestData.registration_open_date.getTime() + 60_000)
+    : now;
+
+  const minStart = contestData.registration_deadline
+    ? addDays(contestData.registration_deadline, 4)
+    : minClose;
+
+  // ─── Handlers ─────────────────────────────────────────────────────────────
+  const clearFieldError = (name) => {
+    setFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const handleTextChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setContestData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    setContestData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    clearFieldError(name);
     if (error) setError('');
   };
 
-  const handleNewRoundChange = (e) => {
-    const { name, value } = e.target;
-    setNewRound((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const handleDateChange = (name, date) => {
+    setContestData((prev) => {
+      const next = { ...prev, [name]: date };
 
-  const handleAddRound = (e) => {
-    e.preventDefault();
-    if (!newRound.name || !newRound.round_number) {
-      setError('Vui lòng điền tên vòng thi và số thứ tự vòng thi.');
-      return;
-    }
+      if (name === 'registration_deadline' && date) {
+        next.start_date = addDays(date, 4);
+      }
 
-    if (rounds.some((r) => r.round_number === Number(newRound.round_number))) {
-      setError(`Vòng thi số ${newRound.round_number} đã tồn tại trong danh sách.`);
-      return;
-    }
+      if (name === 'registration_open_date' && date && prev.registration_deadline) {
+        if (date >= prev.registration_deadline) {
+          next.registration_deadline = null;
+          next.start_date = null;
+        }
+      }
 
-    setRounds((prev) => [
-      ...prev,
-      {
-        ...newRound,
-        round_number: Number(newRound.round_number),
-        score_criteria: [],
-      },
-    ]);
+      if (name === 'registration_deadline' && date && prev.start_date) {
+        if (prev.start_date < addDays(date, 4)) {
+          next.start_date = addDays(date, 4);
+        }
+      }
 
-    setNewRound({
-      round_number: Number(newRound.round_number) + 1,
-      name: '',
-      start_time: '',
-      end_time: '',
-    });
-    setError('');
-  };
-
-  const handleDeleteRound = (index) => {
-    setRounds((prev) => prev.filter((_, i) => i !== index));
-    if (expandedRoundIndex === index) {
-      setExpandedRoundIndex(null);
-    }
-  };
-
-  const handleNewCriteriaChange = (e) => {
-    const { name, value } = e.target;
-    setNewCriteria((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleAddCriteria = (roundIndex) => {
-    if (!newCriteria.name || !newCriteria.max_score) {
-      setError('Vui lòng cung cấp tên tiêu chí và điểm số tối đa.');
-      return;
-    }
-
-    setRounds((prev) => {
-      const updated = [...prev];
-      updated[roundIndex].score_criteria.push({
-        name: newCriteria.name,
-        max_score: Number(newCriteria.max_score),
-        weight: Number(newCriteria.weight) || 1,
-      });
-      return updated;
+      return next;
     });
 
-    setNewCriteria({
-      name: '',
-      max_score: 10,
-      weight: 1,
-    });
-    setError('');
+    clearFieldError(name);
+    if (error) setError('');
   };
 
-  const handleDeleteCriteria = (roundIndex, criteriaIndex) => {
-    setRounds((prev) => {
-      const updated = [...prev];
-      updated[roundIndex].score_criteria = updated[roundIndex].score_criteria.filter(
-        (_, i) => i !== criteriaIndex
-      );
-      return updated;
-    });
+  // ─── Validation ───────────────────────────────────────────────────────────
+  const validateForm = () => {
+    const errs = {};
+    const now = new Date();
+
+    if (!contestData.title.trim()) errs.title = 'Vui lòng nhập tên cuộc thi.';
+    if (!contestData.season) errs.season = 'Vui lòng chọn mùa giải.';
+    if (!contestData.year) errs.year = 'Vui lòng nhập năm.';
+
+    if (!contestData.registration_open_date) {
+      errs.registration_open_date = 'Vui lòng chọn ngày mở đăng ký.';
+    } else if (contestData.registration_open_date < now) {
+      errs.registration_open_date = 'Ngày mở đăng ký không được là thời điểm trong quá khứ.';
+    }
+
+    if (!contestData.registration_deadline) {
+      errs.registration_deadline = 'Vui lòng chọn ngày đóng đăng ký.';
+    } else if (
+      contestData.registration_open_date &&
+      contestData.registration_deadline <= contestData.registration_open_date
+    ) {
+      errs.registration_deadline = 'Ngày đóng đăng ký phải sau ngày mở đăng ký.';
+    }
+
+    if (!contestData.start_date) {
+      errs.start_date = 'Vui lòng chọn ngày thi đấu chính thức.';
+    } else if (contestData.registration_deadline) {
+      const minEvent = addDays(contestData.registration_deadline, 4);
+      if (contestData.start_date < minEvent) {
+        errs.start_date = 'Ngày thi đấu phải ít nhất 4 ngày sau ngày đóng đăng ký.';
+      }
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0 ? null : 'Vui lòng kiểm tra lại các trường bị lỗi.';
   };
 
-  // ─── Submit Flow ───────────────────────────────────────────────────────────
+  // ─── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    setLoading(true);
 
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setLoading(true);
     const token = localStorage.getItem('accessToken');
     if (!token) {
       setError('Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
@@ -150,88 +204,49 @@ function ContestFormPage() {
     }
 
     try {
-      // 1. Tạo cuộc thi
-      setCurrentStepText('Đang khởi tạo thông tin cuộc thi...');
-      const contestRes = await fetch(`${API_URL}/api/contests`, {
+      setCurrentStepText('Đang tạo thông tin cuộc thi Hackathon...');
+
+      const payload = {
+        title: contestData.title,
+        description: contestData.description,
+        start_date: contestData.start_date.toISOString(),
+        end_date: contestData.end_date
+          ? contestData.end_date.toISOString()
+          : new Date(contestData.start_date.getTime() + 48 * 60 * 60 * 1000).toISOString(),
+        registration_deadline: contestData.registration_deadline.toISOString(),
+        auto_close: contestData.auto_close,
+        max_teams_per_pool: Number(contestData.max_teams_per_pool) || 10,
+      };
+
+      const res = await fetch(`${API_URL}/api/contests`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(contestData),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
       });
 
-      const contestDataJson = await contestRes.json();
-      if (!contestDataJson.success) {
-        throw new Error(contestDataJson.message || 'Lỗi khởi tạo cuộc thi');
-      }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Lỗi khởi tạo cuộc thi');
 
-      const contestId = contestDataJson.data._id;
+      const contestId = data.data._id;
 
-      // 2. Tạo tuần tự các vòng thi & tiêu chí chấm điểm
-      for (let i = 0; i < rounds.length; i++) {
-        const round = rounds[i];
-        setCurrentStepText(`Đang thiết lập vòng thi: ${round.name}...`);
+      const customConfig = {
+        season: contestData.season,
+        year: Number(contestData.year),
+        rules: contestData.rules,
+        banner: contestData.banner,
+        registration_open_date: contestData.registration_open_date.toISOString(),
+        kickoff_date: new Date(
+          contestData.registration_deadline.getTime() + 12 * 60 * 60 * 1000
+        ).toISOString().slice(0, 16),
+        mentors_assigned: false,
+        tracks: [],
+      };
 
-        const roundRes = await fetch(`${API_URL}/api/contests/${contestId}/rounds`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            round_number: round.round_number,
-            name: round.name,
-            start_time: round.start_time || null,
-            end_time: round.end_time || null,
-          }),
-        });
+      localStorage.setItem(`hackathon_config_${contestId}`, JSON.stringify(customConfig));
 
-        const roundDataJson = await roundRes.json();
-        if (!roundDataJson.success) {
-          throw new Error(roundDataJson.message || `Lỗi khi tạo vòng thi ${round.name}`);
-        }
-
-        const roundId = roundDataJson.data._id;
-
-        // Tạo tiêu chí cho vòng thi
-        for (let j = 0; j < round.score_criteria.length; j++) {
-          const criteria = round.score_criteria[j];
-          setCurrentStepText(
-            `Đang thêm tiêu chí "${criteria.name}" cho vòng thi ${round.name}...`
-          );
-
-          const criteriaRes = await fetch(
-            `${API_URL}/api/contests/${contestId}/rounds/${roundId}/criteria`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                name: criteria.name,
-                max_score: criteria.max_score,
-                weight: criteria.weight,
-              }),
-            }
-          );
-
-          const criteriaDataJson = await criteriaRes.json();
-          if (!criteriaDataJson.success) {
-            throw new Error(
-              criteriaDataJson.message || `Lỗi khi tạo tiêu chí ${criteria.name}`
-            );
-          }
-        }
-      }
-
-      setSuccess('Tạo và cấu hình cuộc thi thành công! Đang chuyển hướng...');
-      setCurrentStepText('Hoàn tất...');
-      setTimeout(() => {
-        navigate(`/admin/contests/${contestId}/topics`);
-      }, 1500);
-
+      setSuccess('Tạo Hackathon thành công! Đang chuyển hướng đến trang quản lý...');
+      setCurrentStepText('Đang chuyển hướng...');
+      setTimeout(() => navigate(`/admin/hackathons/${contestId}`), 1500);
     } catch (err) {
       setError(err.message || 'Có lỗi xảy ra trong quá trình thiết lập cuộc thi');
     } finally {
@@ -241,14 +256,13 @@ function ContestFormPage() {
 
   return (
     <div className="contest-form-page" id="contest-form-page">
-      {/* Background decoration */}
       <div className="contest-form-page__glow" />
 
       <div className="contest-form-container container">
         <div className="contest-form-header">
-          <h1 className="contest-form-title">Tạo & Cấu Hình Cuộc Thi</h1>
+          <h1 className="contest-form-title">Tạo & Khởi Tạo Hackathon</h1>
           <p className="contest-form-subtitle">
-            Thiết lập thông tin chung, quy mô, vòng thi và tiêu chí chấm điểm
+            Thiết lập thông tin chung, quy định, thời gian và mùa giải ban đầu
           </p>
         </div>
 
@@ -258,7 +272,6 @@ function ContestFormPage() {
             <div className="contest-form-alert__msg">{error}</div>
           </div>
         )}
-
         {success && (
           <div className="contest-form-alert contest-form-alert--success" id="form-success">
             <span className="contest-form-alert__icon">✓</span>
@@ -267,341 +280,150 @@ function ContestFormPage() {
         )}
 
         <form onSubmit={handleSubmit} className="contest-main-form" id="contest-main-form">
-          <div className="contest-form-grid">
-            
-            {/* COLUMN LEFT: General Config */}
+          <div className="contest-form-grid" style={{ gridTemplateColumns: '1.2fr 0.8fr' }}>
+
+            {/* COLUMN LEFT */}
             <div className="contest-form-col">
-              
-              {/* Card 1: General Info */}
               <div className="contest-card">
                 <div className="contest-card__header">
-                  <h3 className="contest-card__title">1. Thông tin chung</h3>
+                  <h3 className="contest-card__title">1. Thông tin chung Hackathon</h3>
                 </div>
                 <div className="contest-card__body">
-                  <div className="contest-field">
-                    <label className="contest-label">Tên cuộc thi *</label>
+
+                  <div className={`contest-field${fieldErrors.title ? ' contest-field--error' : ''}`}>
+                    <label className="contest-label">Tên cuộc thi Hackathon *</label>
                     <input
                       type="text"
                       name="title"
                       className="contest-input"
-                      placeholder="Nhập tên cuộc thi Hackathon..."
+                      placeholder="Ví dụ: SEAL Hackathon 2026..."
                       value={contestData.title}
-                      onChange={handleContestChange}
+                      onChange={handleTextChange}
                       required
                     />
+                    {fieldErrors.title && <span className="contest-field-error">{fieldErrors.title}</span>}
                   </div>
+
+                  <div className="contest-row">
+                    <div className={`contest-field${fieldErrors.season ? ' contest-field--error' : ''}`}>
+                      <label className="contest-label">Mùa giải *</label>
+                      <select name="season" className="contest-input" value={contestData.season} onChange={handleTextChange} required>
+                        <option value="Spring">Spring (Mùa Xuân)</option>
+                        <option value="Summer">Summer (Mùa Hạ)</option>
+                        <option value="Autumn">Autumn (Mùa Thu)</option>
+                        <option value="Winter">Winter (Mùa Đông)</option>
+                      </select>
+                    </div>
+                    <div className={`contest-field${fieldErrors.year ? ' contest-field--error' : ''}`}>
+                      <label className="contest-label">Năm *</label>
+                      <input type="number" name="year" className="contest-input" value={contestData.year} onChange={handleTextChange} min="2020" max="2100" required />
+                    </div>
+                  </div>
+
                   <div className="contest-field">
-                    <label className="contest-label">Mô tả</label>
-                    <textarea
-                      name="description"
-                      className="contest-textarea"
-                      placeholder="Mô tả chi tiết về nội dung cuộc thi..."
-                      rows="4"
-                      value={contestData.description}
-                      onChange={handleContestChange}
-                    />
+                    <label className="contest-label">Mô tả cuộc thi</label>
+                    <textarea name="description" className="contest-textarea" placeholder="Mô tả tóm tắt về nội dung, mục tiêu cuộc thi..." rows="3" value={contestData.description} onChange={handleTextChange} />
                   </div>
+
+                  <div className="contest-field">
+                    <label className="contest-label">Thể lệ & Luật thi đấu</label>
+                    <textarea name="rules" className="contest-textarea" placeholder="Quy định, điều kiện tham gia, yêu cầu nộp bài..." rows="4" value={contestData.rules} onChange={handleTextChange} />
+                  </div>
+
                 </div>
               </div>
+            </div>
 
-              {/* Card 2: Timeline & Settings */}
+            {/* COLUMN RIGHT */}
+            <div className="contest-form-col">
               <div className="contest-card">
                 <div className="contest-card__header">
-                  <h3 className="contest-card__title">2. Thời gian & Quy mô</h3>
+                  <h3 className="contest-card__title">2. Media & Thời gian</h3>
                 </div>
                 <div className="contest-card__body">
+
                   <div className="contest-field">
-                    <label className="contest-label">Thời hạn đăng ký *</label>
-                    <input
-                      type="datetime-local"
-                      name="registration_deadline"
-                      className="contest-input"
-                      value={contestData.registration_deadline}
-                      onChange={handleContestChange}
-                      required
-                    />
+                    <label className="contest-label">Banner URL (Ảnh nền)</label>
+                    <input type="text" name="banner" className="contest-input" placeholder="https://images.unsplash.com/..." value={contestData.banner} onChange={handleTextChange} />
+                    {contestData.banner && (
+                      <div className="contest-banner-preview">
+                        <img src={contestData.banner} alt="Preview Banner" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800'; }} />
+                      </div>
+                    )}
                   </div>
-                  <div className="contest-row">
-                    <div className="contest-field">
-                      <label className="contest-label">Thời gian bắt đầu *</label>
-                      <input
-                        type="datetime-local"
-                        name="start_date"
-                        className="contest-input"
-                        value={contestData.start_date}
-                        onChange={handleContestChange}
-                        required
-                      />
-                    </div>
-                    <div className="contest-field">
-                      <label className="contest-label">Thời gian kết thúc *</label>
-                      <input
-                        type="datetime-local"
-                        name="end_date"
-                        className="contest-input"
-                        value={contestData.end_date}
-                        onChange={handleContestChange}
-                        required
-                      />
-                    </div>
+
+                  <div className="contest-divider" />
+
+                  <div className="contest-timeline-hint">
+                    <span className="contest-timeline-dot contest-timeline-dot--open" />
+                    <span>Mở ĐK</span>
+                    <span className="contest-timeline-line" />
+                    <span className="contest-timeline-dot contest-timeline-dot--close" />
+                    <span>Đóng ĐK</span>
+                    <span className="contest-timeline-line" />
+                    <span className="contest-timeline-badge">+4 ngày</span>
+                    <span className="contest-timeline-line" />
+                    <span className="contest-timeline-dot contest-timeline-dot--event" />
+                    <span>Thi đấu</span>
                   </div>
-                  
+
+                  <DateField
+                    label="Ngày mở đăng ký *"
+                    hint="— không chọn ngày quá khứ"
+                    selected={contestData.registration_open_date}
+                    onChange={(d) => handleDateChange('registration_open_date', d)}
+                    minDate={minOpen}
+                    error={fieldErrors.registration_open_date}
+                  />
+
+                  <DateField
+                    label="Hạn đóng đăng ký *"
+                    hint="— phải sau ngày mở"
+                    selected={contestData.registration_deadline}
+                    onChange={(d) => handleDateChange('registration_deadline', d)}
+                    minDate={minClose}
+                    disabled={!contestData.registration_open_date}
+                    error={fieldErrors.registration_deadline}
+                  />
+
+                  <DateField
+                    label="Ngày thi đấu chính thức *"
+                    hint="— tự động +4 ngày, có thể chỉnh lại"
+                    selected={contestData.start_date}
+                    onChange={(d) => handleDateChange('start_date', d)}
+                    minDate={minStart}
+                    disabled={!contestData.registration_deadline}
+                    error={fieldErrors.start_date}
+                  />
+
                   <div className="contest-divider" />
 
                   <div className="contest-field contest-field--row">
                     <div className="contest-toggle-info">
-                      <label className="contest-label contest-label--toggle">Tự động đóng đăng ký</label>
-                      <span className="contest-label-sub">Đóng đăng ký (chuyển sang "closed") khi hết hạn</span>
+                      <label className="contest-label contest-label--toggle">Tự động khóa sổ</label>
+                      <span className="contest-label-sub">Tự chuyển trạng thái khi hết hạn</span>
                     </div>
                     <label className="switch">
-                      <input
-                        type="checkbox"
-                        name="auto_close"
-                        checked={contestData.auto_close}
-                        onChange={handleContestChange}
-                      />
-                      <span className="slider round"></span>
+                      <input type="checkbox" name="auto_close" checked={contestData.auto_close} onChange={handleTextChange} />
+                      <span className="slider round" />
                     </label>
                   </div>
 
-                  <div className="contest-field">
-                    <label className="contest-label">Số đội tối đa mỗi bảng đấu *</label>
-                    <input
-                      type="number"
-                      name="max_teams_per_pool"
-                      className="contest-input"
-                      min="2"
-                      max="100"
-                      value={contestData.max_teams_per_pool}
-                      onChange={handleContestChange}
-                      required
-                    />
-                  </div>
                 </div>
               </div>
-
-            </div>
-
-            {/* COLUMN RIGHT: Rounds Config */}
-            <div className="contest-form-col">
-              
-              <div className="contest-card">
-                <div className="contest-card__header">
-                  <h3 className="contest-card__title">3. Vòng thi & Tiêu chí</h3>
-                  <span className="contest-badge">{rounds.length} vòng thi</span>
-                </div>
-                <div className="contest-card__body">
-                  
-                  {/* Local Rounds List */}
-                  {rounds.length === 0 ? (
-                    <div className="contest-empty-rounds">
-                      Chưa có vòng thi nào được thêm. Vui lòng điền thông tin bên dưới để thêm vòng thi.
-                    </div>
-                  ) : (
-                    <div className="rounds-list">
-                      {rounds.map((round, rIndex) => (
-                        <div className="round-item-wrapper" key={rIndex}>
-                          <div className="round-item-header">
-                            <div className="round-item-header__left">
-                              <span className="round-number-badge">v{round.round_number}</span>
-                              <span className="round-name-text">{round.name}</span>
-                            </div>
-                            <div className="round-item-header__right">
-                              <button
-                                type="button"
-                                className="btn-icon btn-icon--expand"
-                                onClick={() =>
-                                  setExpandedRoundIndex(
-                                    expandedRoundIndex === rIndex ? null : rIndex
-                                  )
-                                }
-                              >
-                                {expandedRoundIndex === rIndex ? 'Thu gọn' : 'Chi tiết'}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon btn-icon--danger"
-                                onClick={() => handleDeleteRound(rIndex)}
-                              >
-                                Xóa
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Expanded: Criteria for this round */}
-                          {expandedRoundIndex === rIndex && (
-                            <div className="round-item-detail">
-                              {round.start_time && (
-                                <p className="round-time-info">
-                                  ⏱ Từ: {new Date(round.start_time).toLocaleString()} đến {new Date(round.end_time).toLocaleString()}
-                                </p>
-                              )}
-
-                              <div className="criteria-section">
-                                <h4 className="criteria-title">Tiêu chí chấm điểm ({round.score_criteria.length})</h4>
-                                
-                                {round.score_criteria.length === 0 ? (
-                                  <p className="criteria-empty-text">Chưa cấu hình tiêu chí nào.</p>
-                                ) : (
-                                  <div className="criteria-table-wrap">
-                                    <table className="criteria-table">
-                                      <thead>
-                                        <tr>
-                                          <th>Tên tiêu chí</th>
-                                          <th>Điểm tối đa</th>
-                                          <th>Trọng số</th>
-                                          <th>Hành động</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {round.score_criteria.map((crit, cIndex) => (
-                                          <tr key={cIndex}>
-                                            <td>{crit.name}</td>
-                                            <td>{crit.max_score}</td>
-                                            <td>x{crit.weight}</td>
-                                            <td>
-                                              <button
-                                                type="button"
-                                                className="btn-text-danger"
-                                                onClick={() => handleDeleteCriteria(rIndex, cIndex)}
-                                              >
-                                                Gỡ bỏ
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-
-                                {/* Inline Form to add criteria */}
-                                <div className="add-criteria-inline">
-                                  <input
-                                    type="text"
-                                    name="name"
-                                    placeholder="Tên tiêu chí (vd: Sáng tạo)"
-                                    className="contest-input contest-input--sm"
-                                    value={newCriteria.name}
-                                    onChange={handleNewCriteriaChange}
-                                  />
-                                  <input
-                                    type="number"
-                                    name="max_score"
-                                    placeholder="Điểm tối đa"
-                                    className="contest-input contest-input--sm"
-                                    min="1"
-                                    value={newCriteria.max_score}
-                                    onChange={handleNewCriteriaChange}
-                                  />
-                                  <input
-                                    type="number"
-                                    name="weight"
-                                    placeholder="Trọng số"
-                                    className="contest-input contest-input--sm"
-                                    min="1"
-                                    step="0.1"
-                                    value={newCriteria.weight}
-                                    onChange={handleNewCriteriaChange}
-                                  />
-                                  <button
-                                    type="button"
-                                    className="btn btn--sm btn--outline-cyan"
-                                    onClick={() => handleAddCriteria(rIndex)}
-                                  >
-                                    Thêm tiêu chí
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="contest-divider" />
-
-                  {/* Form to add new Round */}
-                  <div className="add-round-form">
-                    <h4 className="add-round-title">Thêm vòng thi mới</h4>
-                    <div className="contest-row">
-                      <div className="contest-field contest-field--third">
-                        <label className="contest-label">Số thứ tự</label>
-                        <input
-                          type="number"
-                          name="round_number"
-                          className="contest-input"
-                          min="1"
-                          value={newRound.round_number}
-                          onChange={handleNewRoundChange}
-                        />
-                      </div>
-                      <div className="contest-field contest-field--twothirds">
-                        <label className="contest-label">Tên vòng thi *</label>
-                        <input
-                          type="text"
-                          name="name"
-                          className="contest-input"
-                          placeholder="Vòng Ý Tưởng, Vòng Chung Kết..."
-                          value={newRound.name}
-                          onChange={handleNewRoundChange}
-                        />
-                      </div>
-                    </div>
-                    <div className="contest-row">
-                      <div className="contest-field">
-                        <label className="contest-label">Bắt đầu vòng thi</label>
-                        <input
-                          type="datetime-local"
-                          name="start_time"
-                          className="contest-input"
-                          value={newRound.start_time}
-                          onChange={handleNewRoundChange}
-                        />
-                      </div>
-                      <div className="contest-field">
-                        <label className="contest-label">Kết thúc vòng thi</label>
-                        <input
-                          type="datetime-local"
-                          name="end_time"
-                          className="contest-input"
-                          value={newRound.end_time}
-                          onChange={handleNewRoundChange}
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn--outline btn--block"
-                      onClick={handleAddRound}
-                    >
-                      + Thêm Vòng Thi Vào Danh Sách
-                    </button>
-                  </div>
-
-                </div>
-              </div>
-
             </div>
 
           </div>
 
-          {/* Form Actions */}
           <div className="contest-form-actions">
-            <button
-              type="submit"
-              className={`btn btn--primary btn--lg ${loading ? 'btn--loading' : ''}`}
-              disabled={loading}
-              id="btn-contest-submit"
-            >
+            <button type="button" className="btn btn--outline" onClick={() => navigate('/admin/hackathons')} style={{ marginRight: '12px' }}>
+              Hủy bỏ
+            </button>
+            <button type="submit" className={`btn btn--primary ${loading ? 'btn--loading' : ''}`} disabled={loading} id="btn-contest-submit">
               {loading ? (
-                <>
-                  <span className="btn-spinner" />
-                  <span>{currentStepText}</span>
-                </>
+                <><span className="btn-spinner" /><span>{currentStepText}</span></>
               ) : (
-                'Tạo & Cấu Hình Cuộc Thi'
+                'Tạo Hackathon & Tiếp tục cấu hình'
               )}
             </button>
           </div>

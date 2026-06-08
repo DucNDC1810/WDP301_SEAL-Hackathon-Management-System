@@ -5,6 +5,7 @@ import {
   cancelInvitation,
   getInvitationsByContest,
   getInvitationByToken,
+  completeJudgeRegistration,
 } from "../services/invitationService.js";
 
 // ─── handleSendInvitation ─────────────────────────────────────────────────────
@@ -142,6 +143,24 @@ export const handleGetInvitationsByContest = async (req, res) => {
     res.status(200).json({ success: true, count: invitations.length, data: invitations });
   } catch (error) {
     console.error("[handleGetInvitationsByContest]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── handleCompleteJudgeRegistration ─────────────────────────────────────────
+
+/**
+ * POST /api/invitations/judge/complete
+ * External judge xác nhận lời mời + tạo tài khoản.
+ * Body: { token, full_name, password }
+ */
+export const handleCompleteJudgeRegistration = async (req, res) => {
+  try {
+    const { token, full_name, password } = req.body;
+    const result = await completeJudgeRegistration({ token, full_name, password });
+    res.status(201).json({ success: true, message: "Tài khoản đã được kích hoạt!", data: result });
+  } catch (error) {
+    console.error("[handleCompleteJudgeRegistration]", error);
     res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };

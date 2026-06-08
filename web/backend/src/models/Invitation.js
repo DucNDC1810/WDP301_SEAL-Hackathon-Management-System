@@ -15,7 +15,7 @@ const invitationSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["mentor"],
+      enum: ["mentor", "judge"],
       default: "mentor",
     },
     invited_by: {

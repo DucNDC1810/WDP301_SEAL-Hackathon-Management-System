@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Tag, Button, Typography, message } from 'antd';
+import { Table, Tag, Button, Typography, message, Result } from 'antd';
+import { LockOutlined } from '@ant-design/icons';
+import { useAuth } from '../../context/AuthContext';
 import './ContestHistoryPage.css';
 
 const { Title } = Typography;
@@ -10,18 +12,23 @@ export default function ContestHistoryPage() {
   const [contests, setContests] = useState([]);
   const [loading, setLoading]   = useState(true);
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
 
+  const isMentor = isAdmin || user?.roles?.some(r => r.role_name === 'mentor');
   const token = localStorage.getItem('accessToken');
 
   useEffect(() => {
+    if (!isMentor) return;
     fetch(`${API}/api/contests`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => {
-        setContests(data.filter((c) => c.status === 'closed'));
+        const list = Array.isArray(data) ? data : (data?.data ?? []);
+        setContests(list.filter((c) => c.status === 'closed'));
         setLoading(false);
       })
       .catch(() => { message.error('Không thể tải lịch sử'); setLoading(false); });
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMentor]);
 
   const columns = [
     { title: 'Tên cuộc thi', dataIndex: 'title', key: 'title' },
@@ -36,6 +43,17 @@ export default function ContestHistoryPage() {
       ),
     },
   ];
+
+  if (!isMentor) {
+    return (
+      <Result
+        icon={<LockOutlined />}
+        title="Không có quyền truy cập"
+        subTitle="Dữ liệu lịch sử cuộc thi chỉ dành cho Giảng viên / Giám khảo."
+        extra={<Button type="primary" onClick={() => navigate('/dashboard')}>Về trang của tôi</Button>}
+      />
+    );
+  }
 
   return (
     <div className="contest-history">

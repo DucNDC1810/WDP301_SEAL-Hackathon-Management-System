@@ -1182,27 +1182,27 @@ export default function HackathonDetailPage() {
 
       {/* ─── TAB 4: PHÂN CÔNG JUDGE & MENTOR (FE-1.1) ─── */}
       {tab === 4 && (
-        <JudgeAssignmentTab config={config} id={id} />
+        <JudgeAssignmentTab config={config} contestId={id} contest={contest} />
       )}
 
       {/* ─── TAB 5: PHÁT ĐỀ BÀI (FE-1.3) ─── */}
       {tab === 5 && (
-        <ProblemReleaseTab config={config} id={id} />
+        <ProblemReleaseTab config={config} contestId={id} contest={contest} />
       )}
 
       {/* ─── TAB 6: DUYỆT BÀI NỘP LATE (FE-1.4) ─── */}
       {tab === 6 && (
-        <SubmissionReviewTab config={config} id={id} />
+        <SubmissionReviewTab config={config} contestId={id} contest={contest} />
       )}
 
       {/* ─── TAB 7: KHÓA CHẤM ĐIỂM (FE-1.5) ─── */}
       {tab === 7 && (
-        <ScoringLockTab config={config} id={id} />
+        <ScoringLockTab config={config} contestId={id} contest={contest} />
       )}
 
       {/* ─── TAB 8: LOẠI ĐỘI VI PHẠM (FE-1.6) ─── */}
       {tab === 8 && (
-        <TeamEliminationTab config={config} id={id} />
+        <TeamEliminationTab config={config} contestId={id} contest={contest} />
       )}
 
       {/* ─── TAB 9: REVIEW & VALIDATE BEFORE ONGOING ─── */}

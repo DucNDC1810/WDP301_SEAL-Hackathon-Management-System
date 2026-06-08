@@ -3,6 +3,7 @@ import ScoreDetail from "../models/ScoreDetail.js";
 import MentorAssignment from "../models/MentorAssignment.js";
 import JudgeAssignment from "../models/JudgeAssignment.js";
 import Contest from "../models/Contest.js";
+import User from "../models/User.js";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,21 @@ export const createScore = async ({
   const round = await getRound(contest_id, round_id);
   if (round.scoring_locked) {
     const err = new Error("Vòng thi đã bị khóa chấm điểm, không thể nhập điểm mới");
+    err.statusCode = 403; throw err;
+  }
+
+  // Conflict of interest: mentor không được chấm team mình đang hướng dẫn
+  const isMentorOfThisTeam = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id });
+  if (isMentorOfThisTeam) {
+    const err = new Error("Bạn không thể chấm điểm đội mà bạn đang làm mentor (conflict of interest)");
+    err.statusCode = 403; throw err;
+  }
+
+  // Timing check: judge-role user chỉ chấm được sau khi vòng kết thúc
+  const actor = await User.findById(actorId).select("roles").lean();
+  const actorRoles = (actor?.roles || []).map(r => r.role_name);
+  if (actorRoles.includes("judge") && !actorRoles.includes("mentor") && round.is_active) {
+    const err = new Error("Giám khảo chỉ có thể chấm điểm sau khi vòng thi kết thúc");
     err.statusCode = 403; throw err;
   }
 
@@ -133,6 +149,18 @@ export const getScoringProgress = async (contestId, roundId) => {
   const total = judgeTotal + mentorTotal;
   const done  = Math.max(judgeSubmitted, mentorSubmitted);
   return { total, done, remaining: Math.max(0, total - done) };
+};
+
+// ─── getMyScores ──────────────────────────────────────────────────────────────
+
+export const getMyScores = async (contestId, roundId, judgeId) => {
+  const scores = await Score.find({ contest_id: contestId, round_id: roundId, judge_id: judgeId });
+  const scoreIds = scores.map(s => s._id);
+  const details = await ScoreDetail.find({ score_id: { $in: scoreIds } });
+  return scores.map(s => ({
+    ...s.toObject(),
+    score_details: details.filter(d => d.score_id.toString() === s._id.toString()),
+  }));
 };
 
 // ─── getScoresByRound ─────────────────────────────────────────────────────────

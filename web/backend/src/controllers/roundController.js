@@ -3,6 +3,8 @@ import {
   deactivateRound,
   lockScoring,
   getRoundStatus,
+  releaseProblem as releaseProblemService,
+  checkJudgeCompletion,
 } from "../services/roundService.js";
 
 export const activate = async (req, res, next) => {
@@ -35,5 +37,21 @@ export const getStatus = async (req, res, next) => {
     const { contestId, roundId } = req.params;
     const status = await getRoundStatus(contestId, roundId);
     res.json(status);
+  } catch (e) { next(e); }
+};
+
+export const releaseProblem = async (req, res, next) => {
+  try {
+    const { roundId } = req.params;
+    const round = await releaseProblemService(roundId, req.user._id);
+    res.json({ message: "Đã phát đề thành công", round });
+  } catch (e) { next(e); }
+};
+
+export const judgeCompletion = async (req, res, next) => {
+  try {
+    const { roundId } = req.params;
+    const result = await checkJudgeCompletion(roundId);
+    res.json(result);
   } catch (e) { next(e); }
 };

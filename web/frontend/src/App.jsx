@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { AdminRoute, GuestRoute, AuthRoute, MentorRoute, JudgeRoute } from './components/ProtectedRoute';
+import { AdminRoute, GuestRoute, AuthRoute, MentorRoute, JudgeRoute, MentorScoringRoute } from './components/ProtectedRoute';
 import AdminLayout from './layouts/AdminLayout';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -25,12 +25,17 @@ import HackathonListPage from './pages/admin/hackathons/HackathonListPage';
 import HackathonDetailPage from './pages/admin/hackathons/HackathonDetailPage';
 import UserManagementPage from './pages/admin/users/UserManagementPage';
 
-// Mentor / Judge / Grading
+// Mentor
 import MentorHomePage from './pages/mentor/MentorHomePage';
 import MentorDashboardPage from './pages/mentor/MentorDashboardPage';
 import MentorPortalPage from './pages/mentor/MentorPortalPage';
-import JudgeScoringPage from './pages/mentor/JudgeScoringPage';
+import MentorScoringPage from './pages/mentor/JudgeScoringPage';
 import ScoreFormPage from './pages/mentor/ScoreFormPage';
+
+// Judge
+import JudgeHomePage from './pages/judge/JudgeHomePage';
+import JudgeScoringPage from './pages/judge/JudgeScoringPage';
+import JudgeAcceptInvitePage from './pages/judge/JudgeAcceptInvitePage';
 import LeaderboardPage from './pages/leaderboard/LeaderboardPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
@@ -86,12 +91,17 @@ function App() {
                 <Route path="users"                         element={<UserManagementPage />} />
               </Route>
 
-              {/* Mentor & Judge — own topbar, no Navbar/Footer */}
-              <Route path="/mentor/dashboard"                           element={<MentorRoute><MentorHomePage /></MentorRoute>} />
-              <Route path="/mentor/portal/:contestId/:roundId"          element={<MentorRoute><MentorPortalPage /></MentorRoute>} />
-              <Route path="/mentor/judge/:contestId/rounds/:roundId"    element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
-              <Route path="/mentor/contests/:contestId/rounds/:roundId" element={<MentorRoute><MentorDashboardPage /></MentorRoute>} />
-              <Route path="/mentor/score/:scoreId"                      element={<MentorRoute><ScoreFormPage /></MentorRoute>} />
+              {/* Mentor — coaching + scoring (không được chấm team mình mentor) */}
+              <Route path="/mentor/dashboard"                             element={<MentorRoute><MentorHomePage /></MentorRoute>} />
+              <Route path="/mentor/portal/:contestId/:roundId"            element={<MentorRoute><MentorPortalPage /></MentorRoute>} />
+              <Route path="/mentor/scoring/:contestId/rounds/:roundId"    element={<MentorScoringRoute><MentorScoringPage /></MentorScoringRoute>} />
+              <Route path="/mentor/contests/:contestId/rounds/:roundId"   element={<MentorRoute><MentorDashboardPage /></MentorRoute>} />
+              <Route path="/mentor/score/:scoreId"                        element={<MentorRoute><ScoreFormPage /></MentorRoute>} />
+
+              {/* Judge — chỉ chấm điểm sau khi vòng kết thúc */}
+              <Route path="/judge/accept-invite"                           element={<JudgeAcceptInvitePage />} />
+              <Route path="/judge/dashboard"                              element={<JudgeRoute><JudgeHomePage /></JudgeRoute>} />
+              <Route path="/judge/scoring/:contestId/rounds/:roundId/pools/:poolId" element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
 
               {/* All public pages with Navbar/Footer */}
               <Route

@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 import Invitation from "../models/Invitation.js";
+import JudgeAssignment from "../models/JudgeAssignment.js";
 import Contest from "../models/Contest.js";
 import User from "../models/User.js";
 import { sendInvitationEmail } from "./emailService.js";
@@ -257,4 +259,63 @@ export const getInvitationByToken = async (token) => {
   }
 
   return invitation;
+};
+
+// ─── completeJudgeRegistration ───────────────────────────────────────────────
+
+/**
+ * External judge click link → điền full_name + password → tạo tài khoản judge.
+ * Cập nhật JudgeAssignment.judge_id và đánh dấu invitation accepted.
+ */
+export const completeJudgeRegistration = async ({ token, full_name, password }) => {
+  if (!token || !full_name || !password) {
+    const err = new Error("Thiếu thông tin đăng ký"); err.statusCode = 400; throw err;
+  }
+
+  const invitation = await Invitation.findOne({
+    token,
+    token_expires: { $gt: new Date() },
+    status: "pending",
+    role: "judge",
+  });
+  if (!invitation) {
+    const err = new Error("Lời mời không hợp lệ hoặc đã hết hạn"); err.statusCode = 400; throw err;
+  }
+
+  // Kiểm tra email đã có tài khoản chưa
+  let user = await User.findOne({ email: invitation.email });
+  if (user) {
+    // Đã có tài khoản → gán thêm role judge nếu chưa có
+    const hasJudge = user.roles.some(r => r.role_name === "judge");
+    if (!hasJudge) {
+      user.roles.push({ role_id: new mongoose.Types.ObjectId(), role_name: "judge" });
+      await user.save();
+    }
+  } else {
+    // Tạo tài khoản mới
+    const password_hash = await bcrypt.hash(password, 10);
+    user = await User.create({
+      full_name: full_name.trim(),
+      email: invitation.email,
+      password_hash,
+      provider: "local",
+      is_verified: true,
+      roles: [{ role_id: new mongoose.Types.ObjectId(), role_name: "judge" }],
+    });
+  }
+
+  // Cập nhật tất cả JudgeAssignment pending của invitation này
+  await JudgeAssignment.updateMany(
+    { invitation_id: invitation._id },
+    { $set: { judge_id: user._id, invitation_status: "active" } }
+  );
+
+  // Đánh dấu invitation accepted
+  invitation.status = "accepted";
+  invitation.token = null;
+  invitation.token_expires = null;
+  invitation.accepted_at = new Date();
+  await invitation.save();
+
+  return { user: { _id: user._id, full_name: user.full_name, email: user.email } };
 };

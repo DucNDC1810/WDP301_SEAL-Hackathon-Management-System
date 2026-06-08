@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema(
       type: [
         new mongoose.Schema(
           { role_id: { type: mongoose.Schema.Types.ObjectId, required: true },
-            role_name: { type: String, required: true, enum: ["admin","mentor","contestant"] } },
+            role_name: { type: String, required: true, enum: ["admin","mentor","judge","contestant"] } },
           { _id: false }
         ),
       ],
@@ -50,6 +50,13 @@ const ACCOUNTS = [
     email: "mentor@fpt.edu.vn",
     password: "Mentor@123456",
     role_name: "mentor",
+    is_verified: true,
+  },
+  {
+    full_name: "Tran Van Judge",
+    email: "judge@seal.com",
+    password: "Judge@123456",
+    role_name: "judge",
     is_verified: true,
   },
 ];

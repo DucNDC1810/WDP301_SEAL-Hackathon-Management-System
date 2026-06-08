@@ -1,3 +1,5 @@
+import { useCallback } from 'react';
+
 const API = import.meta.env.VITE_API_URL || '';
 
 const doFetch = async (path, options = {}) => {
@@ -36,7 +38,9 @@ const tryRefresh = async () => {
 };
 
 export const useApi = () => {
-  const request = async (path, options = {}) => {
+  // useCallback với empty deps để reference ổn định qua các render
+  // Không có dependency vì hàm chỉ đọc localStorage trực tiếp tại thời điểm gọi
+  const request = useCallback(async (path, options = {}) => {
     try {
       return await doFetch(path, options);
     } catch (err) {
@@ -53,7 +57,7 @@ export const useApi = () => {
       }
       throw err;
     }
-  };
+  }, []);
 
   return { request };
 };

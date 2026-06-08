@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../middlewares/authMiddleware.js";
 import { audit } from "../middlewares/auditMiddleware.js";
-import { activate, deactivate, lock, getStatus } from "../controllers/roundController.js";
+import { activate, deactivate, lock, getStatus, releaseProblem, judgeCompletion } from "../controllers/roundController.js";
 
 const router = Router({ mergeParams: true }); // mergeParams để nhận contestId từ parent
 
@@ -33,6 +33,23 @@ router.post(
   requireRole("admin"),
   audit("Round", "LOCK_SCORING"),
   lock
+);
+
+// POST /api/contests/:contestId/rounds/:roundId/release-problem
+router.post(
+  "/:roundId/release-problem",
+  authenticate,
+  requireRole("admin"),
+  audit("Round", "RELEASE_PROBLEM"),
+  releaseProblem
+);
+
+// GET /api/contests/:contestId/rounds/:roundId/judge-completion
+router.get(
+  "/:roundId/judge-completion",
+  authenticate,
+  requireRole("admin"),
+  judgeCompletion
 );
 
 export default router;

@@ -6,6 +6,7 @@ import {
   handleDeclineInvitation,
   handleCancelInvitation,
   handleGetInvitationsByContest,
+  handleCompleteJudgeRegistration,
 } from "../controllers/invitationController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import { audit } from "../middlewares/auditMiddleware.js";
@@ -14,14 +15,17 @@ const router = express.Router();
 
 // ─── Public (token-based, không cần login) ────────────────────────────────────
 
-// GET  /api/invitations/preview?token=   — xem thông tin lời mời
+// GET  /api/invitations/preview?token=        — xem thông tin lời mời
 router.get("/preview", handleGetInvitationByToken);
 
-// POST /api/invitations/accept?token=    — chấp nhận lời mời
+// POST /api/invitations/accept?token=         — chấp nhận lời mời (mentor flow)
 router.post("/accept", handleAcceptInvitation);
 
-// POST /api/invitations/decline?token=   — từ chối lời mời
+// POST /api/invitations/decline?token=        — từ chối lời mời
 router.post("/decline", handleDeclineInvitation);
+
+// POST /api/invitations/judge/complete        — external judge kích hoạt tài khoản
+router.post("/judge/complete", handleCompleteJudgeRegistration);
 
 // ─── Admin only ───────────────────────────────────────────────────────────────
 

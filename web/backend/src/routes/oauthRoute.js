@@ -24,9 +24,15 @@ const generateRefreshToken = (userId) =>
   });
 
 const handleOAuthCallback = (req, res) => {
-  const accessToken = generateAccessToken(req.user._id);
-  const refreshToken = generateRefreshToken(req.user._id);
+  const { isNewUser, ...userDoc } = req.user;
+  const accessToken = generateAccessToken(userDoc._id);
+  const refreshToken = generateRefreshToken(userDoc._id);
   res.cookie("refreshToken", refreshToken, COOKIE_OPTS);
+
+  // Lần đầu đăng nhập → bắt buộc hoàn chỉnh profile trước
+  if (isNewUser) {
+    return res.redirect(`${CLIENT_URL}/complete-profile?token=${accessToken}`);
+  }
   res.redirect(`${CLIENT_URL}/oauth-callback?token=${accessToken}`);
 };
 

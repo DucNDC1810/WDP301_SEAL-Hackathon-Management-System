@@ -11,7 +11,7 @@ export const useSocket = (contestId, roundId, onRankingUpdate) => {
 
     socketRef.current = io(SOCKET_URL, { withCredentials: true });
     socketRef.current.emit("join_ranking_room", { contestId, roundId });
-    socketRef.current.on("ranking:updated", onRankingUpdate);
+    socketRef.current.on("leaderboard:rerank", onRankingUpdate);
 
     return () => {
       socketRef.current.emit("leave_ranking_room", { contestId, roundId });

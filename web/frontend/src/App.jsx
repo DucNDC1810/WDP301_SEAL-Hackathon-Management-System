@@ -39,6 +39,8 @@ import InvitationsPage from './pages/student/invitations/InvitationsPage';
 import InvitationVerifyPage from './pages/invite-verify/InvitationVerifyPage';
 import TeamVerifyPage from './pages/team-verify/TeamVerifyPage';
 import VerifyEmailPage from './pages/verify-email/VerifyEmailPage';
+import { SubmissionPage }   from './pages/student/submission/SubmissionPage';
+import { PresentationPage } from './pages/student/presentation/PresentationPage';
 
 import './App.css';
 
@@ -98,6 +100,7 @@ function App() {
                         <Route path="/team"        element={<AuthRoute><StudentDashboardPage /></AuthRoute>} />
                         <Route path="/profile"     element={<AuthRoute><ProfilePage /></AuthRoute>} />
                         <Route path="/invitations" element={<AuthRoute><InvitationsPage /></AuthRoute>} />
+                        <Route path="/student/submit" element={<AuthRoute><SubmissionPage /></AuthRoute>} />
 
                         {/* Public */}
                         <Route path="/mentor/contests/:contestId/rounds/:roundId" element={<MentorDashboardPage />} />
@@ -105,6 +108,7 @@ function App() {
                         <Route path="/leaderboard/:contestId/:roundId"            element={<LeaderboardPage />} />
                         <Route path="/history"                                    element={<ContestHistoryPage />} />
                         <Route path="/appeals/:contestId"                         element={<AppealsPage />} />
+                        <Route path="/presentation/:contestId/:roundId"          element={<PresentationPage />} />
                       </Routes>
                     </main>
                     <Footer />

@@ -7,6 +7,7 @@ import {
   CheckCircleOutlined, ClockCircleOutlined, CopyOutlined, CrownOutlined,
   FileTextOutlined, MailOutlined, PlusOutlined, TeamOutlined, TrophyOutlined, UserOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
 import ProfilePage from '../profile/ProfilePage';
@@ -34,6 +35,7 @@ const getContestPhase = (contest) => {
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const { request } = useApi();
+  const navigate = useNavigate();
   const [myTeam,         setMyTeam]         = useState(null);
   const [loading,        setLoading]         = useState(true);
   const [joinOpen,       setJoinOpen]        = useState(false);
@@ -137,6 +139,9 @@ export default function StudentDashboardPage() {
   const contestId      = myTeam?.contest_id?._id ?? myTeam?.contest_id;
   const activeContest  = myTeam ? (contests.find((c) => c._id === contestId) ?? null) : null;
   const contestPhase   = getContestPhase(activeContest);
+  const activeRound    = activeContest?.rounds?.find(
+    (r) => new Date(r.submission_deadline) > Date.now()
+  ) ?? null;
 
   const memberColumns = [
     {
@@ -323,13 +328,25 @@ export default function StudentDashboardPage() {
         title={<><TeamOutlined style={{ marginRight: 8 }} />Đội thi của tôi</>}
         extra={
           myTeam && isLeader && (
-            <Button
-              type="primary"
-              icon={<MailOutlined />}
-              onClick={() => setInviteOpen(true)}
-            >
-              Mời thành viên
-            </Button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {activeContest && activeRound && (
+                <Button
+                  icon={<FileTextOutlined />}
+                  onClick={() =>
+                    navigate(`/student/submit?contestId=${activeContest._id}&roundId=${activeRound._id}`)
+                  }
+                >
+                  Nộp Bài
+                </Button>
+              )}
+              <Button
+                type="primary"
+                icon={<MailOutlined />}
+                onClick={() => setInviteOpen(true)}
+              >
+                Mời thành viên
+              </Button>
+            </div>
           )
         }
       >

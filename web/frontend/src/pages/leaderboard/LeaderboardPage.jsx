@@ -16,7 +16,7 @@ export default function LeaderboardPage() {
   const token = localStorage.getItem('accessToken');
 
   useEffect(() => {
-    fetch(`${API}/api/rankings/contests/${contestId}/rounds/${roundId}`, {
+    fetch(`${API}/api/contests/${contestId}/rounds/${roundId}/rankings`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())

@@ -343,10 +343,20 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                 placeholder="Tìm theo tên hoặc email..."
                 loading={loadingUsers}
                 showSearch
-                filterOption={(input, opt) => opt.label.toLowerCase().includes(input.toLowerCase())}
+                optionLabelProp="title"
+                filterOption={(input, opt) =>
+                  (opt.searchtext || '').toLowerCase().includes(input.toLowerCase())
+                }
                 options={judges.map(j => ({
                   value: j._id,
-                  label: `${j.full_name || ''}${j.email ? ' — ' + j.email : ''}`,
+                  title: j.full_name || j.email,
+                  searchtext: `${j.full_name || ''} ${j.email || ''}`,
+                  label: (
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{j.full_name || j.email}</div>
+                      {j.email && <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>{j.email}</div>}
+                    </div>
+                  ),
                 }))}
               />
               {judges.length === 0 && !loadingUsers && (
@@ -399,28 +409,68 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
       </Modal>
 
       {/* Add Mentor Modal */}
-      <Modal title="Phân công Mentor" open={showMentorModal}
-        onOk={addMentor} onCancel={() => { setShowMentorModal(false); setNewMentorId(null); setNewMentorPool(null); setNewMentorTeam(null); }}
-        okText="Phân công" cancelText="Hủy" confirmLoading={saving}>
+      <Modal
+        title="Phân công Mentor"
+        open={showMentorModal}
+        onOk={addMentor}
+        onCancel={() => { setShowMentorModal(false); setNewMentorId(null); setNewMentorPool(null); setNewMentorTeam(null); }}
+        okText="Phân công"
+        cancelText="Hủy"
+        confirmLoading={saving}
+      >
         <div className="space-y-4 py-2">
           <div>
             <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Chọn Mentor</label>
-            <Select value={newMentorId} onChange={setNewMentorId} style={{ width: '100%' }}
-              placeholder="Tìm mentor..." loading={loadingUsers}
-              options={mentors.map(m => ({ value: m._id, label: `${m.full_name || m.email}` }))}
+            <Select
+              value={newMentorId}
+              onChange={setNewMentorId}
+              style={{ width: '100%' }}
+              placeholder="Tìm theo tên hoặc email..."
+              loading={loadingUsers}
+              showSearch
+              optionLabelProp="title"
+              filterOption={(input, opt) =>
+                (opt.searchtext || '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={mentors.map(m => ({
+                value: m._id,
+                title: m.full_name || m.email,
+                searchtext: `${m.full_name || ''} ${m.email || ''}`,
+                label: (
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{m.full_name || m.email}</div>
+                    {m.email && <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>{m.email}</div>}
+                  </div>
+                ),
+              }))}
             />
+            {mentors.length === 0 && !loadingUsers && (
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                Chưa có tài khoản nào có role Mentor.
+              </p>
+            )}
           </div>
+
           <div>
             <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Bảng đấu</label>
-            <Select value={newMentorPool} onChange={v => { setNewMentorPool(v); setNewMentorTeam(null); }} style={{ width: '100%' }}
-              placeholder="Chọn bảng" options={poolOptions}
+            <Select
+              value={newMentorPool}
+              onChange={v => { setNewMentorPool(v); setNewMentorTeam(null); }}
+              style={{ width: '100%' }}
+              placeholder="Chọn bảng"
+              options={poolOptions}
             />
           </div>
+
           {newMentorPool && (
             <div>
               <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Đội thi</label>
-              <Select value={newMentorTeam} onChange={setNewMentorTeam} style={{ width: '100%' }}
-                placeholder="Chọn đội" options={getTeamsInPool(newMentorPool)}
+              <Select
+                value={newMentorTeam}
+                onChange={setNewMentorTeam}
+                style={{ width: '100%' }}
+                placeholder="Chọn đội"
+                options={getTeamsInPool(newMentorPool)}
               />
             </div>
           )}

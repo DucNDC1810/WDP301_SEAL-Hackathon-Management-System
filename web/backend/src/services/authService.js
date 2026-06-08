@@ -141,19 +141,20 @@ export const findOrCreateOAuthUser = async ({
 }) => {
   // 1. Tìm theo provider + provider_id
   let user = await User.findOne({ provider, provider_id });
-  if (user) return user;
+  if (user) return { user, isNewUser: false };
 
-  // 2. Tìm theo email → link tài khoản
+  // 2. Tìm theo email → link tài khoản (user đã có từ local)
   user = await User.findOne({ email: email.toLowerCase() });
   if (user) {
     user.provider = provider;
     user.provider_id = provider_id;
     if (avatar_url) user.avatar_url = avatar_url;
     await user.save();
-    return user;
+    // Nếu profile chưa hoàn chỉnh (ví dụ: tạo qua invitation chưa điền phone)
+    return { user, isNewUser: !user.is_profile_complete };
   }
 
-  // 3. Tạo user mới
+  // 3. Tạo user mới — chưa hoàn chỉnh profile
   const newUser = new User({
     full_name,
     email: email.toLowerCase(),
@@ -161,6 +162,7 @@ export const findOrCreateOAuthUser = async ({
     provider_id,
     avatar_url: avatar_url || "",
     is_verified: true,
+    is_profile_complete: false,
     roles: [
       {
         role_id: new mongoose.Types.ObjectId(),
@@ -169,7 +171,38 @@ export const findOrCreateOAuthUser = async ({
     ],
   });
   await newUser.save();
-  return newUser;
+  return { user: newUser, isNewUser: true };
+};
+
+// ─── completeProfile ────────────────────────────────────────────────────────
+
+/**
+ * Hoàn chỉnh profile sau khi đăng nhập OAuth lần đầu.
+ * Bắt buộc: full_name, phone. Tùy chọn: avatar_url.
+ */
+export const completeProfile = async (userId, { full_name, phone, avatar_url }) => {
+  if (!full_name || !full_name.trim()) {
+    const err = new Error("Vui lòng nhập họ và tên"); err.statusCode = 400; throw err;
+  }
+  if (!phone || !phone.trim()) {
+    const err = new Error("Vui lòng nhập số điện thoại"); err.statusCode = 400; throw err;
+  }
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    {
+      full_name: full_name.trim(),
+      phone: phone.trim(),
+      ...(avatar_url ? { avatar_url } : {}),
+      is_profile_complete: true,
+    },
+    { new: true, select: "-password_hash -verify_token -verify_token_expires -reset_token -reset_token_expires" }
+  );
+
+  if (!user) {
+    const err = new Error("Không tìm thấy người dùng"); err.statusCode = 404; throw err;
+  }
+  return user;
 };
 
 // ─── verifyEmail ────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import {
   resendVerification,
   forgotPasswordHandler,
   resetPasswordHandler,
+  completeProfileHandler,
 } from "../controllers/authController.js";
 import { authenticate } from "../middlewares/authMiddleware.js";
 
@@ -40,5 +41,8 @@ router.post("/forgot-password", forgotPasswordHandler);
 
 // POST /api/auth/reset-password        — đặt lại mật khẩu
 router.post("/reset-password", resetPasswordHandler);
+
+// POST /api/auth/complete-profile      — hoàn chỉnh profile sau OAuth lần đầu
+router.post("/complete-profile", authenticate, completeProfileHandler);
 
 export default router;

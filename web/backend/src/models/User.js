@@ -75,6 +75,10 @@ const userSchema = new mongoose.Schema(
       type: [embeddedRoleSchema],
       default: [],
     },
+    is_profile_complete: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

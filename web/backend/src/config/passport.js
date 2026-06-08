@@ -19,14 +19,14 @@ if (googleClientId && googleClientSecret) {
       },
       async (_accessToken, _refreshToken, profile, done) => {
         try {
-          const user = await findOrCreateOAuthUser({
+          const { user, isNewUser } = await findOrCreateOAuthUser({
             provider: "google",
             provider_id: profile.id,
             email: profile.emails[0].value,
             full_name: profile.displayName,
             avatar_url: profile.photos?.[0]?.value || "",
           });
-          done(null, user);
+          done(null, { ...user.toObject(), isNewUser });
         } catch (err) {
           done(err, null);
         }
@@ -53,14 +53,14 @@ if (githubClientId && githubClientSecret) {
           const email =
             profile.emails?.[0]?.value ||
             `${profile.username}@users.noreply.github.com`;
-          const user = await findOrCreateOAuthUser({
+          const { user, isNewUser } = await findOrCreateOAuthUser({
             provider: "github",
             provider_id: String(profile.id),
             email,
             full_name: profile.displayName || profile.username,
             avatar_url: profile.photos?.[0]?.value || "",
           });
-          done(null, user);
+          done(null, { ...user.toObject(), isNewUser });
         } catch (err) {
           done(err, null);
         }

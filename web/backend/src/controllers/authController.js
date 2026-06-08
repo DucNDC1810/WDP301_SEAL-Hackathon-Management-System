@@ -6,6 +6,7 @@ import {
   resendVerificationEmail,
   forgotPassword,
   resetPassword,
+  completeProfile,
 } from "../services/authService.js";
 
 // ─── cookie config ──────────────────────────────────────────────────────────
@@ -190,6 +191,19 @@ export const resetPasswordHandler = async (req, res) => {
     res
       .status(error.statusCode || 500)
       .json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── completeProfile ─────────────────────────────────────────────────────────
+
+export const completeProfileHandler = async (req, res) => {
+  try {
+    const { full_name, phone, avatar_url } = req.body;
+    const user = await completeProfile(req.user._id, { full_name, phone, avatar_url });
+    res.status(200).json({ success: true, message: "Cập nhật thông tin thành công", data: user });
+  } catch (error) {
+    console.error("[completeProfile]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };
 

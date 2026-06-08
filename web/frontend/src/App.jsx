@@ -35,6 +35,7 @@ import ScoreFormPage from './pages/mentor/ScoreFormPage';
 // Judge
 import JudgeHomePage from './pages/judge/JudgeHomePage';
 import JudgeScoringPage from './pages/judge/JudgeScoringPage';
+import JudgeAcceptInvitePage from './pages/judge/JudgeAcceptInvitePage';
 import LeaderboardPage from './pages/leaderboard/LeaderboardPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
@@ -98,6 +99,7 @@ function App() {
               <Route path="/mentor/score/:scoreId"                        element={<MentorRoute><ScoreFormPage /></MentorRoute>} />
 
               {/* Judge — chỉ chấm điểm sau khi vòng kết thúc */}
+              <Route path="/judge/accept-invite"                           element={<JudgeAcceptInvitePage />} />
               <Route path="/judge/dashboard"                              element={<JudgeRoute><JudgeHomePage /></JudgeRoute>} />
               <Route path="/judge/scoring/:contestId/rounds/:roundId"     element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Select, Button, Tag, Modal, Alert, Tooltip, message, Spin } from 'antd';
+import { Select, Button, Tag, Modal, Alert, Tooltip, message, Spin, Input } from 'antd';
 import { useApi } from '../../../../hooks/useApi';
 
 function detectConflicts(assignments) {
@@ -35,6 +35,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   const [showJudgeModal, setShowJudgeModal] = useState(false);
   const [showMentorModal, setShowMentorModal] = useState(false);
   const [newJudgeId, setNewJudgeId] = useState(null);
+  const [newJudgeExternalEmail, setNewJudgeExternalEmail] = useState('');
   const [newJudgePool, setNewJudgePool] = useState(null);
   const [newJudgeTeam, setNewJudgeTeam] = useState(null);
   const [newJudgeType, setNewJudgeType] = useState('INTERNAL');
@@ -75,14 +76,15 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
       setJudgeAssignments(judgeList.map(a => ({
         id: a._id,
         judgeId: (a.judge_id?._id || a.judge_id)?.toString(),
-        judgeName: a.judge_id?.full_name || a.judge_id?.email || '—',
+        judgeName: a.judge_id?.full_name || a.judge_id?.email || a.external_email || '—',
         type: a.judge_type || 'INTERNAL',
+        invitationStatus: a.invitation_status || 'active',
+        externalEmail: a.external_email,
         pool: a.pool_id?.pool_name || a.pool_id || '—',
         poolId: (a.pool_id?._id || a.pool_id)?.toString(),
         teamId: (a.team_id?._id || a.team_id)?.toString(),
         teamName: a.team_id?.team_name || '—',
         assignedAt: a.created_at,
-        accepted: true,
       })));
 
       setMentorAssignments(mentorList.map(a => ({
@@ -122,19 +124,43 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     a => a.judgeId === newJudgeId && a.poolId === newJudgePool
   );
 
+  const resetJudgeModal = () => {
+    setNewJudgeId(null);
+    setNewJudgeExternalEmail('');
+    setNewJudgePool(null);
+    setNewJudgeTeam(null);
+    setNewJudgeType('INTERNAL');
+  };
+
   const addJudge = async () => {
-    if (!newJudgeId || !newJudgePool || !newJudgeTeam) {
-      messageApi.error('Vui lòng chọn judge, bảng và đội!'); return;
+    if (newJudgeType === 'INTERNAL' && !newJudgeId) {
+      messageApi.error('Vui lòng chọn judge!'); return;
+    }
+    if (newJudgeType === 'EXTERNAL' && !newJudgeExternalEmail) {
+      messageApi.error('Vui lòng nhập email của judge ngoài!'); return;
+    }
+    if (!newJudgePool || !newJudgeTeam) {
+      messageApi.error('Vui lòng chọn bảng và đội!'); return;
     }
     setSaving(true);
     try {
-      await request(`/api/contests/${contestId}/rounds/${selectedRound}/judge-assignments`, {
+      const body = {
+        pool_id: newJudgePool,
+        team_id: newJudgeTeam,
+        judge_type: newJudgeType,
+        ...(newJudgeType === 'INTERNAL'
+          ? { judge_id: newJudgeId }
+          : { external_email: newJudgeExternalEmail }),
+      };
+      const res = await request(`/api/contests/${contestId}/rounds/${selectedRound}/judge-assignments`, {
         method: 'POST',
-        body: { pool_id: newJudgePool, team_id: newJudgeTeam, judge_id: newJudgeId, judge_type: newJudgeType },
+        body,
       });
-      messageApi.success('Đã phân công judge!');
+      const warnings = res?.warnings || [];
+      if (warnings.length) warnings.forEach(w => messageApi.warning(w));
+      else messageApi.success('Đã phân công judge!');
       setShowJudgeModal(false);
-      setNewJudgeId(null); setNewJudgePool(null); setNewJudgeTeam(null); setNewJudgeType('INTERNAL');
+      resetJudgeModal();
       fetchAssignments(selectedRound);
     } catch (e) {
       messageApi.error(e.message || 'Không thể phân công judge');
@@ -216,8 +242,13 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                 style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{a.judgeName}</span>
-                    {conflicts.has(a.judgeId) && (
+                    <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                      {a.judgeName}
+                    </span>
+                    {a.invitationStatus === 'pending_invite' && (
+                      <Tag color="orange" style={{ fontSize: '0.65rem' }}>⏳ Chờ xác nhận</Tag>
+                    )}
+                    {conflicts.has(a.judgeId) && a.invitationStatus !== 'pending_invite' && (
                       <Tooltip title="Judge này được phân công nhiều bảng — có thể xung đột lịch">
                         <Tag color="red" style={{ fontSize: '0.65rem', cursor: 'default' }}>⚠ Conflict</Tag>
                       </Tooltip>
@@ -225,6 +256,9 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                   </div>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Tag color={a.type === 'INTERNAL' ? 'blue' : 'purple'} style={{ fontSize: '0.65rem' }}>{a.type}</Tag>
+                    {a.type === 'EXTERNAL' && a.externalEmail && (
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{a.externalEmail}</span>
+                    )}
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Bảng: <strong>{a.pool}</strong></span>
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Đội: <strong>{a.teamName}</strong></span>
                     {a.assignedAt && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(a.assignedAt).toLocaleString('vi-VN')}</span>}
@@ -268,37 +302,96 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
       </div>
 
       {/* Add Judge Modal */}
-      <Modal title="Phân công Judge" open={showJudgeModal}
-        onOk={addJudge} onCancel={() => { setShowJudgeModal(false); setNewJudgeId(null); setNewJudgePool(null); setNewJudgeTeam(null); }}
-        okText="Phân công" cancelText="Hủy" confirmLoading={saving}>
+      <Modal
+        title="Phân công Judge"
+        open={showJudgeModal}
+        onOk={addJudge}
+        onCancel={() => { setShowJudgeModal(false); resetJudgeModal(); }}
+        okText="Phân công"
+        cancelText="Hủy"
+        confirmLoading={saving}
+      >
         <div className="space-y-4 py-2">
-          {willConflict && (
-            <Alert type="warning" showIcon message="Judge này đã được phân công bảng này — sẽ tạo bản ghi trùng." />
+          {/* Loại Judge — chọn trước để hiện form phù hợp */}
+          <div>
+            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Loại Judge
+            </label>
+            <Select
+              value={newJudgeType}
+              onChange={v => { setNewJudgeType(v); setNewJudgeId(null); setNewJudgeExternalEmail(''); }}
+              style={{ width: '100%' }}
+              options={[
+                { value: 'INTERNAL', label: 'Nội bộ (Internal) — chọn từ tài khoản có sẵn' },
+                { value: 'EXTERNAL', label: 'Ngoài (External) — mời qua email' },
+              ]}
+            />
+          </div>
+
+          {newJudgeType === 'INTERNAL' ? (
+            <div>
+              <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
+                Chọn Judge
+              </label>
+              {willConflict && (
+                <Alert type="warning" showIcon message="Judge này đã được phân công bảng này." className="mb-2" />
+              )}
+              <Select
+                value={newJudgeId}
+                onChange={setNewJudgeId}
+                style={{ width: '100%' }}
+                placeholder="Tìm theo tên hoặc email..."
+                loading={loadingUsers}
+                showSearch
+                filterOption={(input, opt) => opt.label.toLowerCase().includes(input.toLowerCase())}
+                options={judges.map(j => ({
+                  value: j._id,
+                  label: `${j.full_name || ''}${j.email ? ' — ' + j.email : ''}`,
+                }))}
+              />
+              {judges.length === 0 && !loadingUsers && (
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Chưa có tài khoản nào có role Judge. Hãy gán role judge cho user trước.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
+                Email của Judge ngoài
+              </label>
+              <Input
+                type="email"
+                value={newJudgeExternalEmail}
+                onChange={e => setNewJudgeExternalEmail(e.target.value)}
+                placeholder="vd: expert@company.com"
+              />
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                Hệ thống sẽ gửi email mời. Sau khi họ xác nhận, tài khoản sẽ tự được tạo với role Judge.
+              </p>
+            </div>
           )}
-          <div>
-            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Chọn Judge</label>
-            <Select value={newJudgeId} onChange={setNewJudgeId} style={{ width: '100%' }}
-              placeholder="Tìm judge..." loading={loadingUsers}
-              options={judges.map(j => ({ value: j._id, label: `${j.full_name || j.email}` }))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Loại</label>
-            <Select value={newJudgeType} onChange={setNewJudgeType} style={{ width: '100%' }}
-              options={[{ value: 'INTERNAL', label: 'INTERNAL' }, { value: 'EXTERNAL', label: 'EXTERNAL' }]}
-            />
-          </div>
+
           <div>
             <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Bảng đấu</label>
-            <Select value={newJudgePool} onChange={v => { setNewJudgePool(v); setNewJudgeTeam(null); }} style={{ width: '100%' }}
-              placeholder="Chọn bảng" options={poolOptions}
+            <Select
+              value={newJudgePool}
+              onChange={v => { setNewJudgePool(v); setNewJudgeTeam(null); }}
+              style={{ width: '100%' }}
+              placeholder="Chọn bảng"
+              options={poolOptions}
             />
           </div>
+
           {newJudgePool && (
             <div>
               <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Đội thi</label>
-              <Select value={newJudgeTeam} onChange={setNewJudgeTeam} style={{ width: '100%' }}
-                placeholder="Chọn đội" options={getTeamsInPool(newJudgePool)}
+              <Select
+                value={newJudgeTeam}
+                onChange={setNewJudgeTeam}
+                style={{ width: '100%' }}
+                placeholder="Chọn đội"
+                options={getTeamsInPool(newJudgePool)}
               />
             </div>
           )}

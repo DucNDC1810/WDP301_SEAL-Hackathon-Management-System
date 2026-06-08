@@ -8,13 +8,14 @@ import {
 export const assign = async (req, res, next) => {
   try {
     const { contestId, roundId } = req.params;
-    const { pool_id, team_id, judge_id, judge_type } = req.body;
+    const { pool_id, team_id, judge_id, external_email, judge_type } = req.body;
     const result = await assignJudge({
       contest_id: contestId,
       round_id:   roundId,
       pool_id,
       team_id,
       judge_id,
+      external_email,
       judge_type,
       assigned_by: req.user._id,
     });

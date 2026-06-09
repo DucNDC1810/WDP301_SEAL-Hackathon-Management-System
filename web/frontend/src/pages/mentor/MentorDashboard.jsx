@@ -115,10 +115,10 @@ const NAV_GROUPS = [
 
 function Sidebar({ active, onChange }) {
   return (
-    <aside className="md-sidebar">
-      {NAV_GROUPS.map(g => (
-        <div key={g.section} className="md-sidebar-section">
-          <div className="md-sidebar-label">{g.section}</div>
+    <aside className="md-sidebar" style={{ padding: '8px 12px' }}>
+      {NAV_GROUPS.map((g, gi) => (
+        <div key={g.section}>
+          {gi > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
           {g.items.map(item => (
             <div
               key={item.id}

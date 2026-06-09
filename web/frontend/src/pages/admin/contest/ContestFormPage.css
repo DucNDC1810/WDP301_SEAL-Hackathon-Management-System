@@ -5,7 +5,7 @@
   min-height: 100vh;
   background: var(--bg-primary);
   padding: 120px 0 80px; /* Offset for floating navbar */
-  overflow: hidden;
+  /* overflow: hidden removed — was clipping the datepicker popper */
 }
 
 /* Background Glowing Orbs */
@@ -635,19 +635,41 @@ input:checked + .slider:before {
   z-index: 9999 !important;
 }
 
+/* Mobile portal overlay — centers the picker on small screens */
+.react-datepicker__portal {
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(4px) !important;
+  z-index: 99999 !important;
+}
+
+.react-datepicker__portal .contest-dp-calendar.react-datepicker {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  margin: auto;
+}
+
 .contest-dp-calendar.react-datepicker {
-  background: var(--bg-card) !important;
+  background: #0d1220 !important;
   border: 1px solid var(--border-hover) !important;
   border-radius: 14px !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--border) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 240, 255, 0.12) !important;
   font-family: var(--font-body) !important;
   overflow: hidden;
   padding: 0 !important;
+  /* Force fully opaque — no see-through */
+  opacity: 1 !important;
+  isolation: isolate;
+}
+
+[data-theme="light"] .contest-dp-calendar.react-datepicker {
+  background: #ffffff !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 152, 181, 0.2) !important;
 }
 
 /* Header */
 .contest-dp-calendar .react-datepicker__header {
-  background: var(--bg-header) !important;
+  background: #080c16 !important;
   border-bottom: 1px solid var(--border) !important;
   padding: 16px 0 12px !important;
   border-radius: 0 !important;
@@ -758,7 +780,7 @@ input:checked + .slider:before {
 }
 
 .contest-dp-calendar .react-datepicker__header--time {
-  background: var(--bg-header) !important;
+  background: #080c16 !important;
   border-bottom: 1px solid var(--border) !important;
   padding: 16px 0 12px !important;
 }
@@ -770,7 +792,16 @@ input:checked + .slider:before {
 }
 
 .contest-dp-calendar .react-datepicker__time {
-  background: var(--bg-card) !important;
+  background: #0d1220 !important;
+}
+
+[data-theme="light"] .contest-dp-calendar .react-datepicker__header,
+[data-theme="light"] .contest-dp-calendar .react-datepicker__header--time {
+  background: #f0f4f8 !important;
+}
+
+[data-theme="light"] .contest-dp-calendar .react-datepicker__time {
+  background: #ffffff !important;
 }
 
 .contest-dp-calendar .react-datepicker__time-box {

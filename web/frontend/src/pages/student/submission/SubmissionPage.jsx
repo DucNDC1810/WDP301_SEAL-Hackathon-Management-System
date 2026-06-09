@@ -11,12 +11,12 @@ const { Title, Text } = Typography;
 export const SubmissionPage = () => {
   const [searchParams] = useSearchParams();
   const contestId = searchParams.get('contestId');
-  const roundId   = searchParams.get('roundId');
 
   const { user }    = useAuth();
   const { request } = useApi();
 
   const [team,       setTeam]       = useState(null);
+  const [roundId,    setRoundId]    = useState(searchParams.get('roundId'));
   const [submission, setSubmission] = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -24,15 +24,29 @@ export const SubmissionPage = () => {
   const [form] = Form.useForm();
 
   useEffect(() => {
-    if (!contestId || !roundId) { setLoading(false); return; }
+    if (!contestId) { setLoading(false); return; }
 
     const load = async () => {
       try {
+        // Load team for this contest
         const teamRes  = await request(`/api/teams/contests/${contestId}/my`);
         const teamData = teamRes?.data ?? teamRes;
         setTeam(teamData);
 
-        const subsRes = await request(`/api/submissions?round_id=${roundId}`);
+        // Resolve roundId: use query param if provided, otherwise find active round from contest
+        let resolvedRoundId = searchParams.get('roundId');
+        if (!resolvedRoundId) {
+          const contestRes = await request(`/api/contests/${contestId}`);
+          const rounds = contestRes?.rounds ?? contestRes?.data?.rounds ?? [];
+          const active = rounds.find((r) => new Date(r.submission_deadline) > Date.now())
+            ?? rounds[rounds.length - 1];
+          resolvedRoundId = active?._id ?? null;
+          if (resolvedRoundId) setRoundId(resolvedRoundId);
+        }
+
+        if (!resolvedRoundId) return;
+
+        const subsRes = await request(`/api/submissions?round_id=${resolvedRoundId}`);
         const subs    = Array.isArray(subsRes) ? subsRes : subsRes?.data ?? [];
         const existing = subs.find(
           (s) => (s.team_id?._id ?? s.team_id) === teamData?._id
@@ -53,7 +67,7 @@ export const SubmissionPage = () => {
     };
 
     load();
-  }, [contestId, roundId]);
+  }, [contestId]);
 
   const isLeader = user && team &&
     (team.leader_id?._id ?? team.leader_id) === user._id;
@@ -62,12 +76,12 @@ export const SubmissionPage = () => {
     setSubmitting(true);
     try {
       const body = {
-        repo_url: values.repo_url,
-        team_id:  team._id,
-        round_id: roundId,
+        repo_url:  values.repo_url,
+        slide_url: values.slide_url,
+        team_id:   team._id,
+        round_id:  roundId,
       };
-      if (values.demo_url)  body.demo_url  = values.demo_url;
-      if (values.slide_url) body.slide_url = values.slide_url;
+      if (values.demo_url) body.demo_url = values.demo_url;
 
       const res   = await request('/api/submissions', { method: 'POST', body });
       const saved = res?.data ?? res;
@@ -89,8 +103,12 @@ export const SubmissionPage = () => {
     );
   }
 
-  if (!contestId || !roundId) {
-    return <Result status="warning" title="Thiếu thông tin cuộc thi / vòng thi" />;
+  if (!contestId) {
+    return <Result status="warning" title="Thiếu thông tin cuộc thi" />;
+  }
+
+  if (!roundId) {
+    return <Result status="warning" title="Chưa có vòng thi nào đang mở để nộp bài" />;
   }
 
   if (!team) {
@@ -164,7 +182,11 @@ export const SubmissionPage = () => {
               <Input placeholder="https://your-demo.vercel.app" />
             </Form.Item>
 
-            <Form.Item label="Slide URL" name="slide_url">
+            <Form.Item
+              label="Slide URL"
+              name="slide_url"
+              rules={[{ required: true, message: 'Vui lòng nhập slide URL' }]}
+            >
               <Input placeholder="https://slides.google.com/..." />
             </Form.Item>
 

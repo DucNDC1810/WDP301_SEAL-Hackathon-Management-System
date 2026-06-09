@@ -139,9 +139,6 @@ export default function StudentDashboardPage() {
   const contestId      = myTeam?.contest_id?._id ?? myTeam?.contest_id;
   const activeContest  = myTeam ? (contests.find((c) => c._id === contestId) ?? null) : null;
   const contestPhase   = getContestPhase(activeContest);
-  const activeRound    = activeContest?.rounds?.find(
-    (r) => new Date(r.submission_deadline) > Date.now()
-  ) ?? null;
 
   const memberColumns = [
     {
@@ -282,6 +279,7 @@ export default function StudentDashboardPage() {
             if (topic) return (
               <>
                 <div className="dashboard__stat-icon dashboard__stat-icon--topic"><FileTextOutlined /></div>
+
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="dashboard__stat-val" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <Text strong style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>
@@ -291,6 +289,16 @@ export default function StudentDashboardPage() {
                   </div>
                   <div className="dashboard__stat-label">Đề tài · {topic.difficulty ?? ''}</div>
                 </div>
+                {(topic.status === 'approved' || topic.status === 'active') && myTeam.status === 'confirmed' && (
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<FileTextOutlined />}
+                    onClick={() => navigate(`/student/submit?contestId=${topicContestId}`)}
+                  >
+                    Nộp Bài
+                  </Button>
+                )}
                 {topic.status === 'rejected' && beforeStart && (
                   <TopicActions teamId={myTeam._id} contestId={topicContestId} onSuccess={refresh} />
                 )}
@@ -328,25 +336,13 @@ export default function StudentDashboardPage() {
         title={<><TeamOutlined style={{ marginRight: 8 }} />Đội thi của tôi</>}
         extra={
           myTeam && isLeader && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              {activeContest && activeRound && (
-                <Button
-                  icon={<FileTextOutlined />}
-                  onClick={() =>
-                    navigate(`/student/submit?contestId=${activeContest._id}&roundId=${activeRound._id}`)
-                  }
-                >
-                  Nộp Bài
-                </Button>
-              )}
-              <Button
-                type="primary"
-                icon={<MailOutlined />}
-                onClick={() => setInviteOpen(true)}
-              >
-                Mời thành viên
-              </Button>
-            </div>
+            <Button
+              type="primary"
+              icon={<MailOutlined />}
+              onClick={() => setInviteOpen(true)}
+            >
+              Mời thành viên
+            </Button>
           )
         }
       >

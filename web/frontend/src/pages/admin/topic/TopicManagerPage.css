@@ -1,4 +1,4 @@
-/* ===== Topic Manager Page Styling ===== */
+﻿/* ===== Topic Manager Page Styling ===== */
 
 .topic-manager-page {
   position: relative;
@@ -450,7 +450,7 @@
   justify-content: center;
   padding: 20px;
 }
-[data-theme="light"] .topic-modal-overlay {
+.al-root[data-theme="light"] .topic-modal-overlay {
   background: rgba(240, 244, 248, 0.7);
 }
 
@@ -552,3 +552,4 @@
     transform: translateY(0);
   }
 }
+

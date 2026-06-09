@@ -61,7 +61,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="al-root">
+    <div className="al-root" data-theme={theme}>
       {/* ── Sidebar ── */}
       <aside className={`al-sidebar${collapsed ? ' al-sm' : ''}`}>
         <div className="al-logo-row">

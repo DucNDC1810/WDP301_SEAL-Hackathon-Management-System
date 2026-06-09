@@ -1,5 +1,5 @@
 .al-root,
-[data-theme="dark"] .al-root {
+.al-root[data-theme="dark"] {
   --al-bg: #060b16;
   --al-sidebar-bg: #0b1120;
   --al-border: #162036;
@@ -20,7 +20,7 @@
   --bg-nest-item: #0c1524;
 }
 
-[data-theme="light"] .al-root {
+.al-root[data-theme="light"] {
   --al-bg: #f0f4f8;
   --al-sidebar-bg: #ffffff;
   --al-border: #e2e8f0;

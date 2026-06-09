@@ -59,9 +59,10 @@ export const createScore = async ({
   }
 
   // Kiểm tra assignment
-  // Mentor: team-level assignment
-  const mentorAssigned = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id });
-  // Judge: pool-level assignment — find which pool contains this team, then check judge assignment
+  // Mentor: round-level — any mentor assignment in this round grants scoring rights for OTHER teams
+  // (conflict check above already blocks scoring own mentees)
+  const mentorAssigned = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id });
+  // Judge: pool-level — find which pool contains this team, then check judge assignment
   let judgeAssigned = false;
   if (!mentorAssigned) {
     const pool = await Pool.findOne({ contest_id, teams: team_id }).select("_id").lean();

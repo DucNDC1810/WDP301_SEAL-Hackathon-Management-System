@@ -19,7 +19,7 @@ const mapSubStatus = (s) => {
   return m[s] || 'not_submitted';
 };
 
-const canScore = (status) => ['submitted', 'late_approved'].includes(status);
+const canScore = (_status) => true;
 
 function calcTotal(criteria, criteriaScores) {
   const weightSum = criteria.reduce((s, c) => s + c.weight, 0);
@@ -382,23 +382,15 @@ export default function JudgeDashboardPage() {
                         {myScore?.status === 'draft' && (
                           <Tag color="orange" style={{ marginRight: 8 }}>Nháp</Tag>
                         )}
-                        {!canScore(team.status) ? (
-                          <Tooltip title={team.status === 'late_pending' ? 'Đội nộp trễ đang chờ duyệt' : 'Đội chưa nộp bài — không thể chấm điểm'}>
-                            <Button size="small" disabled>
-                              {team.status === 'late_pending' ? 'Chờ duyệt' : 'Chưa nộp bài'}
-                            </Button>
-                          </Tooltip>
-                        ) : (
-                          <Button
-                            type={myScore?.status === 'submitted' ? 'default' : 'primary'}
-                            size="small"
-                            onClick={() => openForm(team)}
-                          >
-                            {myScore?.status === 'submitted' ? '✓ Xem / Sửa'
-                              : myScore?.status === 'draft' ? '📝 Tiếp tục'
-                              : '⚖ Chấm điểm'}
-                          </Button>
-                        )}
+                        <Button
+                          type={myScore?.status === 'submitted' ? 'default' : 'primary'}
+                          size="small"
+                          onClick={() => openForm(team)}
+                        >
+                          {myScore?.status === 'submitted' ? '✓ Xem / Sửa'
+                            : myScore?.status === 'draft' ? '📝 Tiếp tục'
+                            : '⚖ Chấm điểm'}
+                        </Button>
                       </div>
                     </div>
                   );

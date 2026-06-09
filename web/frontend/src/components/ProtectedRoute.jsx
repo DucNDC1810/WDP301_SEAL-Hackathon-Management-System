@@ -50,7 +50,8 @@ export function JudgeRoute({ children }) {
   const { user, isAdmin, loading } = useAuth();
   if (loading) return <AuthLoading />;
   if (!user) return <Navigate to="/login" replace />;
-  const isJudge = isAdmin || user?.roles?.some(r => r.role_name === 'judge');
+  // Mentors can also be assigned as INTERNAL judges for a specific pool
+  const isJudge = isAdmin || user?.roles?.some(r => r.role_name === 'judge' || r.role_name === 'mentor');
   if (!isJudge) return <Navigate to="/" replace />;
   return children;
 }

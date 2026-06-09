@@ -102,7 +102,6 @@ const NAV_GROUPS = [
     { id: 'dashboard',  icon: '⊞', label: 'Tổng quan' },
   ]},
   { items: [
-    { id: 'evaluation', icon: '📝', label: 'Đánh giá',    badge: null },
     { id: 'teams',      icon: '👥', label: 'Đội cần chấm' },
     { id: 'results',    icon: '📊', label: 'Kết quả' },
   ]},
@@ -117,14 +116,14 @@ const NAV_GROUPS = [
   ]},
 ];
 
-function Sidebar({ active, onChange, pendingCount }) {
+function Sidebar({ active, onChange }) {
   return (
     <aside className="md-sidebar" style={{ padding: '8px 12px' }}>
       {NAV_GROUPS.map((g, gi) => (
         <div key={gi}>
           {gi > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
           {g.items.map(item => {
-            const badge = item.id === 'evaluation' && pendingCount > 0 ? pendingCount : item.badge;
+            const badge = item.badge;
             return (
               <div
                 key={item.id}
@@ -211,7 +210,7 @@ function SectionDashboard({ enriched, loading, navigate, onNav }) {
               <div className="jd-urgent-num">{urgentTeamsLeft}</div>
               <div className="jd-urgent-lbl">đội còn lại</div>
             </div>
-            <button className="jd-urgent-btn" onClick={() => onNav('evaluation')}>
+            <button className="jd-urgent-btn" onClick={() => onNav('teams')}>
               Chấm ngay →
             </button>
           </div>
@@ -295,11 +294,6 @@ function SectionDashboard({ enriched, loading, navigate, onNav }) {
                 >
                   {a.roundIsActive ? '🔒 Chờ vòng kết thúc' : '⚖ Chấm điểm'}
                 </button>
-                <Tooltip title="Xem tiêu chí chấm điểm">
-                  <button className="md-btn-secondary" onClick={() => onNav('evaluation')}>
-                    📋 Tiêu chí
-                  </button>
-                </Tooltip>
               </div>
             </div>
           );
@@ -437,120 +431,6 @@ function SectionCompetitions({ enriched, navigate }) {
           );
         })}
       </div>
-    </div>
-  );
-}
-
-// ─── Section: Evaluation ─────────────────────────────────────────────────────
-function SectionEvaluation({ enriched, navigate }) {
-  const [selected, setSelected] = useState(enriched[0] || null);
-
-  const pending   = enriched.filter(a => a.pct < 100 && !a.roundIsActive);
-  const completed = enriched.filter(a => a.pct === 100);
-  const waiting   = enriched.filter(a => a.roundIsActive);
-
-  return (
-    <div>
-      <div className="md-section-header">
-        <div className="md-section-title">📝 Đánh giá</div>
-      </div>
-
-      {/* Summary cards */}
-      <div className="jd-analytics-grid">
-        {[
-          { label:'Cần chấm',    value: pending.length,   color:'#f59e0b' },
-          { label:'Hoàn thành',  value: completed.length, color:'#10b981' },
-          { label:'Chờ kết thúc vòng', value: waiting.length, color:'rgba(255,255,255,0.3)' },
-          { label:'Tổng bảng',   value: enriched.length,  color:'#00d4ff' },
-        ].map((c, i) => (
-          <div key={i} className="jd-analytics-card">
-            <div className="jd-analytics-big" style={{ color: c.color }}>{c.value}</div>
-            <div className="jd-analytics-lbl">{c.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Per-pool scoring overview */}
-      <div className="md-section-header" style={{ marginTop:8 }}>
-        <div className="md-section-title" style={{ fontSize:'0.88rem' }}>Bảng phân công của tôi</div>
-      </div>
-
-      {enriched.length === 0 ? (
-        <div className="jd-empty"><div className="jd-empty-icon">📝</div><div className="jd-empty-title">Chưa có bảng chấm nào</div></div>
-      ) : (
-        <div className="jd-review-table-wrap">
-          <table className="jd-review-table">
-            <thead>
-              <tr>
-                <th>Cuộc thi / Vòng</th>
-                <th>Bảng</th>
-                <th>Tiến độ</th>
-                <th>Trạng thái</th>
-                <th>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {enriched.map(a => (
-                <tr key={a.key}>
-                  <td>
-                    <div style={{ fontWeight:700, color:'#fff', fontSize:'0.85rem' }}>{a.contestName}</div>
-                    <div style={{ fontSize:'0.7rem', color:'rgba(255,255,255,0.4)' }}>{a.roundName}</div>
-                  </td>
-                  <td style={{ color:'rgba(255,255,255,0.7)' }}>{a.poolName}</td>
-                  <td>
-                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <ProgressRing pct={a.pct} color={a.accentColor} size={40} />
-                      <span style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.4)' }}>
-                        {a.reviewedCount}/{a.teamCount} đội
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    {a.roundIsActive
-                      ? <span className="jd-review-status pending">⏳ Chờ vòng đóng</span>
-                      : a.pct === 100
-                      ? <span className="jd-review-status completed">✓ Hoàn thành</span>
-                      : <span className="jd-review-status reviewing">● Đang chấm</span>
-                    }
-                  </td>
-                  <td>
-                    {!a.roundIsActive ? (
-                      <button
-                        className="jd-review-btn"
-                        onClick={() => navigate(`/judge/scoring/${a.contestId}/rounds/${a.roundId}/pools/${a.poolId}`)}
-                      >
-                        {a.pct === 100 ? '✓ Xem lại' : '⚖ Chấm điểm'}
-                      </button>
-                    ) : (
-                      <span style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.2)' }}>Chưa mở</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Score criteria preview for first assignment */}
-      {enriched.length > 0 && enriched[0].scoreCriteria?.length > 0 && (
-        <>
-          <div className="md-section-header" style={{ marginTop:24 }}>
-            <div className="md-section-title" style={{ fontSize:'0.88rem' }}>📋 Tiêu chí chấm điểm — {enriched[0].contestName}</div>
-          </div>
-          <div className="jd-criteria-list">
-            {enriched[0].scoreCriteria.map((c, i) => (
-              <div key={i} className="jd-criteria-row">
-                <div className="jd-criteria-label">{c.name || c.criteria_name || `Tiêu chí ${i+1}`}</div>
-                <span className="jd-criteria-weight">{c.weight || c.percentage || 0}%</span>
-                <div className="jd-criteria-score">
-                  <span className="jd-criteria-max">/ {c.max_score || 10}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 }
@@ -787,7 +667,7 @@ function SectionProfile({ user }) {
             <div>
               <div style={{ fontWeight:700, fontSize:'1rem', color:'#fff' }}>{user?.full_name}</div>
               <div style={{ fontSize:'0.78rem', color:'rgba(255,255,255,0.4)', marginBottom:4 }}>{user?.email}</div>
-              <span className="jd-judge-badge">⚖ Giám khảo</span>
+              <span className="jd-judge-badge">{user?.roles?.some(r => r.role_name === 'mentor') ? '🎯 Mentor' : '⚖ Giám khảo'}</span>
             </div>
           </div>
           <div className="md-divider" />
@@ -845,9 +725,8 @@ function AiFab({ onClose }) {
 // ─── Root ─────────────────────────────────────────────────────────────────────
 const VIEW_LABELS = {
   dashboard:'Tổng quan', competitions:'Cuộc thi của tôi',
-  evaluation:'Đánh giá', teams:'Đội cần chấm',
-  results:'Kết quả', schedule:'Lịch trình',
-  ai:'AI Assistant', profile:'Hồ sơ',
+  teams:'Đội cần chấm', results:'Kết quả',
+  schedule:'Lịch trình', ai:'AI Assistant', profile:'Hồ sơ',
 };
 
 export default function JudgeDashboard() {
@@ -859,7 +738,6 @@ export default function JudgeDashboard() {
   const [activeView, setActiveView] = useState('dashboard');
   const [loading, setLoading]       = useState(true);
   const [enriched, setEnriched]     = useState([]);
-  const [showAi, setShowAi]         = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -907,7 +785,6 @@ export default function JudgeDashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const pendingCount = enriched.reduce((s, a) => s + (a.teamCount - a.reviewedCount), 0);
   const userInitials = initials(user?.full_name || 'J');
 
   const renderSection = () => {
@@ -917,7 +794,6 @@ export default function JudgeDashboard() {
     switch (activeView) {
       case 'dashboard':    return <SectionDashboard    enriched={enriched} loading={loading} navigate={navigate} onNav={setActiveView} />;
       case 'competitions': return <SectionCompetitions enriched={enriched} navigate={navigate} />;
-      case 'evaluation':   return <SectionEvaluation   enriched={enriched} navigate={navigate} />;
       case 'teams':        return <SectionTeams        enriched={enriched} navigate={navigate} />;
       case 'results':      return <SectionResults      enriched={enriched} />;
       case 'schedule':     return <SectionSchedule     enriched={enriched} />;
@@ -944,15 +820,6 @@ export default function JudgeDashboard() {
           </span>
         </div>
         <div className="md-topbar-right">
-          <Tooltip title="AI Assistant">
-            <button
-              className="md-notif-btn"
-              onClick={() => setShowAi(v => !v)}
-              style={{ fontSize:'1rem', color: showAi ? '#a855f7' : undefined, borderColor: showAi ? 'rgba(168,85,247,0.4)' : undefined }}
-            >
-              🤖
-            </button>
-          </Tooltip>
           <div className="md-notif-btn">🔔<div className="md-notif-dot" /></div>
           <div className="md-profile-chip">
             <div className="md-avatar" style={{ background:'linear-gradient(135deg,rgba(245,158,11,0.2),rgba(0,212,255,0.2))', borderColor:'rgba(245,158,11,0.4)', color:'#f59e0b' }}>
@@ -960,7 +827,7 @@ export default function JudgeDashboard() {
             </div>
             <div>
               <div className="md-profile-name">{user?.full_name || 'Judge'}</div>
-              <span className="jd-judge-badge">⚖ Giám khảo</span>
+              <span className="jd-judge-badge">{user?.roles?.some(r => r.role_name === 'mentor') ? '🎯 Mentor' : '⚖ Giám khảo'}</span>
             </div>
           </div>
           <button className="md-logout-btn" onClick={logout}>Đăng xuất</button>
@@ -968,7 +835,7 @@ export default function JudgeDashboard() {
       </header>
 
       {/* Sidebar */}
-      <Sidebar active={activeView} onChange={setActiveView} pendingCount={pendingCount} />
+      <Sidebar active={activeView} onChange={setActiveView} />
 
       {/* Main */}
       <main className="md-main">
@@ -985,13 +852,6 @@ export default function JudgeDashboard() {
         {renderSection()}
       </main>
 
-      {/* AI panel */}
-      {showAi && <AiFab onClose={() => setShowAi(false)} />}
-
-      {/* AI FAB */}
-      <button className="md-ai-fab" onClick={() => setShowAi(v => !v)} title="AI Assistant" style={{ background:'linear-gradient(135deg,#f59e0b,#a855f7)' }}>
-        ✨
-      </button>
     </div>
   );
 }

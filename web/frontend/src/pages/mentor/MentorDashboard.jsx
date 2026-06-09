@@ -99,16 +99,17 @@ const MOCK_MSGS = [
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 const NAV_GROUPS = [
-  { section: 'MAIN', items: [
+  { items: [
     { id: 'dashboard', icon: '⊞', label: 'Tổng quan' },
     { id: 'teams',     icon: '👥', label: 'Đội của tôi' },
   ]},
-  { section: 'CÔNG CỤ', items: [
+  { items: [
+    { id: 'scoring',  icon: '⚖',  label: 'Đội cần chấm' },
     { id: 'chat',     icon: '💬', label: 'Nhóm chat',  badge: 3 },
     { id: 'schedule', icon: '📅', label: 'Lịch trình' },
-    { id: 'eval',     icon: '⚖',  label: 'Đánh giá' },
+    { id: 'eval',     icon: '📊',  label: 'Đánh giá' },
   ]},
-  { section: 'TÀI KHOẢN', items: [
+  { items: [
     { id: 'settings', icon: '⚙', label: 'Cài đặt' },
   ]},
 ];
@@ -749,6 +750,125 @@ function SectionEval({ enriched, scores, navigate }) {
   );
 }
 
+// ─── Section: Scoring (teams to score — not own mentees) ─────────────────────
+function SectionScoring({ enriched, judgeMap, navigate }) {
+  // Deduplicate by (contestId, roundId) — each unique round the mentor is assigned to
+  const seen = new Set();
+  const rounds = enriched.reduce((acc, a) => {
+    const key = `${a.contestId}___${a.roundId}`;
+    if (!seen.has(key) && a.contestId && a.roundId) {
+      seen.add(key);
+      // If mentor also has a judge assignment for this round → use judge URL (pool-scoped)
+      const judgePoolId = judgeMap[key];
+      acc.push({
+        key,
+        contestId:    a.contestId,
+        roundId:      a.roundId,
+        contestName:  a.contestName,
+        roundName:    a.roundName,
+        roundIsActive: a.roundIsActive,
+        accentColor:  a.accentColor,
+        judgePoolId,  // defined → navigate to judge URL; undefined → mentor URL (all pools)
+      });
+    }
+    return acc;
+  }, []);
+
+  const endedRounds  = rounds.filter(r => !r.roundIsActive);
+  const activeRounds = rounds.filter(r => r.roundIsActive);
+
+  const goScore = (r) => {
+    if (r.judgePoolId) {
+      navigate(`/judge/scoring/${r.contestId}/rounds/${r.roundId}/pools/${r.judgePoolId}`);
+    } else {
+      navigate(`/mentor/scoring/${r.contestId}/rounds/${r.roundId}`);
+    }
+  };
+
+  if (rounds.length === 0) {
+    return (
+      <div className="md-empty">
+        <div className="md-empty-icon">⚖</div>
+        <div className="md-empty-title">Chưa có vòng chấm điểm nào</div>
+        <div className="md-empty-sub">Sau khi vòng thi kết thúc bạn có thể chấm điểm các đội khác trong cuộc thi</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="md-section-header">
+        <div className="md-section-title">
+          ⚖ Đội cần chấm điểm
+          {endedRounds.length > 0 && <span className="md-section-count">{endedRounds.length} vòng sẵn sàng</span>}
+        </div>
+      </div>
+
+      <div className="md-eval-header-cards" style={{ marginBottom: 20 }}>
+        {[
+          { label: 'Sẵn sàng chấm',     value: endedRounds.length,  color: '#10b981' },
+          { label: 'Chờ vòng kết thúc', value: activeRounds.length, color: '#f59e0b' },
+        ].map((c, i) => (
+          <div key={i} className="md-eval-hcard">
+            <div className="md-eval-hcard-num" style={{ color: c.color }}>{c.value}</div>
+            <div className="md-eval-hcard-label">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {endedRounds.map(r => (
+          <div key={r.key} style={{
+            borderRadius: 14,
+            background: 'rgba(0,212,255,0.04)',
+            border: '1px solid rgba(0,212,255,0.15)',
+            padding: '16px 20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
+          }}>
+            <div>
+              <div style={{ fontWeight: 700, color: '#fff', fontSize: '0.92rem' }}>{r.contestName}</div>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
+                📋 {r.roundName} · Vòng đã kết thúc
+                {r.judgePoolId && <span style={{ color: '#a855f7', marginLeft: 6 }}>⚖ Giám khảo</span>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>✓ Sẵn sàng</span>
+              <button className="md-btn-primary" onClick={() => goScore(r)}>
+                ⚖ Vào chấm điểm
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {activeRounds.map(r => (
+          <div key={r.key} style={{
+            borderRadius: 14,
+            background: 'rgba(255,255,255,0.015)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            padding: '16px 20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
+            opacity: 0.6,
+          }}>
+            <div>
+              <div style={{ fontWeight: 700, color: '#fff', fontSize: '0.92rem' }}>{r.contestName}</div>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+                📋 {r.roundName} · Vòng đang diễn ra
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '0.72rem', color: '#f59e0b' }}>⏳ Chờ kết thúc</span>
+              <button className="md-btn-secondary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                🔒 Chưa thể chấm
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Section: Settings ────────────────────────────────────────────────────────
 function SectionSettings({ user }) {
   return (
@@ -832,8 +952,8 @@ function AiPanel({ onClose }) {
 
 // ─── Root Page ────────────────────────────────────────────────────────────────
 const VIEW_LABELS = {
-  dashboard:'Tổng quan', teams:'Đội của tôi', chat:'Nhóm chat',
-  schedule:'Lịch trình', eval:'Đánh giá', settings:'Cài đặt',
+  dashboard:'Tổng quan', teams:'Đội của tôi', scoring:'Đội cần chấm điểm',
+  chat:'Nhóm chat', schedule:'Lịch trình', eval:'Đánh giá', settings:'Cài đặt',
 };
 
 export default function MentorDashboard() {
@@ -844,24 +964,36 @@ export default function MentorDashboard() {
 
   const [activeView, setActiveView] = useState('dashboard');
   const [loading, setLoading] = useState(true);
-  const [contests, setContests]   = useState([]);
-  const [enriched, setEnriched]   = useState([]); // processed assignments
-  const [scores, setScores]       = useState({});  // { "contestId___roundId": [score,...] }
+  const [contests, setContests]     = useState([]);
+  const [enriched, setEnriched]     = useState([]); // processed mentor assignments
+  const [judgeMap, setJudgeMap]     = useState({}); // "contestId___roundId" → poolId
+  const [scores, setScores]         = useState({});  // { "contestId___roundId": [score,...] }
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [showAi, setShowAi] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      // 1. Fetch assignments (with populated team, pool, contest) + contests in parallel
-      const [assignRes, contestRes] = await Promise.all([
+      // 1. Fetch mentor assignments, judge assignments, and contests in parallel
+      const [assignRes, judgeRes, contestRes] = await Promise.all([
         request('/api/mentor-assignments/me'),
+        request('/api/judge-assignments/me').catch(() => []),
         request('/api/contests'),
       ]);
 
       const rawAssignments = Array.isArray(assignRes) ? assignRes : (assignRes?.data ?? []);
+      const rawJudge       = Array.isArray(judgeRes)  ? judgeRes  : (judgeRes?.data  ?? []);
       const allContests    = Array.isArray(contestRes) ? contestRes : (contestRes?.data ?? []);
 
-      // 2. Enrich each assignment with flat data
+      // Build judge pool map: "contestId___roundId" → poolId
+      const jMap = {};
+      rawJudge.forEach(ja => {
+        const cid = (ja.contest_id?._id || ja.contest_id)?.toString();
+        const rid = ja.round_id?.toString();
+        const pid = (ja.pool_id?._id || ja.pool_id)?.toString();
+        if (cid && rid && pid) jMap[`${cid}___${rid}`] = pid;
+      });
+      setJudgeMap(jMap);
+
+      // 2. Enrich each mentor assignment with flat data
       const enrichedList = rawAssignments.map((a, idx) => enrichAssignment(a, idx));
       setContests(allContests);
       setEnriched(enrichedList);
@@ -910,6 +1042,7 @@ export default function MentorDashboard() {
     switch (activeView) {
       case 'dashboard': return <SectionDashboard contests={contests} enriched={enriched} loading={loading} navigate={navigate} />;
       case 'teams':     return <SectionTeams     enriched={enriched} onOpenTeam={setSelectedTeam} />;
+      case 'scoring':   return <SectionScoring   enriched={enriched} judgeMap={judgeMap} navigate={navigate} />;
       case 'chat':      return <SectionChat      enriched={enriched} />;
       case 'schedule':  return <SectionSchedule  contests={contests} enriched={enriched} />;
       case 'eval':      return <SectionEval      enriched={enriched} scores={scores} navigate={navigate} />;
@@ -970,13 +1103,6 @@ export default function MentorDashboard() {
         <TeamDrawer team={selectedTeam} onClose={() => setSelectedTeam(null)} />
       )}
 
-      {/* AI panel */}
-      {showAi && <AiPanel onClose={() => setShowAi(false)} />}
-
-      {/* AI FAB */}
-      <button className="md-ai-fab" onClick={() => setShowAi(v => !v)} title="AI Assistant">
-        ✨
-      </button>
     </div>
   );
 }

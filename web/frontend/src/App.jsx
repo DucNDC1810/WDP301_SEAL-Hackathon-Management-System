@@ -26,7 +26,7 @@ import HackathonDetailPage from './pages/admin/hackathons/HackathonDetailPage';
 import UserManagementPage from './pages/admin/users/UserManagementPage';
 
 // Mentor
-import MentorHomePage from './pages/mentor/MentorHomePage';
+import MentorHomePage from './pages/mentor/MentorDashboard';
 import MentorDashboardPage from './pages/mentor/MentorDashboardPage';
 import MentorPortalPage from './pages/mentor/MentorPortalPage';
 import MentorScoringPage from './pages/mentor/JudgeScoringPage';

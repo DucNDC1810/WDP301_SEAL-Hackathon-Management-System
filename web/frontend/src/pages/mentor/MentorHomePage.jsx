@@ -131,6 +131,15 @@ function HackathonCard({ hackathon }) {
                   📝 Chấm điểm
                 </button>
               )}
+              {isMentor && (
+                <button
+                  className="mh-action-btn"
+                  style={{ background: 'rgba(16,185,129,0.08)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)' }}
+                  onClick={() => navigate('/mentor/chat')}
+                >
+                  💬 Chat
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -293,6 +302,13 @@ export default function MentorHomePage() {
           <span className="mh-topbar-subtitle">Mentor Portal</span>
         </div>
         <div className="mh-topbar-right">
+          <button
+            className="mh-action-btn"
+            style={{ background: 'rgba(16,185,129,0.08)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)' }}
+            onClick={() => navigate('/mentor/chat')}
+          >
+            💬 Chat với đội
+          </button>
           <div className="mh-user-pill">
             <div className="mh-user-avatar">{(user?.full_name || 'M')[0]}</div>
             <div className="mh-user-info">

@@ -31,6 +31,7 @@ import MentorDashboardPage from './pages/mentor/MentorDashboardPage';
 import MentorPortalPage from './pages/mentor/MentorPortalPage';
 import MentorScoringPage from './pages/mentor/JudgeScoringPage';
 import ScoreFormPage from './pages/mentor/ScoreFormPage';
+import MentorChatPage from './pages/mentor/MentorChatPage';
 
 // Judge
 import JudgeHomePage from './pages/judge/JudgeDashboard';
@@ -42,6 +43,7 @@ import AppealsPage from './pages/appeals/AppealsPage';
 
 // Student
 import StudentDashboardPage from './pages/student/dashboard/StudentDashboardPage';
+import TeamChatPage from './pages/student/chat/TeamChatPage';
 import ProfilePage from './pages/student/profile/ProfilePage';
 import InvitationsPage from './pages/student/invitations/InvitationsPage';
 import InvitationVerifyPage from './pages/invite-verify/InvitationVerifyPage';
@@ -93,6 +95,7 @@ function App() {
 
               {/* Mentor — coaching + scoring (không được chấm team mình mentor) */}
               <Route path="/mentor/dashboard"                             element={<MentorRoute><MentorHomePage /></MentorRoute>} />
+              <Route path="/mentor/chat"                                  element={<MentorRoute><MentorChatPage /></MentorRoute>} />
               <Route path="/mentor/portal/:contestId/:roundId"            element={<MentorRoute><MentorPortalPage /></MentorRoute>} />
               <Route path="/mentor/scoring/:contestId/rounds/:roundId"    element={<MentorScoringRoute><MentorScoringPage /></MentorScoringRoute>} />
               <Route path="/mentor/contests/:contestId/rounds/:roundId"   element={<MentorRoute><MentorDashboardPage /></MentorRoute>} />
@@ -118,6 +121,7 @@ function App() {
                         <Route path="/team"        element={<AuthRoute><StudentDashboardPage /></AuthRoute>} />
                         <Route path="/profile"     element={<AuthRoute><ProfilePage /></AuthRoute>} />
                         <Route path="/invitations" element={<AuthRoute><InvitationsPage /></AuthRoute>} />
+                        <Route path="/chat/mentor" element={<AuthRoute><TeamChatPage /></AuthRoute>} />
 
                         {/* Public */}
                         <Route path="/leaderboard/:contestId/:roundId" element={<LeaderboardPage />} />

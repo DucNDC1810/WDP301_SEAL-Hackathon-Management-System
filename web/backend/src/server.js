@@ -19,6 +19,7 @@ import judgeAssignmentRoute, { nestedRouter as judgeAssignmentNestedRoute } from
 import appealRoute from "./routes/appealRoute.js";
 import invitationRoute from "./routes/invitationRoute.js";
 import notificationRoute from "./routes/notificationRoute.js";
+import chatRoute from "./routes/chatRoute.js";
 import auditLogRoute from "./routes/auditLogRoute.js";
 import submissionRoute from "./routes/submissionRoute.js";
 import be2RoundRoute from "./routes/be2RoundRoute.js";
@@ -67,6 +68,7 @@ app.use("/api/contests/:contestId/rounds/:roundId", rankingRoute);
 app.use("/api/appeals", appealRoute);
 app.use("/api/invitations", invitationRoute);
 app.use("/api/notifications", notificationRoute);
+app.use("/api/chat", chatRoute);
 app.use("/api/audit-logs", auditLogRoute);
 app.use("/api/submissions", submissionRoute);
 app.use("/api/rounds", be2RoundRoute);

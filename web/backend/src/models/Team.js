@@ -38,7 +38,8 @@ const teamSchema = new mongoose.Schema(
     contest_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Contest",
-      required: true,
+      required: false,
+      default: null,
     },
     team_name: {
       type: String,
@@ -56,8 +57,8 @@ const teamSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "disqualified", "ELIMINATED"],
-      default: "pending",
+      enum: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED", "DISQUALIFIED", "ELIMINATED"],
+      default: "PENDING_MEMBERS",
     },
     pool_id: {
       type: mongoose.Schema.Types.ObjectId,

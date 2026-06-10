@@ -142,11 +142,13 @@ export const getUserByIdHandler = async (req, res) => {
  */
 export const updateProfileHandler = async (req, res) => {
   try {
-    const { full_name, phone, avatar_url } = req.body;
+    const { full_name, phone, avatar_url, student_id, student_card } = req.body;
     const updatedUser = await updateProfile(req.user._id.toString(), {
       full_name,
       phone,
       avatar_url,
+      student_id,
+      student_card,
     });
     res.status(200).json({ success: true, message: "Cập nhật thông tin thành công", data: updatedUser });
   } catch (error) {
@@ -156,6 +158,100 @@ export const updateProfileHandler = async (req, res) => {
       .json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };
+
+// ─── submitVerifyRequest ───────────────────────────────────────────────
+
+/**
+ * POST /api/users/me/verify-request
+ * Student gửi yêu cầu xác thực thông tin cho admin
+ */
+export const submitVerifyRequest = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user.phone || !user.student_id || !user.student_card) {
+      return res.status(400).json({ success: false, message: "Vui lòng điền đủ số điện thoại, mã số sinh viên và hình ảnh thẻ sinh viên trước khi gửi" });
+    }
+    if (user.profile_verify_status === "approved") {
+      return res.status(400).json({ success: false, message: "Thông tin đã được phê duyệt" });
+    }
+    if (user.profile_verify_status === "pending") {
+      return res.status(400).json({ success: false, message: "Yêu cầu đang chờ Admin duyệt" });
+    }
+
+    const User = (await import("../models/User.js")).default;
+    const updated = await User.findByIdAndUpdate(
+      user._id,
+      { profile_verify_status: "pending", profile_verify_note: "" },
+      { new: true }
+    ).select("-password_hash -verify_token -reset_token");
+
+    res.status(200).json({ success: true, message: "Gửi yêu cầu xác thực thành công. Admin sẽ kiểm tra và phản hồi sớm.", data: updated });
+  } catch (error) {
+    console.error("[submitVerifyRequest]", error);
+    res.status(500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── getPendingVerifications (admin) ─────────────────────────────────
+
+/**
+ * GET /api/users/verifications
+ * Lấy danh sách yêu cầu xác thực thông tin đang chờ duyệt (admin)
+ */
+export const getPendingVerifications = async (req, res) => {
+  try {
+    const User = (await import("../models/User.js")).default;
+    const { status = "pending" } = req.query;
+    const users = await User.find({ profile_verify_status: status })
+      .select("-password_hash -verify_token -reset_token -reset_token_expires -verify_token_expires")
+      .sort({ updated_at: -1 });
+    res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    console.error("[getPendingVerifications]", error);
+    res.status(500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── reviewVerifyRequest (admin) ──────────────────────────────────────
+
+/**
+ * PATCH /api/users/:id/verify-review
+ * Admin duyệt hoặc từ chối yêu cầu xác thực (admin)
+ * Body: { action: 'approve' | 'reject', note: string }
+ */
+export const reviewVerifyRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, note } = req.body;
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: "action phải là 'approve' hoặc 'reject'" });
+    }
+
+    const User = (await import("../models/User.js")).default;
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    const updated = await User.findByIdAndUpdate(
+      id,
+      {
+        profile_verify_status: newStatus,
+        profile_verify_note: note || "",
+        ...(newStatus === 'approved' ? { is_profile_complete: true } : {}),
+      },
+      { new: true }
+    ).select("-password_hash -verify_token -reset_token");
+
+    if (!updated) return res.status(404).json({ success: false, message: "Không tìm thấy user" });
+
+    res.status(200).json({
+      success: true,
+      message: action === 'approve' ? "Đã phê duyệt thông tin" : "Đã từ chối yêu cầu",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("[reviewVerifyRequest]", error);
+    res.status(500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
 
 // ─── changePasswordHandler ───────────────────────────────────────────────────
 

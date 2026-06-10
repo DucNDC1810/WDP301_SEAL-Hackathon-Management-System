@@ -52,6 +52,7 @@ export default function TeamRegistrationPage() {
   }, []);
 
   const filtered = contests.filter(c =>
+    getStatus(c) !== 'closed' &&
     c.title?.toLowerCase().includes(search.toLowerCase())
   );
 

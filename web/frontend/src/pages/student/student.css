@@ -1,0 +1,257 @@
+/* ─── Shared student page design — matches admin aesthetic ──────────────── */
+
+.sp-schedule-panel::-webkit-scrollbar        { width: 6px; }
+.sp-schedule-panel::-webkit-scrollbar-track  { background: transparent; }
+.sp-schedule-panel::-webkit-scrollbar-thumb  { background: var(--pg-border, #1e3a5f); border-radius: 3px; }
+.sp-schedule-panel::-webkit-scrollbar-thumb:hover { background: var(--pg-accent, #00d4ff); }
+
+/* Page layout — matches admin pattern: pages own their padding */
+.sp-page {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--pg-bg, #060b16);
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+/* Page title — gradient matching admin */
+.sp-page-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(90deg, #00d4ff, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.sp-card {
+  background: var(--pg-card, #0c1524);
+  border: 1px solid var(--pg-border, #162036);
+  border-radius: 12px;
+  padding: 20px 24px;
+  transition: border-color .25s, box-shadow .25s;
+}
+.sp-card--hover { cursor: default; }
+.sp-card--hover:hover {
+  border-color: var(--pg-accent-bd, #00d4ff40);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.08);
+}
+.sp-card--click { cursor: pointer; }
+.sp-card--click:hover {
+  border-color: rgba(0, 212, 255, 0.5);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.12);
+}
+.sp-card--dashed-cyan   { border-style: dashed; border-color: rgba(0, 212, 255, 0.35); }
+.sp-card--dashed-purple { border-style: dashed; border-color: rgba(167, 139, 250, 0.35); }
+.sp-card--warning       { border-color: rgba(245, 158, 11, 0.4); }
+
+/* ── Card header ─────────────────────────────────────────────────────────── */
+.sp-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--pg-border, #162036);
+}
+.sp-card-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--pg-accent-bg, #00d4ff14);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--pg-accent, #00d4ff); flex-shrink: 0;
+}
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
+.sp-label   { font-size: 0.72rem; font-weight: 700; color: var(--pg-muted2, #3a5068); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 6px; }
+.sp-text    { color: var(--pg-text2, #c9d6e8); font-size: 0.83rem; }
+.sp-muted   { color: var(--pg-muted, #4a6080); font-size: 0.83rem; }
+.sp-accent  { color: var(--pg-accent, #00d4ff); }
+.sp-strong  { color: var(--pg-text2, #c9d6e8); font-weight: 600; }
+.sp-warning { color: var(--pg-amber, #f59e0b); }
+.sp-value   { font-size: 1.1rem; font-weight: 700; color: var(--pg-text2, #c9d6e8); }
+
+/* ── Stat cards (2×2 grid) ───────────────────────────────────────────────── */
+.sp-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sp-stat-card {
+  background: var(--pg-card, #0c1524);
+  border: 1px solid var(--pg-border, #162036);
+  border-top-width: 2px;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.sp-stat-card--cyan   { border-top-color: var(--pg-accent, #00d4ff); }
+.sp-stat-card--purple { border-top-color: #7c3aed; }
+.sp-stat-card--amber  { border-top-color: var(--pg-amber, #f59e0b); }
+.sp-stat-card--pink   { border-top-color: #ec4899; }
+.sp-stat-label { font-size: 0.6rem; font-weight: 700; color: var(--pg-muted2, #3a5068); text-transform: uppercase; letter-spacing: .8px; display: block; }
+.sp-stat-value { font-size: 1rem; font-weight: 700; color: var(--pg-text2, #c9d6e8); display: block; margin: 4px 0 2px; }
+.sp-stat-sub   { font-size: 0.72rem; color: var(--pg-accent, #00d4ff); display: block; }
+
+/* ── Contest grid (no-team state) ────────────────────────────────────────── */
+.sp-contest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.sp-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 6px;
+  border: 1px solid var(--pg-accent-bd, #00d4ff40);
+  background: transparent; color: var(--pg-accent, #00d4ff);
+  font-size: 0.83rem; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: background .2s, border-color .2s, box-shadow .2s;
+}
+.sp-btn:hover {
+  background: var(--pg-accent-bg, #00d4ff14);
+  border-color: var(--pg-accent, #00d4ff);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+}
+.sp-btn--sm      { padding: 5px 12px; font-size: 0.78rem; }
+.sp-btn--purple  { border-color: rgba(167, 139, 250, 0.4); color: var(--pg-purple, #a78bfa); }
+.sp-btn--purple:hover { background: rgba(124, 58, 237, 0.1); border-color: var(--pg-purple, #a78bfa); box-shadow: 0 0 10px rgba(124, 58, 237, 0.2); }
+.sp-btn--danger  { border-color: rgba(239, 68, 68, 0.4); color: var(--pg-red, #f87171); }
+.sp-btn--danger:hover { background: rgba(239, 68, 68, 0.08); border-color: var(--pg-red, #f87171); }
+.sp-btn--primary { background: linear-gradient(135deg, #00d4ff, #0099cc); color: #060b16; border-color: transparent; }
+.sp-btn--primary:hover { box-shadow: 0 0 16px rgba(0, 212, 255, 0.4); border-color: transparent; }
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+.sp-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 4px;
+  font-size: 0.72rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.sp-badge--green  { background: rgba(34,197,94,.12);   color: var(--pg-green, #22c55e);  border: 1px solid rgba(34,197,94,.2); }
+.sp-badge--orange { background: rgba(245,158,11,.12);  color: var(--pg-amber, #f59e0b); border: 1px solid rgba(245,158,11,.2); }
+.sp-badge--red    { background: rgba(248,113,113,.12); color: var(--pg-red, #f87171);   border: 1px solid rgba(248,113,113,.2); }
+.sp-badge--cyan   { background: var(--pg-accent-bg, #00d4ff14); color: var(--pg-accent, #00d4ff); border: 1px solid var(--pg-accent-bd, #00d4ff40); }
+.sp-badge--purple { background: rgba(167,139,250,.12); color: var(--pg-purple, #a78bfa); border: 1px solid rgba(167,139,250,.2); }
+.sp-badge--gold   { background: rgba(245,200,11,.12);  color: #f5c80b; border: 1px solid rgba(245,200,11,.2); }
+
+/* ── Alerts ──────────────────────────────────────────────────────────────── */
+.sp-alert {
+  padding: 12px 16px; border-radius: 8px;
+  font-size: 0.83rem; display: flex; gap: 10px; align-items: flex-start;
+}
+.sp-alert--warning { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); color: var(--pg-text2, #c9d6e8); }
+.sp-alert--info    { background: var(--pg-accent-bg, #00d4ff14); border: 1px solid var(--pg-accent-bd, #00d4ff40); color: var(--pg-text2, #c9d6e8); }
+.sp-alert-icon     { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+.sp-alert-body     { display: flex; flex-direction: column; gap: 2px; }
+.sp-alert-title    { font-weight: 600; color: var(--pg-text2, #c9d6e8); }
+.sp-alert-desc     { color: var(--pg-muted, #4a6080); font-size: 0.78rem; }
+
+/* ── Native table ─────────────────────────────────────────────────────────── */
+.sp-table-wrap {
+  background: var(--pg-card, #0c1524);
+  border: 1px solid var(--pg-border, #162036);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.sp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+}
+.sp-table thead tr {
+  background: var(--pg-thead, #0a1220);
+  border-bottom: 1px solid var(--pg-border, #162036);
+}
+.sp-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--pg-muted2, #3a5068);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+.sp-table tbody tr {
+  border-bottom: 1px solid #0f1a2e;
+  transition: background .15s;
+}
+.sp-table tbody tr:hover { background: var(--pg-row-hover, #0f1e30); }
+.sp-table tbody tr:last-child { border-bottom: none; }
+.sp-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+  color: var(--pg-text2, #c9d6e8);
+}
+
+/* ── Avatar ──────────────────────────────────────────────────────────────── */
+.sp-av {
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pg-accent, #00d4ff), #7c3aed);
+  color: #fff; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sp-av--md { width: 44px; height: 44px; font-size: 1rem; }
+.sp-av--lg { width: 56px; height: 56px; font-size: 1.3rem; }
+.sp-av--sm { width: 28px; height: 28px; font-size: 0.72rem; }
+
+/* ── Native spinner ───────────────────────────────────────────────────────── */
+.sp-spinner {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 2px solid var(--pg-border, #162036);
+  border-top-color: var(--pg-accent, #00d4ff);
+  animation: sp-spin .7s linear infinite;
+}
+@keyframes sp-spin { to { transform: rotate(360deg); } }
+
+/* ── Loading state ───────────────────────────────────────────────────────── */
+.sp-loading {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 200px;
+  padding: 28px 32px;
+}
+
+/* ── Progress bar (phase) ─────────────────────────────────────────────────── */
+.sp-progress-wrap { height: 6px; background: var(--pg-thead, #0a1220); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.sp-progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--pg-accent, #00d4ff), #7c3aed); transition: width .5s; }
+
+/* ── Layout helpers ──────────────────────────────────────────────────────── */
+.sp-row         { display: flex; gap: 16px; }
+.sp-row > *     { flex: 1; }
+.sp-flex        { display: flex; align-items: center; }
+.sp-flex--between { display: flex; align-items: center; justify-content: space-between; }
+.sp-gap-2       { gap: 8px; }
+.sp-gap-3       { gap: 12px; }
+.sp-gap-4       { gap: 16px; }
+.sp-mt-4        { margin-top: 16px; }
+.sp-mt-6        { margin-top: 24px; }
+.sp-mb-4        { margin-bottom: 16px; }
+.sp-stack       { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Profile page ────────────────────────────────────────────────────────── */
+.sp-profile { max-width: 760px; }
+.sp-profile-row { display: flex; align-items: flex-start; gap: 32px; }
+.sp-profile-fields { flex: 1; min-width: 0; }
+.sp-profile-avatar-col { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+.sp-profile-field { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--pg-border, #162036); }
+.sp-profile-field:last-child { border-bottom: none; }
+.sp-profile-field-label { min-width: 130px; font-size: 0.8rem; color: var(--pg-muted, #4a6080); flex-shrink: 0; }
+.sp-profile-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; }
+.sp-profile-divider::before, .sp-profile-divider::after { content: ''; flex: 1; height: 1px; background: var(--pg-border, #162036); }
+.sp-profile-divider span { font-size: 0.75rem; color: var(--pg-accent, #00d4ff); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+
+.sp-avatar-wrap { position: relative; display: inline-block; border-radius: 50%; }
+.sp-avatar-wrap--editing { cursor: pointer; }
+.sp-avatar-overlay {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 20px;
+  opacity: 0; transition: opacity .2s;
+}
+.sp-avatar-wrap--editing:hover .sp-avatar-overlay { opacity: 1; }
+
+/* ── Connect page ────────────────────────────────────────────────────────── */
+.sp-mentor-card { display: flex; align-items: center; gap: 16px; }
+.sp-mentor-info { display: flex; flex-direction: column; gap: 4px; }
+
+@media (max-width: 640px) {
+  .sp-page         { padding: 16px; gap: 14px; }
+  .sp-stat-grid    { grid-template-columns: 1fr 1fr; }
+  .sp-row          { flex-direction: column; }
+  .sp-profile-row  { flex-direction: column; gap: 20px; }
+  .sp-contest-grid { grid-template-columns: 1fr; }
+}

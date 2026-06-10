@@ -1,0 +1,19 @@
+import mongoose from "mongoose";
+
+const chatMessageSchema = new mongoose.Schema(
+  {
+    contest_id:  { type: mongoose.Schema.Types.ObjectId, ref: "Contest", required: true },
+    round_id:    { type: mongoose.Schema.Types.ObjectId, required: true },
+    team_id:     { type: mongoose.Schema.Types.ObjectId, ref: "Team",    required: true },
+    mentor_id:   { type: mongoose.Schema.Types.ObjectId, ref: "User",    required: true },
+    sender_id:   { type: mongoose.Schema.Types.ObjectId, ref: "User",    required: true },
+    content:     { type: String, required: true, trim: true, maxlength: 2000 },
+    read_by:     [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  },
+  { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
+);
+
+chatMessageSchema.index({ contest_id: 1, round_id: 1, team_id: 1, mentor_id: 1, created_at: 1 });
+
+const ChatMessage = mongoose.model("ChatMessage", chatMessageSchema);
+export default ChatMessage;

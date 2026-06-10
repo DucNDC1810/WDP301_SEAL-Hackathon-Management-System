@@ -16,6 +16,7 @@ const GRID   = ['M3 3h7v7H3z', 'M14 3h7v7h-7z', 'M3 14h7v7H3z', 'M14 14h7v7h-7z'
 const TEAM   = ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M23 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'];
 const MSG    = ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'];
 const USER   = ['M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2', 'M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'];
+const UPLOAD = ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'M17 8l-5-5-5 5', 'M12 3v12'];
 const ZAP    = 'M13 2 3 14h9l-1 8 10-12h-9l1-8z';
 const CL     = 'M15 18l-6-6 6-6';
 const CR     = 'M9 18l6-6-6-6';
@@ -24,8 +25,9 @@ const LOGOUT = ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'M16 17l5-5-5-5', 'M2
 const NAV = [
   { key: 'dashboard',         label: 'Tổng quan', path: '/dashboard',         d: GRID },
   { key: 'dashboard/team',    label: 'Đội thi',   path: '/dashboard/team',    d: TEAM },
-  { key: 'dashboard/connect', label: 'Kết nối',   path: '/dashboard/connect', d: MSG  },
-  { key: 'dashboard/profile', label: 'Hồ sơ',     path: '/dashboard/profile', d: USER },
+  { key: 'dashboard/connect',  label: 'Kết nối',        path: '/dashboard/connect',  d: MSG    },
+  { key: 'dashboard/submit',   label: 'Nộp bài',        path: '/dashboard/submit',   d: UPLOAD },
+  { key: 'dashboard/profile',  label: 'Hồ sơ',          path: '/dashboard/profile',  d: USER   },
 ];
 
 export const StudentLayout = () => {

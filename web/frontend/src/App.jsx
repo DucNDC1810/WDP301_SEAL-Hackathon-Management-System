@@ -50,6 +50,7 @@ import { StudentLayout }       from './layouts/StudentLayout';
 import { StudentOverviewPage } from './pages/student/overview/StudentOverviewPage';
 import { StudentTeamPage }     from './pages/student/team/StudentTeamPage';
 import { StudentConnectPage }  from './pages/student/connect/StudentConnectPage';
+import { StudentSubmitPage }   from './pages/student/submit/StudentSubmitPage';
 
 import './App.css';
 
@@ -112,6 +113,7 @@ function App() {
                 <Route index            element={<StudentOverviewPage />} />
                 <Route path="team"      element={<StudentTeamPage />} />
                 <Route path="connect"   element={<StudentConnectPage />} />
+                <Route path="submit"    element={<StudentSubmitPage />} />
                 <Route path="profile"   element={<ProfilePage />} />
               </Route>
 

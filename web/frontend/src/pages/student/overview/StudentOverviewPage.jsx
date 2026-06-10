@@ -60,6 +60,14 @@ const MOCK_RANKING = [
 
 const RANK_COLOR = { 1: '#f5c80b', 2: '#94a3b8', 3: '#cd7f32' };
 
+// ── Mock contest timeline (fallback when API rounds empty) ─────────────────
+const MOCK_ROUNDS = [
+  { _id: 'mr0', name: 'Đăng ký',           is_active: false, end_time: '2026-06-10T23:59:00Z' },
+  { _id: 'mr1', name: 'Vòng 1 — Sơ loại', is_active: true,  end_time: '2026-06-20T23:59:00Z' },
+  { _id: 'mr2', name: 'Vòng 2 — Bán kết', is_active: false, end_time: '2026-06-28T23:59:00Z' },
+  { _id: 'mr3', name: 'Chung kết',         is_active: false, end_time: '2026-07-05T23:59:00Z' },
+];
+
 export const StudentOverviewPage = () => {
   const { user }    = useAuth();
   const { request } = useApi();
@@ -70,6 +78,7 @@ export const StudentOverviewPage = () => {
   const [contest,    setContest]    = useState(null);
   const [submission, setSubmission] = useState(null);
   const [rank,       setRank]       = useState(null);
+  const [poolName,   setPoolName]   = useState(null);
   const [loading,    setLoading]    = useState(true);
 
   useEffect(() => {
@@ -108,6 +117,12 @@ export const StudentOverviewPage = () => {
           request(`/api/contests/${contestId}/rounds/${activeRound._id}/rankings`).then((res) => {
             const list = Array.isArray(res) ? res : res?.data ?? [];
             setRank(list.find((r) => (r.team_id?._id ?? r.team_id) === team._id) ?? null);
+          }),
+          team.pool_id && request(`/api/pools/contests/${contestId}/pools`).then((res) => {
+            const list = Array.isArray(res) ? res : res?.data ?? [];
+            const pid  = team.pool_id?._id ?? team.pool_id;
+            const pool = list.find((p) => (p._id ?? p) === pid);
+            if (pool) setPoolName(pool.pool_name);
           }),
         ]);
       } catch (_) {
@@ -196,6 +211,10 @@ export const StudentOverviewPage = () => {
 
   const contestId = contest?._id;
 
+  // Contest timeline rounds
+  const timelineRounds = contest?.rounds?.length ? contest.rounds : MOCK_ROUNDS;
+  const activeIdx      = timelineRounds.findIndex((r) => r.is_active);
+
   // Mock member contributions (seeded from member index for determinism)
   const memberContribs = (myTeam.members ?? []).map((m, i) => {
     const seeds   = [72, 58, 45, 31, 20];
@@ -255,42 +274,102 @@ export const StudentOverviewPage = () => {
         </div>
       )}
 
-      {/* 2×2 stat grid */}
-      <div className="sp-stat-grid">
-        <div className="sp-stat-card sp-stat-card--cyan">
+      {/* 1×2 stat grid */}
+      <div className="sp-stat-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+
+        {/* ĐỘI */}
+        <div className="sp-stat-card" style={{ borderTopWidth: 2, borderTopColor: '#00d4ff' }}>
           <span className="sp-stat-label">ĐỘI</span>
           <span className="sp-stat-value">{myTeam.team_name}</span>
           <span className="sp-stat-sub">{myTeam.members?.length ?? 1} thành viên</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+            {poolName && (
+              <span style={{
+                fontSize: '0.72rem', fontWeight: 600,
+                color: 'var(--pg-accent)', background: 'var(--pg-accent-bg)',
+                border: '1px solid var(--pg-accent-bd)', padding: '2px 8px', borderRadius: 4,
+              }}>
+                {poolName}
+              </span>
+            )}
+            {myTeam.topic_id?.title && (
+              <span style={{
+                fontSize: '0.72rem', fontWeight: 600,
+                color: '#a78bfa', background: 'rgba(139,92,246,0.12)',
+                border: '1px solid rgba(139,92,246,0.35)', padding: '2px 8px', borderRadius: 4,
+                maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {myTeam.topic_id.title}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="sp-stat-card sp-stat-card--purple">
-          <span className="sp-stat-label">ĐỀ TÀI</span>
-          <span className="sp-stat-value" style={{ fontSize: '0.88rem' }}>
-            {myTeam.topic_id?.title ?? 'Chưa có'}
-          </span>
-          {myTeam.topic_id && (
-            <Tag color={myTeam.topic_id.status === 'approved' ? 'green' : 'orange'} style={{ marginTop: 4, fontSize: 11 }}>
-              {myTeam.topic_id.status === 'approved' ? 'Đã duyệt' : 'Chờ duyệt'}
-            </Tag>
-          )}
-        </div>
-
+        {/* TIẾN TRÌNH — timeline milestones */}
         <div className="sp-stat-card sp-stat-card--amber">
-          <span className="sp-stat-label">NỘP BÀI</span>
-          <span className="sp-stat-value">
-            <Tag color={submission ? 'green' : 'orange'}>
-              {submission ? 'Đã nộp' : 'Chưa nộp'}
-            </Tag>
-          </span>
+          <div className="sp-flex--between" style={{ marginBottom: 8 }}>
+            <span className="sp-stat-label" style={{ margin: 0 }}>TIẾN TRÌNH CUỘC THI</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 8, position: 'relative' }}>
+            {timelineRounds.map((r, i) => {
+              const isPast   = activeIdx >= 0 && i < activeIdx;
+              const isActive = r.is_active;
+              const isFuture = !isActive && !isPast;
+              const endDate  = r.end_time ? new Date(r.end_time) : null;
+              const dateStr  = endDate
+                ? endDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+                : null;
+              return (
+                <div key={r._id ?? i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', paddingBottom: 10, position: 'relative' }}>
+                  {/* Connector line */}
+                  {i < timelineRounds.length - 1 && (
+                    <div style={{
+                      position: 'absolute', left: 5, top: 14, bottom: 0, width: 1,
+                      background: isPast ? 'rgba(34,197,94,.3)' : 'rgba(22,32,54,.8)',
+                    }} />
+                  )}
+                  {/* Dot */}
+                  <div style={{
+                    width: 11, height: 11, borderRadius: '50%', flexShrink: 0, marginTop: 2, zIndex: 1,
+                    background: isPast ? '#22c55e' : isActive ? '#00d4ff' : '#162036',
+                    border: isActive ? '2px solid #00d4ff60' : isPast ? '2px solid #22c55e60' : '2px solid #1e3050',
+                    boxShadow: isActive ? '0 0 6px #00d4ff60' : 'none',
+                  }} />
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: '0.76rem', lineHeight: 1.3,
+                      color: isActive ? '#dce8f5' : isPast ? '#4a6080' : '#2a4060',
+                      fontWeight: isActive ? 600 : 400,
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
+                    }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                      {dateStr && (
+                        <span style={{ fontSize: '0.65rem', color: isActive ? '#4a8090' : '#1e3050', flexShrink: 0 }}>
+                          {dateStr}
+                        </span>
+                      )}
+                    </div>
+                    {isActive && (
+                      <div style={{ marginTop: 3 }}>
+                        <span style={{
+                          fontSize: '0.65rem', fontWeight: 600,
+                          color: submission ? '#22c55e' : '#f59e0b',
+                          background: submission ? 'rgba(34,197,94,.1)' : 'rgba(245,158,11,.1)',
+                          border: `1px solid ${submission ? 'rgba(34,197,94,.2)' : 'rgba(245,158,11,.2)'}`,
+                          padding: '1px 6px', borderRadius: 3,
+                        }}>
+                          {submission ? 'Đã nộp bài' : 'Chưa nộp'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="sp-stat-card sp-stat-card--pink">
-          <span className="sp-stat-label">XẾP HẠNG</span>
-          <span className="sp-stat-value">{rank ? `#${rank.rank}` : '#3'}</span>
-          <span className="sp-stat-sub" style={{ color: '#8899aa' }}>
-            {myTeam.pool_id?.pool_name ?? 'Pool A'}
-          </span>
-        </div>
       </div>
 
       {/* News strip */}

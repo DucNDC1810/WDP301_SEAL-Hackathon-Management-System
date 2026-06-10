@@ -1,5 +1,10 @@
 /* ─── Shared student page design — matches admin aesthetic ──────────────── */
 
+.sp-schedule-panel::-webkit-scrollbar        { width: 6px; }
+.sp-schedule-panel::-webkit-scrollbar-track  { background: transparent; }
+.sp-schedule-panel::-webkit-scrollbar-thumb  { background: var(--pg-border, #1e3a5f); border-radius: 3px; }
+.sp-schedule-panel::-webkit-scrollbar-thumb:hover { background: var(--pg-accent, #00d4ff); }
+
 /* Page layout — matches admin pattern: pages own their padding */
 .sp-page {
   padding: 28px 32px;

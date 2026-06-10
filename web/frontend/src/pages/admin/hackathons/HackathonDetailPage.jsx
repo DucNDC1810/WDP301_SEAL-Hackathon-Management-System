@@ -6,6 +6,7 @@ import ProblemReleaseTab from './tabs/ProblemReleaseTab';
 import SubmissionReviewTab from './tabs/SubmissionReviewTab';
 import ScoringLockTab from './tabs/ScoringLockTab';
 import TeamEliminationTab from './tabs/TeamEliminationTab';
+import PresentationScheduleTab from './tabs/PresentationScheduleTab';
 import './HackathonDetailPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -43,6 +44,7 @@ const TABS = [
   'Loại Đội Vi Phạm',         // 8 - FE-1.6
   'Review & ONGOING',          // 9
   'Lịch trình',               // 10
+  'Đặt lịch trình bày',      // 11
 ];
 
 export default function HackathonDetailPage() {
@@ -1395,6 +1397,14 @@ export default function HackathonDetailPage() {
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ─── TAB 11: ĐẶT LỊCH TRÌNH BÀY ─── */}
+      {tab === 11 && (
+        <div className="hd-section">
+          <h2 className="hd-section-title">Đặt lịch trình bày</h2>
+          <PresentationScheduleTab contestId={id} contest={contest} />
         </div>
       )}
 

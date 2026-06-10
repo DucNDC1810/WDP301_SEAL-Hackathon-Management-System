@@ -99,6 +99,40 @@ function TeamDashboardPage() {
     }
   };
 
+  // ─── Reject Team ───────────────────────────────────────────────────────────
+  const handleReject = async (teamId, teamName) => {
+    const reason = window.prompt(
+      `Nhập lý do từ chối đội thi "${teamName}" (bắt buộc):`,
+      ''
+    );
+    if (reason === null) return; // Người dùng bấm Cancel
+    if (!reason.trim()) {
+      setError('Vui lòng nhập lý do từ chối.');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await fetch(`${API_URL}/api/teams/${teamId}/reject`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+
+      setSuccess(`Đã từ chối đội thi "${teamName}". Thông báo đã được gửi đến đội.`);
+      fetchTeams(false);
+    } catch (err) {
+      setError(err.message || 'Lỗi khi từ chối duyệt đội thi.');
+    }
+  };
+
   // ─── Disqualify Team ───────────────────────────────────────────────────────
   const handleDisqualify = async (teamId, teamName) => {
     const confirm = window.confirm(`Bạn có chắc chắn muốn loại đội thi "${teamName}" khỏi cuộc thi này?`);
@@ -186,9 +220,9 @@ function TeamDashboardPage() {
 
   // ─── Statistics calculations ───────────────────────────────────────────────
   const totalTeams = teams.length;
-  const confirmedTeams = teams.filter((t) => t.status === 'confirmed').length;
-  const pendingTeams = teams.filter((t) => t.status === 'pending').length;
-  const hasConfirmedTeam = teams.some((t) => t.status === 'confirmed');
+  const confirmedTeams = teams.filter((t) => t.status === 'CONFIRMED').length;
+  const pendingTeams = teams.filter((t) => t.status === 'WAITING_APPROVAL').length;
+  const hasConfirmedTeam = teams.some((t) => t.status === 'CONFIRMED');
 
   return (
     <div className="team-dashboard-page" id="team-dashboard-page">
@@ -347,16 +381,25 @@ function TeamDashboardPage() {
                               </span>
                             </td>
                             <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                              {team.status === 'pending' && (
-                                <button
-                                  type="button"
-                                  className="btn btn--sm btn--outline-green"
-                                  onClick={() => handleApprove(team._id, team.team_name)}
-                                >
-                                  ✓ Duyệt
-                                </button>
+                              {team.status === 'WAITING_APPROVAL' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn btn--sm btn--outline-green"
+                                    onClick={() => handleApprove(team._id, team.team_name)}
+                                  >
+                                    ✓ Duyệt
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn--sm btn--outline-red"
+                                    onClick={() => handleReject(team._id, team.team_name)}
+                                  >
+                                    ✗ Từ chối
+                                  </button>
+                                </>
                               )}
-                              {team.status !== 'disqualified' && (
+                              {!['DISQUALIFIED', 'ELIMINATED', 'REJECTED'].includes(team.status) && (
                                 <button
                                   type="button"
                                   className="btn btn--sm btn--outline-red"
@@ -513,7 +556,7 @@ function TeamDashboardPage() {
                     </button>
                     {!hasConfirmedTeam && (
                       <p className="pools-btn-disabled-warning">
-                        ⚠ Cần có ít nhất 1 đội đấu ở trạng thái "confirmed" để bắt đầu thực hiện chia bảng.
+                        ⚠ Cần có ít nhất 1 đội đấu ở trạng thái "CONFIRMED" để bắt đầu thực hiện chia bảng.
                       </p>
                     )}
                   </div>

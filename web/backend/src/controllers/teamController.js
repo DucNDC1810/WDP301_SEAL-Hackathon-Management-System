@@ -7,6 +7,7 @@ import {
   getMyTeams,
   joinTeam,
   approveTeam,
+  rejectTeam,
   updateTeam,
   deleteTeam,
   disqualifyTeam,
@@ -15,6 +16,7 @@ import {
   selectTopic,
   proposeTopic,
   eliminateTeam,
+  registerContest,
 } from "../services/teamService.js";
 
 /**
@@ -45,16 +47,21 @@ export const handleJoinTeam = async (req, res) => {
 export const handleCreateTeam = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const { team_name, members } = req.body;
+    const { team_name } = req.body;
+    let { members } = req.body;
 
-    if (!team_name || !Array.isArray(members) || members.length === 0) {
+    if (!team_name) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng cung cấp tên đội (team_name) và danh sách thành viên (members)",
+        message: "Vui lòng cung cấp tên đội (team_name)",
       });
     }
 
-    const team = await createTeam(contestId, {
+    if (!Array.isArray(members)) {
+      members = [];
+    }
+
+    const team = await createTeam(contestId || null, {
       team_name,
       leader_id: req.user._id,
       members,
@@ -170,6 +177,16 @@ export const handleApproveTeam = async (req, res) => {
   }
 };
 
+export const handleRejectTeam = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const team = await rejectTeam(req.params.id, reason);
+    res.status(200).json({ success: true, message: "Từ chối duyệt đội thi thành công. Đã gửi thông báo đến đội.", data: team });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
 export const handleDisqualifyTeam = async (req, res) => {
   try {
     const team = await disqualifyTeam(req.params.id);
@@ -259,5 +276,33 @@ export const handleEliminateTeam = async (req, res, next) => {
       return res.status(error.statusCode).json({ success: false, message: error.message });
     }
     next(error);
+  }
+};
+
+export const handleRegisterContest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { contest_id } = req.body;
+
+    if (!contest_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp mã cuộc thi (contest_id)",
+      });
+    }
+
+    const team = await registerContest(id, contest_id, req.user._id);
+
+    res.status(200).json({
+      success: true,
+      message: "Đăng ký cuộc thi thành công. Vui lòng chờ Ban tổ chức phê duyệt.",
+      data: team,
+    });
+  } catch (error) {
+    console.error("[handleRegisterContest]", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Lỗi máy chủ",
+    });
   }
 };

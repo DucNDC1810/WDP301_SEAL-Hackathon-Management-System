@@ -366,18 +366,29 @@
   border-radius: 4px;
 }
 
+.status-badge--PENDING_MEMBERS,
 .status-badge--pending {
   background: rgba(245, 158, 11, 0.1);
   color: var(--orange);
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+.status-badge--WAITING_APPROVAL {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.status-badge--CONFIRMED,
 .status-badge--confirmed {
   background: rgba(16, 185, 129, 0.1);
   color: var(--green);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+.status-badge--REJECTED,
+.status-badge--DISQUALIFIED,
+.status-badge--ELIMINATED,
 .status-badge--disqualified {
   background: rgba(239, 68, 68, 0.1);
   color: var(--red);

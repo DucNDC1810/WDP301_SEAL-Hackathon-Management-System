@@ -207,9 +207,9 @@ export const removeRoleFromUser = async (userId, role_name) => {
 
 /**
  * Cập nhật thông tin cá nhân của user.
- * Chỉ cho phép sửa full_name, phone, avatar_url.
+ * Chỉ cho phép sửa full_name, phone, avatar_url, student_id, student_card.
  */
-export const updateProfile = async (userId, { full_name, phone, avatar_url }) => {
+export const updateProfile = async (userId, { full_name, phone, avatar_url, student_id, student_card }) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     const err = new Error("User ID không hợp lệ");
     err.statusCode = 400;
@@ -223,9 +223,29 @@ export const updateProfile = async (userId, { full_name, phone, avatar_url }) =>
     throw err;
   }
 
+  const { uploadImage } = await import("./cloudinaryService.js");
+
   if (full_name !== undefined) user.full_name = full_name.trim();
   if (phone !== undefined) user.phone = phone.trim();
-  if (avatar_url !== undefined) user.avatar_url = avatar_url.trim();
+  if (student_id !== undefined) user.student_id = student_id.trim();
+
+  // Upload avatar to Cloudinary if it is a base64 string
+  if (avatar_url !== undefined) {
+    if (avatar_url && avatar_url.startsWith("data:image/")) {
+      user.avatar_url = await uploadImage(avatar_url, "seal-avatars");
+    } else {
+      user.avatar_url = avatar_url.trim();
+    }
+  }
+
+  // Upload student card to Cloudinary if it is a base64 string
+  if (student_card !== undefined) {
+    if (student_card && student_card.startsWith("data:image/")) {
+      user.student_card = await uploadImage(student_card, "student-cards");
+    } else {
+      user.student_card = student_card.trim();
+    }
+  }
 
   await user.save();
   return User.findById(userId).select("-password_hash");

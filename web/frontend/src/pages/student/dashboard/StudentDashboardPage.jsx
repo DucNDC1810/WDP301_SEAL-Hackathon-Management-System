@@ -14,8 +14,6 @@ import { useApi } from '../../../hooks/useApi';
 import ProfilePage from '../profile/ProfilePage';
 import { TopicCard } from './TopicCard';
 import { TopicActions } from './TopicActions';
-import './StudentDashboardPage.css';
-
 const { Title, Text } = Typography;
 
 const STATUS_COLOR = { pending: 'orange', confirmed: 'green', disqualified: 'red' };
@@ -248,17 +246,17 @@ export default function StudentDashboardPage() {
 
   if (loading) {
     return (
-      <div className="dashboard__loading">
+      <div className="flex justify-center items-center min-h-[60vh]">
         <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <div className="dashboard">
+    <div className="max-w-[1100px] mx-auto px-6 py-10">
       {/* Welcome */}
-      <div className="dashboard__welcome">
-        <div className="dashboard__welcome-avatar">
+      <div className="flex items-center gap-4 mb-7">
+        <div className="w-[52px] h-[52px] rounded-full bg-gradient-to-br from-[#00d4ff] to-[#7c3aed] text-white font-extrabold text-xl flex items-center justify-center flex-shrink-0">
           {(user?.full_name?.[0] || 'S').toUpperCase()}
         </div>
         <div>
@@ -271,78 +269,78 @@ export default function StudentDashboardPage() {
 
       {/* Contest banner */}
       {activeContest && (
-        <div className="dashboard__contest-banner">
-          <div className="dashboard__contest-banner__left">
-            <TrophyOutlined className="dashboard__contest-banner__icon" />
-            <span className="dashboard__contest-banner__name">{activeContest.title}</span>
+        <div className="flex items-center justify-between flex-wrap gap-3 px-5 py-3.5 mb-5 bg-[rgba(168,85,247,0.07)] border border-[rgba(168,85,247,0.2)] rounded-xl backdrop-blur-sm">
+          <div className="flex items-center gap-2.5">
+            <TrophyOutlined className="text-[18px] text-[#a855f7] flex-shrink-0" />
+            <span className="text-[15px] font-semibold text-[#e2e8f0]">{activeContest.title}</span>
           </div>
           {contestPhase ? (
-            <div className="dashboard__contest-banner__right">
-              <span className="dashboard__contest-banner__phase">{contestPhase.label}:</span>
-              <span className="dashboard__contest-banner__date">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-[#94a3b8] uppercase tracking-wide">{contestPhase.label}:</span>
+              <span className="text-[13px] font-medium text-[#e2e8f0]">
                 {contestPhase.date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </span>
-              <span className="dashboard__contest-banner__hours">· còn {contestPhase.hours} giờ</span>
+              <span className="text-[13px] font-semibold text-[#a855f7]">· còn {contestPhase.hours} giờ</span>
             </div>
           ) : (
-            <div className="dashboard__contest-banner__right">
-              <span className="dashboard__contest-banner__phase">Cuộc thi đã kết thúc</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-[#94a3b8] uppercase tracking-wide">Cuộc thi đã kết thúc</span>
             </div>
           )}
         </div>
       )}
 
       {/* Stats */}
-      <div className="dashboard__stats">
-        <div className="dashboard__stat-card" style={{ width: 'fit-content', flexShrink: 0 }}>
-          <div className="dashboard__stat-icon dashboard__stat-icon--team"><TeamOutlined /></div>
+      <div className="flex flex-wrap gap-4 mb-6 items-stretch">
+        <div className="flex items-center gap-3.5 px-5 py-4 bg-[rgba(17,24,39,0.7)] border border-[rgba(0,240,255,0.12)] rounded-xl backdrop-blur-sm transition-colors hover:border-[rgba(0,240,255,0.3)] w-fit flex-shrink-0">
+          <div className="w-10 h-10 rounded-[10px] bg-[rgba(0,212,255,0.12)] text-[#00d4ff] flex items-center justify-center text-lg flex-shrink-0"><TeamOutlined /></div>
           <div>
-            <div className="dashboard__stat-val">
+            <div className="mb-0.5">
               {myTeam
                 ? <Tag color={STATUS_COLOR[myTeam.status]}>{STATUS_LABEL[myTeam.status]}</Tag>
                 : <Tag color="default">Chưa có đội</Tag>}
             </div>
-            <div className="dashboard__stat-label">Trạng thái đội</div>
+            <div className="text-[0.75rem] text-[#64748b] uppercase tracking-wide">Trạng thái đội</div>
           </div>
         </div>
         {/* Pool / bracket card */}
-        <div className="dashboard__stat-card">
-          <div className="dashboard__stat-icon dashboard__stat-icon--team">
+        <div className="flex items-center gap-3.5 px-5 py-4 bg-[rgba(17,24,39,0.7)] border border-[rgba(0,240,255,0.12)] rounded-xl backdrop-blur-sm transition-colors hover:border-[rgba(0,240,255,0.3)]">
+          <div className="w-10 h-10 rounded-[10px] bg-[rgba(0,212,255,0.12)] text-[#00d4ff] flex items-center justify-center text-lg flex-shrink-0">
             <AppstoreOutlined />
           </div>
           <div>
-            <div className="dashboard__stat-val">
+            <div className="mb-0.5">
               {myPool
                 ? <Tag color="blue">{myPool.pool_name ?? myPool.name ?? 'Bảng ?'}</Tag>
                 : <Tag color="default">{myTeam ? 'Chưa phân bảng' : '—'}</Tag>}
             </div>
-            <div className="dashboard__stat-label">Bảng đấu</div>
+            <div className="text-[0.75rem] text-[#64748b] uppercase tracking-wide">Bảng đấu</div>
           </div>
         </div>
 
         {/* Ranking card */}
-        <div className="dashboard__stat-card">
-          <div className="dashboard__stat-icon dashboard__stat-icon--team">
+        <div className="flex items-center gap-3.5 px-5 py-4 bg-[rgba(17,24,39,0.7)] border border-[rgba(0,240,255,0.12)] rounded-xl backdrop-blur-sm transition-colors hover:border-[rgba(0,240,255,0.3)]">
+          <div className="w-10 h-10 rounded-[10px] bg-[rgba(0,212,255,0.12)] text-[#00d4ff] flex items-center justify-center text-lg flex-shrink-0">
             <OrderedListOutlined />
           </div>
           <div>
-            <div className="dashboard__stat-val">
+            <div className="mb-0.5">
               {myRank
                 ? <span style={{ fontWeight: 700, color: '#00d4ff' }}>#{myRank.rank_position}</span>
                 : <Tag color="default">{myTeam ? 'Chưa có dữ liệu' : '—'}</Tag>}
             </div>
-            <div className="dashboard__stat-label">Xếp hạng hiện tại</div>
+            <div className="text-[0.75rem] text-[#64748b] uppercase tracking-wide">Xếp hạng hiện tại</div>
           </div>
         </div>
 
-        <div className="dashboard__stat-card dashboard__stat-card--topic">
+        <div className="flex flex-1 min-w-0 flex-wrap items-center gap-3.5 px-5 py-4 bg-[rgba(17,24,39,0.7)] border border-[rgba(0,240,255,0.12)] rounded-xl backdrop-blur-sm transition-colors hover:border-[rgba(0,240,255,0.3)]">
           {(() => {
             if (!myTeam) return (
               <>
-                <div className="dashboard__stat-icon dashboard__stat-icon--topic"><FileTextOutlined /></div>
+                <div className="w-10 h-10 rounded-[10px] bg-[rgba(250,173,20,0.12)] text-[#faad14] flex items-center justify-center text-lg flex-shrink-0"><FileTextOutlined /></div>
                 <div>
-                  <div className="dashboard__stat-val" style={{ color: '#64748b' }}>Chưa có đội</div>
-                  <div className="dashboard__stat-label">Đề tài</div>
+                  <div className="text-[#64748b] mb-0.5">Chưa có đội</div>
+                  <div className="text-[0.75rem] text-[#64748b] uppercase tracking-wide">Đề tài</div>
                 </div>
               </>
             );
@@ -359,15 +357,15 @@ export default function StudentDashboardPage() {
 
             if (topic) return (
               <>
-                <div className="dashboard__stat-icon dashboard__stat-icon--topic"><FileTextOutlined /></div>
+                <div className="w-10 h-10 rounded-[10px] bg-[rgba(250,173,20,0.12)] text-[#faad14] flex items-center justify-center text-lg flex-shrink-0"><FileTextOutlined /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="dashboard__stat-val" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
                     <Text strong style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>
                       {topic.title}
                     </Text>
                     {STATUS_TAG[topic.status]}
                   </div>
-                  <div className="dashboard__stat-label">Đề tài · {topic.difficulty ?? ''}</div>
+                  <div className="text-[0.75rem] text-[#64748b] uppercase tracking-wide">Đề tài · {topic.difficulty ?? ''}</div>
                 </div>
                 {topic.status === 'rejected' && beforeStart && (
                   <TopicActions teamId={myTeam._id} contestId={topicContestId} onSuccess={refresh} />
@@ -377,20 +375,20 @@ export default function StudentDashboardPage() {
 
             if (!beforeStart) return (
               <>
-                <div className="dashboard__stat-icon dashboard__stat-icon--topic"><FileTextOutlined /></div>
+                <div className="w-10 h-10 rounded-[10px] bg-[rgba(250,173,20,0.12)] text-[#faad14] flex items-center justify-center text-lg flex-shrink-0"><FileTextOutlined /></div>
                 <div>
-                  <div className="dashboard__stat-val" style={{ color: '#64748b' }}>Chưa có đề tài</div>
-                  <div className="dashboard__stat-label">Đề tài · Contest đã bắt đầu</div>
+                  <div className="text-[#64748b] mb-0.5">Chưa có đề tài</div>
+                  <div className="text-[0.75rem] text-[#64748b] uppercase tracking-wide">Đề tài · Contest đã bắt đầu</div>
                 </div>
               </>
             );
 
             return (
               <>
-                <div className="dashboard__stat-icon dashboard__stat-icon--topic"><FileTextOutlined /></div>
+                <div className="w-10 h-10 rounded-[10px] bg-[rgba(250,173,20,0.12)] text-[#faad14] flex items-center justify-center text-lg flex-shrink-0"><FileTextOutlined /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="dashboard__stat-val" style={{ color: '#64748b' }}>Chưa có đề tài</div>
-                  <div className="dashboard__stat-label">Đề tài</div>
+                  <div className="text-[#64748b] mb-0.5">Chưa có đề tài</div>
+                  <div className="text-[0.75rem] text-[#64748b] uppercase tracking-wide">Đề tài</div>
                 </div>
                 <TopicActions teamId={myTeam._id} contestId={topicContestId} onSuccess={refresh} />
               </>
@@ -401,7 +399,6 @@ export default function StudentDashboardPage() {
 
       {/* Team section */}
       <Card
-        className="dashboard__card"
         style={{ marginBottom: 24 }}
         title={<><TeamOutlined style={{ marginRight: 8 }} />Đội thi của tôi</>}
         extra={
@@ -428,9 +425,9 @@ export default function StudentDashboardPage() {
         }
       >
         {!myTeam ? (
-          <div className="dashboard__no-team">
+          <div className="text-center py-2">
             <Empty description="Bạn chưa tham gia đội nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            <div className="dashboard__team-actions">
+            <div className="flex flex-col gap-2.5 mt-5 items-center">
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
                 Tạo đội mới
               </Button>
@@ -441,7 +438,7 @@ export default function StudentDashboardPage() {
           </div>
         ) : (
           <>
-            <div className="dashboard__team-header" style={{ marginBottom: 16 }}>
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <Text strong style={{ fontSize: 18 }}>{myTeam.team_name}</Text>
                 <Tag color={STATUS_COLOR[myTeam.status]} style={{ marginLeft: 10 }}>
@@ -463,7 +460,7 @@ export default function StudentDashboardPage() {
               rowKey="email"
               pagination={false}
               size="small"
-              className="dashboard__member-table"
+              className=""
             />
 
             {myTeam.status === 'pending' && (

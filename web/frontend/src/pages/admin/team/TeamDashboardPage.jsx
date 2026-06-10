@@ -1,528 +1,314 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import './TeamDashboardPage.css';
+import { Spin } from 'antd';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+const STATUS_COLOR = {
+  confirmed:    'text-[#10b981] bg-[rgba(16,185,129,0.1)] border-[rgba(16,185,129,0.3)]',
+  pending:      'text-[#f59e0b] bg-[rgba(245,158,11,0.1)] border-[rgba(245,158,11,0.3)]',
+  disqualified: 'text-[#ef4444] bg-[rgba(239,68,68,0.1)] border-[rgba(239,68,68,0.3)]',
+};
+
 function TeamDashboardPage() {
   const { contestId } = useParams();
-
-  // ─── States ────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('teams'); // 'teams' or 'pools'
-  const [teams, setTeams] = useState([]);
-  const [pools, setPools] = useState([]);
-  const [loadingTeams, setLoadingTeams] = useState(true);
-  const [loadingPools, setLoadingPools] = useState(true);
-  const [error, setError] = useState('');
-  const [warning, setWarning] = useState('');
-  const [success, setSuccess] = useState('');
-
-  // Tab 1: Expand row states
+  const [activeTab, setActiveTab]         = useState('teams');
+  const [teams, setTeams]                 = useState([]);
+  const [pools, setPools]                 = useState([]);
+  const [loadingTeams, setLoadingTeams]   = useState(true);
+  const [loadingPools, setLoadingPools]   = useState(true);
+  const [error, setError]                 = useState('');
+  const [warning, setWarning]             = useState('');
+  const [success, setSuccess]             = useState('');
   const [expandedTeamId, setExpandedTeamId] = useState(null);
-
-  // Tab 2: Pool Config States
-  const [poolCount, setPoolCount] = useState(3);
-  const [assignTopics, setAssignTopics] = useState(false);
-  const [isDrawing, setIsDrawing] = useState(false);
-
+  const [poolCount, setPoolCount]         = useState(3);
+  const [assignTopics, setAssignTopics]   = useState(false);
+  const [isDrawing, setIsDrawing]         = useState(false);
   const token = localStorage.getItem('accessToken');
 
-  // ─── Fetch Teams Function ──────────────────────────────────────────────────
   const fetchTeams = async (showLoading = false) => {
     try {
       if (showLoading) setLoadingTeams(true);
-      const res = await fetch(`${API_URL}/api/teams/contests/${contestId}/teams`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-      setTeams(data.data || []);
-    } catch (err) {
-      console.error(err);
-      setError(err.message || 'Không thể tải danh sách đội thi.');
-    } finally {
-      if (showLoading) setLoadingTeams(false);
-    }
+      const r = await fetch(`${API_URL}/api/teams/contests/${contestId}/teams`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.message);
+      setTeams(d.data || []);
+    } catch (err) { setError(err.message || 'Không thể tải danh sách đội thi.'); }
+    finally { if (showLoading) setLoadingTeams(false); }
   };
 
-  // ─── Fetch Pools Function ──────────────────────────────────────────────────
   const fetchPools = async (showLoading = false) => {
     try {
       if (showLoading) setLoadingPools(true);
-      const res = await fetch(`${API_URL}/api/pools/contests/${contestId}/pools`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-      setPools(data.data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      if (showLoading) setLoadingPools(false);
-    }
+      const r = await fetch(`${API_URL}/api/pools/contests/${contestId}/pools`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.message);
+      setPools(d.data || []);
+    } catch (_) {}
+    finally { if (showLoading) setLoadingPools(false); }
   };
 
-  // ─── Auto-Refresh & Init ───────────────────────────────────────────────────
   useEffect(() => {
     if (contestId) {
-      fetchTeams(true);
-      fetchPools(true);
-
-      const interval = setInterval(() => {
-        fetchTeams(false);
-      }, 30000); // refresh teams list every 30s
-
+      fetchTeams(true); fetchPools(true);
+      const interval = setInterval(() => fetchTeams(false), 30000);
       return () => clearInterval(interval);
     }
   }, [contestId]);
 
-  // ─── Approve Team ──────────────────────────────────────────────────────────
   const handleApprove = async (teamId, teamName) => {
-    const confirm = window.confirm(`Duyệt đội thi "${teamName}"?`);
-    if (!confirm) return;
-
-    setError('');
-    setSuccess('');
-
+    if (!window.confirm(`Duyệt đội thi "${teamName}"?`)) return;
+    setError(''); setSuccess('');
     try {
-      const res = await fetch(`${API_URL}/api/teams/${teamId}/approve`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-
-      setSuccess(`Đã duyệt đội thi "${teamName}" thành công.`);
-      fetchTeams(false);
-    } catch (err) {
-      setError(err.message || 'Lỗi khi duyệt đội thi.');
-    }
+      const r = await fetch(`${API_URL}/api/teams/${teamId}/approve`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.message);
+      setSuccess(`Đã duyệt đội thi "${teamName}" thành công.`); fetchTeams(false);
+    } catch (err) { setError(err.message || 'Lỗi khi duyệt đội thi.'); }
   };
 
-  // ─── Disqualify Team ───────────────────────────────────────────────────────
   const handleDisqualify = async (teamId, teamName) => {
-    const confirm = window.confirm(`Bạn có chắc chắn muốn loại đội thi "${teamName}" khỏi cuộc thi này?`);
-    if (!confirm) return;
-
-    setError('');
-    setSuccess('');
-
+    if (!window.confirm(`Bạn có chắc chắn muốn loại đội thi "${teamName}"?`)) return;
+    setError(''); setSuccess('');
     try {
-      const res = await fetch(`${API_URL}/api/teams/${teamId}/disqualify`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-
-      setSuccess(`Đã loại đội thi "${teamName}" thành công.`);
-      fetchTeams(false);
-    } catch (err) {
-      setError(err.message || 'Lỗi khi loại đội thi.');
-    }
+      const r = await fetch(`${API_URL}/api/teams/${teamId}/disqualify`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.message);
+      setSuccess(`Đã loại đội thi "${teamName}" thành công.`); fetchTeams(false);
+    } catch (err) { setError(err.message || 'Lỗi khi loại đội thi.'); }
   };
 
-  // ─── Draw Pools ────────────────────────────────────────────────────────────
   const handleDrawPools = async (e) => {
-    e.preventDefault();
-    setError('');
-    setWarning('');
-    setSuccess('');
-    setIsDrawing(true);
-
+    e.preventDefault(); setError(''); setWarning(''); setSuccess(''); setIsDrawing(true);
     try {
-      const res = await fetch(`${API_URL}/api/pools/contests/${contestId}/draw-pools`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          pool_count: poolCount,
-          assign_topics: assignTopics,
-        }),
+      const r = await fetch(`${API_URL}/api/pools/contests/${contestId}/draw-pools`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pool_count: poolCount, assign_topics: assignTopics }),
       });
-
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-
-      setPools(data.data || []);
-      if (data.warning) {
-        setWarning(data.warning);
-      } else {
-        setSuccess('Đã thực hiện chia bảng đấu thành công!');
-      }
-    } catch (err) {
-      setError(err.message || 'Lỗi khi chia bảng đấu.');
-    } finally {
-      setIsDrawing(false);
-    }
+      const d = await r.json();
+      if (!d.success) throw new Error(d.message);
+      setPools(d.data || []);
+      if (d.warning) setWarning(d.warning); else setSuccess('Đã thực hiện chia bảng đấu thành công!');
+    } catch (err) { setError(err.message || 'Lỗi khi chia bảng đấu.'); }
+    finally { setIsDrawing(false); }
   };
 
-  // ─── Reset Pools ───────────────────────────────────────────────────────────
   const handleResetPools = async () => {
-    const confirm = window.confirm('Bạn có chắc chắn muốn xóa tất cả bảng đấu hiện tại và đặt lại các cấu hình đội thi/đề tài?');
-    if (!confirm) return;
-
-    setError('');
-    setWarning('');
-    setSuccess('');
-
+    if (!window.confirm('Bạn có chắc chắn muốn xóa tất cả bảng đấu hiện tại?')) return;
+    setError(''); setWarning(''); setSuccess('');
     try {
-      const res = await fetch(`${API_URL}/api/pools/contests/${contestId}/pools`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-
-      setPools([]);
-      setSuccess('Đã reset bảng đấu và cấu hình đội thi về ban đầu.');
-      fetchTeams(false);
-    } catch (err) {
-      setError(err.message || 'Lỗi khi đặt lại bảng đấu.');
-    }
+      const r = await fetch(`${API_URL}/api/pools/contests/${contestId}/pools`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.message);
+      setPools([]); setSuccess('Đã reset bảng đấu và cấu hình đội thi về ban đầu.'); fetchTeams(false);
+    } catch (err) { setError(err.message || 'Lỗi khi đặt lại bảng đấu.'); }
   };
 
-  // ─── Statistics calculations ───────────────────────────────────────────────
-  const totalTeams = teams.length;
-  const confirmedTeams = teams.filter((t) => t.status === 'confirmed').length;
-  const pendingTeams = teams.filter((t) => t.status === 'pending').length;
-  const hasConfirmedTeam = teams.some((t) => t.status === 'confirmed');
+  const totalTeams     = teams.length;
+  const confirmedTeams = teams.filter(t => t.status === 'confirmed').length;
+  const pendingTeams   = teams.filter(t => t.status === 'pending').length;
+  const hasConfirmedTeam = teams.some(t => t.status === 'confirmed');
+
+  const inputCls = 'w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 placeholder-white/25 outline-none focus:border-[rgba(0,212,255,0.4)] transition-colors';
 
   return (
-    <div className="team-dashboard-page" id="team-dashboard-page">
-      <div className="team-dashboard-page__glow" />
+    <div className="p-6 min-h-screen bg-[#060b16] text-[#c9d6e8]">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-white/30 mb-5">
+        <Link to="/" className="text-white/40 hover:text-[#00d4ff] transition-colors">Trang chủ</Link>
+        <span>/</span>
+        <span className="text-white/60">Dashboard Đội thi & Bảng đấu</span>
+      </div>
 
-      <div className="team-dashboard-container container">
-        
-        {/* Navigation Breadcrumbs */}
-        <div className="team-breadcrumbs">
-          <Link to="/" className="breadcrumb-link">Trang chủ</Link>
-          <span className="breadcrumb-separator">/</span>
-          <span className="breadcrumb-current">Dashboard Đội thi & Bảng đấu</span>
-        </div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white mb-1">Dashboard Cuộc Thi</h1>
+        <p className="text-white/50 text-sm">Quản lý trạng thái đội thi, xác thực thành viên và chia bảng đấu tự động</p>
+      </div>
 
-        {/* Page Header */}
-        <div className="team-header">
-          <div>
-            <h1 className="team-title">Dashboard Cuộc Thi</h1>
-            <p className="team-subtitle">Quản lý trạng thái đội thi, xác thực thành viên và chia bảng đấu tự động</p>
-          </div>
-        </div>
-
-        {/* Stats Summary Cards */}
-        <div className="team-stats-grid">
-          <div className="team-stat-card">
-            <div className="team-stat-card__icon">👥</div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {[
+          { icon: '👥', value: totalTeams,     label: 'Tổng đội đăng ký',          color: '#00d4ff' },
+          { icon: '✓',  value: confirmedTeams, label: 'Đội đã xác nhận (Confirmed)', color: '#10b981' },
+          { icon: '⏳', value: pendingTeams,   label: 'Đội đang chờ duyệt (Pending)', color: '#f59e0b' },
+        ].map((s, i) => (
+          <div key={i} className="bg-white/[0.025] border border-white/7 rounded-2xl p-5 flex items-center gap-4">
+            <div className="text-2xl">{s.icon}</div>
             <div>
-              <div className="team-stat-card__val">{totalTeams}</div>
-              <div className="team-stat-card__lbl">Tổng đội đăng ký</div>
+              <div className="text-3xl font-extrabold" style={{ color: s.color }}>{s.value}</div>
+              <div className="text-xs text-white/40">{s.label}</div>
             </div>
           </div>
-          <div className="team-stat-card team-stat-card--green">
-            <div className="team-stat-card__icon">✓</div>
-            <div>
-              <div className="team-stat-card__val">{confirmedTeams}</div>
-              <div className="team-stat-card__lbl">Đội đã xác nhận (Confirmed)</div>
-            </div>
-          </div>
-          <div className="team-stat-card team-stat-card--orange">
-            <div className="team-stat-card__icon">⏳</div>
-            <div>
-              <div className="team-stat-card__val">{pendingTeams}</div>
-              <div className="team-stat-card__lbl">Đội đang chờ duyệt (Pending)</div>
-            </div>
-          </div>
-        </div>
+        ))}
+      </div>
 
-        {/* Alert Notifications */}
-        {error && (
-          <div className="team-alert team-alert--error" id="team-error">
-            <span className="team-alert__icon">⚠</span>
-            <div className="team-alert__msg">{error}</div>
-          </div>
-        )}
+      {/* Alerts */}
+      {error   && <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] text-[#ef4444] text-sm mb-4"><span>⚠</span><span>{error}</span></div>}
+      {warning && <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.2)] text-[#f59e0b] text-sm mb-4"><span>⚠</span><span>{warning}</span></div>}
+      {success && <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[rgba(16,185,129,0.08)] border border-[rgba(16,185,129,0.2)] text-[#10b981] text-sm mb-4"><span>✓</span><span>{success}</span></div>}
 
-        {warning && (
-          <div className="team-alert team-alert--warning" id="team-warning">
-            <span className="team-alert__icon">⚠</span>
-            <div className="team-alert__msg">{warning}</div>
-          </div>
-        )}
-
-        {success && (
-          <div className="team-alert team-alert--success" id="team-success">
-            <span className="team-alert__icon">✓</span>
-            <div className="team-alert__msg">{success}</div>
-          </div>
-        )}
-
-        {/* Tabs Control */}
-        <div className="team-tabs">
-          <button
-            type="button"
-            className={`team-tab-btn ${activeTab === 'teams' ? 'team-tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('teams')}
-            id="tab-btn-teams"
-          >
-            Danh sách đội đăng ký
+      {/* Tabs */}
+      <div className="flex gap-1 mb-5 bg-white/[0.03] border border-white/7 rounded-xl p-1 w-fit">
+        {[{ id: 'teams', label: 'Danh sách đội đăng ký' }, { id: 'pools', label: 'Chia bảng đấu' }].map(tab => (
+          <button key={tab.id}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer border-none ${activeTab === tab.id ? 'bg-[rgba(0,212,255,0.1)] text-[#00d4ff]' : 'text-white/40 hover:text-white/70 bg-transparent'}`}
+            onClick={() => setActiveTab(tab.id)}>
+            {tab.label}
           </button>
-          <button
-            type="button"
-            className={`team-tab-btn ${activeTab === 'pools' ? 'team-tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('pools')}
-            id="tab-btn-pools"
-          >
-            Chia bảng đấu
-          </button>
-        </div>
+        ))}
+      </div>
 
-        {/* ─── TAB 1: TEAMS LIST ─────────────────────────────────────────────── */}
-        {activeTab === 'teams' && (
-          <div className="team-tab-content">
-            {loadingTeams ? (
-              <div className="team-loading">
-                <div className="team-spinner" />
-                <p>Đang tải danh sách đội thi...</p>
-              </div>
-            ) : teams.length === 0 ? (
-              <div className="team-empty-state">
-                <div className="team-empty-icon">👥</div>
-                <h3>Chưa có đội thi đăng ký</h3>
-                <p>Thông tin các đội đăng ký sẽ tự động hiển thị và cập nhật liên tục tại đây.</p>
-              </div>
-            ) : (
-              <div className="team-table-wrapper">
-                <table className="team-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40px' }} />
-                      <th>Tên đội thi</th>
-                      <th>Trưởng nhóm (Leader)</th>
-                      <th>Thành viên</th>
-                      <th>Xác thực (Verify)</th>
-                      <th>Trạng thái</th>
-                      <th>Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teams.map((team) => {
-                      const verifiedCount = team.members.filter((m) => m.email_verified).length;
-                      const totalMembers = team.members.length;
-                      const isExpanded = expandedTeamId === team._id;
-
-                      return (
-                        <optgroup key={team._id} style={{ border: 'none' }}>
-                          <tr className={`team-row-main ${isExpanded ? 'team-row-main--expanded' : ''}`}>
-                            <td className="cell-expand">
-                              <button
-                                type="button"
-                                className="btn-expand-row"
-                                onClick={() => setExpandedTeamId(isExpanded ? null : team._id)}
-                              >
-                                {isExpanded ? '▼' : '▶'}
-                              </button>
-                            </td>
-                            <td className="cell-name">{team.team_name}</td>
-                            <td>
-                              <div className="cell-leader">
-                                <span className="leader-name">
-                                  {team.leader_id ? team.leader_id.full_name : 'N/A'}
-                                </span>
-                                <span className="leader-email">
-                                  {team.leader_id ? team.leader_id.email : ''}
-                                </span>
-                              </div>
-                            </td>
-                            <td>{totalMembers}</td>
-                            <td>
-                              <span className="verify-progress">
-                                {verifiedCount}/{totalMembers}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`status-badge status-badge--${team.status}`}>
-                                {team.status}
-                              </span>
-                            </td>
-                            <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+      {/* Teams Tab */}
+      {activeTab === 'teams' && (
+        <div>
+          {loadingTeams ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4"><Spin size="large" /><p className="text-white/40">Đang tải danh sách đội thi...</p></div>
+          ) : teams.length === 0 ? (
+            <div className="text-center py-20"><div className="text-4xl mb-3">👥</div><h3 className="text-white font-bold mb-2">Chưa có đội thi đăng ký</h3><p className="text-white/40 text-sm">Thông tin các đội đăng ký sẽ tự động hiển thị và cập nhật liên tục tại đây.</p></div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-white/7">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/7 bg-black/20">
+                    <th className="w-10 px-3 py-3" />
+                    {['Tên đội thi', 'Trưởng nhóm (Leader)', 'Thành viên', 'Xác thực', 'Trạng thái', 'Hành động'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-[0.72rem] text-white/35 font-semibold uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {teams.map(team => {
+                    const verifiedCount = team.members.filter(m => m.email_verified).length;
+                    const isExpanded = expandedTeamId === team._id;
+                    return (
+                      <>
+                        <tr key={team._id} className={`border-b border-white/5 ${isExpanded ? 'bg-[rgba(0,212,255,0.02)]' : 'hover:bg-white/[0.01]'}`}>
+                          <td className="px-3 py-3">
+                            <button className="text-white/40 hover:text-white cursor-pointer bg-transparent border-none" onClick={() => setExpandedTeamId(isExpanded ? null : team._id)}>
+                              {isExpanded ? '▼' : '▶'}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-white/80">{team.team_name}</td>
+                          <td className="px-4 py-3">
+                            <div className="text-[0.82rem] text-white/70">{team.leader_id?.full_name || 'N/A'}</div>
+                            <div className="text-[0.7rem] text-white/35">{team.leader_id?.email || ''}</div>
+                          </td>
+                          <td className="px-4 py-3 text-white/60">{team.members.length}</td>
+                          <td className="px-4 py-3 text-white/60">{verifiedCount}/{team.members.length}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-[0.68rem] font-bold px-2 py-0.5 rounded-full border capitalize ${STATUS_COLOR[team.status] || 'text-white/40 bg-white/5 border-white/10'}`}>{team.status}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2 flex-wrap">
                               {team.status === 'pending' && (
-                                <button
-                                  type="button"
-                                  className="btn btn--sm btn--outline-green"
-                                  onClick={() => handleApprove(team._id, team.team_name)}
-                                >
-                                  ✓ Duyệt
-                                </button>
+                                <button className="px-2.5 py-1 rounded-lg text-xs font-semibold border border-[rgba(16,185,129,0.3)] text-[#10b981] bg-[rgba(16,185,129,0.08)] cursor-pointer hover:bg-[rgba(16,185,129,0.15)] transition-colors"
+                                  onClick={() => handleApprove(team._id, team.team_name)}>✓ Duyệt</button>
                               )}
                               {team.status !== 'disqualified' && (
-                                <button
-                                  type="button"
-                                  className="btn btn--sm btn--outline-red"
-                                  onClick={() => handleDisqualify(team._id, team.team_name)}
-                                >
-                                  Loại bỏ
-                                </button>
+                                <button className="px-2.5 py-1 rounded-lg text-xs font-semibold border border-[rgba(239,68,68,0.3)] text-[#ef4444] bg-[rgba(239,68,68,0.08)] cursor-pointer hover:bg-[rgba(239,68,68,0.15)] transition-colors"
+                                  onClick={() => handleDisqualify(team._id, team.team_name)}>Loại bỏ</button>
                               )}
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr key={`${team._id}-detail`} className="border-b border-white/5 bg-[rgba(0,212,255,0.01)]">
+                            <td colSpan={7} className="px-6 py-4">
+                              <h4 className="text-xs font-bold text-white/40 uppercase tracking-wide mb-3">Thành viên chi tiết</h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {team.members.map((member, mIdx) => (
+                                  <div key={mIdx} className="flex items-center justify-between px-3 py-2 rounded-xl bg-black/20 border border-white/6">
+                                    <div>
+                                      <div className="text-[0.82rem] font-medium text-white/80">{member.full_name || 'Chưa cập nhật'}</div>
+                                      <div className="text-[0.7rem] text-white/35">{member.email}</div>
+                                    </div>
+                                    <span className={`text-[0.65rem] font-bold ${member.email_verified ? 'text-[#10b981]' : 'text-[#f59e0b]'}`}>
+                                      {member.email_verified ? '✓ Xác thực' : '⏳ Chờ'}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
                             </td>
                           </tr>
+                        )}
+                      </>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-                          {/* Expanded Members Details */}
-                          {isExpanded && (
-                            <tr className="team-row-detail">
-                              <td colSpan="7">
-                                <div className="members-detail-box">
-                                  <h4 className="detail-box-title">Thành viên chi tiết</h4>
-                                  <div className="members-grid">
-                                    {team.members.map((member, mIdx) => (
-                                      <div className="member-detail-card" key={mIdx}>
-                                        <div className="member-detail-card__top">
-                                          <span className="member-name">{member.full_name || 'Chưa cập nhật'}</span>
-                                          <span className={`member-verify-indicator ${member.email_verified ? 'member-verify-indicator--verified' : ''}`}>
-                                            {member.email_verified ? '✓ Đã xác thực' : '⏳ Chờ xác thực'}
-                                          </span>
-                                        </div>
-                                        <div className="member-email">{member.email}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </optgroup>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ─── TAB 2: POOLS DIVISION ─────────────────────────────────────────── */}
-        {activeTab === 'pools' && (
-          <div className="team-tab-content">
-            
-            {/* Case A: Pools already drawn -> Show result */}
-            {pools.length > 0 ? (
-              <div className="pools-result-container">
-                <div className="pools-result-header">
-                  <div>
-                    <h3 className="pools-result-title">Kết Quả Chia Bảng Đấu</h3>
-                    <p className="pools-result-subtitle">Các đội đã được xếp đều ngẫu nhiên vào các bảng đấu tương ứng</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn--outline-red"
-                    onClick={handleResetPools}
-                  >
-                    Xóa Kết Quả & Chia Lại
-                  </button>
+      {/* Pools Tab */}
+      {activeTab === 'pools' && (
+        <div>
+          {pools.length > 0 ? (
+            <>
+              <div className="flex items-start justify-between flex-wrap gap-4 mb-5">
+                <div>
+                  <h3 className="font-bold text-white">Kết Quả Chia Bảng Đấu</h3>
+                  <p className="text-sm text-white/40">Các đội đã được xếp đều ngẫu nhiên vào các bảng đấu tương ứng</p>
                 </div>
-
-                <div className="pools-grid">
-                  {pools.map((pool) => (
-                    <div className="pool-card" key={pool._id}>
-                      <div className="pool-card__header">
-                        <h4 className="pool-card__title">{pool.pool_name}</h4>
-                        <span className="pool-card__count">{pool.teams.length} đội</span>
-                      </div>
-                      
-                      {pool.topic_id ? (
-                        <div className="pool-card__topic">
-                          <span className="pool-card__topic-label">Đề tài gán:</span>
-                          <span className="pool-card__topic-name">{pool.topic_id.title}</span>
-                        </div>
-                      ) : (
-                        <div className="pool-card__topic pool-card__topic--none">
-                          Không gán đề tài đấu
-                        </div>
-                      )}
-
-                      <div className="pool-card__body">
-                        <ul className="pool-teams-list">
-                          {pool.teams.map((team, tIdx) => (
-                            <li className="pool-team-item" key={team._id}>
-                              <span className="pool-team-number">{tIdx + 1}</span>
-                              <div className="pool-team-info">
-                                <span className="pool-team-name">{team.team_name}</span>
-                                <span className="pool-team-status">{team.status}</span>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <button className="px-4 py-2 rounded-lg text-sm font-semibold border border-[rgba(239,68,68,0.3)] text-[#ef4444] bg-[rgba(239,68,68,0.05)] cursor-pointer hover:bg-[rgba(239,68,68,0.12)] transition-colors"
+                  onClick={handleResetPools}>Xóa Kết Quả & Chia Lại</button>
               </div>
-            ) : (
-              
-              /* Case B: No pools drawn yet -> Show parameters configurations form */
-              <div className="pools-config-box">
-                <h3 className="pools-config-title">Cấu Hình Chia Bảng Tự Động</h3>
-                <p className="pools-config-desc">
-                  Hệ thống sẽ thực hiện trộn ngẫu nhiên tất cả các đội đấu đã được xác nhận (Confirmed) và phân bổ đều vào các bảng đấu tương ứng.
-                </p>
-
-                <form onSubmit={handleDrawPools} className="pools-config-form">
-                  <div className="contest-field">
-                    <label className="contest-label">Số lượng bảng đấu cần chia *</label>
-                    <input
-                      type="number"
-                      className="contest-input"
-                      min="2"
-                      max="20"
-                      value={poolCount}
-                      onChange={(e) => setPoolCount(Number(e.target.value))}
-                      required
-                    />
-                  </div>
-
-                  <div className="contest-field contest-field--row">
-                    <div className="contest-toggle-info">
-                      <label className="contest-label">Tự động gán đề tài đấu</label>
-                      <span className="contest-label-sub">Lựa chọn ngẫu nhiên các đề tài trống chưa được giao để gán cho từng bảng đấu</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {pools.map(pool => (
+                  <div key={pool._id} className="bg-white/[0.025] border border-white/7 rounded-2xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/7 bg-black/20">
+                      <h4 className="font-bold text-white">{pool.pool_name}</h4>
+                      <span className="text-xs text-white/40">{pool.teams.length} đội</span>
                     </div>
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={assignTopics}
-                        onChange={(e) => setAssignTopics(e.target.checked)}
-                      />
-                      <span className="slider round"></span>
-                    </label>
-                  </div>
-
-                  <div className="pools-action-section">
-                    <button
-                      type="submit"
-                      className={`btn btn--primary btn--lg ${isDrawing ? 'btn--loading' : ''}`}
-                      disabled={isDrawing || !hasConfirmedTeam}
-                    >
-                      {isDrawing ? (
-                        <>
-                          <span className="btn-spinner" />
-                          <span>Đang thực hiện phân bảng ngẫu nhiên...</span>
-                        </>
-                      ) : (
-                        'Bắt Đầu Tự Động Chia Bảng'
-                      )}
-                    </button>
-                    {!hasConfirmedTeam && (
-                      <p className="pools-btn-disabled-warning">
-                        ⚠ Cần có ít nhất 1 đội đấu ở trạng thái "confirmed" để bắt đầu thực hiện chia bảng.
-                      </p>
+                    {pool.topic_id ? (
+                      <div className="px-4 py-2 text-xs border-b border-white/5 text-white/50">📌 <span className="text-[#00d4ff]">{pool.topic_id.title}</span></div>
+                    ) : (
+                      <div className="px-4 py-2 text-xs border-b border-white/5 text-white/25">Không gán đề tài đấu</div>
                     )}
+                    <ul className="px-4 py-3 flex flex-col gap-1.5">
+                      {pool.teams.map((team, tIdx) => (
+                        <li key={team._id} className="flex items-center gap-2.5 text-sm">
+                          <span className="text-xs text-white/25 min-w-[16px]">{tIdx + 1}.</span>
+                          <span className="text-white/70 flex-1">{team.team_name}</span>
+                          <span className={`text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full border ${STATUS_COLOR[team.status] || 'text-white/30 bg-white/5 border-white/10'}`}>{team.status}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </form>
+                ))}
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            </>
+          ) : (
+            <div className="max-w-lg bg-white/[0.025] border border-white/7 rounded-2xl p-6">
+              <h3 className="font-bold text-white mb-2">Cấu Hình Chia Bảng Tự Động</h3>
+              <p className="text-sm text-white/50 mb-5">Hệ thống sẽ trộn ngẫu nhiên tất cả các đội đã xác nhận và phân bổ đều vào các bảng đấu tương ứng.</p>
+              <form onSubmit={handleDrawPools} className="flex flex-col gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">Số lượng bảng đấu cần chia *</label>
+                  <input type="number" className={inputCls} min="2" max="20" value={poolCount} onChange={e => setPoolCount(Number(e.target.value))} required />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-white/70">Tự động gán đề tài đấu</label>
+                    <p className="text-xs text-white/35 mt-0.5">Lựa chọn ngẫu nhiên các đề tài trống để gán cho từng bảng đấu</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input type="checkbox" checked={assignTopics} onChange={e => setAssignTopics(e.target.checked)} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00d4ff]" />
+                  </label>
+                </div>
+                <button type="submit" disabled={isDrawing || !hasConfirmedTeam}
+                  className={`py-2.5 rounded-xl text-sm font-bold border-none cursor-pointer transition-opacity ${isDrawing || !hasConfirmedTeam ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'bg-gradient-to-r from-[#00d4ff] to-[#a855f7] text-black hover:opacity-90'}`}>
+                  {isDrawing ? '⏳ Đang thực hiện phân bảng ngẫu nhiên...' : 'Bắt Đầu Tự Động Chia Bảng'}
+                </button>
+                {!hasConfirmedTeam && <p className="text-xs text-[#f59e0b]">⚠ Cần có ít nhất 1 đội ở trạng thái "confirmed" để bắt đầu chia bảng.</p>}
+              </form>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

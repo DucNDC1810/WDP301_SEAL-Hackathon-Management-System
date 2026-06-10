@@ -6,8 +6,6 @@ import {
 import { PlusOutlined, CopyOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
-import './TeamPage.css';
-
 const { Title, Text, Paragraph } = Typography;
 
 export default function TeamPage() {
@@ -107,10 +105,10 @@ export default function TeamPage() {
     },
   ];
 
-  if (loading) return <div className="team-page__loading"><Spin size="large" /></div>;
+  if (loading) return <div className="flex justify-center items-center min-h-[60vh]"><Spin size="large" /></div>;
 
   return (
-    <div className="team-page">
+    <div className="max-w-[900px] mx-auto px-6 py-10">
       <Title level={3}>Quản lý đội thi</Title>
 
       {!myTeam ? (
@@ -150,7 +148,7 @@ export default function TeamPage() {
           }
         >
           {/* Mã đội */}
-          <div className="team-page__code-section">
+          <div className="mb-4">
             <Text type="secondary">Mã đội (share cho thành viên):</Text>
             <Space style={{ marginTop: 4 }}>
               <Text code copyable={false} style={{ fontSize: 13 }}>{myTeam._id}</Text>
@@ -159,7 +157,7 @@ export default function TeamPage() {
           </div>
 
           {myTeam.status === 'pending' && (
-            <div className="team-page__pending-notice">
+            <div className="my-3">
               <Text type="warning">
                 ⏳ Đội đang chờ admin duyệt. Sau khi được duyệt bạn mới có thể thêm thành viên.
               </Text>

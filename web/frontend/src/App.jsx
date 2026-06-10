@@ -50,8 +50,6 @@ import InvitationVerifyPage from './pages/invite-verify/InvitationVerifyPage';
 import TeamVerifyPage from './pages/team-verify/TeamVerifyPage';
 import VerifyEmailPage from './pages/verify-email/VerifyEmailPage';
 
-import './App.css';
-
 function App() {
   return (
     <ConfigProvider

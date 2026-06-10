@@ -3,8 +3,6 @@ import { Form, Input, Button, Card, Avatar, Typography, Divider, Tag, message, S
 import { CameraOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
-import './ProfilePage.css';
-
 const { Text } = Typography;
 
 export default function ProfilePage() {
@@ -81,31 +79,31 @@ export default function ProfilePage() {
   const avatarSrc = avatarPreview || user?.avatar_url || undefined;
 
   return (
-    <div className="profile-page">
-      <Card className="profile-page__card">
+    <div className="max-w-[800px] mx-auto px-6 py-10">
+      <Card>
 
         {/* Thông tin cơ bản */}
         <Divider orientation="left">Thông tin cơ bản</Divider>
 
-        <div className="profile-page__info-row">
+        <div className="flex items-start gap-8">
           {/* Left: fields */}
-          <div className="profile-page__fields">
+          <div className="flex-1 min-w-0">
             {!editing ? (
               <>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Email</Text>
+                <div className="flex items-center gap-3 py-2 border-b border-[rgba(0,240,255,0.1)]">
+                  <Text type="secondary" className="min-w-[130px] text-[13px] flex-shrink-0">Email</Text>
                   <Text>{user?.email}</Text>
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Họ và tên</Text>
+                <div className="flex items-center gap-3 py-2 border-b border-[rgba(0,240,255,0.1)]">
+                  <Text type="secondary" className="min-w-[130px] text-[13px] flex-shrink-0">Họ và tên</Text>
                   <Text>{user?.full_name || '—'}</Text>
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Số điện thoại</Text>
+                <div className="flex items-center gap-3 py-2 border-b border-[rgba(0,240,255,0.1)]">
+                  <Text type="secondary" className="min-w-[130px] text-[13px] flex-shrink-0">Số điện thoại</Text>
                   <Text>{user?.phone || '—'}</Text>
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Vai trò</Text>
+                <div className="flex items-center gap-3 py-2">
+                  <Text type="secondary" className="min-w-[130px] text-[13px] flex-shrink-0">Vai trò</Text>
                   <div>
                     {user?.roles?.map((r) => (
                       <Tag key={r.role_name} color="blue">{r.role_name}</Tag>
@@ -115,18 +113,18 @@ export default function ProfilePage() {
               </>
             ) : (
               <Form form={infoForm}>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Email</Text>
+                <div className="flex items-center gap-3 py-2 border-b border-[rgba(0,240,255,0.1)]">
+                  <Text type="secondary" className="min-w-[130px] text-[13px] flex-shrink-0">Email</Text>
                   <Input value={user?.email} disabled style={{ flex: 1 }} />
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Họ và tên</Text>
+                <div className="flex items-center gap-3 py-2 border-b border-[rgba(0,240,255,0.1)]">
+                  <Text type="secondary" className="min-w-[130px] text-[13px] flex-shrink-0">Họ và tên</Text>
                   <Form.Item name="full_name" style={{ flex: 1, margin: 0 }} rules={[{ required: true, message: 'Nhập họ và tên' }]}>
                     <Input />
                   </Form.Item>
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Số điện thoại</Text>
+                <div className="flex items-center gap-3 py-2">
+                  <Text type="secondary" className="min-w-[130px] text-[13px] flex-shrink-0">Số điện thoại</Text>
                   <Form.Item name="phone" style={{ flex: 1, margin: 0 }}>
                     <Input />
                   </Form.Item>
@@ -136,15 +134,15 @@ export default function ProfilePage() {
           </div>
 
           {/* Right: avatar + action buttons */}
-          <div className="profile-page__avatar-col">
+          <div className="flex-shrink-0 flex flex-col items-center pt-1">
             <div
-              className={`profile-page__avatar-wrap${editing ? ' profile-page__avatar-wrap--editing' : ''}`}
+              className={`relative inline-block rounded-full${editing ? ' cursor-pointer' : ''}`}
               onClick={editing ? () => fileRef.current?.click() : undefined}
             >
               <Avatar size={80} src={avatarSrc} icon={<UserOutlined />} />
               {editing && (
                 <Tooltip title="Đổi ảnh (tối đa 2MB)">
-                  <div className="profile-page__avatar-overlay">
+                  <div className="absolute inset-0 rounded-full bg-black/45 flex items-center justify-center text-white text-xl opacity-0 hover:opacity-100 transition-opacity">
                     <CameraOutlined />
                   </div>
                 </Tooltip>

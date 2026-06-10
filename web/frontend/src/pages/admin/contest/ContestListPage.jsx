@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ConfigProvider, theme, Table, Button, Tag, Spin, Alert, Empty, Space, Select, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useTheme } from '../../../context/ThemeContext';
-import './ContestListPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -198,15 +197,13 @@ function ContestListPage() {
         },
       }}
     >
-      <div className="contest-list-page" id="contest-list-page">
-        <div className="contest-list-page__glow" />
-
-        <div className="contest-list-container container">
+      <div className="min-h-screen bg-[#060b16] p-6" id="contest-list-page">
+        <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="contest-list-header">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="contest-list-title">Danh Sách Cuộc Thi</h1>
-              <p className="contest-list-subtitle">Quản lý và thiết lập các cuộc thi Hackathon</p>
+              <h1 className="text-2xl font-bold text-white">Danh Sách Cuộc Thi</h1>
+              <p className="text-white/40 text-sm mt-1">Quản lý và thiết lập các cuộc thi Hackathon</p>
             </div>
             <Button
               type="primary"
@@ -239,7 +236,7 @@ function ContestListPage() {
 
           {/* Content */}
           {loading ? (
-            <div className="contest-list-loading" style={{ textAlign: 'center', padding: '80px 0' }}>
+            <div style={{ textAlign: 'center', padding: '80px 0' }}>
               <Spin size="large" tip="Đang tải danh sách cuộc thi..." />
             </div>
           ) : contests.length === 0 ? (
@@ -258,13 +255,12 @@ function ContestListPage() {
               </Empty>
             </div>
           ) : (
-            <div className="contest-list-table-wrapper">
+            <div className="rounded-2xl overflow-hidden border border-white/8">
               <Table
                 dataSource={contests}
                 columns={columns}
                 rowKey="_id"
                 pagination={{ pageSize: 10 }}
-                className="contest-list-table"
               />
             </div>
           )}

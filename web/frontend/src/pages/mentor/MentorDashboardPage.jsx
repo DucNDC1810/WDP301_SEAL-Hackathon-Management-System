@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Table, Progress, Tag, Button, Typography, message } from 'antd';
-import './MentorDashboardPage.css';
 
 const { Title } = Typography;
 const API = import.meta.env.VITE_API_URL || '';
@@ -62,11 +61,11 @@ export default function MentorDashboardPage() {
   const percent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <div className="mentor-dashboard">
+    <div className="max-w-[900px] mx-auto px-6 py-10">
       <Title level={3}>Dashboard Chấm điểm</Title>
-      <div className="mentor-dashboard__progress">
-        <span>Tiến độ: {progress.done}/{progress.total} đội đã chấm</span>
-        <Progress percent={percent} status={percent === 100 ? 'success' : 'active'} />
+      <div className="mb-5">
+        <span className="text-sm text-white/60">Tiến độ: {progress.done}/{progress.total} đội đã chấm</span>
+        <Progress percent={percent} status={percent === 100 ? 'success' : 'active'} className="mt-2" />
       </div>
       <Table
         rowKey="_id"

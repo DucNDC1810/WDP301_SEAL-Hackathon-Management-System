@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { Table, Tag, Typography, Spin, Empty, message } from 'antd';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
-import './InvitationsPage.css';
-
 const { Title } = Typography;
 
 export default function InvitationsPage() {
@@ -49,10 +47,10 @@ export default function InvitationsPage() {
     },
   ];
 
-  if (loading) return <div className="invitations__loading"><Spin size="large" /></div>;
+  if (loading) return <div className="flex justify-center items-center min-h-[60vh]"><Spin size="large" /></div>;
 
   return (
-    <div className="invitations">
+    <div className="max-w-[900px] mx-auto px-6 py-10">
       <Title level={3}>Lời mời tham gia đội</Title>
       {teams.length === 0 ? (
         <Empty description="Bạn chưa nhận được lời mời nào" />

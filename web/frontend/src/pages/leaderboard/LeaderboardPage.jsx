@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Table, Tag, Badge, Typography, message } from 'antd';
 import { useSocket } from '../../hooks/useSocket';
-import './LeaderboardPage.css';
 
 const { Title } = Typography;
 const API = import.meta.env.VITE_API_URL || '';
@@ -49,9 +48,9 @@ export default function LeaderboardPage() {
   ];
 
   return (
-    <div className="leaderboard">
-      <div className="leaderboard__header">
-        <Title level={3}>Bảng xếp hạng</Title>
+    <div className="p-6">
+      <div className="flex items-center gap-4 mb-4">
+        <Title level={3} style={{ margin: 0 }}>Bảng xếp hạng</Title>
         {updated && <Badge status="processing" text="Vừa cập nhật" />}
       </div>
       <Table
@@ -60,7 +59,7 @@ export default function LeaderboardPage() {
         columns={columns}
         loading={loading}
         pagination={false}
-        rowClassName={(r) => r.qualified ? 'leaderboard__qualified-row' : ''}
+        rowClassName={(r) => r.qualified ? 'bg-green-500/5' : ''}
       />
     </div>
   );

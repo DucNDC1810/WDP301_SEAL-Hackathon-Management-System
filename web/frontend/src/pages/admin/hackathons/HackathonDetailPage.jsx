@@ -6,7 +6,6 @@ import ProblemReleaseTab from './tabs/ProblemReleaseTab';
 import SubmissionReviewTab from './tabs/SubmissionReviewTab';
 import ScoringLockTab from './tabs/ScoringLockTab';
 import TeamEliminationTab from './tabs/TeamEliminationTab';
-import './HackathonDetailPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const tok = () => localStorage.getItem('accessToken');
@@ -337,9 +336,13 @@ export default function HackathonDetailPage() {
 
   if (loading || !config || !contest) {
     return (
-      <div className="hd-loading">
-        <div className="hd-spinner" />
-        <span>Đang tải thông tin giải đấu...</span>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#060b16] text-white gap-4">
+        <div
+          className="w-10 h-10 rounded-full border-4 border-white/10 border-t-[#00d4ff]"
+          style={{ animation: 'spin 0.8s linear infinite' }}
+        />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <span className="text-white/60 text-sm">Đang tải thông tin giải đấu...</span>
       </div>
     );
   }
@@ -699,99 +702,189 @@ export default function HackathonDetailPage() {
 
   const isOngoing = contest.status === 'open';
   const selectedTrack = config.tracks.find(t => t.id === activeTrackId);
-  
+
   // Calculate current criteria round weight summary
   const selectedCritRound = config.tracks.find(t => t.id === selectedCritTrackId)?.rounds.find(r => r.id === selectedCritRoundId);
   const currentWeightSum = selectedCritRound?.criteria?.reduce((sum, c) => sum + c.weight, 0) || 0;
 
+  // ─── Shared input/select/textarea style helpers ───────────────────────────
+  const inputCls = "bg-[#060b16] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-[#00d4ff] focus:outline-none w-full";
+  const btnPrimary = "flex items-center gap-1.5 rounded-xl px-4 py-2 font-bold text-sm border-none cursor-pointer text-[#060b16]";
+  const btnCancel = "flex items-center gap-1.5 border border-white/15 text-white/60 bg-transparent rounded-xl px-4 py-2 text-sm cursor-pointer hover:bg-white/5";
+  const btnSmall = "flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold border-none cursor-pointer text-[#060b16]";
+
+  // Toggle switch component
+  const Toggle = ({ checked, onChange }) => (
+    <div
+      onClick={onChange}
+      style={{
+        width: 36, height: 20, borderRadius: 10, cursor: 'pointer', position: 'relative',
+        background: checked ? '#00d4ff' : 'rgba(255,255,255,0.12)',
+        transition: 'background 0.2s',
+        flexShrink: 0,
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 3, left: checked ? 19 : 3,
+        width: 14, height: 14, borderRadius: '50%', background: '#fff',
+        transition: 'left 0.2s',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+      }} />
+    </div>
+  );
+
   return (
-    <div className="hd-page">
-      {/* Header */}
-      <div className="hd-header">
-        <button className="hd-back-btn" onClick={() => navigate('/admin/hackathons')} title="Quay lại"><Ico d={BACK} size={18} sw={2}/></button>
-        <div className="hd-header-info">
-          <div className="hd-header-title-row">
-            <h1 className="hd-title">{contest.title}</h1>
-            <span className={`hd-badge ${isOngoing ? 'hd-badge--green' : contest.status === 'closed' ? 'hd-badge--red' : 'hd-badge--gray'}`}>
+    <div className="min-h-screen bg-[#060b16] text-white p-6">
+      {/* ─── Header ─── */}
+      <div className="flex items-center gap-4 mb-6">
+        <button
+          onClick={() => navigate('/admin/hackathons')}
+          title="Quay lại"
+          className="flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+        >
+          <Ico d={BACK} size={18} sw={2} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl font-bold text-white truncate">{contest.title}</h1>
+            <span
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
+                isOngoing
+                  ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30'
+                  : contest.status === 'closed'
+                  ? 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30'
+                  : 'bg-white/10 text-white/50 border border-white/10'
+              }`}
+            >
               {isOngoing ? 'ONGOING (Mở)' : contest.status === 'closed' ? 'Closed' : 'Draft (Nháp)'}
             </span>
           </div>
-          <p className="hd-subtitle">
-            Mùa giải: <strong>{config.season} {config.year}</strong> — {contest.description || 'Không có mô tả'}
+          <p className="text-white/50 text-sm mt-0.5">
+            Mùa giải: <strong className="text-white/70">{config.season} {config.year}</strong> — {contest.description || 'Không có mô tả'}
           </p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="hd-tabs">
+      {/* ─── Tabs ─── */}
+      <div className="flex gap-0 border-b border-white/8 mb-6 overflow-x-auto">
         {TABS.map((t, i) => (
-          <button key={i} className={`hd-tab ${tab === i ? 'hd-tab--active' : ''}`} onClick={() => setTab(i)}>{t}</button>
+          <button
+            key={i}
+            onClick={() => setTab(i)}
+            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap cursor-pointer transition-colors border-b-2 -mb-px bg-transparent ${
+              tab === i
+                ? 'border-[#00d4ff] text-[#00d4ff]'
+                : 'border-transparent text-white/40 hover:text-white/70'
+            }`}
+          >
+            {t}
+          </button>
         ))}
       </div>
 
       {/* ─── TAB 0: TỔNG QUAN ─── */}
       {tab === 0 && (
-        <div className="hd-section">
-          <div className="hd-section-header">
-            <h2 className="hd-section-title">Thông tin chi tiết Hackathon</h2>
-            <button className="hd-btn-add" onClick={() => setIsEditingInfo(!isEditingInfo)}>
-              <Ico d={isEditingInfo ? BACK : EDIT} size={14}/> {isEditingInfo ? 'Hủy' : 'Chỉnh sửa'}
+        <div className="bg-[#0b1120] border border-white/8 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-bold text-white">Thông tin chi tiết Hackathon</h2>
+            <button
+              onClick={() => setIsEditingInfo(!isEditingInfo)}
+              className={btnPrimary}
+              style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}
+            >
+              <Ico d={isEditingInfo ? BACK : EDIT} size={14} /> {isEditingInfo ? 'Hủy' : 'Chỉnh sửa'}
             </button>
           </div>
 
           {isEditingInfo ? (
-            <form onSubmit={handleSaveGeneralInfo} className="hd-form">
-              <div className="hd-form-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
-                <div className="hd-field"><label>Tên cuộc thi *</label><input required value={generalForm.title} onChange={e=>setGeneralForm(f=>({...f,title:e.target.value}))}/></div>
-                <div className="hd-field">
-                  <label>Mùa giải *</label>
-                  <select value={generalForm.season} onChange={e=>setGeneralForm(f=>({...f,season:e.target.value}))}>
+            <form onSubmit={handleSaveGeneralInfo} className="flex flex-col gap-4">
+              <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Tên cuộc thi *</label>
+                  <input required className={inputCls} value={generalForm.title} onChange={e=>setGeneralForm(f=>({...f,title:e.target.value}))} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Mùa giải *</label>
+                  <select className={inputCls} value={generalForm.season} onChange={e=>setGeneralForm(f=>({...f,season:e.target.value}))}>
                     <option value="Spring">Spring (Mùa Xuân)</option>
                     <option value="Summer">Summer (Mùa Hạ)</option>
                     <option value="Autumn">Autumn (Mùa Thu)</option>
                     <option value="Winter">Winter (Mùa Đông)</option>
                   </select>
                 </div>
-                <div className="hd-field"><label>Năm *</label><input type="number" required value={generalForm.year} onChange={e=>setGeneralForm(f=>({...f,year:e.target.value}))}/></div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Năm *</label>
+                  <input type="number" required className={inputCls} value={generalForm.year} onChange={e=>setGeneralForm(f=>({...f,year:e.target.value}))} />
+                </div>
               </div>
 
-              <div className="hd-form-grid" style={{ gridTemplateColumns: '1fr' }}>
-                <div className="hd-field"><label>Mô tả ngắn</label><textarea rows="2" value={generalForm.description} onChange={e=>setGeneralForm(f=>({...f,description:e.target.value}))}/></div>
-                <div className="hd-field"><label>Quy chế & Thể lệ giải đấu</label><textarea rows="4" value={generalForm.rules} onChange={e=>setGeneralForm(f=>({...f,rules:e.target.value}))}/></div>
-                <div className="hd-field"><label>Link Banner (Ảnh nền)</label><input value={generalForm.banner} onChange={e=>setGeneralForm(f=>({...f,banner:e.target.value}))}/></div>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Mô tả ngắn</label>
+                  <textarea rows={2} className={inputCls} value={generalForm.description} onChange={e=>setGeneralForm(f=>({...f,description:e.target.value}))} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Quy chế & Thể lệ giải đấu</label>
+                  <textarea rows={4} className={inputCls} value={generalForm.rules} onChange={e=>setGeneralForm(f=>({...f,rules:e.target.value}))} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Link Banner (Ảnh nền)</label>
+                  <input className={inputCls} value={generalForm.banner} onChange={e=>setGeneralForm(f=>({...f,banner:e.target.value}))} />
+                </div>
               </div>
 
-              <div className="hd-form-grid">
-                <div className="hd-field"><label>Mở đăng ký ngày *</label><input type="datetime-local" required value={generalForm.registration_open_date} onChange={e=>setGeneralForm(f=>({...f,registration_open_date:e.target.value}))}/></div>
-                <div className="hd-field"><label>Hạn đóng đăng ký *</label><input type="datetime-local" required value={generalForm.registration_deadline} onChange={e=>setGeneralForm(f=>({...f,registration_deadline:e.target.value}))}/></div>
-                <div className="hd-field"><label>Bắt đầu sự kiện *</label><input type="datetime-local" required value={generalForm.start_date} onChange={e=>setGeneralForm(f=>({...f,start_date:e.target.value}))}/></div>
-                <div className="hd-field"><label>Lễ Kickoff giải đấu *</label><input type="datetime-local" required value={generalForm.kickoff_date} onChange={e=>setGeneralForm(f=>({...f,kickoff_date:e.target.value}))}/></div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Mở đăng ký ngày *</label>
+                  <input type="datetime-local" required className={inputCls} value={generalForm.registration_open_date} onChange={e=>setGeneralForm(f=>({...f,registration_open_date:e.target.value}))} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Hạn đóng đăng ký *</label>
+                  <input type="datetime-local" required className={inputCls} value={generalForm.registration_deadline} onChange={e=>setGeneralForm(f=>({...f,registration_deadline:e.target.value}))} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Bắt đầu sự kiện *</label>
+                  <input type="datetime-local" required className={inputCls} value={generalForm.start_date} onChange={e=>setGeneralForm(f=>({...f,start_date:e.target.value}))} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Lễ Kickoff giải đấu *</label>
+                  <input type="datetime-local" required className={inputCls} value={generalForm.kickoff_date} onChange={e=>setGeneralForm(f=>({...f,kickoff_date:e.target.value}))} />
+                </div>
               </div>
 
-              <div className="hd-form-actions">
-                <button type="submit" className="hd-btn-save"><Ico d={SAVE}/> Lưu cấu hình</button>
+              <div className="flex justify-end pt-2">
+                <button type="submit" className={btnPrimary} style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}>
+                  <Ico d={SAVE} /> Lưu cấu hình
+                </button>
               </div>
             </form>
           ) : (
             <>
               {config.banner && (
-                <div style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-cyan)' }}>
-                  <img src={config.banner} alt="Hackathon Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800'; }} />
+                <div className="rounded-xl overflow-hidden h-60 border border-white/8 mb-5" style={{ boxShadow: '0 0 20px rgba(0,212,255,0.15)' }}>
+                  <img src={config.banner} alt="Hackathon Banner" className="w-full h-full object-cover" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800'; }} />
                 </div>
               )}
 
-              <div className="hd-overview-grid">
-                <div className="hd-overview-card"><span className="hd-ov-label">Mùa giải / Năm</span><span className="hd-ov-value">{config.season} {config.year}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Mở đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.registration_open_date)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Hạn đóng đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.registration_deadline)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Ngày thi đấu</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.start_date)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Lịch khai mạc (Kickoff)</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.kickoff_date)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Số Track cấu hình</span><span className="hd-ov-value">{config.tracks?.length || 0}</span></div>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 mb-5">
+                {[
+                  { label: 'Mùa giải / Năm', value: `${config.season} ${config.year}` },
+                  { label: 'Mở đăng ký', value: fmtDate(config.registration_open_date) },
+                  { label: 'Hạn đóng đăng ký', value: fmtDate(config.registration_deadline) },
+                  { label: 'Ngày thi đấu', value: fmtDate(config.start_date) },
+                  { label: 'Lịch khai mạc (Kickoff)', value: fmtDate(config.kickoff_date) },
+                  { label: 'Số Track cấu hình', value: config.tracks?.length || 0 },
+                ].map((item, i) => (
+                  <div key={i} className="bg-[#060b16] border border-white/8 rounded-xl p-4 flex flex-col gap-1">
+                    <span className="text-white/40 text-xs">{item.label}</span>
+                    <span className="text-white font-bold text-lg">{item.value}</span>
+                  </div>
+                ))}
               </div>
 
-              <div className="hd-rules-card">
-                <h3 className="hd-rules-title">Thể lệ & Luật thi đấu</h3>
-                <div className="hd-rules-content">{config.rules || 'Chưa thiết lập thể lệ giải đấu.'}</div>
+              <div className="bg-[#060b16] border border-white/8 rounded-xl p-5">
+                <h3 className="text-sm font-bold text-[#00d4ff] mb-3">Thể lệ & Luật thi đấu</h3>
+                <div className="text-white/60 text-sm leading-relaxed whitespace-pre-line">{config.rules || 'Chưa thiết lập thể lệ giải đấu.'}</div>
               </div>
             </>
           )}
@@ -800,37 +893,47 @@ export default function HackathonDetailPage() {
 
       {/* ─── TAB 1: QUẢN LÝ TRACK & ROUND ─── */}
       {tab === 1 && (
-        <div className="hd-section">
-          <div className="hd-tracks-layout">
+        <div className="bg-[#0b1120] border border-white/8 rounded-2xl p-6">
+          <div className="flex gap-5" style={{ minHeight: 500 }}>
             {/* Tracks Left Sidebar */}
-            <div className="hd-tracks-list-panel">
-              <div className="hd-section-header">
-                <span className="hd-section-title" style={{ fontSize: '1rem' }}>Bảng thi (Tracks)</span>
-              </div>
+            <div className="w-64 flex-shrink-0 flex flex-col gap-3 border-r border-white/8 pr-5">
+              <div className="text-sm font-bold text-white/70 mb-1">Bảng thi (Tracks)</div>
 
-              {/* Add Track Form */}
-              <form onSubmit={editingTrackId ? handleSaveTrackEdit : handleAddTrack} className="hd-form" style={{ padding: '12px' }}>
-                <div className="hd-field" style={{ gap: '4px' }}>
-                  <label>{editingTrackId ? 'Sửa Track' : 'Thêm Track mới'}</label>
-                  <input required placeholder="Tên Track (vd: AI, Web3...)" value={trackForm.name} onChange={e=>setTrackForm(f=>({...f,name:e.target.value}))} style={{ padding: '6px 10px', fontSize: '0.8rem' }} />
-                  <input placeholder="Mô tả ngắn..." value={trackForm.description} onChange={e=>setTrackForm(f=>({...f,description:e.target.value}))} style={{ padding: '6px 10px', fontSize: '0.8rem', marginTop: '4px' }} />
-                </div>
-                <div className="hd-form-actions" style={{ marginTop: '8px' }}>
-                  {editingTrackId && <button type="button" className="hd-btn-cancel" onClick={() => { setEditingTrackId(null); setTrackForm({ name:'', description:'' }); }} style={{ padding: '4px 10px', fontSize: '0.75rem' }}>Hủy</button>}
-                  <button type="submit" className="hd-btn-save" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>{editingTrackId ? 'Lưu' : 'Thêm'}</button>
+              {/* Add / Edit Track Form */}
+              <form onSubmit={editingTrackId ? handleSaveTrackEdit : handleAddTrack} className="bg-[#060b16] border border-white/8 rounded-xl p-3 flex flex-col gap-2">
+                <label className="text-white/50 text-xs">{editingTrackId ? 'Sửa Track' : 'Thêm Track mới'}</label>
+                <input required placeholder="Tên Track (vd: AI, Web3...)" className={inputCls} value={trackForm.name} onChange={e=>setTrackForm(f=>({...f,name:e.target.value}))} />
+                <input placeholder="Mô tả ngắn..." className={inputCls} value={trackForm.description} onChange={e=>setTrackForm(f=>({...f,description:e.target.value}))} />
+                <div className="flex gap-2 justify-end mt-1">
+                  {editingTrackId && (
+                    <button type="button" className={btnCancel + ' text-xs px-3 py-1'} onClick={() => { setEditingTrackId(null); setTrackForm({ name:'', description:'' }); }}>Hủy</button>
+                  )}
+                  <button type="submit" className={btnSmall} style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}>
+                    {editingTrackId ? 'Lưu' : 'Thêm'}
+                  </button>
                 </div>
               </form>
 
-              {config.tracks.length === 0 && <p className="hd-empty-hint">Chưa có Track nào.</p>}
+              {config.tracks.length === 0 && (
+                <p className="text-white/30 text-xs text-center py-2">Chưa có Track nào.</p>
+              )}
 
               {config.tracks.map(track => (
-                <div key={track.id} className={`hd-track-item ${activeTrackId === track.id ? 'hd-track-item--active' : ''}`} onClick={() => { setActiveTrackId(track.id); setEditingTrackId(null); }}>
-                  <span className="hd-track-name">{track.name}</span>
-                  {track.description && <span className="hd-track-desc">{track.description}</span>}
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8, color: 'var(--cyan)' }}>{track.rounds?.length || 0} vòng thi</span>
-                  <div className="hd-track-actions">
-                    <button type="button" className="btn-text-danger" style={{ color: 'var(--text-secondary)' }} onClick={(e) => { e.stopPropagation(); handleEditTrack(track); }}>Sửa</button>
-                    <button type="button" className="btn-text-danger" onClick={(e) => { e.stopPropagation(); handleDeleteTrack(track.id, track.name); }}>Xóa</button>
+                <div
+                  key={track.id}
+                  onClick={() => { setActiveTrackId(track.id); setEditingTrackId(null); }}
+                  className={`p-3 rounded-xl cursor-pointer border transition-colors flex flex-col gap-1 ${
+                    activeTrackId === track.id
+                      ? 'border-[#00d4ff]/40 bg-[#00d4ff]/8'
+                      : 'border-white/8 bg-[#060b16] hover:border-white/15'
+                  }`}
+                >
+                  <span className={`text-sm font-semibold ${activeTrackId === track.id ? 'text-[#00d4ff]' : 'text-white'}`}>{track.name}</span>
+                  {track.description && <span className="text-white/40 text-xs line-clamp-2">{track.description}</span>}
+                  <span className="text-[#00d4ff] text-xs">{track.rounds?.length || 0} vòng thi</span>
+                  <div className="flex gap-2 mt-1">
+                    <button type="button" className="text-white/40 hover:text-white/70 text-xs cursor-pointer bg-transparent border-none" onClick={(e) => { e.stopPropagation(); handleEditTrack(track); }}>Sửa</button>
+                    <button type="button" className="text-[#ef4444] hover:text-[#ef4444]/80 text-xs cursor-pointer bg-transparent border-none" onClick={(e) => { e.stopPropagation(); handleDeleteTrack(track.id, track.name); }}>Xóa</button>
                   </div>
                 </div>
               ))}
@@ -838,80 +941,94 @@ export default function HackathonDetailPage() {
 
             {/* Rounds Main Area */}
             {selectedTrack ? (
-              <div className="hd-rounds-panel">
-                <div className="hd-section-header">
+              <div className="flex-1 min-w-0 flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="hd-section-title">Quản lý Vòng đấu của: "{selectedTrack.name}"</h2>
-                    <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{selectedTrack.description || 'Không có mô tả'}</p>
+                    <h2 className="text-base font-bold text-white">Quản lý Vòng đấu của: "{selectedTrack.name}"</h2>
+                    <p className="text-white/40 text-xs mt-0.5">{selectedTrack.description || 'Không có mô tả'}</p>
                   </div>
-                  <button className="hd-btn-add" onClick={() => { setShowRoundForm(!showRoundForm); setEditingRoundId(null); setRoundForm({ id: '', sequence_order: selectedTrack.rounds.length + 1, name: '', submission_deadline: '', coding_duration_hours: 24, top_n_advance: 10, wildcard_enabled: false, active: true }); }}><Ico d={PLUS}/> Thêm Vòng đấu</button>
+                  <button
+                    className={btnPrimary}
+                    style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)', flexShrink: 0 }}
+                    onClick={() => { setShowRoundForm(!showRoundForm); setEditingRoundId(null); setRoundForm({ id: '', sequence_order: selectedTrack.rounds.length + 1, name: '', submission_deadline: '', coding_duration_hours: 24, top_n_advance: 10, wildcard_enabled: false, active: true }); }}
+                  >
+                    <Ico d={PLUS} /> Thêm Vòng đấu
+                  </button>
                 </div>
 
                 {showRoundForm && (
-                  <form onSubmit={handleAddRound} className="hd-form">
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '12px', color: 'var(--cyan)' }}>
+                  <form onSubmit={handleAddRound} className="bg-[#060b16] border border-[#00d4ff]/30 rounded-xl p-5 flex flex-col gap-4">
+                    <h3 className="text-sm font-bold text-[#00d4ff]">
                       {editingRoundId ? 'Chỉnh sửa Vòng đấu' : 'Thêm Vòng đấu mới'}
                     </h3>
-                    <div className="hd-form-grid" style={{ gridTemplateColumns: '1fr 3fr' }}>
-                      <div className="hd-field"><label>Thứ tự *</label><input type="number" required value={roundForm.sequence_order} onChange={e=>setRoundForm(f=>({...f,sequence_order:e.target.value}))}/></div>
-                      <div className="hd-field"><label>Tên vòng đấu *</label><input required placeholder="vd: Vòng chung kết, Sơ tuyển..." value={roundForm.name} onChange={e=>setRoundForm(f=>({...f,name:e.target.value}))}/></div>
-                    </div>
-                    <div className="hd-form-grid">
-                      <div className="hd-field"><label>Hạn nộp bài (Deadline) *</label><input type="datetime-local" required value={roundForm.submission_deadline} onChange={e=>setRoundForm(f=>({...f,submission_deadline:e.target.value}))}/></div>
-                      <div className="hd-field"><label>Thời gian code (giờ) *</label><input type="number" required value={roundForm.coding_duration_hours} onChange={e=>setRoundForm(f=>({...f,coding_duration_hours:e.target.value}))}/></div>
-                      <div className="hd-field"><label>Số đội đi tiếp (Top N) *</label><input type="number" required value={roundForm.top_n_advance} onChange={e=>setRoundForm(f=>({...f,top_n_advance:e.target.value}))}/></div>
-                    </div>
-                    <div className="hd-form-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '10px' }}>
-                      <div className="hd-field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
-                        <label className="hd-switch">
-                          <input type="checkbox" checked={roundForm.wildcard_enabled} onChange={e=>setRoundForm(f=>({...f,wildcard_enabled:e.target.checked}))}/>
-                          <span className="hd-switch-slider"></span>
-                        </label>
-                        <span>Cho phép Vé vớt (Wildcard)</span>
+                    <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 3fr' }}>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-white/50 text-xs">Thứ tự *</label>
+                        <input type="number" required className={inputCls} value={roundForm.sequence_order} onChange={e=>setRoundForm(f=>({...f,sequence_order:e.target.value}))} />
                       </div>
-                      <div className="hd-field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
-                        <label className="hd-switch">
-                          <input type="checkbox" checked={roundForm.active} onChange={e=>setRoundForm(f=>({...f,active:e.target.checked}))}/>
-                          <span className="hd-switch-slider"></span>
-                        </label>
-                        <span>Bật hoạt động ngay</span>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-white/50 text-xs">Tên vòng đấu *</label>
+                        <input required placeholder="vd: Vòng chung kết, Sơ tuyển..." className={inputCls} value={roundForm.name} onChange={e=>setRoundForm(f=>({...f,name:e.target.value}))} />
                       </div>
                     </div>
-                    <div className="hd-form-actions">
-                      <button type="button" className="hd-btn-cancel" onClick={() => setShowRoundForm(false)}>Hủy</button>
-                      <button type="submit" className="hd-btn-save"><Ico d={SAVE}/> {editingRoundId ? 'Cập nhật vòng' : 'Lưu vòng đấu'}</button>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-white/50 text-xs">Hạn nộp bài (Deadline) *</label>
+                        <input type="datetime-local" required className={inputCls} value={roundForm.submission_deadline} onChange={e=>setRoundForm(f=>({...f,submission_deadline:e.target.value}))} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-white/50 text-xs">Thời gian code (giờ) *</label>
+                        <input type="number" required className={inputCls} value={roundForm.coding_duration_hours} onChange={e=>setRoundForm(f=>({...f,coding_duration_hours:e.target.value}))} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-white/50 text-xs">Số đội đi tiếp (Top N) *</label>
+                        <input type="number" required className={inputCls} value={roundForm.top_n_advance} onChange={e=>setRoundForm(f=>({...f,top_n_advance:e.target.value}))} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3">
+                        <Toggle checked={roundForm.wildcard_enabled} onChange={() => setRoundForm(f=>({...f,wildcard_enabled:!f.wildcard_enabled}))} />
+                        <span className="text-white/70 text-sm">Cho phép Vé vớt (Wildcard)</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Toggle checked={roundForm.active} onChange={() => setRoundForm(f=>({...f,active:!f.active}))} />
+                        <span className="text-white/70 text-sm">Bật hoạt động ngay</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button type="button" className={btnCancel} onClick={() => setShowRoundForm(false)}>Hủy</button>
+                      <button type="submit" className={btnPrimary} style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}>
+                        <Ico d={SAVE} /> {editingRoundId ? 'Cập nhật vòng' : 'Lưu vòng đấu'}
+                      </button>
                     </div>
                   </form>
                 )}
 
-                {selectedTrack.rounds.length === 0 && <p className="hd-empty-hint">Track này chưa cấu hình vòng thi nào. Hãy nhấn "Thêm Vòng đấu" để bắt đầu.</p>}
+                {selectedTrack.rounds.length === 0 && (
+                  <p className="text-white/30 text-sm text-center py-8">Track này chưa cấu hình vòng thi nào. Hãy nhấn "Thêm Vòng đấu" để bắt đầu.</p>
+                )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="flex flex-col gap-3">
                   {selectedTrack.rounds.map(round => (
-                    <div key={round.id} className={`hd-round-card ${!round.active ? 'hd-round-card--inactive' : ''}`}>
-                      <div className="hd-round-header">
-                        <div className="hd-round-title-group">
-                          <span className="hd-round-seq">ROUND {round.sequence_order}</span>
-                          <span className="hd-round-name">{round.name}</span>
-                          <span className={`hd-badge ${round.active ? 'hd-badge--green' : 'hd-badge--gray'}`} style={{ fontSize: '0.65rem' }}>
+                    <div key={round.id} className={`bg-[#060b16] border rounded-xl p-4 ${round.active ? 'border-white/10' : 'border-white/5 opacity-60'}`}>
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[#a855f7] text-xs font-bold uppercase tracking-widest">ROUND {round.sequence_order}</span>
+                          <span className="text-white font-semibold text-sm">{round.name}</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${round.active ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30' : 'bg-white/8 text-white/40 border border-white/10'}`}>
                             {round.active ? 'Active (Bật)' : 'Inactive (Tắt)'}
                           </span>
                           {round.is_official_active && (
-                            <span className="hd-badge" style={{ fontSize: '0.65rem', background: 'rgba(0,212,255,0.18)', color: 'var(--cyan)', border: '1px solid var(--cyan)' }}>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-[#00d4ff]/15 text-[#00d4ff] border border-[#00d4ff]/30">
                               ✓ Kích hoạt chính thức
                             </span>
                           )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          {/* Toggle Active Switch */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Kích hoạt:</span>
-                            <label className="hd-switch">
-                              <input type="checkbox" checked={round.active} onChange={() => handleToggleRoundActive(selectedTrack.id, round.id)}/>
-                              <span className="hd-switch-slider"></span>
-                            </label>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white/40 text-xs">Kích hoạt:</span>
+                            <Toggle checked={round.active} onChange={() => handleToggleRoundActive(selectedTrack.id, round.id)} />
                           </div>
-                          {/* FE-1.2: Official Round Activation */}
                           {(() => {
                             const wsum = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
                             const valid = Math.abs(wsum - 1.0) < 0.001 && (round.criteria?.length || 0) > 0;
@@ -936,9 +1053,9 @@ export default function HackathonDetailPage() {
                                   style={{
                                     padding: '4px 12px',
                                     borderRadius: '6px',
-                                    border: isOfficialActive ? '1px solid #10b981' : valid ? '1px solid var(--cyan)' : '1px solid var(--border)',
+                                    border: isOfficialActive ? '1px solid #10b981' : valid ? '1px solid #00d4ff' : '1px solid rgba(255,255,255,0.08)',
                                     background: isOfficialActive ? 'rgba(16,185,129,0.15)' : valid ? 'rgba(0,212,255,0.1)' : 'transparent',
-                                    color: isOfficialActive ? '#10b981' : valid ? 'var(--cyan)' : 'var(--text-muted)',
+                                    color: isOfficialActive ? '#10b981' : valid ? '#00d4ff' : 'rgba(255,255,255,0.3)',
                                     fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap',
                                     cursor: valid && !isOfficialActive ? 'pointer' : 'not-allowed',
                                     transition: 'all 0.15s',
@@ -949,47 +1066,59 @@ export default function HackathonDetailPage() {
                               </Tooltip>
                             );
                           })()}
-                          <button type="button" className="hd-btn-add-sm" onClick={() => handleEditRound(round)}>Sửa</button>
-                          <button type="button" className="btn-text-danger" onClick={() => handleDeleteRound(round.id, round.name)}>Xóa</button>
+                          <button type="button" className="text-[#00d4ff] hover:text-[#00d4ff]/80 text-xs cursor-pointer bg-transparent border-none font-medium" onClick={() => handleEditRound(round)}>Sửa</button>
+                          <button type="button" className="text-[#ef4444] hover:text-[#ef4444]/80 text-xs cursor-pointer bg-transparent border-none font-medium" onClick={() => handleDeleteRound(round.id, round.name)}>Xóa</button>
                         </div>
                       </div>
 
-                      <div className="hd-round-meta-grid">
-                        <div className="hd-meta-item"><span className="hd-meta-label">Hạn nộp bài</span><span className="hd-meta-value">{fmtDate(round.submission_deadline)}</span></div>
-                        <div className="hd-meta-item"><span className="hd-meta-label">Thời gian làm bài</span><span className="hd-meta-value">{round.coding_duration_hours} giờ</span></div>
-                        <div className="hd-meta-item"><span className="hd-meta-label">Top N đi tiếp</span><span className="hd-meta-value">{round.top_n_advance} đội</span></div>
-                        <div className="hd-meta-item"><span className="hd-meta-label">Vé vớt (Wildcard)</span><span className="hd-meta-value">{round.wildcard_enabled ? 'Bật' : 'Tắt'}</span></div>
-                        <div className="hd-meta-item">
-                          <span className="hd-meta-label">Tổng trọng số</span>
-                          {(() => {
-                            const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
-                            const ok = Math.abs(ws - 1.0) < 0.001;
-                            return (
-                              <span className="hd-meta-value" style={{ color: ok ? 'var(--green, #10b981)' : 'var(--orange, #f59e0b)', fontWeight: 700 }}>
-                                {ws.toFixed(2)} {ok ? '✓' : '✗ (cần 1.0 để kích hoạt)'}
-                              </span>
-                            );
-                          })()}
-                        </div>
-                        <div className="hd-meta-item"><span className="hd-meta-label">Số Tiêu chí cấu hình</span><span className="hd-meta-value" style={{ color: 'var(--purple)' }}>{round.criteria?.length || 0}</span></div>
+                      <div className="grid grid-cols-3 gap-3 mt-3 md:grid-cols-6">
+                        {[
+                          { label: 'Hạn nộp bài', value: fmtDate(round.submission_deadline), color: 'text-white' },
+                          { label: 'Thời gian làm bài', value: `${round.coding_duration_hours} giờ`, color: 'text-white' },
+                          { label: 'Top N đi tiếp', value: `${round.top_n_advance} đội`, color: 'text-white' },
+                          { label: 'Vé vớt (Wildcard)', value: round.wildcard_enabled ? 'Bật' : 'Tắt', color: round.wildcard_enabled ? 'text-[#10b981]' : 'text-white/40' },
+                          {
+                            label: 'Tổng trọng số',
+                            value: (() => {
+                              const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
+                              const ok = Math.abs(ws - 1.0) < 0.001;
+                              return `${ws.toFixed(2)} ${ok ? '✓' : '✗ (cần 1.0)'}`;
+                            })(),
+                            color: (() => {
+                              const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
+                              return Math.abs(ws - 1.0) < 0.001 ? 'text-[#10b981]' : 'text-[#f59e0b]';
+                            })()
+                          },
+                          { label: 'Số Tiêu chí', value: round.criteria?.length || 0, color: 'text-[#a855f7]' },
+                        ].map((meta, mi) => (
+                          <div key={mi} className="flex flex-col gap-0.5">
+                            <span className="text-white/40 text-xs">{meta.label}</span>
+                            <span className={`text-sm font-semibold ${meta.color}`}>{meta.value}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="hd-rounds-panel" style={{ alignItems: 'center', justifyContent: 'center', minHeight: '300px', flexDirection: 'column', gap: '20px', textAlign: 'center', padding: '40px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                  {config.tracks.length === 0 
-                    ? 'Cuộc thi mới được tạo trống, chưa có Track & Vòng thi nào.' 
+              <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center p-10">
+                <span className="text-white/40 text-sm">
+                  {config.tracks.length === 0
+                    ? 'Cuộc thi mới được tạo trống, chưa có Track & Vòng thi nào.'
                     : 'Vui lòng thêm hoặc chọn một Track ở cột bên trái để cấu hình vòng đấu.'}
                 </span>
                 {config.tracks.length === 0 && (
-                  <div style={{ background: 'rgba(168, 85, 247, 0.05)', border: '1px dashed rgba(168, 85, 247, 0.3)', padding: '20px', borderRadius: '12px', maxWidth: '420px' }}>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: '1.4' }}>
-                      💡 <strong>Khởi tạo nhanh dữ liệu mẫu:</strong> Nếu bạn muốn kiểm thử nhanh luồng chấm điểm, checklist và nút Kích hoạt (ONGOING), nhấn nút dưới đây để tạo tự động cấu trúc Track, Vòng thi và Tiêu chí mẫu.
+                  <div className="bg-[#a855f7]/5 border border-dashed border-[#a855f7]/30 p-5 rounded-xl max-w-md">
+                    <p className="text-white/50 text-xs leading-relaxed mb-4">
+                      💡 <strong className="text-white/70">Khởi tạo nhanh dữ liệu mẫu:</strong> Nếu bạn muốn kiểm thử nhanh luồng chấm điểm, checklist và nút Kích hoạt (ONGOING), nhấn nút dưới đây để tạo tự động cấu trúc Track, Vòng thi và Tiêu chí mẫu.
                     </p>
-                    <button type="button" onClick={handleLoadMockData} className="hd-btn-add" style={{ margin: '0 auto' }}>
+                    <button
+                      type="button"
+                      onClick={handleLoadMockData}
+                      className={btnPrimary + ' mx-auto'}
+                      style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}
+                    >
                       Khởi tạo dữ liệu mẫu
                     </button>
                   </div>
@@ -1002,17 +1131,26 @@ export default function HackathonDetailPage() {
 
       {/* ─── TAB 2: TIÊU CHÍ CHẤM ĐIỂM (CRITERIA) ─── */}
       {tab === 2 && (
-        <div className="hd-section hd-criteria-layout">
-          <div className="hd-crit-selector">
-            <div className="hd-field">
-              <label>Chọn bảng thi (Track)</label>
-              <select value={selectedCritTrackId} onChange={e => { setSelectedCritTrackId(e.target.value); const t = config.tracks.find(x => x.id === e.target.value); if (t?.rounds?.length > 0) { setSelectedCritRoundId(t.rounds[0].id); } else { setSelectedCritRoundId(''); } }}>
+        <div className="bg-[#0b1120] border border-white/8 rounded-2xl p-6 flex flex-col gap-5">
+          {/* Selector row */}
+          <div className="flex gap-4 flex-wrap">
+            <div className="flex flex-col gap-1 min-w-[200px]">
+              <label className="text-white/50 text-xs">Chọn bảng thi (Track)</label>
+              <select
+                className={inputCls}
+                value={selectedCritTrackId}
+                onChange={e => {
+                  setSelectedCritTrackId(e.target.value);
+                  const t = config.tracks.find(x => x.id === e.target.value);
+                  if (t?.rounds?.length > 0) { setSelectedCritRoundId(t.rounds[0].id); } else { setSelectedCritRoundId(''); }
+                }}
+              >
                 {config.tracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
-            <div className="hd-field">
-              <label>Chọn vòng thi (Round)</label>
-              <select value={selectedCritRoundId} onChange={e => setSelectedCritRoundId(e.target.value)}>
+            <div className="flex flex-col gap-1 min-w-[240px]">
+              <label className="text-white/50 text-xs">Chọn vòng thi (Round)</label>
+              <select className={inputCls} value={selectedCritRoundId} onChange={e => setSelectedCritRoundId(e.target.value)}>
                 {config.tracks.find(t => t.id === selectedCritTrackId)?.rounds.map(r => (
                   <option key={r.id} value={r.id}>Round {r.sequence_order}: {r.name}</option>
                 ))}
@@ -1021,65 +1159,83 @@ export default function HackathonDetailPage() {
           </div>
 
           {selectedCritRound ? (
-            <div className="hd-crit-list-panel">
-              {/* Weight summary warning box */}
-              <div className="hd-weight-summary-bar">
-                <div>
-                  <span style={{ color: 'var(--text-secondary)', marginRight: '10px' }}>Hệ thống chấm điểm:</span>
-                  <span className={`hd-weight-sum ${Math.abs(currentWeightSum - 1.0) < 0.001 ? 'hd-weight-sum--valid' : 'hd-weight-sum--invalid'}`}>
+            <div className="flex flex-col gap-4">
+              {/* Weight summary bar */}
+              <div className="flex items-center justify-between flex-wrap gap-3 bg-[#060b16] border border-white/8 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-white/50 text-sm">Hệ thống chấm điểm:</span>
+                  <span className={`font-bold text-sm ${Math.abs(currentWeightSum - 1.0) < 0.001 ? 'text-[#10b981]' : 'text-[#f59e0b]'}`}>
                     Tổng trọng số = {currentWeightSum.toFixed(2)}
                   </span>
                 </div>
                 <div>
                   {Math.abs(currentWeightSum - 1.0) < 0.001 ? (
-                    <span className="hd-badge hd-badge--green">✓ Trọng số hợp lệ (1.0)</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30">✓ Trọng số hợp lệ (1.0)</span>
                   ) : (
-                    <span className="hd-badge hd-badge--purple">⚠️ Tổng trọng số chưa bằng 1.0</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#a855f7]/20 text-[#a855f7] border border-[#a855f7]/30">⚠️ Tổng trọng số chưa bằng 1.0</span>
                   )}
                 </div>
               </div>
 
-              {/* Real-time soft warning message if sum !== 1.0 */}
+              {/* Soft warning */}
               {Math.abs(currentWeightSum - 1.0) > 0.001 && (
-                <div className="hd-alert hd-alert--warning" style={{ marginBottom: '20px' }}>
-                  <span className="hd-alert-icon">⚠️</span>
-                  <div>
-                    <strong>Cảnh báo mềm (Soft Warning):</strong> Tổng hệ số trọng số các tiêu chí hiện tại là <strong>{currentWeightSum.toFixed(2)}</strong>. 
-                    Để kích hoạt giải đấu chính thức (ONGOING), tổng trọng số của vòng đấu này bắt buộc phải đạt đúng <strong>1.0</strong>. 
+                <div className="flex items-start gap-3 bg-[#f59e0b]/8 border border-[#f59e0b]/25 rounded-xl px-4 py-3">
+                  <span className="text-lg leading-none mt-0.5">⚠️</span>
+                  <div className="text-white/70 text-sm leading-relaxed">
+                    <strong className="text-white">Cảnh báo mềm (Soft Warning):</strong> Tổng hệ số trọng số các tiêu chí hiện tại là <strong className="text-[#f59e0b]">{currentWeightSum.toFixed(2)}</strong>.
+                    Để kích hoạt giải đấu chính thức (ONGOING), tổng trọng số của vòng đấu này bắt buộc phải đạt đúng <strong>1.0</strong>.
                     Tuy nhiên, hệ thống vẫn cho phép bạn thêm/sửa/lưu tự do trong quá trình chuẩn bị cấu hình.
                   </div>
                 </div>
               )}
 
-              {/* Clone Criteria Bar */}
-              <div className="hd-clone-bar">
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Kế thừa (Clone) tiêu chí:</span>
-                <select className="hd-clone-select" value={cloneSourceRoundId} onChange={e=>setCloneSourceRoundId(e.target.value)}>
+              {/* Clone Bar */}
+              <div className="flex items-center gap-3 flex-wrap bg-[#060b16] border border-white/8 rounded-xl px-4 py-3">
+                <span className="text-white/50 text-sm">Kế thừa (Clone) tiêu chí:</span>
+                <select className={inputCls + ' max-w-xs'} value={cloneSourceRoundId} onChange={e=>setCloneSourceRoundId(e.target.value)}>
                   <option value="">-- Chọn Vòng mẫu làm nguồn --</option>
-                  {config.tracks.map(t => 
+                  {config.tracks.map(t =>
                     t.rounds.filter(r => r.id !== selectedCritRoundId && r.criteria?.length > 0).map(r => (
                       <option key={r.id} value={r.id}>{t.name} — Round {r.sequence_order}: {r.name} ({r.criteria.length} tiêu chí)</option>
                     ))
                   )}
                 </select>
-                <button type="button" className="hd-btn-add-sm" onClick={handleCloneCriteria} disabled={!cloneSourceRoundId}><Ico d={COPY}/> Sao chép</button>
+                <button
+                  type="button"
+                  onClick={handleCloneCriteria}
+                  disabled={!cloneSourceRoundId}
+                  className={`${btnSmall} disabled:opacity-40 disabled:cursor-not-allowed`}
+                  style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}
+                >
+                  <Ico d={COPY} /> Sao chép
+                </button>
               </div>
 
-              <div className="hd-section-header">
-                <h2 className="hd-section-title" style={{ fontSize: '1rem' }}>Tiêu chí chấm điểm ({selectedCritRound.criteria?.length || 0})</h2>
-                <button className="hd-btn-add" onClick={() => { setShowCritForm(!showCritForm); setEditingCritId(null); setCritForm({ id:'', name:'', type:'Code Quality', weight: 0.2, max_score: 10, description:'', rubric_url:'', display_order: selectedCritRound.criteria.length + 1 }); }}><Ico d={PLUS}/> Thêm tiêu chí</button>
+              {/* Criteria header + add button */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-white">Tiêu chí chấm điểm ({selectedCritRound.criteria?.length || 0})</h2>
+                <button
+                  className={btnPrimary}
+                  style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}
+                  onClick={() => { setShowCritForm(!showCritForm); setEditingCritId(null); setCritForm({ id:'', name:'', type:'Code Quality', weight: 0.2, max_score: 10, description:'', rubric_url:'', display_order: selectedCritRound.criteria.length + 1 }); }}
+                >
+                  <Ico d={PLUS} /> Thêm tiêu chí
+                </button>
               </div>
 
               {showCritForm && (
-                <form onSubmit={handleAddCriteria} className="hd-form" style={{ marginTop: '14px', border: '1px dashed var(--cyan)' }}>
-                  <h3 style={{ fontSize: '0.9rem', color: 'var(--cyan)', marginBottom: '12px' }}>
+                <form onSubmit={handleAddCriteria} className="bg-[#060b16] border border-[#00d4ff]/30 rounded-xl p-5 flex flex-col gap-4">
+                  <h3 className="text-sm font-bold text-[#00d4ff]">
                     {editingCritId ? 'Chỉnh sửa tiêu chí chấm điểm' : 'Thêm tiêu chí chấm điểm mới'}
                   </h3>
-                  <div className="hd-form-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
-                    <div className="hd-field"><label>Tên tiêu chí *</label><input required placeholder="vd: Giao diện UI/UX..." value={critForm.name} onChange={e=>setCritForm(f=>({...f,name:e.target.value}))}/></div>
-                    <div className="hd-field">
-                      <label>Loại tiêu chí</label>
-                      <select value={critForm.type} onChange={e=>setCritForm(f=>({...f,type:e.target.value}))}>
+                  <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-white/50 text-xs">Tên tiêu chí *</label>
+                      <input required placeholder="vd: Giao diện UI/UX..." className={inputCls} value={critForm.name} onChange={e=>setCritForm(f=>({...f,name:e.target.value}))} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-white/50 text-xs">Loại tiêu chí</label>
+                      <select className={inputCls} value={critForm.type} onChange={e=>setCritForm(f=>({...f,type:e.target.value}))}>
                         <option value="Code Quality">Code Quality</option>
                         <option value="Presentation">Presentation</option>
                         <option value="Innovation">Innovation</option>
@@ -1088,52 +1244,75 @@ export default function HackathonDetailPage() {
                         <option value="Design">UI/UX Design</option>
                       </select>
                     </div>
-                    <div className="hd-field"><label>Trọng số (Hệ số) *</label><input type="number" step="0.01" min="0" max="1" required value={critForm.weight} onChange={e=>setCritForm(f=>({...f,weight:e.target.value}))}/></div>
-                    <div className="hd-field"><label>Điểm tối đa *</label><input type="number" required value={critForm.max_score} onChange={e=>setCritForm(f=>({...f,max_score:e.target.value}))}/></div>
-                    <div className="hd-field"><label>Thứ tự hiển thị</label><input type="number" value={critForm.display_order} onChange={e=>setCritForm(f=>({...f,display_order:e.target.value}))}/></div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-white/50 text-xs">Trọng số (Hệ số) *</label>
+                      <input type="number" step="0.01" min="0" max="1" required className={inputCls} value={critForm.weight} onChange={e=>setCritForm(f=>({...f,weight:e.target.value}))} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-white/50 text-xs">Điểm tối đa *</label>
+                      <input type="number" required className={inputCls} value={critForm.max_score} onChange={e=>setCritForm(f=>({...f,max_score:e.target.value}))} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-white/50 text-xs">Thứ tự hiển thị</label>
+                      <input type="number" className={inputCls} value={critForm.display_order} onChange={e=>setCritForm(f=>({...f,display_order:e.target.value}))} />
+                    </div>
                   </div>
-                  <div className="hd-form-grid" style={{ gridTemplateColumns: '2fr 1fr' }}>
-                    <div className="hd-field"><label>Mô tả chi tiết</label><input placeholder="Nhập mô tả cho barem chấm điểm..." value={critForm.description} onChange={e=>setCritForm(f=>({...f,description:e.target.value}))}/></div>
-                    <div className="hd-field"><label>Tài liệu Rubric (URL)</label><input placeholder="https://example.com/rubric..." value={critForm.rubric_url} onChange={e=>setCritForm(f=>({...f,rubric_url:e.target.value}))}/></div>
+                  <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-white/50 text-xs">Mô tả chi tiết</label>
+                      <input placeholder="Nhập mô tả cho barem chấm điểm..." className={inputCls} value={critForm.description} onChange={e=>setCritForm(f=>({...f,description:e.target.value}))} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-white/50 text-xs">Tài liệu Rubric (URL)</label>
+                      <input placeholder="https://example.com/rubric..." className={inputCls} value={critForm.rubric_url} onChange={e=>setCritForm(f=>({...f,rubric_url:e.target.value}))} />
+                    </div>
                   </div>
-                  <div className="hd-form-actions">
-                    <button type="button" className="hd-btn-cancel" onClick={() => setShowCritForm(false)}>Hủy</button>
-                    <button type="submit" className="hd-btn-save"><Ico d={SAVE}/> {editingCritId ? 'Cập nhật' : 'Thêm tiêu chí'}</button>
+                  <div className="flex gap-2 justify-end">
+                    <button type="button" className={btnCancel} onClick={() => setShowCritForm(false)}>Hủy</button>
+                    <button type="submit" className={btnPrimary} style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}>
+                      <Ico d={SAVE} /> {editingCritId ? 'Cập nhật' : 'Thêm tiêu chí'}
+                    </button>
                   </div>
                 </form>
               )}
 
               {(!selectedCritRound.criteria || selectedCritRound.criteria.length === 0) ? (
-                <p className="hd-empty-hint">Vòng đấu này chưa cấu hình tiêu chí chấm điểm nào.</p>
+                <p className="text-white/30 text-sm text-center py-8">Vòng đấu này chưa cấu hình tiêu chí chấm điểm nào.</p>
               ) : (
-                <div className="criteria-table-wrap" style={{ marginTop: '16px' }}>
-                  <table className="hd-criteria-table">
+                <div className="overflow-x-auto rounded-xl border border-white/8">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr>
-                        <th style={{ width: '40px' }}>STT</th>
-                        <th>Barem tiêu chí</th>
-                        <th>Phân loại</th>
-                        <th>Trọng số</th>
-                        <th>Điểm tối đa</th>
-                        <th>Mô tả</th>
-                        <th>Rubric</th>
-                        <th style={{ width: '120px', textAlign: 'center' }}>Thao tác</th>
+                      <tr className="border-b border-white/8 bg-white/3">
+                        <th className="px-3 py-2.5 text-left text-white/40 text-xs font-semibold w-10">STT</th>
+                        <th className="px-3 py-2.5 text-left text-white/40 text-xs font-semibold">Barem tiêu chí</th>
+                        <th className="px-3 py-2.5 text-left text-white/40 text-xs font-semibold">Phân loại</th>
+                        <th className="px-3 py-2.5 text-left text-white/40 text-xs font-semibold">Trọng số</th>
+                        <th className="px-3 py-2.5 text-left text-white/40 text-xs font-semibold">Điểm tối đa</th>
+                        <th className="px-3 py-2.5 text-left text-white/40 text-xs font-semibold">Mô tả</th>
+                        <th className="px-3 py-2.5 text-left text-white/40 text-xs font-semibold">Rubric</th>
+                        <th className="px-3 py-2.5 text-center text-white/40 text-xs font-semibold w-28">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedCritRound.criteria.map((crit, idx) => (
-                        <tr key={crit.id}>
-                          <td>{crit.display_order || idx + 1}</td>
-                          <td className="hd-crit-name">{crit.name}</td>
-                          <td><span className="hd-badge hd-badge--gray" style={{ fontSize: '0.65rem' }}>{crit.type}</span></td>
-                          <td style={{ fontWeight: '700', color: 'var(--cyan)' }}>{crit.weight}</td>
-                          <td>{crit.max_score}</td>
-                          <td className="hd-crit-desc">{crit.description || '—'}</td>
-                          <td>{crit.rubric_url ? <a href={crit.rubric_url} target="_blank" rel="noreferrer" style={{ color: 'var(--purple)', textDecoration: 'underline' }}>Xem Rubric</a> : '—'}</td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                              <button type="button" className="hd-btn-add-sm" style={{ padding: '3px 8px', fontSize: '0.7rem' }} onClick={() => handleEditCriteria(crit)}>Sửa</button>
-                              <button type="button" className="btn-text-danger" style={{ fontSize: '0.75rem' }} onClick={() => handleDeleteCriteria(crit.id)}>Gỡ</button>
+                        <tr key={crit.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
+                          <td className="px-3 py-2.5 text-white/50 text-xs">{crit.display_order || idx + 1}</td>
+                          <td className="px-3 py-2.5 text-white font-medium">{crit.name}</td>
+                          <td className="px-3 py-2.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-white/8 text-white/50 border border-white/10">{crit.type}</span>
+                          </td>
+                          <td className="px-3 py-2.5 font-bold text-[#00d4ff]">{crit.weight}</td>
+                          <td className="px-3 py-2.5 text-white/70">{crit.max_score}</td>
+                          <td className="px-3 py-2.5 text-white/50 text-xs max-w-[160px] truncate">{crit.description || '—'}</td>
+                          <td className="px-3 py-2.5">
+                            {crit.rubric_url ? (
+                              <a href={crit.rubric_url} target="_blank" rel="noreferrer" className="text-[#a855f7] underline text-xs">Xem Rubric</a>
+                            ) : '—'}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex gap-2 justify-center">
+                              <button type="button" className="text-[#00d4ff] hover:text-[#00d4ff]/80 text-xs cursor-pointer bg-transparent border-none font-medium" onClick={() => handleEditCriteria(crit)}>Sửa</button>
+                              <button type="button" className="text-[#ef4444] hover:text-[#ef4444]/80 text-xs cursor-pointer bg-transparent border-none font-medium" onClick={() => handleDeleteCriteria(crit.id)}>Gỡ</button>
                             </div>
                           </td>
                         </tr>
@@ -1144,8 +1323,8 @@ export default function HackathonDetailPage() {
               )}
             </div>
           ) : (
-            <div className="hd-crit-list-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Vui lòng thêm bảng thi và vòng thi để bắt đầu cấu hình tiêu chí.</span>
+            <div className="flex items-center justify-center min-h-60">
+              <span className="text-white/40 text-sm">Vui lòng thêm bảng thi và vòng thi để bắt đầu cấu hình tiêu chí.</span>
             </div>
           )}
         </div>
@@ -1153,25 +1332,35 @@ export default function HackathonDetailPage() {
 
       {/* ─── TAB 3: BẢNG ĐẤU (POOLS) ─── */}
       {tab === 3 && (
-        <div className="hd-section">
-          <div className="hd-section-header">
-            <h2 className="hd-section-title">Danh sách bảng đấu / Pools ({pools.length})</h2>
-            <button className="hd-btn-add" onClick={() => navigate(`/admin/contests/${id}/dashboard`)}>Quản lý bảng đấu</button>
+        <div className="bg-[#0b1120] border border-white/8 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-bold text-white">Danh sách bảng đấu / Pools ({pools.length})</h2>
+            <button
+              className={btnPrimary}
+              style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}
+              onClick={() => navigate(`/admin/contests/${id}/dashboard`)}
+            >
+              Quản lý bảng đấu
+            </button>
           </div>
           {pools.length === 0 ? (
-            <p className="hd-empty-hint">Chưa thực hiện chia bảng đấu cho giải đấu này. Nhấp vào "Quản lý bảng đấu" để chia tự động.</p>
+            <p className="text-white/30 text-sm text-center py-10">Chưa thực hiện chia bảng đấu cho giải đấu này. Nhấp vào "Quản lý bảng đấu" để chia tự động.</p>
           ) : (
-            <div className="hd-pools-grid">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
               {pools.map(p => (
-                <div key={p._id} className="hd-pool-card">
-                  <div className="hd-pool-header">
-                    <span className="hd-pool-name">{p.pool_name}</span>
-                    <span className="hd-pool-count">{p.teams?.length || 0} đội</span>
+                <div key={p._id} className="bg-[#060b16] border border-white/8 rounded-xl p-4 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white font-semibold text-sm">{p.pool_name}</span>
+                    <span className="text-[#00d4ff] text-xs font-bold">{p.teams?.length || 0} đội</span>
                   </div>
-                  {p.topic_id && <div className="hd-pool-topic">📌 {p.topic_id.title}</div>}
-                  <ul className="hd-pool-teams">
-                    {(p.teams || []).slice(0, 5).map(t => <li key={t._id}>{t.team_name}</li>)}
-                    {p.teams?.length > 5 && <li className="hd-pool-more">+{p.teams.length - 5} đội khác</li>}
+                  {p.topic_id && <div className="text-white/50 text-xs">📌 {p.topic_id.title}</div>}
+                  <ul className="flex flex-col gap-0.5 mt-1">
+                    {(p.teams || []).slice(0, 5).map(t => (
+                      <li key={t._id} className="text-white/60 text-xs truncate">• {t.team_name}</li>
+                    ))}
+                    {p.teams?.length > 5 && (
+                      <li className="text-[#a855f7] text-xs">+{p.teams.length - 5} đội khác</li>
+                    )}
                   </ul>
                 </div>
               ))}
@@ -1207,179 +1396,182 @@ export default function HackathonDetailPage() {
 
       {/* ─── TAB 9: REVIEW & VALIDATE BEFORE ONGOING ─── */}
       {tab === 9 && (
-        <div className="hd-section">
-          <div className="hd-section-header">
-            <h2 className="hd-section-title">Kiểm tra cấu hình giải đấu trước khi ONGOING</h2>
+        <div className="bg-[#0b1120] border border-white/8 rounded-2xl p-6 flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-white">Kiểm tra cấu hình giải đấu trước khi ONGOING</h2>
           </div>
 
           {/* Success Banner */}
           {isSuccessActivating && (
-            <div className="hd-alert hd-alert--success" style={{ marginBottom: '10px' }}>
-              <span className="hd-alert-icon">🚀</span>
-              <div>
-                <strong>Kích hoạt giải đấu thành công!</strong> Trạng thái giải đấu đã chính thức chuyển sang <strong>ONGOING</strong>. Hệ thống bắt đầu kích hoạt mở nhận đề tài và chấm điểm tự động.
+            <div className="flex items-start gap-3 bg-[#10b981]/10 border border-[#10b981]/30 rounded-xl px-4 py-3">
+              <span className="text-xl leading-none">🚀</span>
+              <div className="text-white/80 text-sm">
+                <strong className="text-white">Kích hoạt giải đấu thành công!</strong> Trạng thái giải đấu đã chính thức chuyển sang <strong className="text-[#10b981]">ONGOING</strong>. Hệ thống bắt đầu kích hoạt mở nhận đề tài và chấm điểm tự động.
               </div>
             </div>
           )}
 
-          <div className="hd-checklist-card">
-            {/* CHECK 1: Tracks count */}
-            <div className="hd-checklist-item">
-              <div className={`hd-chk-icon-wrap ${config.tracks.length >= 1 ? 'hd-chk-icon--success' : 'hd-chk-icon--error'}`}>
-                {config.tracks.length >= 1 ? <Ico d={CHECK} size={14}/> : <Ico d={CROSS} size={14}/>}
+          {/* Checklist */}
+          <div className="bg-[#060b16] border border-white/8 rounded-xl overflow-hidden">
+            {/* CHECK 1 */}
+            <div className="flex items-start gap-4 px-5 py-4 border-b border-white/5">
+              <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${config.tracks.length >= 1 ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-[#ef4444]/20 text-[#ef4444]'}`}>
+                {config.tracks.length >= 1 ? <Ico d={CHECK} size={14} /> : <Ico d={CROSS} size={14} />}
               </div>
-              <div className="hd-chk-info">
-                <div className="hd-chk-title">Danh sách bảng đấu (Tracks)</div>
-                <div className="hd-chk-desc">
-                  Yêu cầu cấu hình tối thiểu <strong>1 Track</strong> thi đấu chính thức. 
-                  (Hiện tại: <strong>{config.tracks.length} Track</strong>)
+              <div className="flex-1 min-w-0">
+                <div className="text-white text-sm font-semibold">Danh sách bảng đấu (Tracks)</div>
+                <div className="text-white/50 text-xs mt-0.5 leading-relaxed">
+                  Yêu cầu cấu hình tối thiểu <strong className="text-white/70">1 Track</strong> thi đấu chính thức.
+                  (Hiện tại: <strong className="text-white/70">{config.tracks.length} Track</strong>)
                 </div>
               </div>
-              <span className={`hd-chk-status-tag ${config.tracks.length >= 1 ? 'hd-badge--green' : 'hd-badge--red'}`}>
+              <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${config.tracks.length >= 1 ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30' : 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30'}`}>
                 {config.tracks.length >= 1 ? 'Đạt' : 'Chưa đạt'}
               </span>
             </div>
 
-            {/* CHECK 2: Rounds count >= 2 per track */}
+            {/* CHECK 2 */}
             {(() => {
               const pass = config.tracks.length > 0 && config.tracks.every(t => t.rounds.length >= 2);
               return (
-                <div className="hd-checklist-item">
-                  <div className={`hd-chk-icon-wrap ${pass ? 'hd-chk-icon--success' : 'hd-chk-icon--error'}`}>
-                    {pass ? <Ico d={CHECK} size={14}/> : <Ico d={CROSS} size={14}/>}
+                <div className="flex items-start gap-4 px-5 py-4 border-b border-white/5">
+                  <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${pass ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-[#ef4444]/20 text-[#ef4444]'}`}>
+                    {pass ? <Ico d={CHECK} size={14} /> : <Ico d={CROSS} size={14} />}
                   </div>
-                  <div className="hd-chk-info">
-                    <div className="hd-chk-title">Số lượng vòng đấu (Rounds)</div>
-                    <div className="hd-chk-desc">
-                      Yêu cầu mỗi Track phải cấu hình tối thiểu <strong>2 vòng thi</strong> (vd: Vòng Ý Tưởng, Vòng Chung Kết).
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-sm font-semibold">Số lượng vòng đấu (Rounds)</div>
+                    <div className="text-white/50 text-xs mt-0.5 leading-relaxed">
+                      Yêu cầu mỗi Track phải cấu hình tối thiểu <strong className="text-white/70">2 vòng thi</strong> (vd: Vòng Ý Tưởng, Vòng Chung Kết).
                       {config.tracks.map(t => (
-                        <div key={t.id} style={{ fontSize: '0.8rem', marginTop: '2px', color: 'var(--text-secondary)' }}>
-                          • Track "{t.name}": <strong>{t.rounds.length} Vòng</strong>
-                        </div>
+                        <div key={t.id} className="mt-0.5">• Track "{t.name}": <strong className="text-white/70">{t.rounds.length} Vòng</strong></div>
                       ))}
                     </div>
                   </div>
-                  <span className={`hd-chk-status-tag ${pass ? 'hd-badge--green' : 'hd-badge--red'}`}>
+                  <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${pass ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30' : 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30'}`}>
                     {pass ? 'Đạt' : 'Chưa đạt'}
                   </span>
                 </div>
               );
             })()}
 
-            {/* CHECK 3: Criteria count >= 1 per round */}
+            {/* CHECK 3 */}
             {(() => {
               const pass = config.tracks.length > 0 && config.tracks.every(t => t.rounds.every(r => r.criteria && r.criteria.length >= 1));
               return (
-                <div className="hd-checklist-item">
-                  <div className={`hd-chk-icon-wrap ${pass ? 'hd-chk-icon--success' : 'hd-chk-icon--error'}`}>
-                    {pass ? <Ico d={CHECK} size={14}/> : <Ico d={CROSS} size={14}/>}
+                <div className="flex items-start gap-4 px-5 py-4 border-b border-white/5">
+                  <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${pass ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-[#ef4444]/20 text-[#ef4444]'}`}>
+                    {pass ? <Ico d={CHECK} size={14} /> : <Ico d={CROSS} size={14} />}
                   </div>
-                  <div className="hd-chk-info">
-                    <div className="hd-chk-title">Tiêu chí chấm điểm ở mỗi Vòng</div>
-                    <div className="hd-chk-desc">
-                      Yêu cầu mỗi vòng thi phải được phân bổ tối thiểu <strong>1 tiêu chí chấm điểm</strong>.
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-sm font-semibold">Tiêu chí chấm điểm ở mỗi Vòng</div>
+                    <div className="text-white/50 text-xs mt-0.5 leading-relaxed">
+                      Yêu cầu mỗi vòng thi phải được phân bổ tối thiểu <strong className="text-white/70">1 tiêu chí chấm điểm</strong>.
                       {config.tracks.map(t => t.rounds.map(r => (
-                        <div key={r.id} style={{ fontSize: '0.8rem', marginTop: '2px', color: 'var(--text-secondary)' }}>
-                          • Vòng "{r.name}" (Track {t.name}): <strong>{r.criteria?.length || 0} tiêu chí</strong>
-                        </div>
+                        <div key={r.id} className="mt-0.5">• Vòng "{r.name}" (Track {t.name}): <strong className="text-white/70">{r.criteria?.length || 0} tiêu chí</strong></div>
                       )))}
                     </div>
                   </div>
-                  <span className={`hd-chk-status-tag ${pass ? 'hd-badge--green' : 'hd-badge--red'}`}>
+                  <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${pass ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30' : 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30'}`}>
                     {pass ? 'Đạt' : 'Chưa đạt'}
                   </span>
                 </div>
               );
             })()}
 
-            {/* CHECK 4: Weight sum equals 1.0 */}
+            {/* CHECK 4 */}
             {(() => {
               const pass = config.tracks.length > 0 && config.tracks.every(t => t.rounds.every(r => {
                 const sum = r.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
                 return Math.abs(sum - 1.0) < 0.001;
               }));
               return (
-                <div className="hd-checklist-item">
-                  <div className={`hd-chk-icon-wrap ${pass ? 'hd-chk-icon--success' : 'hd-chk-icon--error'}`}>
-                    {pass ? <Ico d={CHECK} size={14}/> : <Ico d={CROSS} size={14}/>}
+                <div className="flex items-start gap-4 px-5 py-4 border-b border-white/5">
+                  <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${pass ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-[#ef4444]/20 text-[#ef4444]'}`}>
+                    {pass ? <Ico d={CHECK} size={14} /> : <Ico d={CROSS} size={14} />}
                   </div>
-                  <div className="hd-chk-info">
-                    <div className="hd-chk-title">Hệ số trọng số tiêu chí (Criteria Weights)</div>
-                    <div className="hd-chk-desc">
-                      Tổng trọng số (weight) của tất cả tiêu chí trong từng vòng đấu **bắt buộc phải bằng 1.0**.
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-sm font-semibold">Hệ số trọng số tiêu chí (Criteria Weights)</div>
+                    <div className="text-white/50 text-xs mt-0.5 leading-relaxed">
+                      Tổng trọng số (weight) của tất cả tiêu chí trong từng vòng đấu bắt buộc phải bằng <strong className="text-white/70">1.0</strong>.
                       {config.tracks.map(t => t.rounds.map(r => {
                         const sum = r.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
+                        const ok = Math.abs(sum - 1.0) < 0.001;
                         return (
-                          <div key={r.id} style={{ fontSize: '0.8rem', marginTop: '2px', color: Math.abs(sum - 1.0) < 0.001 ? 'var(--text-secondary)' : 'var(--orange)' }}>
-                            • Vòng "{r.name}" ({t.name}): Tổng trọng số = <strong>{sum.toFixed(2)}</strong> {Math.abs(sum - 1.0) < 0.001 ? '✓' : '✗'}
+                          <div key={r.id} className={`mt-0.5 ${ok ? '' : 'text-[#f59e0b]'}`}>
+                            • Vòng "{r.name}" ({t.name}): Tổng trọng số = <strong>{sum.toFixed(2)}</strong> {ok ? '✓' : '✗'}
                           </div>
                         );
                       }))}
                     </div>
                   </div>
-                  <span className={`hd-chk-status-tag ${pass ? 'hd-badge--green' : 'hd-badge--red'}`}>
+                  <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${pass ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30' : 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30'}`}>
                     {pass ? 'Đạt' : 'Chưa đạt'}
                   </span>
                 </div>
               );
             })()}
 
-            {/* CHECK 5: Kickoff Date */}
-            <div className="hd-checklist-item">
-              <div className={`hd-chk-icon-wrap ${config.kickoff_date ? 'hd-chk-icon--success' : 'hd-chk-icon--error'}`}>
-                {config.kickoff_date ? <Ico d={CHECK} size={14}/> : <Ico d={CROSS} size={14}/>}
+            {/* CHECK 5 */}
+            <div className="flex items-start gap-4 px-5 py-4 border-b border-white/5">
+              <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${config.kickoff_date ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-[#ef4444]/20 text-[#ef4444]'}`}>
+                {config.kickoff_date ? <Ico d={CHECK} size={14} /> : <Ico d={CROSS} size={14} />}
               </div>
-              <div className="hd-chk-info">
-                <div className="hd-chk-title">Thời gian Khai mạc (Kickoff)</div>
-                <div className="hd-chk-desc">
-                  Lịch trình khai mạc giải đấu (Kickoff). 
+              <div className="flex-1 min-w-0">
+                <div className="text-white text-sm font-semibold">Thời gian Khai mạc (Kickoff)</div>
+                <div className="text-white/50 text-xs mt-0.5 leading-relaxed">
+                  Lịch trình khai mạc giải đấu (Kickoff).
                   {config.kickoff_date ? (
-                    <div style={{ marginTop: '2px', color: 'var(--cyan)', fontWeight: '600' }}>✓ Thiết lập lúc: {fmtDate(config.kickoff_date)}</div>
+                    <div className="mt-0.5 text-[#00d4ff] font-semibold">✓ Thiết lập lúc: {fmtDate(config.kickoff_date)}</div>
                   ) : (
                     <div>Chưa thiết lập ngày giờ Kickoff (vào tab "Tổng quan" để cấu hình).</div>
                   )}
                 </div>
               </div>
-              <span className={`hd-chk-status-tag ${config.kickoff_date ? 'hd-badge--green' : 'hd-badge--red'}`}>
+              <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${config.kickoff_date ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30' : 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30'}`}>
                 {config.kickoff_date ? 'Đạt' : 'Chưa đạt'}
               </span>
             </div>
 
-            {/* CHECK 6: Mentors Assigned */}
-            <div className="hd-checklist-item">
-              <div className={`hd-chk-icon-wrap ${config.mentors_assigned ? 'hd-chk-icon--success' : 'hd-chk-icon--error'}`}>
-                {config.mentors_assigned ? <Ico d={CHECK} size={14}/> : <Ico d={CROSS} size={14}/>}
+            {/* CHECK 6 */}
+            <div className="flex items-start gap-4 px-5 py-4">
+              <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${config.mentors_assigned ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-[#ef4444]/20 text-[#ef4444]'}`}>
+                {config.mentors_assigned ? <Ico d={CHECK} size={14} /> : <Ico d={CROSS} size={14} />}
               </div>
-              <div className="hd-chk-info">
-                <div className="hd-chk-title">Phân công Mentor & Ban giám khảo sơ bộ</div>
-                <div className="hd-chk-desc">
+              <div className="flex-1 min-w-0">
+                <div className="text-white text-sm font-semibold">Phân công Mentor & Ban giám khảo sơ bộ</div>
+                <div className="text-white/50 text-xs mt-0.5 leading-relaxed">
                   Thực hiện phân công nhân sự (Mentor/Judge) sơ tuyển ban đầu để chuẩn bị bắt đầu chấm điểm các vòng.
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                    <label className="hd-switch">
-                      <input type="checkbox" checked={config.mentors_assigned} onChange={(e) => updateConfigState({ ...config, mentors_assigned: e.target.checked })}/>
-                      <span className="hd-switch-slider"></span>
-                    </label>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Xác nhận đã hoàn thành phân công Mentor/Judge sơ bộ</span>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Toggle checked={config.mentors_assigned} onChange={() => updateConfigState({ ...config, mentors_assigned: !config.mentors_assigned })} />
+                    <span className="text-white/40 text-xs">Xác nhận đã hoàn thành phân công Mentor/Judge sơ bộ</span>
                   </div>
                 </div>
               </div>
-              <span className={`hd-chk-status-tag ${config.mentors_assigned ? 'hd-badge--green' : 'hd-badge--red'}`}>
+              <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${config.mentors_assigned ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30' : 'bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30'}`}>
                 {config.mentors_assigned ? 'Đạt' : 'Chưa đạt'}
               </span>
             </div>
-
           </div>
 
           {/* Launch Control Panel */}
-          <div className="hd-launch-section">
-            <h3 className="hd-launch-title">Kích Hoạt Diễn Ra Giải Đấu</h3>
-            <p className="hd-launch-desc">
-              Khi được kích hoạt, trạng thái Hackathon sẽ chuyển sang **ONGOING**. Các đội có thể xem thông tin các vòng thi đấu của từng bảng, nộp bài, và Ban giám khảo bắt đầu chấm điểm trực tiếp.
+          <div className="bg-[#060b16] border border-white/8 rounded-xl p-6 flex flex-col items-center gap-4 text-center">
+            <h3 className="text-white font-bold text-base">Kích Hoạt Diễn Ra Giải Đấu</h3>
+            <p className="text-white/50 text-sm max-w-lg leading-relaxed">
+              Khi được kích hoạt, trạng thái Hackathon sẽ chuyển sang <strong className="text-[#00d4ff]">ONGOING</strong>. Các đội có thể xem thông tin các vòng thi đấu của từng bảng, nộp bài, và Ban giám khảo bắt đầu chấm điểm trực tiếp.
             </p>
             <button
-              className="hd-btn-launch"
               disabled={validationErrors.length > 0 || isOngoing}
               onClick={handleActivateOngoing}
+              className="px-8 py-3 rounded-2xl font-bold text-sm border-none cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: isOngoing
+                  ? 'rgba(16,185,129,0.2)'
+                  : validationErrors.length > 0
+                  ? 'rgba(255,255,255,0.06)'
+                  : 'linear-gradient(135deg, #00d4ff, #a855f7)',
+                color: isOngoing ? '#10b981' : validationErrors.length > 0 ? 'rgba(255,255,255,0.3)' : '#060b16',
+                boxShadow: validationErrors.length === 0 && !isOngoing ? '0 0 24px rgba(0,212,255,0.3)' : 'none',
+              }}
             >
               {isOngoing ? (
                 <span>🚀 GIẢI ĐẤU ĐANG DIỄN RA</span>
@@ -1390,7 +1582,7 @@ export default function HackathonDetailPage() {
               )}
             </button>
             {validationErrors.length > 0 && (
-              <p style={{ color: 'var(--orange)', fontSize: '0.82rem', margin: '4px 0 0' }}>
+              <p className="text-[#f59e0b] text-xs">
                 * Bạn cần hoàn thành tất cả các checklist kiểm tra cấu hình phía trên trước khi bắt đầu.
               </p>
             )}
@@ -1400,29 +1592,34 @@ export default function HackathonDetailPage() {
 
       {/* ─── TAB 10: LỊCH TRÌNH TIMELINE ─── */}
       {tab === 10 && (
-        <div className="hd-section">
-          <h2 className="hd-section-title">Lịch trình thời gian chi tiết</h2>
-          <div className="hd-timeline">
+        <div className="bg-[#0b1120] border border-white/8 rounded-2xl p-6">
+          <h2 className="text-base font-bold text-white mb-5">Lịch trình thời gian chi tiết</h2>
+          <div className="flex flex-col gap-0 relative">
+            {/* Vertical line */}
+            <div className="absolute left-3.5 top-3 bottom-3 w-px bg-white/8" />
             {[
-              { label: 'Mở cổng đăng ký Hackathon', date: config.registration_open_date, color: 'var(--cyan)' },
-              { label: 'Hạn đóng đăng ký tham gia', date: config.registration_deadline, color: 'var(--orange)' },
-              { label: 'Khai mạc giải đấu (Kickoff)', date: config.kickoff_date, color: 'var(--purple)' },
-              { label: 'Thời gian thi đấu chính thức', date: config.start_date, color: 'var(--green)' },
-              { label: 'Kết thúc giải đấu', date: config.end_date, color: 'var(--red)' },
+              { label: 'Mở cổng đăng ký Hackathon', date: config.registration_open_date, color: '#00d4ff' },
+              { label: 'Hạn đóng đăng ký tham gia', date: config.registration_deadline, color: '#f59e0b' },
+              { label: 'Khai mạc giải đấu (Kickoff)', date: config.kickoff_date, color: '#a855f7' },
+              { label: 'Thời gian thi đấu chính thức', date: config.start_date, color: '#10b981' },
+              { label: 'Kết thúc giải đấu', date: config.end_date, color: '#ef4444' },
               ...config.tracks.flatMap(t => t.rounds.map(r => ({
                 label: `Hạn nộp bài: ${r.name} (${t.name})`,
                 date: r.submission_deadline,
-                color: 'rgba(168, 85, 247, 0.6)'
+                color: 'rgba(168, 85, 247, 0.8)'
               })))
             ]
               .filter(e => e.date)
               .sort((a, b) => new Date(a.date) - new Date(b.date))
               .map((ev, i) => (
-                <div key={i} className="hd-timeline-item">
-                  <div className="hd-tl-dot" style={{ background: ev.color, boxShadow: `0 0 8px ${ev.color}` }} />
-                  <div className="hd-tl-body">
-                    <span className="hd-tl-label">{ev.label}</span>
-                    <span className="hd-tl-date">{fmtDate(ev.date)}</span>
+                <div key={i} className="flex items-start gap-4 pl-2 pb-5 relative">
+                  <div
+                    className="flex-shrink-0 w-4 h-4 rounded-full border-2 border-[#060b16] mt-1 z-10"
+                    style={{ background: ev.color, boxShadow: `0 0 8px ${ev.color}` }}
+                  />
+                  <div className="flex-1 bg-[#060b16] border border-white/8 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                    <span className="text-white/80 text-sm">{ev.label}</span>
+                    <span className="text-white/50 text-xs font-mono whitespace-nowrap">{fmtDate(ev.date)}</span>
                   </div>
                 </div>
               ))

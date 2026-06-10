@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
-import { vi } from 'date-fns/locale';
 import 'react-datepicker/dist/react-datepicker.css';
-import './ContestFormPage.css';
+import { vi } from 'date-fns/locale';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -23,14 +22,14 @@ function fmtVN(date) {
 
 function DateField({ label, hint, selected, onChange, minDate, disabled, error, placeholder }) {
   return (
-    <div className={`contest-field${error ? ' contest-field--error' : ''}`}>
-      <label className="contest-label">
+    <div className="flex flex-col gap-1">
+      <label className="text-white/60 text-xs font-medium flex items-center gap-1">
         {label}
-        {hint && <span className="contest-label-hint">{hint}</span>}
+        {hint && <span className="text-white/30 font-normal">{hint}</span>}
       </label>
-      <div className={`contest-dp-wrap${disabled ? ' contest-dp-wrap--disabled' : ''}`}>
-        <span className="contest-dp-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div className={`relative flex items-center ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
+        <span className="absolute left-3 text-white/30 pointer-events-none z-10">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
             <line x1="16" y1="2" x2="16" y2="6"/>
             <line x1="8" y1="2" x2="8" y2="6"/>
@@ -49,9 +48,7 @@ function DateField({ label, hint, selected, onChange, minDate, disabled, error, 
           locale={vi}
           placeholderText={placeholder || 'Chọn ngày & giờ...'}
           disabled={disabled}
-          className="contest-dp-input"
-          calendarClassName="contest-dp-calendar"
-          popperClassName="contest-dp-popper"
+          className={`w-full bg-[#060b16] border ${error ? 'border-[#ef4444]' : 'border-white/10'} rounded-lg pl-9 pr-3 py-2 text-white text-sm focus:border-[#00d4ff] focus:outline-none`}
           popperPlacement="bottom-start"
           showPopperArrow={false}
           isClearable={false}
@@ -62,9 +59,9 @@ function DateField({ label, hint, selected, onChange, minDate, disabled, error, 
           ]}
         />
       </div>
-      {disabled && !selected && <span className="contest-field-hint">Chọn bước trước để mở khóa</span>}
-      {!disabled && selected && !error && <span className="contest-field-ok">✓ {fmtVN(selected)}</span>}
-      {error && <span className="contest-field-error">{error}</span>}
+      {disabled && !selected && <span className="text-white/25 text-xs">Chọn bước trước để mở khóa</span>}
+      {!disabled && selected && !error && <span className="text-[#10b981] text-xs">✓ {fmtVN(selected)}</span>}
+      {error && <span className="text-[#ef4444] text-xs">{error}</span>}
     </div>
   );
 }
@@ -259,174 +256,196 @@ function ContestFormPage() {
     }
   };
 
-  return (
-    <div className="contest-form-page" id="contest-form-page">
-      <div className="contest-form-page__glow" />
+  const inputCls = "bg-[#060b16] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-[#00d4ff] focus:outline-none w-full";
 
-      <div className="contest-form-container container">
-        <div className="contest-form-header">
-          <h1 className="contest-form-title">Tạo & Khởi Tạo Hackathon</h1>
-          <p className="contest-form-subtitle">
-            Thiết lập thông tin chung, quy định, thời gian và mùa giải ban đầu
-          </p>
+  return (
+    <div className="min-h-screen bg-[#060b16] text-white p-6" id="contest-form-page">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">Tạo & Khởi Tạo Hackathon</h1>
+          <p className="text-white/40 text-sm mt-1">Thiết lập thông tin chung, quy định, thời gian và mùa giải ban đầu</p>
         </div>
 
+        {/* Alerts */}
         {error && (
-          <div className="contest-form-alert contest-form-alert--error" id="form-error">
-            <span className="contest-form-alert__icon">⚠</span>
-            <div className="contest-form-alert__msg">{error}</div>
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-[#ef4444]/30 bg-[#ef4444]/10 text-[#ef4444] text-sm mb-6" id="form-error">
+            <span className="text-lg leading-none mt-0.5">⚠</span>
+            <div>{error}</div>
           </div>
         )}
         {success && (
-          <div className="contest-form-alert contest-form-alert--success" id="form-success">
-            <span className="contest-form-alert__icon">✓</span>
-            <div className="contest-form-alert__msg">{success}</div>
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-[#10b981]/30 bg-[#10b981]/10 text-[#10b981] text-sm mb-6" id="form-success">
+            <span className="text-lg leading-none mt-0.5">✓</span>
+            <div>{success}</div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="contest-main-form" id="contest-main-form">
-          <div className="contest-form-grid" style={{ gridTemplateColumns: '1.2fr 0.8fr' }}>
+        <form onSubmit={handleSubmit} id="contest-main-form">
+          <div className="grid gap-6" style={{ gridTemplateColumns: '1.2fr 0.8fr' }}>
 
             {/* COLUMN LEFT */}
-            <div className="contest-form-col">
-              <div className="contest-card">
-                <div className="contest-card__header">
-                  <h3 className="contest-card__title">1. Thông tin chung Hackathon</h3>
+            <div className="bg-[#0b1120] border border-white/8 rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/8">
+                <h3 className="text-sm font-bold text-white">1. Thông tin chung Hackathon</h3>
+              </div>
+              <div className="p-6 flex flex-col gap-4">
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Tên cuộc thi Hackathon *</label>
+                  <input
+                    type="text"
+                    name="title"
+                    className={`${inputCls} ${fieldErrors.title ? 'border-[#ef4444]' : ''}`}
+                    placeholder="Ví dụ: SEAL Hackathon 2026..."
+                    value={contestData.title}
+                    onChange={handleTextChange}
+                    required
+                  />
+                  {fieldErrors.title && <span className="text-[#ef4444] text-xs">{fieldErrors.title}</span>}
                 </div>
-                <div className="contest-card__body">
 
-                  <div className={`contest-field${fieldErrors.title ? ' contest-field--error' : ''}`}>
-                    <label className="contest-label">Tên cuộc thi Hackathon *</label>
-                    <input
-                      type="text"
-                      name="title"
-                      className="contest-input"
-                      placeholder="Ví dụ: SEAL Hackathon 2026..."
-                      value={contestData.title}
-                      onChange={handleTextChange}
-                      required
-                    />
-                    {fieldErrors.title && <span className="contest-field-error">{fieldErrors.title}</span>}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-white/60 text-xs font-medium">Mùa giải *</label>
+                    <select name="season" className={inputCls} value={contestData.season} onChange={handleTextChange} required>
+                      <option value="Spring">Spring (Mùa Xuân)</option>
+                      <option value="Summer">Summer (Mùa Hạ)</option>
+                      <option value="Autumn">Autumn (Mùa Thu)</option>
+                      <option value="Winter">Winter (Mùa Đông)</option>
+                    </select>
                   </div>
-
-                  <div className="contest-row">
-                    <div className={`contest-field${fieldErrors.season ? ' contest-field--error' : ''}`}>
-                      <label className="contest-label">Mùa giải *</label>
-                      <select name="season" className="contest-input" value={contestData.season} onChange={handleTextChange} required>
-                        <option value="Spring">Spring (Mùa Xuân)</option>
-                        <option value="Summer">Summer (Mùa Hạ)</option>
-                        <option value="Autumn">Autumn (Mùa Thu)</option>
-                        <option value="Winter">Winter (Mùa Đông)</option>
-                      </select>
-                    </div>
-                    <div className={`contest-field${fieldErrors.year ? ' contest-field--error' : ''}`}>
-                      <label className="contest-label">Năm *</label>
-                      <input type="number" name="year" className="contest-input" value={contestData.year} onChange={handleTextChange} min="2020" max="2100" required />
-                    </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-white/60 text-xs font-medium">Năm *</label>
+                    <input type="number" name="year" className={inputCls} value={contestData.year} onChange={handleTextChange} min="2020" max="2100" required />
                   </div>
-
-                  <div className="contest-field">
-                    <label className="contest-label">Mô tả cuộc thi</label>
-                    <textarea name="description" className="contest-textarea" placeholder="Mô tả tóm tắt về nội dung, mục tiêu cuộc thi..." rows="3" value={contestData.description} onChange={handleTextChange} />
-                  </div>
-
-                  <div className="contest-field">
-                    <label className="contest-label">Thể lệ & Luật thi đấu</label>
-                    <textarea name="rules" className="contest-textarea" placeholder="Quy định, điều kiện tham gia, yêu cầu nộp bài..." rows="4" value={contestData.rules} onChange={handleTextChange} />
-                  </div>
-
                 </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Mô tả cuộc thi</label>
+                  <textarea name="description" className={inputCls} placeholder="Mô tả tóm tắt về nội dung, mục tiêu cuộc thi..." rows={3} value={contestData.description} onChange={handleTextChange} />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Thể lệ & Luật thi đấu</label>
+                  <textarea name="rules" className={inputCls} placeholder="Quy định, điều kiện tham gia, yêu cầu nộp bài..." rows={4} value={contestData.rules} onChange={handleTextChange} />
+                </div>
+
               </div>
             </div>
 
             {/* COLUMN RIGHT */}
-            <div className="contest-form-col">
-              <div className="contest-card">
-                <div className="contest-card__header">
-                  <h3 className="contest-card__title">2. Media & Thời gian</h3>
-                </div>
-                <div className="contest-card__body">
+            <div className="bg-[#0b1120] border border-white/8 rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/8">
+                <h3 className="text-sm font-bold text-white">2. Media & Thời gian</h3>
+              </div>
+              <div className="p-6 flex flex-col gap-4">
 
-                  <div className="contest-field">
-                    <label className="contest-label">Banner URL (Ảnh nền)</label>
-                    <input type="text" name="banner" className="contest-input" placeholder="https://images.unsplash.com/..." value={contestData.banner} onChange={handleTextChange} />
-                    {contestData.banner && (
-                      <div className="contest-banner-preview">
-                        <img src={contestData.banner} alt="Preview Banner" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800'; }} />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="contest-divider" />
-
-                  <div className="contest-timeline-hint">
-                    <span className="contest-timeline-dot contest-timeline-dot--open" />
-                    <span>Mở ĐK</span>
-                    <span className="contest-timeline-line" />
-                    <span className="contest-timeline-dot contest-timeline-dot--close" />
-                    <span>Đóng ĐK</span>
-                    <span className="contest-timeline-line" />
-                    <span className="contest-timeline-badge">+4 ngày</span>
-                    <span className="contest-timeline-line" />
-                    <span className="contest-timeline-dot contest-timeline-dot--event" />
-                    <span>Thi đấu</span>
-                  </div>
-
-                  <DateField
-                    label="Ngày mở đăng ký *"
-                    hint="— không chọn ngày quá khứ"
-                    selected={contestData.registration_open_date}
-                    onChange={(d) => handleDateChange('registration_open_date', d)}
-                    minDate={minOpen}
-                    error={fieldErrors.registration_open_date}
-                  />
-
-                  <DateField
-                    label="Hạn đóng đăng ký *"
-                    hint="— phải sau ngày mở"
-                    selected={contestData.registration_deadline}
-                    onChange={(d) => handleDateChange('registration_deadline', d)}
-                    minDate={minClose}
-                    disabled={!contestData.registration_open_date}
-                    error={fieldErrors.registration_deadline}
-                  />
-
-                  <DateField
-                    label="Ngày thi đấu chính thức *"
-                    hint="— tự động +4 ngày, có thể chỉnh lại"
-                    selected={contestData.start_date}
-                    onChange={(d) => handleDateChange('start_date', d)}
-                    minDate={minStart}
-                    disabled={!contestData.registration_deadline}
-                    error={fieldErrors.start_date}
-                  />
-
-                  <div className="contest-divider" />
-
-                  <div className="contest-field contest-field--row" style={{ marginTop: '15px' }}>
-                    <div className="contest-toggle-info">
-                      <label className="contest-label contest-label--toggle">Tự động khóa sổ</label>
-                      <span className="contest-label-sub">Tự chuyển trạng thái khi hết hạn</span>
+                <div className="flex flex-col gap-1">
+                  <label className="text-white/60 text-xs font-medium">Banner URL (Ảnh nền)</label>
+                  <input type="text" name="banner" className={inputCls} placeholder="https://images.unsplash.com/..." value={contestData.banner} onChange={handleTextChange} />
+                  {contestData.banner && (
+                    <div className="rounded-lg overflow-hidden h-28 border border-white/8 mt-1">
+                      <img src={contestData.banner} alt="Preview Banner" className="w-full h-full object-cover" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800'; }} />
                     </div>
-                    <label className="switch">
-                      <input type="checkbox" name="auto_close" checked={contestData.auto_close} onChange={handleTextChange} />
-                      <span className="slider round" />
-                    </label>
-                  </div>
-
+                  )}
                 </div>
+
+                <div className="h-px bg-white/8" />
+
+                {/* Timeline hint */}
+                <div className="flex items-center gap-1.5 text-xs text-white/40 flex-wrap">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                  <span>Mở ĐK</span>
+                  <span className="flex-1 h-px bg-white/15 min-w-4" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
+                  <span>Đóng ĐK</span>
+                  <span className="flex-1 h-px bg-white/15 min-w-4" />
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#00d4ff]/10 text-[#00d4ff] border border-[#00d4ff]/20">+4 ngày</span>
+                  <span className="flex-1 h-px bg-white/15 min-w-4" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#a855f7]" />
+                  <span>Thi đấu</span>
+                </div>
+
+                <DateField
+                  label="Ngày mở đăng ký *"
+                  hint="— không chọn ngày quá khứ"
+                  selected={contestData.registration_open_date}
+                  onChange={(d) => handleDateChange('registration_open_date', d)}
+                  minDate={minOpen}
+                  error={fieldErrors.registration_open_date}
+                />
+
+                <DateField
+                  label="Hạn đóng đăng ký *"
+                  hint="— phải sau ngày mở"
+                  selected={contestData.registration_deadline}
+                  onChange={(d) => handleDateChange('registration_deadline', d)}
+                  minDate={minClose}
+                  disabled={!contestData.registration_open_date}
+                  error={fieldErrors.registration_deadline}
+                />
+
+                <DateField
+                  label="Ngày thi đấu chính thức *"
+                  hint="— tự động +4 ngày, có thể chỉnh lại"
+                  selected={contestData.start_date}
+                  onChange={(d) => handleDateChange('start_date', d)}
+                  minDate={minStart}
+                  disabled={!contestData.registration_deadline}
+                  error={fieldErrors.start_date}
+                />
+
+                <div className="h-px bg-white/8" />
+
+                {/* Auto close toggle */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-white text-sm font-medium">Tự động khóa sổ</div>
+                    <div className="text-white/40 text-xs mt-0.5">Tự chuyển trạng thái khi hết hạn</div>
+                  </div>
+                  <div
+                    onClick={() => setContestData(p => ({ ...p, auto_close: !p.auto_close }))}
+                    style={{
+                      width: 40, height: 22, borderRadius: 11, cursor: 'pointer', position: 'relative', flexShrink: 0,
+                      background: contestData.auto_close ? '#00d4ff' : 'rgba(255,255,255,0.12)',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute', top: 3, left: contestData.auto_close ? 21 : 3,
+                      width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                      transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                    }} />
+                  </div>
+                </div>
+
               </div>
             </div>
 
           </div>
 
-          <div className="contest-form-actions">
-            <button type="button" className="btn btn--outline" onClick={() => navigate('/admin/hackathons')} style={{ marginRight: '12px' }}>
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 mt-6">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/hackathons')}
+              className="px-5 py-2.5 rounded-xl border border-white/15 text-white/60 bg-transparent text-sm font-medium cursor-pointer hover:bg-white/5 transition-colors"
+            >
               Hủy bỏ
             </button>
-            <button type="submit" className={`btn btn--primary ${loading ? 'btn--loading' : ''}`} disabled={loading} id="btn-contest-submit">
+            <button
+              type="submit"
+              disabled={loading}
+              id="btn-contest-submit"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-[#060b16] cursor-pointer border-none disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #00d4ff, #a855f7)' }}
+            >
               {loading ? (
-                <><span className="btn-spinner" /><span>{currentStepText}</span></>
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-[#060b16]/30 border-t-[#060b16] animate-spin" />
+                  <span>{currentStepText}</span>
+                </>
               ) : (
                 'Tạo Hackathon & Tiếp tục cấu hình'
               )}

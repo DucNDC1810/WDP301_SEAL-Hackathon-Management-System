@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Table, Form, Input, Button, Tag, Select, Card, Tabs, Typography, message } from 'antd';
-import './AppealsPage.css';
 
 const { Title } = Typography;
 const API = import.meta.env.VITE_API_URL || '';
@@ -82,7 +81,7 @@ export default function AppealsPage() {
   ];
 
   return (
-    <div className="appeals">
+    <div className="p-6">
       <Title level={3}>Khiếu nại</Title>
       {role === 'contestant' ? (
         <Tabs items={[

@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Modal, InputNumber, Tag, Alert, Progress, Tooltip, Badge, message } from 'antd';
+import { Button, Modal, InputNumber, Tag, Alert, Progress, Tooltip, message } from 'antd';
 import { useAuth } from '../../context/AuthContext';
-import './JudgeDashboardPage.css';
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
 const MOCK_ROUND = {
   name: 'Vòng Ý Tưởng (Sơ loại)',
   contestName: 'SEAL Hackathon Summer 2026',
@@ -36,7 +34,6 @@ const MOCK_POOLS = [
   },
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 const TEAM_STATUS_CFG = {
   submitted:     { label: 'Đã nộp',           color: 'green'   },
   not_submitted: { label: 'Chưa nộp bài',     color: 'default' },
@@ -48,7 +45,6 @@ function calcTotal(criteriaScores) {
   return MOCK_CRITERIA.reduce((sum, c) => sum + ((criteriaScores[c.id] || 0) * c.weight), 0);
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
 export default function JudgeDashboardPage() {
   const { contestId, roundId } = useParams();
   const navigate = useNavigate();
@@ -85,192 +81,203 @@ export default function JudgeDashboardPage() {
   const weightedTotal = calcTotal(draft.criteria);
 
   return (
-    <div className="jp-page">
+    <div className="min-h-screen bg-[#060b16] text-[#c9d6e8] flex flex-col">
       {contextHolder}
 
-      {/* ─── Top Bar ─── */}
-      <div className="jp-topbar">
-        <div className="jp-topbar-left">
-          <button className="jp-back-btn" onClick={() => navigate(-1)} title="Quay lại">
+      {/* Top Bar */}
+      <div className="flex items-center justify-between px-5 py-3 bg-[#0b1120] border-b border-white/5 sticky top-0 z-40">
+        <div className="flex items-center gap-3">
+          <button
+            className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white cursor-pointer hover:bg-white/10 transition-all"
+            onClick={() => navigate(-1)}
+            title="Quay lại"
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} width={18} height={18}>
               <path d="M19 12H5M12 5l-7 7 7 7"/>
             </svg>
           </button>
-          <div className="jp-brand">
-            <span className="jp-brand-icon">⚖</span>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[rgba(0,212,255,0.1)] border border-[rgba(0,212,255,0.2)] flex items-center justify-center text-lg">⚖</div>
             <div>
-              <div className="jp-brand-title">Judge Portal</div>
-              <div className="jp-brand-sub">{MOCK_ROUND.contestName}</div>
+              <div className="font-bold text-white text-[0.9rem]">Judge Portal</div>
+              <div className="text-[0.72rem] text-white/40">{MOCK_ROUND.contestName}</div>
             </div>
           </div>
         </div>
-        <div className="jp-topbar-right">
-          <div className="jp-judge-chip">
-            <div className="jp-judge-avatar">{(user?.full_name || 'J')[0]}</div>
-            <div>
-              <div className="jp-judge-name">{user?.full_name || 'Judge'}</div>
-              <div className="jp-judge-email">{user?.email || ''}</div>
-            </div>
+        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[rgba(0,212,255,0.05)] border border-[rgba(0,212,255,0.15)]">
+          <div className="w-8 h-8 rounded-lg bg-[rgba(0,212,255,0.15)] flex items-center justify-center font-bold text-[0.85rem] text-[#00d4ff]">
+            {(user?.full_name || 'J')[0]}
+          </div>
+          <div>
+            <div className="text-[0.82rem] font-semibold text-white/80">{user?.full_name || 'Judge'}</div>
+            <div className="text-[0.68rem] text-white/35">{user?.email || ''}</div>
           </div>
         </div>
       </div>
 
-      {/* ─── Round Header ─── */}
-      <div className="jp-round-header">
-        <div className="jp-round-info">
-          <div className="jp-round-seq">ROUND {MOCK_ROUND.sequence_order}</div>
-          <h1 className="jp-round-name">{MOCK_ROUND.name}</h1>
-          <div className="jp-deadline">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} width={14} height={14}>
-              <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-            </svg>
-            Deadline: {new Date(MOCK_ROUND.deadline).toLocaleString('vi-VN')}
-          </div>
-        </div>
+      <div className="flex-1 max-w-[960px] mx-auto w-full px-5 py-6 flex flex-col gap-5">
 
-        {/* Progress stats */}
-        <div className="jp-stats-row">
-          <div className="jp-stat-box">
-            <div className="jp-stat-num" style={{ color: '#10b981' }}>{submittedCount}</div>
-            <div className="jp-stat-lbl">Đã nộp điểm</div>
-          </div>
-          <div className="jp-stat-box">
-            <div className="jp-stat-num" style={{ color: '#f59e0b' }}>{draftCount}</div>
-            <div className="jp-stat-lbl">Bản nháp</div>
-          </div>
-          <div className="jp-stat-box">
-            <div className="jp-stat-num" style={{ color: '#94a3b8' }}>{scorable.length - submittedCount - draftCount}</div>
-            <div className="jp-stat-lbl">Chưa chấm</div>
-          </div>
-          <div className="jp-stat-box jp-stat-box--wide">
-            <div className="jp-stat-lbl" style={{ marginBottom: 6 }}>Tiến độ tổng: {submittedCount}/{scorable.length}</div>
-            <Progress
-              percent={progress}
-              strokeColor={allDone ? '#10b981' : '#00d4ff'}
-              trailColor="rgba(255,255,255,0.08)"
-              strokeWidth={8}
-            />
-          </div>
-        </div>
-      </div>
-
-      {allDone && (
-        <Alert
-          type="success"
-          showIcon
-          message="Bạn đã hoàn thành chấm điểm tất cả đội được giao! Admin có thể tiến hành khóa chấm điểm."
-          style={{ borderRadius: 12 }}
-        />
-      )}
-
-      {/* ─── Criteria Reference ─── */}
-      <div className="jp-criteria-ref">
-        <div className="jp-criteria-ref-title">Tiêu chí chấm điểm vòng này</div>
-        <div className="jp-criteria-ref-list">
-          {MOCK_CRITERIA.map(c => (
-            <div key={c.id} className="jp-crit-chip">
-              <span className="jp-crit-chip-name">{c.name}</span>
-              <span className="jp-crit-chip-w">×{(c.weight * 100).toFixed(0)}%</span>
+        {/* Round Header */}
+        <div className="bg-[rgba(0,212,255,0.04)] border border-[rgba(0,212,255,0.15)] rounded-2xl p-5">
+          <div className="mb-4">
+            <div className="text-[0.68rem] font-bold text-[#00d4ff] tracking-widest mb-1">ROUND {MOCK_ROUND.sequence_order}</div>
+            <h1 className="text-xl font-extrabold text-white mb-1">{MOCK_ROUND.name}</h1>
+            <div className="flex items-center gap-1.5 text-[0.78rem] text-white/40">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} width={14} height={14}>
+                <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+              </svg>
+              Deadline: {new Date(MOCK_ROUND.deadline).toLocaleString('vi-VN')}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* ─── Pool Sections ─── */}
-      <div className="jp-pools space-y-5">
-        {MOCK_POOLS.map(pool => {
-          const poolSubmitted = pool.teams.filter(t => scores[t.id]?.status === 'submitted').length;
-          const poolScorable = pool.teams.filter(t => t.status !== 'not_submitted').length;
-          return (
-            <div key={pool.id} className="jp-pool-card">
-              <div className="jp-pool-header">
-                <div className="jp-pool-title-group">
-                  <h2 className="jp-pool-name">{pool.name}</h2>
-                  <Tag>{pool.teams.length} đội</Tag>
-                </div>
-                <div className="jp-pool-progress">
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    {poolSubmitted}/{poolScorable} đã nộp
-                  </span>
-                  <Progress
-                    percent={poolScorable > 0 ? Math.round((poolSubmitted / poolScorable) * 100) : 0}
-                    size="small"
-                    strokeColor="#00d4ff"
-                    trailColor="rgba(255,255,255,0.08)"
-                    showInfo={false}
-                    style={{ width: 100 }}
-                  />
-                </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            {[
+              { num: submittedCount, label: 'Đã nộp điểm',   color: '#10b981' },
+              { num: draftCount,     label: 'Bản nháp',       color: '#f59e0b' },
+              { num: scorable.length - submittedCount - draftCount, label: 'Chưa chấm', color: '#94a3b8' },
+            ].map(s => (
+              <div key={s.label} className="bg-black/30 border border-white/7 rounded-xl px-4 py-2.5 text-center min-w-[80px]">
+                <div className="text-xl font-extrabold" style={{ color: s.color }}>{s.num}</div>
+                <div className="text-[0.68rem] text-white/40 mt-0.5">{s.label}</div>
               </div>
+            ))}
+            <div className="flex-1 min-w-[200px] bg-black/30 border border-white/7 rounded-xl px-4 py-2.5">
+              <div className="text-[0.72rem] text-white/40 mb-2">Tiến độ tổng: {submittedCount}/{scorable.length}</div>
+              <Progress
+                percent={progress}
+                strokeColor={allDone ? '#10b981' : '#00d4ff'}
+                trailColor="rgba(255,255,255,0.08)"
+                strokeWidth={8}
+              />
+            </div>
+          </div>
+        </div>
 
-              <div className="jp-team-list">
-                {pool.teams.map(team => {
-                  const sc = TEAM_STATUS_CFG[team.status] || TEAM_STATUS_CFG.not_submitted;
-                  const myScore = scores[team.id];
-                  const final = myScore?.status === 'submitted' ? calcTotal(myScore.criteria) : null;
+        {allDone && (
+          <Alert
+            type="success"
+            showIcon
+            message="Bạn đã hoàn thành chấm điểm tất cả đội được giao! Admin có thể tiến hành khóa chấm điểm."
+            style={{ borderRadius: 12 }}
+          />
+        )}
 
-                  return (
-                    <div key={team.id} className="jp-team-row">
-                      <div className="jp-team-left">
-                        <div className="jp-team-avatar">{team.name.slice(-1)}</div>
-                        <div className="jp-team-info">
-                          <div className="jp-team-name">{team.name}</div>
-                          <div className="jp-team-links">
-                            <Tag color={sc.color} style={{ fontSize: '0.68rem' }}>{sc.label}</Tag>
-                            {team.repoUrl && (
-                              <a href={team.repoUrl} target="_blank" rel="noreferrer" className="jp-link jp-link--repo">🔗 Repo</a>
-                            )}
-                            {team.slideUrl && (
-                              <a href={team.slideUrl} target="_blank" rel="noreferrer" className="jp-link jp-link--slide">📊 Slide</a>
-                            )}
-                            {!team.repoUrl && !team.slideUrl && team.status !== 'not_submitted' && (
-                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Chưa có tài liệu</span>
-                            )}
+        {/* Criteria Reference */}
+        <div className="bg-white/[0.025] border border-white/7 rounded-xl px-4 py-3">
+          <div className="text-[0.72rem] font-bold text-white/40 uppercase tracking-wide mb-2">Tiêu chí chấm điểm vòng này</div>
+          <div className="flex flex-wrap gap-2">
+            {MOCK_CRITERIA.map(c => (
+              <div key={c.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[rgba(0,212,255,0.06)] border border-[rgba(0,212,255,0.15)]">
+                <span className="text-[0.8rem] text-white/70 font-medium">{c.name}</span>
+                <span className="text-[0.7rem] font-bold text-[#00d4ff]">×{(c.weight * 100).toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Pool Sections */}
+        <div className="flex flex-col gap-5">
+          {MOCK_POOLS.map(pool => {
+            const poolSubmitted = pool.teams.filter(t => scores[t.id]?.status === 'submitted').length;
+            const poolScorable = pool.teams.filter(t => t.status !== 'not_submitted').length;
+            return (
+              <div key={pool.id} className="bg-white/[0.025] border border-white/7 rounded-2xl overflow-hidden">
+                {/* Pool Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-black/20">
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="font-bold text-white text-[0.95rem] m-0">{pool.name}</h2>
+                    <Tag style={{ fontSize: '0.72rem' }}>{pool.teams.length} đội</Tag>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[0.75rem] text-white/40">{poolSubmitted}/{poolScorable} đã nộp</span>
+                    <Progress
+                      percent={poolScorable > 0 ? Math.round((poolSubmitted / poolScorable) * 100) : 0}
+                      size="small"
+                      strokeColor="#00d4ff"
+                      trailColor="rgba(255,255,255,0.08)"
+                      showInfo={false}
+                      style={{ width: 100 }}
+                    />
+                  </div>
+                </div>
+
+                {/* Team List */}
+                <div className="flex flex-col">
+                  {pool.teams.map((team, ti) => {
+                    const sc = TEAM_STATUS_CFG[team.status] || TEAM_STATUS_CFG.not_submitted;
+                    const myScore = scores[team.id];
+                    const final = myScore?.status === 'submitted' ? calcTotal(myScore.criteria) : null;
+
+                    return (
+                      <div
+                        key={team.id}
+                        className={`flex items-center justify-between px-4 py-3 gap-3 hover:bg-white/[0.02] transition-colors ${ti > 0 ? 'border-t border-white/5' : ''}`}
+                      >
+                        {/* Left: team info */}
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-[rgba(0,212,255,0.1)] border border-[rgba(0,212,255,0.2)] flex items-center justify-center font-bold text-[#00d4ff] text-[0.85rem] flex-shrink-0">
+                            {team.name.slice(-1)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-white text-[0.88rem] truncate">{team.name}</div>
+                            <div className="flex items-center gap-2 flex-wrap mt-1">
+                              <Tag color={sc.color} style={{ fontSize: '0.68rem' }}>{sc.label}</Tag>
+                              {team.repoUrl && (
+                                <a href={team.repoUrl} target="_blank" rel="noreferrer" className="text-[0.72rem] text-[#00d4ff] hover:underline no-underline">🔗 Repo</a>
+                              )}
+                              {team.slideUrl && (
+                                <a href={team.slideUrl} target="_blank" rel="noreferrer" className="text-[0.72rem] text-[#a855f7] hover:underline no-underline">📊 Slide</a>
+                              )}
+                              {!team.repoUrl && !team.slideUrl && team.status !== 'not_submitted' && (
+                                <span className="text-[0.72rem] text-white/30">Chưa có tài liệu</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="jp-team-right">
-                        {myScore?.status === 'submitted' && final !== null && (
-                          <div className="jp-score-badge">
-                            <span className="jp-score-num">{final.toFixed(1)}</span>
-                            <span className="jp-score-denom">/10</span>
-                          </div>
-                        )}
-                        {myScore?.status === 'draft' && (
-                          <Tag color="orange" style={{ marginRight: 8 }}>Nháp</Tag>
-                        )}
-                        {team.status === 'not_submitted' ? (
-                          <Tooltip title="Đội này chưa nộp bài — không thể chấm điểm">
-                            <Button size="small" disabled>Chưa nộp bài</Button>
-                          </Tooltip>
-                        ) : (
-                          <Button
-                            type={myScore?.status === 'submitted' ? 'default' : 'primary'}
-                            size="small"
-                            onClick={() => openForm(team)}
-                          >
-                            {myScore?.status === 'submitted' ? '✓ Xem / Sửa'
-                              : myScore?.status === 'draft' ? '📝 Tiếp tục'
-                              : '⚖ Chấm điểm'}
-                          </Button>
-                        )}
+                        {/* Right: score badge + action */}
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          {myScore?.status === 'submitted' && final !== null && (
+                            <div className="flex items-baseline gap-0.5">
+                              <span className="text-xl font-extrabold text-[#10b981]">{final.toFixed(1)}</span>
+                              <span className="text-[0.72rem] text-white/30">/10</span>
+                            </div>
+                          )}
+                          {myScore?.status === 'draft' && (
+                            <Tag color="orange" style={{ marginRight: 8 }}>Nháp</Tag>
+                          )}
+                          {team.status === 'not_submitted' ? (
+                            <Tooltip title="Đội này chưa nộp bài — không thể chấm điểm">
+                              <Button size="small" disabled>Chưa nộp bài</Button>
+                            </Tooltip>
+                          ) : (
+                            <Button
+                              type={myScore?.status === 'submitted' ? 'default' : 'primary'}
+                              size="small"
+                              onClick={() => openForm(team)}
+                            >
+                              {myScore?.status === 'submitted' ? '✓ Xem / Sửa'
+                                : myScore?.status === 'draft' ? '📝 Tiếp tục'
+                                : '⚖ Chấm điểm'}
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      {/* ─── Score Form Modal ─── */}
+      {/* Score Form Modal */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             <span>⚖ Chấm điểm:</span>
-            <span style={{ color: 'var(--cyan)' }}>{scoringTeam?.name}</span>
+            <span className="text-[#00d4ff]">{scoringTeam?.name}</span>
           </div>
         }
         open={!!scoringTeam}
@@ -280,29 +287,27 @@ export default function JudgeDashboardPage() {
         destroyOnClose
       >
         {scoringTeam && (
-          <div className="jp-score-form">
+          <div className="flex flex-col gap-4 pt-1">
             {/* Quick links */}
-            <div className="jp-score-links">
+            <div className="flex items-center gap-3 flex-wrap">
               {scoringTeam.repoUrl
-                ? <a href={scoringTeam.repoUrl} target="_blank" rel="noreferrer" className="jp-score-link jp-score-link--repo">🔗 Mở Repo</a>
-                : <span className="jp-no-link">Không có link repo</span>}
+                ? <a href={scoringTeam.repoUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg bg-[rgba(0,212,255,0.08)] border border-[rgba(0,212,255,0.2)] text-[#00d4ff] text-sm no-underline hover:bg-[rgba(0,212,255,0.15)]">🔗 Mở Repo</a>
+                : <span className="text-sm text-white/30">Không có link repo</span>}
               {scoringTeam.slideUrl
-                ? <a href={scoringTeam.slideUrl} target="_blank" rel="noreferrer" className="jp-score-link jp-score-link--slide">📊 Mở Slide</a>
-                : <span className="jp-no-link">Không có slide</span>}
+                ? <a href={scoringTeam.slideUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg bg-[rgba(168,85,247,0.08)] border border-[rgba(168,85,247,0.2)] text-[#a855f7] text-sm no-underline hover:bg-[rgba(168,85,247,0.15)]">📊 Mở Slide</a>
+                : <span className="text-sm text-white/30">Không có slide</span>}
             </div>
 
             {/* Criteria scoring */}
-            <div className="jp-crit-list">
+            <div className="flex flex-col gap-3">
               {MOCK_CRITERIA.map(c => (
-                <div key={c.id} className="jp-crit-row">
-                  <div className="jp-crit-meta">
-                    <div className="jp-crit-header-row">
-                      <span className="jp-crit-name">{c.name}</span>
-                      <span className="jp-crit-weight-badge">×{(c.weight * 100).toFixed(0)}%</span>
-                    </div>
-                    <div className="jp-crit-desc">{c.description}</div>
+                <div key={c.id} className="bg-white/[0.02] border border-white/7 rounded-xl p-3.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-white/85 text-[0.88rem]">{c.name}</span>
+                    <span className="text-[0.72rem] font-bold px-2 py-0.5 rounded-full bg-[rgba(0,212,255,0.1)] text-[#00d4ff]">×{(c.weight * 100).toFixed(0)}%</span>
                   </div>
-                  <div className="jp-crit-input-row">
+                  <div className="text-[0.75rem] text-white/40 mb-2.5">{c.description}</div>
+                  <div className="flex items-center gap-3">
                     <InputNumber
                       min={0} max={c.maxScore} step={0.5} precision={1}
                       value={draft.criteria[c.id] ?? null}
@@ -310,9 +315,9 @@ export default function JudgeDashboardPage() {
                       style={{ width: 90 }}
                       placeholder="0–10"
                     />
-                    <span className="jp-crit-max">/ {c.maxScore}</span>
+                    <span className="text-sm text-white/40">/ {c.maxScore}</span>
                     {draft.criteria[c.id] !== undefined && draft.criteria[c.id] !== null && (
-                      <span className="jp-crit-contrib">
+                      <span className="text-sm font-semibold text-[#10b981]">
                         → {(draft.criteria[c.id] * c.weight).toFixed(2)} điểm
                       </span>
                     )}
@@ -322,11 +327,11 @@ export default function JudgeDashboardPage() {
             </div>
 
             {/* Weighted total */}
-            <div className="jp-total-box">
-              <div className="jp-total-row">
-                <span className="jp-total-label">Điểm tổng (quy đổi):</span>
-                <span className="jp-total-value" style={{
-                  color: weightedTotal >= 8 ? '#10b981' : weightedTotal >= 6 ? '#f59e0b' : weightedTotal > 0 ? '#ef4444' : 'var(--text-muted)'
+            <div className="bg-[rgba(0,212,255,0.04)] border border-[rgba(0,212,255,0.2)] rounded-xl p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[0.85rem] font-semibold text-white/60">Điểm tổng (quy đổi):</span>
+                <span className="text-xl font-extrabold" style={{
+                  color: weightedTotal >= 8 ? '#10b981' : weightedTotal >= 6 ? '#f59e0b' : weightedTotal > 0 ? '#ef4444' : 'rgba(255,255,255,0.25)'
                 }}>
                   {weightedTotal.toFixed(2)} / 10
                 </span>
@@ -341,10 +346,10 @@ export default function JudgeDashboardPage() {
             </div>
 
             {/* Comment */}
-            <div className="jp-comment-box">
-              <label className="jp-comment-label">Nhận xét (không bắt buộc)</label>
+            <div>
+              <label className="block text-[0.75rem] font-semibold text-white/40 mb-2 uppercase tracking-wide">Nhận xét (không bắt buộc)</label>
               <textarea
-                className="jp-comment-textarea"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white/70 placeholder-white/25 outline-none resize-none focus:border-[rgba(0,212,255,0.4)] transition-colors"
                 rows={3}
                 placeholder="Nhận xét tổng quan về đội thi, điểm mạnh, điểm cần cải thiện..."
                 value={draft.comment}
@@ -353,7 +358,7 @@ export default function JudgeDashboardPage() {
             </div>
 
             {/* Actions */}
-            <div className="jp-form-actions">
+            <div className="flex items-center justify-end gap-3 pt-1">
               <Button onClick={() => saveScore('draft')}>💾 Lưu nháp</Button>
               <Button type="primary" onClick={() => saveScore('submitted')} style={{ minWidth: 160 }}>
                 ✓ Nộp điểm chính thức
@@ -365,7 +370,6 @@ export default function JudgeDashboardPage() {
                 type="success"
                 showIcon
                 message="Đội này đã có điểm chính thức. Bạn vẫn có thể sửa trước khi Admin khóa chấm điểm."
-                style={{ marginTop: 8 }}
               />
             )}
           </div>

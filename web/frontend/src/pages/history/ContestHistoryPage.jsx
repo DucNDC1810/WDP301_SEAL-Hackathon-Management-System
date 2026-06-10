@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Table, Tag, Button, Typography, message, Result } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
-import './ContestHistoryPage.css';
 
 const { Title } = Typography;
 const API = import.meta.env.VITE_API_URL || '';
@@ -56,7 +55,7 @@ export default function ContestHistoryPage() {
   }
 
   return (
-    <div className="contest-history">
+    <div className="p-6">
       <Title level={3}>Lịch sử giải đấu</Title>
       <Table rowKey="_id" dataSource={contests} columns={columns} loading={loading} pagination={{ pageSize: 10 }} />
     </div>

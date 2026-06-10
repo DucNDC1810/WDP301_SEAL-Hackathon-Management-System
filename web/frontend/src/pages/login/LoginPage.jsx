@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import './LoginPage.css';
+import { Button } from 'antd';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -34,7 +34,6 @@ function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const res = await fetch(`${API_URL}/api/auth/signin`, {
         method: 'POST',
@@ -42,17 +41,9 @@ function LoginPage() {
         credentials: 'include',
         body: JSON.stringify(formData),
       });
-
       const data = await res.json();
-
-      if (!data.success) {
-        setError(data.message);
-        return;
-      }
-
-      // save token & user via AuthContext
+      if (!data.success) { setError(data.message); return; }
       login(data.data);
-
       const isAdmin = data.data.roles?.some((r) => r.role_name === 'admin');
       navigate(isAdmin ? '/admin/dashboard' : '/');
     } catch {
@@ -63,66 +54,65 @@ function LoginPage() {
   };
 
   return (
-    <div className="login-page" id="login-page">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0a]" id="login-page">
       {/* Video Background */}
-      <div className="login-page__video-wrap">
+      <div className="fixed inset-0 z-0 pointer-events-none">
         <iframe
           src="https://player.mux.com/7LTJwDIxZwhdkJCZRdZJuXQamj00eCUP6ZvuihJ4d004w?autoplay=muted&loop=true&background=true"
-          className="login-page__video"
+          className="w-full h-full border-none"
           allow="autoplay; fullscreen"
           title="SEAL Background"
+          style={{ objectFit: 'cover' }}
         />
-        <div className="login-page__video-overlay" />
+        <div className="absolute inset-0 bg-black/60" />
       </div>
 
-      {/* Floating Particles */}
-      <div className="login-page__particles">
+      {/* Particles */}
+      <div className="fixed inset-0 z-[1] pointer-events-none">
         {Array.from({ length: 20 }).map((_, i) => (
           <span
             key={i}
-            className="login-page__particle"
+            className="absolute rounded-full bg-white/40"
             style={{
-              '--x': `${Math.random() * 100}%`,
-              '--y': `${Math.random() * 100}%`,
-              '--delay': `${Math.random() * 6}s`,
-              '--duration': `${3 + Math.random() * 4}s`,
-              '--size': `${2 + Math.random() * 3}px`,
+              left: `${(i * 17 + 5) % 100}%`,
+              top: `${(i * 23 + 10) % 100}%`,
+              width: `${2 + (i % 3)}px`,
+              height: `${2 + (i % 3)}px`,
+              animation: `loginFloat ${3 + (i % 4)}s ${(i * 0.3) % 6}s infinite ease-in-out alternate`,
             }}
           />
         ))}
       </div>
 
       {/* Login Card */}
-      <div className="login-page__content">
-        <div className="login-card" id="login-card">
-          {/* Logo */}
-          <div className="login-card__header">
-            <Link to="/" className="login-card__logo">
-              <span className="login-card__logo-icon">⬡</span>
-              <span className="login-card__logo-text">SEAL</span>
+      <div className="relative z-[2] w-full max-w-[420px] px-4">
+        <div className="bg-white/5 backdrop-blur-2xl border border-white/12 rounded-2xl p-8 text-white" id="login-card">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <Link to="/" className="inline-flex items-center gap-2 no-underline text-white text-2xl font-bold mb-3">
+              <span className="text-[#6366f1]">⬡</span>
+              <span>SEAL</span>
             </Link>
-            <h1 className="login-card__title">Đăng Nhập</h1>
-            <p className="login-card__subtitle">
-              Chào mừng bạn quay trở lại hệ thống
-            </p>
+            <h1 className="text-xl font-bold text-white mt-2 mb-1">Đăng Nhập</h1>
+            <p className="text-white/50 text-sm">Chào mừng bạn quay trở lại hệ thống</p>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="login-card__error" id="login-error">
-              <span className="login-card__error-icon">⚠</span>
-              {error}
+            <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm mb-4" id="login-error">
+              <span>⚠</span>
+              <span>{error}</span>
             </div>
           )}
 
           {/* Form */}
-          <form className="login-card__form" onSubmit={handleSubmit} id="login-form">
-            <div className="login-card__field">
-              <label htmlFor="identifier" className="login-card__label">
+          <form onSubmit={handleSubmit} id="login-form" className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="identifier" className="text-white/80 text-sm font-medium">
                 Email hoặc username
               </label>
-              <div className="login-card__input-wrap">
-                <svg className="login-card__input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                   <polyline points="22,6 12,13 2,6" />
                 </svg>
@@ -130,7 +120,7 @@ function LoginPage() {
                   type="text"
                   id="identifier"
                   name="identifier"
-                  className="login-card__input"
+                  className="w-full bg-white/8 border border-white/15 rounded-lg pl-10 pr-4 py-2.5 text-white text-sm placeholder-white/30 outline-none focus:border-[#6366f1] transition-colors"
                   placeholder="username hoặc email"
                   value={formData.identifier}
                   onChange={handleChange}
@@ -140,12 +130,12 @@ function LoginPage() {
               </div>
             </div>
 
-            <div className="login-card__field">
-              <label htmlFor="password" className="login-card__label">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="password" className="text-white/80 text-sm font-medium">
                 Mật khẩu
               </label>
-              <div className="login-card__input-wrap">
-                <svg className="login-card__input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
@@ -153,7 +143,7 @@ function LoginPage() {
                   type="password"
                   id="password"
                   name="password"
-                  className="login-card__input"
+                  className="w-full bg-white/8 border border-white/15 rounded-lg pl-10 pr-4 py-2.5 text-white text-sm placeholder-white/30 outline-none focus:border-[#6366f1] transition-colors"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
@@ -163,33 +153,34 @@ function LoginPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              className={`login-card__submit ${loading ? 'login-card__submit--loading' : ''}`}
-              disabled={loading}
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              block
+              size="large"
+              style={{ background: '#6366f1', borderColor: '#6366f1', fontWeight: 600 }}
               id="btn-login-submit"
             >
-              {loading ? (
-                <span className="login-card__spinner" />
-              ) : (
-                'Đăng Nhập'
-              )}
-            </button>
+              Đăng Nhập
+            </Button>
           </form>
 
           {/* Divider */}
-          <div className="login-card__divider">
-            <span>hoặc</span>
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-white/40 text-xs">hoặc</span>
+            <div className="flex-1 h-px bg-white/10" />
           </div>
 
           {/* Social Buttons */}
-          <div className="login-card__socials">
+          <div className="flex gap-3">
             <a
               href={`${API_URL}/api/auth/google`}
-              className="login-card__social"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-white/20 rounded-lg text-white/80 text-sm no-underline transition-all hover:bg-white/10"
               id="btn-google-login"
             >
-              <svg viewBox="0 0 24 24" width="20" height="20">
+              <svg viewBox="0 0 24 24" width="18" height="18">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -199,25 +190,32 @@ function LoginPage() {
             </a>
             <a
               href={`${API_URL}/api/auth/github`}
-              className="login-card__social"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-white/20 rounded-lg text-white/80 text-sm no-underline transition-all hover:bg-white/10"
               id="btn-github-login"
             >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
               </svg>
               GitHub
             </a>
           </div>
 
-          {/* Footer */}
-          <p className="login-card__footer">
+          <p className="text-center text-white/50 text-sm mt-4">
             Chưa có tài khoản?{' '}
-            <Link to="/signup" className="login-card__link" id="link-signup">
+            <Link to="/signup" className="text-[#6366f1] hover:text-[#818cf8] transition-colors" id="link-signup">
               Đăng ký ngay
             </Link>
           </p>
         </div>
       </div>
+
+      <style>{`
+        @keyframes loginFloat {
+          from { transform: translateY(0); opacity: 0.3; }
+          to   { transform: translateY(-20px); opacity: 0.8; }
+        }
+        .bg-white\\/8 { background: rgba(255,255,255,0.08); }
+      `}</style>
     </div>
   );
 }

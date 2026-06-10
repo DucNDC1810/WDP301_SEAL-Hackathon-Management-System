@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Modal, InputNumber, Tag, Alert, Progress, Tooltip, message, Spin } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
-import '../mentor/JudgeScoringPage.css';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const TEAM_STATUS_CFG = {

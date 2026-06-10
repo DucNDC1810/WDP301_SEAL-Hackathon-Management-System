@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Form, InputNumber, Input, Button, Card, Row, Col, Typography, Divider, message, Spin } from 'antd';
-import './ScoreFormPage.css';
 
 const { Title, Text } = Typography;
 const API = import.meta.env.VITE_API_URL || '';
@@ -34,7 +33,7 @@ export default function ScoreFormPage() {
         try {
           const aiRes = await fetch(`${API}/api/ai-reviews?team_id=${teamId}&round_id=${roundId}`, { headers });
           if (aiRes.ok) setAiData(await aiRes.json());
-        } catch (_) { /* AI data not available yet */ }
+        } catch (_) {}
       } catch {
         message.error('Không thể tải dữ liệu');
       } finally {
@@ -72,10 +71,14 @@ export default function ScoreFormPage() {
     }
   };
 
-  if (loading) return <Spin className="score-form__spin" />;
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Spin size="large" />
+    </div>
+  );
 
   return (
-    <div className="score-form">
+    <div className="max-w-[900px] mx-auto px-6 py-10">
       <Title level={3}>Chấm điểm</Title>
       <Row gutter={24}>
         <Col xs={24} md={14}>
@@ -105,7 +108,7 @@ export default function ScoreFormPage() {
           </Card>
         </Col>
         <Col xs={24} md={10}>
-          <Card title="Gợi ý AI" className="score-form__ai-box">
+          <Card title="Gợi ý AI">
             {aiData ? (
               <>
                 <Text strong>Câu hỏi gợi ý:</Text>

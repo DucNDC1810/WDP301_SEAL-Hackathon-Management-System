@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import './AdminLayout.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -25,7 +24,6 @@ const CR = 'M9 18l6-6-6-6';
 const LOGOUT = ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'M16 17l5-5-5-5', 'M21 12H9'];
 const SUN = 'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z';
 const MOON = 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z';
-
 const USERS_D = ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M23 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'];
 
 const NAV = [
@@ -60,73 +58,112 @@ export default function AdminLayout() {
       : name[0].toUpperCase();
   };
 
+  const isDark = theme === 'dark';
+
   return (
-    <div className="al-root" data-theme={theme}>
+    <div
+      className={`flex min-h-screen font-sans ${isDark ? 'bg-[#060b16] text-[#c9d6e8]' : 'bg-[#f0f4f8] text-[#1e293b]'}`}
+      data-theme={theme}
+    >
       {/* ── Sidebar ── */}
-      <aside className={`al-sidebar${collapsed ? ' al-sm' : ''}`}>
-        <div className="al-logo-row">
-          <div className="al-logo">
-            <div className="al-logo-icon">
+      <aside
+        className={`
+          flex-shrink-0 flex flex-col sticky top-0 h-screen z-10
+          transition-all duration-200 ease-in-out overflow-visible
+          border-r
+          ${collapsed ? 'w-[60px]' : 'w-[210px]'}
+          ${isDark ? 'bg-[#0b1120] border-[#162036]' : 'bg-white border-[#e2e8f0]'}
+        `}
+      >
+        {/* Logo */}
+        <div className={`flex items-center px-3 py-3.5 border-b min-h-[56px] ${isDark ? 'border-[#162036]' : 'border-[#e2e8f0]'}`}>
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className={`w-[34px] h-[34px] rounded-lg flex items-center justify-center flex-shrink-0 border ${isDark ? 'bg-[#00d4ff14] border-[#00d4ff30] text-[#00d4ff]' : 'bg-[rgba(0,152,181,0.08)] border-[rgba(0,152,181,0.3)] text-[#0098b5]'}`}>
               <Ico d={ZAP} size={18} sw={2} />
             </div>
             {!collapsed && (
-              <div className="al-logo-txt">
-                <span className="al-logo-name">SEAL</span>
-                <span className="al-logo-sub">Hackathon</span>
+              <div className="flex flex-col overflow-hidden">
+                <span className={`text-base font-extrabold tracking-[1.5px] whitespace-nowrap ${isDark ? 'text-[#00d4ff]' : 'text-[#0098b5]'}`}>SEAL</span>
+                <span className={`text-[0.58rem] uppercase tracking-[1px] whitespace-nowrap ${isDark ? 'text-[#3a5068]' : 'text-[#94a3b8]'}`}>Hackathon</span>
               </div>
             )}
           </div>
         </div>
 
-        <button className="al-toggle" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}>
+        {/* Toggle button */}
+        <button
+          className={`absolute top-[18px] -right-[11px] z-20 w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer transition-all duration-150 border ${isDark ? 'bg-[#0f1827] border-[#1e3050] text-[#3a5068] hover:text-[#00d4ff] hover:border-[#00d4ff30]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#94a3b8] hover:text-[#0098b5]'}`}
+          onClick={() => setCollapsed(v => !v)}
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
           <Ico d={collapsed ? CR : CL} size={13} sw={2.5} />
         </button>
 
-        <nav className="al-nav">
+        {/* Nav */}
+        <nav className="flex-1 py-2.5 px-[7px] flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden scrollbar-none">
           {NAV.map(({ key, label, path, d }) => (
             <button
               key={key}
-              className={`al-nav-item${activeKey === key ? ' active' : ''}`}
+              className={`
+                flex items-center gap-2.5 px-[11px] py-[9px] rounded-[7px] border text-left w-full whitespace-nowrap
+                cursor-pointer transition-all duration-150 text-[0.83rem] font-medium font-sans
+                ${activeKey === key
+                  ? isDark
+                    ? 'bg-[linear-gradient(90deg,#00d4ff18,transparent)] text-[#00d4ff] border-[#00d4ff18]'
+                    : 'bg-[rgba(0,152,181,0.1)] text-[#0098b5] border-[rgba(0,152,181,0.1)]'
+                  : `border-transparent ${isDark ? 'text-[#4a6080] hover:bg-[#121e30] hover:text-[#90aac8]' : 'text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#0f172a]'}`
+                }
+              `}
               onClick={() => path && navigate(path)}
               title={collapsed ? label : undefined}
             >
-              <span className="al-nav-icon"><Ico d={d} size={16} /></span>
-              {!collapsed && <span className="al-nav-label">{label}</span>}
+              <span className="w-4 flex items-center justify-center flex-shrink-0">
+                <Ico d={d} size={16} />
+              </span>
+              {!collapsed && <span className="overflow-hidden text-ellipsis">{label}</span>}
             </button>
           ))}
         </nav>
 
-        <div className="al-sidebar-foot">
+        {/* Footer: theme toggle */}
+        <div className={`px-[7px] py-2.5 border-t flex flex-col gap-1.5 ${isDark ? 'border-[#162036]' : 'border-[#e2e8f0]'}`}>
           <button
-            className="al-theme-toggle"
+            className={`flex items-center gap-2 px-[11px] py-2 rounded-[7px] border w-full cursor-pointer font-sans text-[0.8rem] transition-all duration-150 ${isDark ? 'border-[#162036] text-[#3a5068] hover:bg-[#121e30] hover:text-[#00d4ff] hover:border-[#00d4ff30]' : 'border-[#e2e8f0] text-[#94a3b8] hover:bg-[#f1f5f9] hover:text-[#0098b5]'}`}
             onClick={toggleTheme}
-            title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+            title={isDark ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
           >
-            <Ico d={theme === 'dark' ? SUN : MOON} size={16} />
-            {!collapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+            <Ico d={isDark ? SUN : MOON} size={16} />
+            {!collapsed && <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
           </button>
         </div>
       </aside>
 
       {/* ── Right side: topbar + content ── */}
-      <div className="al-main">
-        <header className="al-topbar">
-          <div className="al-topbar-right">
-            <div className="al-profile-chip">
-              <div className="al-profile-av">{initials(user?.full_name)}</div>
-              <div className="al-profile-info">
-                <div className="al-profile-name">{user?.full_name || 'Admin'}</div>
-                <span className="al-profile-role">ADMIN</span>
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className={`h-14 flex items-center justify-end px-5 gap-3 flex-shrink-0 sticky top-0 z-[9] border-b ${isDark ? 'bg-[#0b1120] border-[#162036]' : 'bg-white border-[#e2e8f0]'}`}>
+          <div className="flex items-center gap-2.5">
+            <div className={`flex items-center gap-2.5 px-3 py-1.5 pl-1.5 rounded-[10px] border ${isDark ? 'bg-[#0f1827] border-[#162036]' : 'bg-[#f8fafc] border-[#e2e8f0]'}`}>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#00d4ff] to-[#7c3aed] text-white font-bold text-[0.82rem] flex items-center justify-center flex-shrink-0">
+                {initials(user?.full_name)}
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className={`text-[0.82rem] font-semibold whitespace-nowrap ${isDark ? 'text-[#c9d6e8]' : 'text-[#1e293b]'}`}>{user?.full_name || 'Admin'}</span>
+                <span className={`text-[0.62rem] font-bold tracking-[0.5px] ${isDark ? 'text-[#00d4ff]' : 'text-[#0098b5]'}`}>ADMIN</span>
               </div>
             </div>
-            <button className="al-topbar-logout" onClick={handleLogout} title="Logout">
+            <button
+              className={`flex items-center gap-1.5 px-3 py-[7px] rounded-lg border cursor-pointer font-sans text-[0.8rem] whitespace-nowrap transition-all duration-150 ${isDark ? 'border-[#162036] text-[#3a5068] hover:bg-[#1a1020] hover:text-[#ff6b6b] hover:border-[rgba(239,68,68,0.3)]' : 'border-[#e2e8f0] text-[#94a3b8] hover:bg-[#fff1f2] hover:text-[#ef4444] hover:border-[rgba(239,68,68,0.3)]'}`}
+              onClick={handleLogout}
+              title="Logout"
+            >
               <Ico d={LOGOUT} size={16} sw={1.8} />
               <span>Logout</span>
             </button>
           </div>
         </header>
 
-        <div className="al-content">
+        <div className="flex-1 min-w-0 overflow-y-auto">
           <Outlet />
         </div>
       </div>

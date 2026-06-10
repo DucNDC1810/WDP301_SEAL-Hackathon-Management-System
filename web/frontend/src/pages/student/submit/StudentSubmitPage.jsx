@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { message, Modal, Empty } from 'antd';
 import { useApi } from '../../../hooks/useApi';
-import '../student.css';
 
 const Ico = ({ d, size = 14, sw = 1.8 }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -17,12 +16,42 @@ const WARN   = ['M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.
 const EYE    = ['M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'];
 const CAL    = ['M8 2v3', 'M16 2v3', 'M3 7h18', 'M3 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2H3z'];
 
-const STATUS_CFG = {
-  SUBMITTED:     { label: 'Đã nộp đúng hạn',      cls: 'sp-badge--green',  icon: CHECK },
-  LATE_PENDING:  { label: 'Nộp trễ — Chờ duyệt',  cls: 'sp-badge--orange', icon: CLOCK },
-  LATE_APPROVED: { label: 'Nộp trễ — Đã duyệt',   cls: 'sp-badge--gold',   icon: CHECK },
-  REJECTED:      { label: 'Bị từ chối',            cls: 'sp-badge--red',    icon: WARN  },
+const badge = {
+  green:  { background: 'rgba(34,197,94,.12)',   color: '#22c55e', border: '1px solid rgba(34,197,94,.2)' },
+  orange: { background: 'rgba(245,158,11,.12)',  color: '#f59e0b', border: '1px solid rgba(245,158,11,.2)' },
+  gold:   { background: 'rgba(245,200,11,.12)',  color: '#f5c80b', border: '1px solid rgba(245,200,11,.2)' },
+  red:    { background: 'rgba(248,113,113,.12)', color: '#f87171', border: '1px solid rgba(248,113,113,.2)' },
+  cyan:   { background: '#00d4ff14',             color: '#00d4ff', border: '1px solid #00d4ff40' },
 };
+
+const Badge = ({ variant, children, style }) => (
+  <span style={{
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    padding: '2px 8px', borderRadius: 4,
+    fontSize: '0.72rem', fontWeight: 600,
+    textTransform: 'uppercase', letterSpacing: '.3px',
+    ...badge[variant],
+    ...style,
+  }}>{children}</span>
+);
+
+const STATUS_CFG = {
+  SUBMITTED:     { label: 'Đã nộp đúng hạn',     variant: 'green',  icon: CHECK },
+  LATE_PENDING:  { label: 'Nộp trễ — Chờ duyệt', variant: 'orange', icon: CLOCK },
+  LATE_APPROVED: { label: 'Nộp trễ — Đã duyệt',  variant: 'gold',   icon: CHECK },
+  REJECTED:      { label: 'Bị từ chối',           variant: 'red',    icon: WARN  },
+};
+
+const card = { background: '#0c1524', border: '1px solid #162036', borderRadius: 12, padding: '20px 24px' };
+const label = { fontSize: '0.72rem', fontWeight: 700, color: '#3a5068', textTransform: 'uppercase', letterSpacing: '.5px', display: 'block', marginBottom: 6 };
+const gradTitle = { background: 'linear-gradient(90deg,#00d4ff,#7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' };
+const cardIcon = { width: 28, height: 28, borderRadius: 6, background: '#00d4ff14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00d4ff', flexShrink: 0 };
+const tableWrap = { background: '#0c1524', border: '1px solid #162036', borderRadius: 12, overflow: 'hidden' };
+const cardHead = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid #162036' };
+const alertWarning = { padding: '12px 16px', borderRadius: 8, fontSize: '0.83rem', display: 'flex', gap: 10, alignItems: 'flex-start', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.25)', color: '#c9d6e8' };
+const alertInfo = { padding: '12px 16px', borderRadius: 8, fontSize: '0.83rem', display: 'flex', gap: 10, alignItems: 'flex-start', background: '#00d4ff14', border: '1px solid #00d4ff40', color: '#c9d6e8' };
+const btnPrimary = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 6, border: 'none', background: 'linear-gradient(135deg,#00d4ff,#0099cc)', color: '#060b16', fontSize: '0.83rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
+const btnSmDanger = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(239,68,68,.4)', background: 'transparent', color: '#f87171', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
 
 const fmtDate = (d) => {
   if (!d) return '—';
@@ -49,7 +78,11 @@ function Countdown({ deadline }) {
   }, [deadline]);
 
   if (diff === null) return null;
-  if (diff <= 0) return <span className="sp-badge sp-badge--red"><Ico d={WARN} size={11} />Đã qua deadline</span>;
+  if (diff <= 0) return (
+    <Badge variant="red">
+      <Ico d={WARN} size={11} />Đã qua deadline
+    </Badge>
+  );
 
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
@@ -58,11 +91,10 @@ function Countdown({ deadline }) {
   const urgent = diff < 3600000;
 
   return (
-    <span className={`sp-badge ${urgent ? 'sp-badge--red' : 'sp-badge--cyan'}`}
-      style={{ fontFamily: 'monospace', fontSize: 12 }}>
+    <Badge variant={urgent ? 'red' : 'cyan'} style={{ fontFamily: 'monospace', fontSize: 12 }}>
       <Ico d={CLOCK} size={11} />
       {h > 0 && `${h}h `}{pad(m)}m {pad(s)}s còn lại
-    </span>
+    </Badge>
   );
 }
 
@@ -84,7 +116,6 @@ export const StudentSubmitPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Schedule state
   const [slots, setSlots]             = useState([]);
   const [myBooking, setMyBooking]     = useState(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -93,7 +124,6 @@ export const StudentSubmitPage = () => {
   const [cancelling, setCancelling]     = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  // Load team + active round
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -120,7 +150,6 @@ export const StudentSubmitPage = () => {
     load();
   }, []);
 
-  // Load latest submission
   const loadSubmission = useCallback(async (roundId, teamId) => {
     setSubLoading(true);
     try {
@@ -151,7 +180,6 @@ export const StudentSubmitPage = () => {
     (async () => { await loadSubmission(activeRound._id, team._id); })();
   }, [activeRound, team, loadSubmission]);
 
-  // Load slots after deadline
   useEffect(() => {
     if (!activeRound || !contestId) return;
     const passed = activeRound.submission_deadline
@@ -162,14 +190,12 @@ export const StudentSubmitPage = () => {
       setSlotsLoading(true);
       try {
         if (passed) {
-          // Past deadline: only fetch existing booking, no available slots
           const data = await request(
             `/api/presentation-slots/my-booking?contest_id=${contestId}&round_id=${activeRound._id}`
           );
           setMyBooking(data.booking ?? null);
           setSlots([]);
         } else if (submission) {
-          // Has submission + before deadline: fetch available slots + booking
           const data = await request(
             `/api/presentation-slots/my-pool?contest_id=${contestId}&round_id=${activeRound._id}`
           );
@@ -250,7 +276,6 @@ export const StudentSubmitPage = () => {
       messageApi.success('Hủy lịch thành công!');
       setMyBooking(null);
       setShowCancelConfirm(false);
-      // reload slots
       const data = await request(
         `/api/presentation-slots/my-pool?contest_id=${contestId}&round_id=${activeRound._id}`
       );
@@ -267,18 +292,22 @@ export const StudentSubmitPage = () => {
     : false;
 
   if (loading) {
-    return <div className="sp-loading"><div className="sp-spinner" /></div>;
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <div className="w-8 h-8 rounded-full border-2 border-[#162036] border-t-[#00d4ff] animate-spin" />
+      </div>
+    );
   }
 
   if (!team) {
     return (
-      <div className="sp-page">
-        <h2 className="sp-page-title">Nộp bài</h2>
-        <div className="sp-alert sp-alert--warning">
-          <span className="sp-alert-icon"><Ico d={WARN} size={15} /></span>
-          <div className="sp-alert-body">
-            <span className="sp-alert-title">Bạn chưa có đội thi</span>
-            <span className="sp-alert-desc">Vào tab Đội thi để tạo hoặc tham gia đội.</span>
+      <div className="flex flex-col gap-5 p-7 bg-[#060b16] min-h-full">
+        <h2 className="text-2xl font-extrabold m-0" style={gradTitle}>Nộp bài</h2>
+        <div style={alertWarning}>
+          <span style={{ flexShrink: 0, marginTop: 1 }}><Ico d={WARN} size={15} /></span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontWeight: 600, color: '#c9d6e8' }}>Bạn chưa có đội thi</span>
+            <span style={{ color: '#4a6080', fontSize: '0.78rem' }}>Vào tab Đội thi để tạo hoặc tham gia đội.</span>
           </div>
         </div>
       </div>
@@ -287,13 +316,13 @@ export const StudentSubmitPage = () => {
 
   if (!activeRound) {
     return (
-      <div className="sp-page">
-        <h2 className="sp-page-title">Nộp bài</h2>
-        <div className="sp-alert sp-alert--info">
-          <span className="sp-alert-icon"><Ico d={CLOCK} size={15} /></span>
-          <div className="sp-alert-body">
-            <span className="sp-alert-title">Hiện chưa có vòng thi nào đang diễn ra</span>
-            <span className="sp-alert-desc">Bài nộp chỉ được nhận khi có vòng thi active.</span>
+      <div className="flex flex-col gap-5 p-7 bg-[#060b16] min-h-full">
+        <h2 className="text-2xl font-extrabold m-0" style={gradTitle}>Nộp bài</h2>
+        <div style={alertInfo}>
+          <span style={{ flexShrink: 0, marginTop: 1 }}><Ico d={CLOCK} size={15} /></span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontWeight: 600, color: '#c9d6e8' }}>Hiện chưa có vòng thi nào đang diễn ra</span>
+            <span style={{ color: '#4a6080', fontSize: '0.78rem' }}>Bài nộp chỉ được nhận khi có vòng thi active.</span>
           </div>
         </div>
       </div>
@@ -303,12 +332,12 @@ export const StudentSubmitPage = () => {
   const statusCfg = submission ? (STATUS_CFG[submission.status] ?? STATUS_CFG.SUBMITTED) : null;
 
   return (
-    <div className="sp-page">
+    <div className="flex flex-col gap-5 p-7 bg-[#060b16] min-h-full box-border">
       {ctx}
 
       {/* Header */}
-      <div className="sp-flex--between" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <h2 className="sp-page-title">Nộp bài</h2>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-2xl font-extrabold m-0" style={gradTitle}>Nộp bài</h2>
         {activeRound.submission_deadline && (
           <Countdown deadline={activeRound.submission_deadline} />
         )}
@@ -317,19 +346,19 @@ export const StudentSubmitPage = () => {
       {/* Two-column layout */}
       <div style={{ position: 'relative' }}>
 
-      {/* LEFT 60% — submission */}
+      {/* LEFT 60% */}
       <div style={{ width: '60%', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Round info */}
-      <div className="sp-card" style={{ borderTopWidth: 2, borderTopColor: 'var(--pg-accent)' }}>
-        <div className="sp-flex sp-gap-3" style={{ flexWrap: 'wrap', justifyContent: 'space-between' }}>
+      <div style={{ ...card, borderTopWidth: 2, borderTopColor: '#00d4ff' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 }}>
           <div>
-            <span className="sp-label">VÒNG ĐANG DIỄN RA</span>
-            <div className="sp-strong" style={{ fontSize: '1rem', marginTop: 4 }}>{activeRound.name}</div>
+            <span style={label}>VÒNG ĐANG DIỄN RA</span>
+            <div style={{ color: '#c9d6e8', fontWeight: 600, fontSize: '1rem', marginTop: 4 }}>{activeRound.name}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <span className="sp-label">HẠN NỘP BÀI</span>
-            <div className="sp-strong" style={{ marginTop: 4, color: isPastDeadline ? 'var(--pg-red)' : 'var(--pg-text2)' }}>
+            <span style={label}>HẠN NỘP BÀI</span>
+            <div style={{ color: isPastDeadline ? '#f87171' : '#c9d6e8', fontWeight: 600, marginTop: 4 }}>
               {fmtDate(activeRound.submission_deadline)}
             </div>
           </div>
@@ -338,11 +367,11 @@ export const StudentSubmitPage = () => {
 
       {/* Late submission warning */}
       {isPastDeadline && (
-        <div className="sp-alert sp-alert--warning">
-          <span className="sp-alert-icon"><Ico d={WARN} size={15} /></span>
-          <div className="sp-alert-body">
-            <span className="sp-alert-title">Đã qua hạn nộp bài</span>
-            <span className="sp-alert-desc">
+        <div style={alertWarning}>
+          <span style={{ flexShrink: 0, marginTop: 1 }}><Ico d={WARN} size={15} /></span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontWeight: 600, color: '#c9d6e8' }}>Đã qua hạn nộp bài</span>
+            <span style={{ color: '#4a6080', fontSize: '0.78rem' }}>
               Bài nộp lúc này sẽ được đánh dấu <strong>nộp trễ</strong> và cần admin phê duyệt trước khi được tính điểm.
             </span>
           </div>
@@ -351,56 +380,64 @@ export const StudentSubmitPage = () => {
 
       {/* Current submission status */}
       {subLoading ? (
-        <div className="sp-loading" style={{ minHeight: 60 }}><div className="sp-spinner" /></div>
+        <div className="flex items-center justify-center" style={{ minHeight: 60 }}>
+          <div className="w-8 h-8 rounded-full border-2 border-[#162036] border-t-[#00d4ff] animate-spin" />
+        </div>
       ) : submission && (
-        <div className="sp-card" style={{ borderTopWidth: 2, borderTopColor: submission.status === 'SUBMITTED' || submission.status === 'LATE_APPROVED' ? 'var(--pg-green)' : submission.status === 'REJECTED' ? 'var(--pg-red)' : 'var(--pg-amber)' }}>
-          <div className="sp-flex--between" style={{ marginBottom: 14 }}>
-            <span className="sp-label">BÀI NỘP HIỆN TẠI</span>
-            <span className={`sp-badge ${statusCfg.cls}`}>
+        <div style={{
+          ...card,
+          borderTopWidth: 2,
+          borderTopColor: submission.status === 'SUBMITTED' || submission.status === 'LATE_APPROVED'
+            ? '#22c55e'
+            : submission.status === 'REJECTED' ? '#f87171' : '#f59e0b',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <span style={label}>BÀI NỘP HIỆN TẠI</span>
+            <Badge variant={statusCfg.variant}>
               <Ico d={statusCfg.icon} size={11} />
               {statusCfg.label}
-            </span>
+            </Badge>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div className="sp-flex sp-gap-2">
-              <span className="sp-muted" style={{ minWidth: 90, flexShrink: 0 }}>Repository</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: '#4a6080', fontSize: '0.83rem', minWidth: 90, flexShrink: 0 }}>Repository</span>
               <a href={submission.repo_url} target="_blank" rel="noopener noreferrer"
-                className="sp-accent" style={{ fontSize: 13, wordBreak: 'break-all' }}>
+                style={{ color: '#00d4ff', fontSize: 13, wordBreak: 'break-all' }}>
                 <Ico d={LINK} size={12} /> {submission.repo_url}
               </a>
             </div>
-            <div className="sp-flex sp-gap-2">
-              <span className="sp-muted" style={{ minWidth: 90, flexShrink: 0 }}>Slide</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: '#4a6080', fontSize: '0.83rem', minWidth: 90, flexShrink: 0 }}>Slide</span>
               <a href={submission.slide_url} target="_blank" rel="noopener noreferrer"
-                className="sp-accent" style={{ fontSize: 13, wordBreak: 'break-all' }}>
+                style={{ color: '#00d4ff', fontSize: 13, wordBreak: 'break-all' }}>
                 <Ico d={LINK} size={12} /> {submission.slide_url}
               </a>
             </div>
             {submission.demo_url && (
-              <div className="sp-flex sp-gap-2">
-                <span className="sp-muted" style={{ minWidth: 90, flexShrink: 0 }}>Demo</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#4a6080', fontSize: '0.83rem', minWidth: 90, flexShrink: 0 }}>Demo</span>
                 <a href={submission.demo_url} target="_blank" rel="noopener noreferrer"
-                  className="sp-accent" style={{ fontSize: 13, wordBreak: 'break-all' }}>
+                  style={{ color: '#00d4ff', fontSize: 13, wordBreak: 'break-all' }}>
                   <Ico d={LINK} size={12} /> {submission.demo_url}
                 </a>
               </div>
             )}
-            <div className="sp-flex sp-gap-2">
-              <span className="sp-muted" style={{ minWidth: 90, flexShrink: 0 }}>Nộp lúc</span>
-              <span className="sp-text">{fmtDate(submission.submitted_at)}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: '#4a6080', fontSize: '0.83rem', minWidth: 90, flexShrink: 0 }}>Nộp lúc</span>
+              <span style={{ color: '#c9d6e8', fontSize: '0.83rem' }}>{fmtDate(submission.submitted_at)}</span>
             </div>
             {submission.status === 'LATE_PENDING' && (
-              <div style={{ marginTop: 4, fontSize: 12, color: 'var(--pg-amber)' }}>
+              <div style={{ marginTop: 4, fontSize: 12, color: '#f59e0b' }}>
                 Trễ {submission.late_duration} phút so với deadline
               </div>
             )}
             {submission.status === 'REJECTED' && (
-              <div className="sp-alert sp-alert--warning" style={{ marginTop: 4 }}>
-                <span className="sp-alert-icon"><Ico d={WARN} size={13} /></span>
-                <div className="sp-alert-body">
-                  <span className="sp-alert-title">Lý do từ chối</span>
-                  <span className="sp-alert-desc">{submission.reason ?? 'Không có lý do cụ thể'}</span>
+              <div style={{ ...alertWarning, marginTop: 4 }}>
+                <span style={{ flexShrink: 0, marginTop: 1 }}><Ico d={WARN} size={13} /></span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontWeight: 600, color: '#c9d6e8' }}>Lý do từ chối</span>
+                  <span style={{ color: '#4a6080', fontSize: '0.78rem' }}>{submission.reason ?? 'Không có lý do cụ thể'}</span>
                 </div>
               </div>
             )}
@@ -409,11 +446,11 @@ export const StudentSubmitPage = () => {
       )}
 
       {/* Submit / Update form */}
-      <div className="sp-table-wrap">
-        <div className="sp-card-head">
-          <div className="sp-flex sp-gap-2">
-            <div className="sp-card-icon"><Ico d={UPLOAD} size={14} /></div>
-            <span className="sp-strong">{submission ? 'Cập nhật bài nộp' : 'Nộp bài'}</span>
+      <div style={tableWrap}>
+        <div style={cardHead}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={cardIcon}><Ico d={UPLOAD} size={14} /></div>
+            <span style={{ color: '#c9d6e8', fontWeight: 600 }}>{submission ? 'Cập nhật bài nộp' : 'Nộp bài'}</span>
           </div>
         </div>
 
@@ -421,9 +458,9 @@ export const StudentSubmitPage = () => {
 
           {/* repo_url */}
           <div>
-            <label className="sp-label" style={{ marginBottom: 6 }}>
+            <label style={{ ...label, marginBottom: 6 }}>
               LINK REPOSITORY *
-              <span className="sp-muted" style={{ fontWeight: 400, textTransform: 'none', marginLeft: 8 }}>
+              <span style={{ color: '#4a6080', fontWeight: 400, textTransform: 'none', marginLeft: 8 }}>
                 GitHub hoặc GitLab
               </span>
             </label>
@@ -433,19 +470,19 @@ export const StudentSubmitPage = () => {
               onChange={(e) => { setForm(f => ({ ...f, repo_url: e.target.value })); setErrors(er => ({ ...er, repo_url: null })); }}
               style={{
                 width: '100%', padding: '9px 12px', borderRadius: 8, fontSize: 13,
-                border: `1px solid ${errors.repo_url ? 'var(--pg-red)' : 'var(--pg-border)'}`,
-                background: 'var(--pg-input-bg, #080e1a)', color: 'var(--pg-text2)',
+                border: `1px solid ${errors.repo_url ? '#f87171' : '#162036'}`,
+                background: '#080e1a', color: '#c9d6e8',
                 outline: 'none', boxSizing: 'border-box',
               }}
             />
-            {errors.repo_url && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--pg-red)' }}>{errors.repo_url}</div>}
+            {errors.repo_url && <div style={{ marginTop: 4, fontSize: 12, color: '#f87171' }}>{errors.repo_url}</div>}
           </div>
 
           {/* slide_url */}
           <div>
-            <label className="sp-label" style={{ marginBottom: 6 }}>
+            <label style={{ ...label, marginBottom: 6 }}>
               LINK SLIDE *
-              <span className="sp-muted" style={{ fontWeight: 400, textTransform: 'none', marginLeft: 8 }}>
+              <span style={{ color: '#4a6080', fontWeight: 400, textTransform: 'none', marginLeft: 8 }}>
                 Google Slides, Canva, PowerPoint Online
               </span>
             </label>
@@ -455,19 +492,19 @@ export const StudentSubmitPage = () => {
               onChange={(e) => { setForm(f => ({ ...f, slide_url: e.target.value })); setErrors(er => ({ ...er, slide_url: null })); }}
               style={{
                 width: '100%', padding: '9px 12px', borderRadius: 8, fontSize: 13,
-                border: `1px solid ${errors.slide_url ? 'var(--pg-red)' : 'var(--pg-border)'}`,
-                background: 'var(--pg-input-bg, #080e1a)', color: 'var(--pg-text2)',
+                border: `1px solid ${errors.slide_url ? '#f87171' : '#162036'}`,
+                background: '#080e1a', color: '#c9d6e8',
                 outline: 'none', boxSizing: 'border-box',
               }}
             />
-            {errors.slide_url && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--pg-red)' }}>{errors.slide_url}</div>}
+            {errors.slide_url && <div style={{ marginTop: 4, fontSize: 12, color: '#f87171' }}>{errors.slide_url}</div>}
           </div>
 
           {/* demo_url */}
           <div>
-            <label className="sp-label" style={{ marginBottom: 6 }}>
+            <label style={{ ...label, marginBottom: 6 }}>
               LINK DEMO
-              <span className="sp-muted" style={{ fontWeight: 400, textTransform: 'none', marginLeft: 8 }}>
+              <span style={{ color: '#4a6080', fontWeight: 400, textTransform: 'none', marginLeft: 8 }}>
                 Tuỳ chọn — YouTube, Loom, v.v.
               </span>
             </label>
@@ -477,8 +514,8 @@ export const StudentSubmitPage = () => {
               onChange={(e) => setForm(f => ({ ...f, demo_url: e.target.value }))}
               style={{
                 width: '100%', padding: '9px 12px', borderRadius: 8, fontSize: 13,
-                border: '1px solid var(--pg-border)',
-                background: 'var(--pg-input-bg, #080e1a)', color: 'var(--pg-text2)',
+                border: '1px solid #162036',
+                background: '#080e1a', color: '#c9d6e8',
                 outline: 'none', boxSizing: 'border-box',
               }}
             />
@@ -490,15 +527,15 @@ export const StudentSubmitPage = () => {
               onClick={() => setForm(f => ({ ...f, is_accessible: !f.is_accessible }))}
               style={{
                 width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-                border: `2px solid ${form.is_accessible ? 'var(--pg-accent)' : 'var(--pg-border)'}`,
-                background: form.is_accessible ? 'var(--pg-accent-bg)' : 'transparent',
+                border: `2px solid ${form.is_accessible ? '#00d4ff' : '#162036'}`,
+                background: form.is_accessible ? '#00d4ff14' : 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all .2s',
               }}
             >
               {form.is_accessible && <Ico d={CHECK} size={11} sw={2.5} />}
             </div>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--pg-text2)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#c9d6e8' }}>
               <Ico d={EYE} size={13} />
               Repository có thể truy cập công khai (public)
             </span>
@@ -507,8 +544,7 @@ export const StudentSubmitPage = () => {
           {/* Submit button */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
             <button
-              className="sp-btn sp-btn--primary"
-              style={{ padding: '9px 28px', fontSize: 14, opacity: isPastDeadline ? 0.4 : 1, cursor: isPastDeadline ? 'not-allowed' : 'pointer' }}
+              style={{ ...btnPrimary, padding: '9px 28px', fontSize: 14, opacity: isPastDeadline ? 0.4 : 1, cursor: isPastDeadline ? 'not-allowed' : 'pointer' }}
               disabled={submitting || isPastDeadline}
               title={isPastDeadline ? 'Đã qua hạn nộp bài' : undefined}
               onClick={() => {
@@ -527,69 +563,69 @@ export const StudentSubmitPage = () => {
 
       </div>{/* /LEFT col */}
 
-      {/* RIGHT 40% — absolute so it doesn't affect wrapper height */}
-      <div className="sp-schedule-panel" style={{
+      {/* RIGHT 40% */}
+      <div style={{
         position: 'absolute', left: 'calc(60% + 16px)', right: 0, top: 0, bottom: 0,
         overflowY: 'scroll',
-        background: 'var(--pg-card-bg, #0d1825)',
-        border: '1px solid var(--pg-border)',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#1e3a5f transparent',
+        background: '#0d1825',
+        border: '1px solid #162036',
         borderRadius: 12, padding: 16, boxSizing: 'border-box',
       }}>
 
-      {/* ── LỊCH TRÌNH BÀY ─────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div className="sp-flex sp-gap-2" style={{ marginBottom: 4 }}>
-          <div className="sp-card-icon"><Ico d={CAL} size={14} /></div>
-          <span className="sp-strong" style={{ fontSize: '0.95rem' }}>Lịch trình bày</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <div style={cardIcon}><Ico d={CAL} size={14} /></div>
+          <span style={{ color: '#c9d6e8', fontWeight: 600, fontSize: '0.95rem' }}>Lịch trình bày</span>
         </div>
 
         {/* Already booked */}
         {myBooking && (
-          <div className="sp-card" style={{ borderTopWidth: 2, borderTopColor: 'var(--pg-green)' }}>
-            <div className="sp-flex sp-gap-3">
-              <div className="sp-card-icon" style={{ background: 'rgba(34,197,94,.12)', color: 'var(--pg-green)' }}>
+          <div style={{ ...card, borderTopWidth: 2, borderTopColor: '#22c55e' }}>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ ...cardIcon, background: 'rgba(34,197,94,.12)', color: '#22c55e' }}>
                 <Ico d={CHECK} size={14} />
               </div>
-              <div>
-                <div className="sp-flex--between" style={{ marginBottom: 2 }}>
-                  <span className="sp-label">LỊCH ĐÃ ĐẶT</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                  <span style={label}>LỊCH ĐÃ ĐẶT</span>
                   <button
-                    className="sp-btn sp-btn--sm sp-btn--danger"
+                    style={{ ...btnSmDanger, opacity: isPastDeadline ? 0.4 : 1, cursor: isPastDeadline ? 'not-allowed' : 'pointer' }}
                     disabled={isPastDeadline}
                     title={isPastDeadline ? 'Đã qua hạn nộp bài' : undefined}
-                    style={{ opacity: isPastDeadline ? 0.4 : 1, cursor: isPastDeadline ? 'not-allowed' : 'pointer' }}
                     onClick={() => !isPastDeadline && setShowCancelConfirm(true)}>
                     Hủy lịch
                   </button>
                 </div>
-                <div className="sp-flex sp-gap-3" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
                   <div>
-                    <span className="sp-muted" style={{ fontSize: 11 }}>BẮT ĐẦU</span>
-                    <div className="sp-strong" style={{ marginTop: 2 }}>{fmtDate(myBooking.start_time)}</div>
+                    <span style={{ color: '#4a6080', fontSize: 11 }}>BẮT ĐẦU</span>
+                    <div style={{ color: '#c9d6e8', fontWeight: 600, marginTop: 2 }}>{fmtDate(myBooking.start_time)}</div>
                   </div>
-                  <div style={{ width: 1, background: 'var(--pg-border)', alignSelf: 'stretch' }} />
+                  <div style={{ width: 1, background: '#162036', alignSelf: 'stretch' }} />
                   <div>
-                    <span className="sp-muted" style={{ fontSize: 11 }}>KẾT THÚC</span>
-                    <div className="sp-strong" style={{ marginTop: 2 }}>{fmtDate(myBooking.end_time)}</div>
+                    <span style={{ color: '#4a6080', fontSize: 11 }}>KẾT THÚC</span>
+                    <div style={{ color: '#c9d6e8', fontWeight: 600, marginTop: 2 }}>{fmtDate(myBooking.end_time)}</div>
                   </div>
                   {myBooking.room && (
                     <>
-                      <div style={{ width: 1, background: 'var(--pg-border)', alignSelf: 'stretch' }} />
+                      <div style={{ width: 1, background: '#162036', alignSelf: 'stretch' }} />
                       <div>
-                        <span className="sp-muted" style={{ fontSize: 11 }}>PHÒNG</span>
-                        <div className="sp-strong" style={{ marginTop: 2 }}>{myBooking.room}</div>
+                        <span style={{ color: '#4a6080', fontSize: 11 }}>PHÒNG</span>
+                        <div style={{ color: '#c9d6e8', fontWeight: 600, marginTop: 2 }}>{myBooking.room}</div>
                       </div>
                     </>
                   )}
                   <div>
-                    <span className="sp-muted" style={{ fontSize: 11 }}>THỜI LƯỢNG</span>
-                    <div className="sp-strong" style={{ marginTop: 2 }}>{fmtDuration(myBooking.start_time, myBooking.end_time)}</div>
+                    <span style={{ color: '#4a6080', fontSize: 11 }}>THỜI LƯỢNG</span>
+                    <div style={{ color: '#c9d6e8', fontWeight: 600, marginTop: 2 }}>{fmtDuration(myBooking.start_time, myBooking.end_time)}</div>
                   </div>
                 </div>
                 {myBooking.note && (
-                  <div className="sp-alert sp-alert--info" style={{ marginTop: 10 }}>
-                    <span className="sp-alert-icon"><Ico d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" size={14} /></span>
-                    <div className="sp-alert-body"><span className="sp-alert-desc">{myBooking.note}</span></div>
+                  <div style={{ ...alertInfo, marginTop: 10 }}>
+                    <span style={{ flexShrink: 0, marginTop: 1 }}><Ico d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" size={14} /></span>
+                    <span style={{ color: '#4a6080', fontSize: '0.78rem' }}>{myBooking.note}</span>
                   </div>
                 )}
               </div>
@@ -599,24 +635,24 @@ export const StudentSubmitPage = () => {
 
         {/* Chưa nộp bài */}
         {!submission && !myBooking && (
-          <div className="sp-alert sp-alert--warning">
-            <span className="sp-alert-icon"><Ico d={WARN} size={15} /></span>
-            <div className="sp-alert-body">
-              <span className="sp-alert-title">Chưa nộp bài</span>
-              <span className="sp-alert-desc">Nộp bài trước để mở đăng ký lịch trình bày.</span>
+          <div style={alertWarning}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}><Ico d={WARN} size={15} /></span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontWeight: 600, color: '#c9d6e8' }}>Chưa nộp bài</span>
+              <span style={{ color: '#4a6080', fontSize: '0.78rem' }}>Nộp bài trước để mở đăng ký lịch trình bày.</span>
             </div>
           </div>
         )}
 
         {/* Hết deadline */}
         {isPastDeadline && !myBooking && (
-          <div className="sp-alert sp-alert--warning">
-            <span className="sp-alert-icon"><Ico d={WARN} size={15} /></span>
-            <div className="sp-alert-body">
-              <span className="sp-alert-title">Đã hết hạn đăng ký</span>
-              <span className="sp-alert-desc">
+          <div style={alertWarning}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}><Ico d={WARN} size={15} /></span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontWeight: 600, color: '#c9d6e8' }}>Đã hết hạn đăng ký</span>
+              <span style={{ color: '#4a6080', fontSize: '0.78rem' }}>
                 Hạn nộp bài đã qua lúc{' '}
-                <strong style={{ color: 'var(--pg-amber)' }}>{fmtDate(activeRound.submission_deadline)}</strong>.
+                <strong style={{ color: '#f59e0b' }}>{fmtDate(activeRound.submission_deadline)}</strong>.
                 Liên hệ admin nếu cần hỗ trợ.
               </span>
             </div>
@@ -625,48 +661,46 @@ export const StudentSubmitPage = () => {
 
         {/* Available slots */}
         {submission && !isPastDeadline && !myBooking && (
-          <div className="sp-table-wrap">
-            <div className="sp-card-head">
-              <span className="sp-strong">Slot trống — {activeRound.name}</span>
-              <span className="sp-muted" style={{ fontSize: 12 }}>
+          <div style={tableWrap}>
+            <div style={cardHead}>
+              <span style={{ color: '#c9d6e8', fontWeight: 600 }}>Slot trống — {activeRound.name}</span>
+              <span style={{ color: '#4a6080', fontSize: 12 }}>
                 {slotsLoading ? 'Đang tải...' : `${slots.length} slot khả dụng`}
               </span>
             </div>
 
             {slotsLoading ? (
-              <div className="sp-loading"><div className="sp-spinner" /></div>
+              <div className="flex items-center justify-center min-h-[80px]">
+                <div className="w-8 h-8 rounded-full border-2 border-[#162036] border-t-[#00d4ff] animate-spin" />
+              </div>
             ) : slots.length === 0 ? (
               <div style={{ padding: '32px 0', textAlign: 'center' }}>
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có slot trống. Liên hệ admin để tạo thêm." />
               </div>
             ) : (
-              <table className="sp-table">
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
                 <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Thời gian</th>
-                    <th>Thời lượng</th>
-                    <th>Phòng</th>
-                    <th>Ghi chú</th>
-                    <th />
+                  <tr style={{ background: '#0a1220', borderBottom: '1px solid #162036' }}>
+                    {['#', 'Thời gian', 'Thời lượng', 'Phòng', 'Ghi chú', ''].map((h, i) => (
+                      <th key={i} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#3a5068', textTransform: 'uppercase', letterSpacing: '.5px', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {slots.map((s, i) => (
-                    <tr key={s._id}>
-                      <td style={{ color: 'var(--pg-muted)' }}>{i + 1}</td>
-                      <td>
+                    <tr key={s._id} style={{ borderBottom: '1px solid #0f1a2e' }}>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle', color: '#4a6080' }}>{i + 1}</td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle', color: '#c9d6e8' }}>
                         <div>{fmtDate(s.start_time)}</div>
-                        <div style={{ fontSize: 11, color: 'var(--pg-muted)', marginTop: 2 }}>→ {fmtDate(s.end_time)}</div>
+                        <div style={{ fontSize: 11, color: '#4a6080', marginTop: 2 }}>→ {fmtDate(s.end_time)}</div>
                       </td>
-                      <td>
-                        <span className="sp-badge sp-badge--cyan">{fmtDuration(s.start_time, s.end_time)}</span>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                        <Badge variant="cyan">{fmtDuration(s.start_time, s.end_time)}</Badge>
                       </td>
-                      <td>{s.room || <span style={{ color: 'var(--pg-muted)' }}>—</span>}</td>
-                      <td style={{ color: 'var(--pg-muted)', fontSize: 12 }}>{s.note || '—'}</td>
-                      <td>
-                        <button className="sp-btn sp-btn--sm sp-btn--primary"
-                          onClick={() => setConfirmSlot(s)}>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle', color: '#c9d6e8' }}>{s.room || <span style={{ color: '#4a6080' }}>—</span>}</td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle', color: '#4a6080', fontSize: 12 }}>{s.note || '—'}</td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                        <button style={btnPrimary} onClick={() => setConfirmSlot(s)}>
                           Đặt lịch
                         </button>
                       </td>

@@ -10,9 +10,7 @@ import { useAuth }  from '../../../context/AuthContext';
 import { useApi }   from '../../../hooks/useApi';
 import { ProposeTopicModal } from '../dashboard/ProposeTopicModal';
 import { SelectTopicModal }  from '../dashboard/SelectTopicModal';
-import '../student.css';
 
-// ── SVG icon helper ────────────────────────────────────────────────────────
 const Ico = ({ d, size = 28, sw = 1.8 }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw}
     strokeLinecap="round" strokeLinejoin="round" width={size} height={size}>
@@ -25,13 +23,24 @@ const TEAM_ICO = [
   'M23 21v-2a4 4 0 0 0-3-3.87',
   'M16 3.13a4 4 0 0 1 0 7.75',
 ];
-const PLUS_ICO = ['M12 5v14', 'M5 12h14'];
-const MAIL_ICO = 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6';
+const PLUS_ICO  = ['M12 5v14', 'M5 12h14'];
+const MAIL_ICO  = 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6';
 const LEAVE_ICO = 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9';
 
-// ── Constants ──────────────────────────────────────────────────────────────
 const STATUS_COLOR = { pending: 'orange', confirmed: 'green', disqualified: 'red' };
 const STATUS_LABEL = { pending: 'Chờ duyệt', confirmed: 'Đã xác nhận', disqualified: 'Bị loại' };
+
+const card      = { background: '#0c1524', border: '1px solid #162036', borderRadius: 12, padding: '20px 24px' };
+const label     = { fontSize: '0.72rem', fontWeight: 700, color: '#3a5068', textTransform: 'uppercase', letterSpacing: '.5px', display: 'block', marginBottom: 6 };
+const gradTitle = { background: 'linear-gradient(90deg,#00d4ff,#7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' };
+const tableWrap = { background: '#0c1524', border: '1px solid #162036', borderRadius: 12, overflow: 'hidden' };
+const cardHead  = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid #162036' };
+const alertWarn = { padding: '12px 16px', borderRadius: 8, fontSize: '0.83rem', display: 'flex', gap: 10, alignItems: 'flex-start', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.25)', color: '#c9d6e8' };
+const btn       = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 6, border: '1px solid #00d4ff40', background: 'transparent', color: '#00d4ff', fontSize: '0.83rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
+const btnSm     = { ...btn, padding: '5px 12px', fontSize: '0.78rem' };
+const btnSmPrimary = { ...btnSm, border: 'none', background: 'linear-gradient(135deg,#00d4ff,#0099cc)', color: '#060b16' };
+const btnDanger = { ...btn, borderColor: 'rgba(239,68,68,.4)', color: '#f87171' };
+const av        = { borderRadius: '50%', background: 'linear-gradient(135deg,#00d4ff,#7c3aed)', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, width: 28, height: 28, fontSize: '0.72rem' };
 
 export const StudentTeamPage = () => {
   const { user }    = useAuth();
@@ -83,8 +92,6 @@ export const StudentTeamPage = () => {
     };
     load();
   }, [refreshKey]);
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleCreate = async (values) => {
     setCreateLoading(true);
@@ -182,8 +189,8 @@ export const StudentTeamPage = () => {
 
   if (loading) {
     return (
-      <div className="sp-loading">
-        <div className="sp-spinner" />
+      <div className="flex items-center justify-center min-h-[200px]">
+        <div className="w-8 h-8 rounded-full border-2 border-[#162036] border-t-[#00d4ff] animate-spin" />
       </div>
     );
   }
@@ -194,34 +201,32 @@ export const StudentTeamPage = () => {
   // ── No team ───────────────────────────────────────────────────────────────
   if (!team) {
     return (
-      <div className="sp-page">
-        <h2 className="sp-page-title">Đội thi</h2>
+      <div className="flex flex-col gap-5 p-7 bg-[#060b16] min-h-full">
+        <h2 className="text-2xl font-extrabold m-0" style={gradTitle}>Đội thi</h2>
 
-        <div className="sp-row">
+        <div style={{ display: 'flex', gap: 16 }}>
           {/* Create team card */}
           <div
-            className="sp-card sp-card--click sp-card--dashed-cyan"
+            style={{ ...card, flex: 1, cursor: 'pointer', textAlign: 'center', padding: '2rem 1.5rem', borderStyle: 'dashed', borderColor: 'rgba(0,212,255,.35)' }}
             onClick={() => setCreateOpen(true)}
-            style={{ textAlign: 'center', padding: '2rem 1.5rem' }}
           >
-            <div style={{ color: 'var(--pg-accent, #00d4ff)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+            <div style={{ color: '#00d4ff', marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
               <Ico d={TEAM_ICO} size={36} />
             </div>
-            <h4 className="sp-strong" style={{ margin: '0 0 8px', fontSize: '1rem' }}>Tạo đội mới</h4>
-            <span className="sp-muted">Đặt tên đội và mời thành viên ngay từ đầu</span>
+            <h4 style={{ color: '#c9d6e8', fontWeight: 600, margin: '0 0 8px', fontSize: '1rem' }}>Tạo đội mới</h4>
+            <span style={{ color: '#4a6080', fontSize: '0.83rem' }}>Đặt tên đội và mời thành viên ngay từ đầu</span>
           </div>
 
           {/* Join team card */}
           <div
-            className="sp-card sp-card--click sp-card--dashed-purple"
+            style={{ ...card, flex: 1, cursor: 'pointer', textAlign: 'center', padding: '2rem 1.5rem', borderStyle: 'dashed', borderColor: 'rgba(167,139,250,.35)' }}
             onClick={() => setJoinOpen(true)}
-            style={{ textAlign: 'center', padding: '2rem 1.5rem' }}
           >
-            <div style={{ color: 'var(--pg-purple, #a78bfa)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+            <div style={{ color: '#a78bfa', marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
               <Ico d={PLUS_ICO} size={36} />
             </div>
-            <h4 className="sp-strong" style={{ margin: '0 0 8px', fontSize: '1rem' }}>Tham gia đội</h4>
-            <span className="sp-muted">Nhập mã đội để tham gia</span>
+            <h4 style={{ color: '#c9d6e8', fontWeight: 600, margin: '0 0 8px', fontSize: '1rem' }}>Tham gia đội</h4>
+            <span style={{ color: '#4a6080', fontSize: '0.83rem' }}>Nhập mã đội để tham gia</span>
           </div>
         </div>
 
@@ -289,20 +294,20 @@ export const StudentTeamPage = () => {
   // ── Pending ───────────────────────────────────────────────────────────────
   if (team.status === 'pending') {
     return (
-      <div className="sp-page">
-        <h2 className="sp-page-title">Đội thi</h2>
+      <div className="flex flex-col gap-5 p-7 bg-[#060b16] min-h-full">
+        <h2 className="text-2xl font-extrabold m-0" style={gradTitle}>Đội thi</h2>
 
-        <div className="sp-alert sp-alert--warning">
-          <span className="sp-alert-icon">⚠</span>
-          <div className="sp-alert-body">
-            <span className="sp-alert-title">Đội "{team.team_name}" đang chờ admin phê duyệt</span>
-            <span className="sp-alert-desc">Sau khi được duyệt, bạn có thể đăng ký đề tài và nộp bài.</span>
+        <div style={alertWarn}>
+          <span style={{ flexShrink: 0, marginTop: 1 }}>⚠</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontWeight: 600, color: '#c9d6e8' }}>Đội "{team.team_name}" đang chờ admin phê duyệt</span>
+            <span style={{ color: '#4a6080', fontSize: '0.78rem' }}>Sau khi được duyệt, bạn có thể đăng ký đề tài và nộp bài.</span>
           </div>
         </div>
 
-        <div className="sp-card">
-          <span className="sp-label">Thành viên đã mời</span>
-          <div className="sp-flex sp-gap-3" style={{ flexWrap: 'wrap' }}>
+        <div style={card}>
+          <span style={label}>Thành viên đã mời</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {team.members?.map((m) => (
               <Tag key={m.email} icon={<MailOutlined />} color={m.email_verified ? 'green' : 'default'}>
                 {m.email}
@@ -316,34 +321,34 @@ export const StudentTeamPage = () => {
 
   // ── Confirmed ─────────────────────────────────────────────────────────────
   return (
-    <div className="sp-page">
-      <h2 className="sp-page-title">Đội thi</h2>
+    <div className="flex flex-col gap-5 p-7 bg-[#060b16] min-h-full">
+      <h2 className="text-2xl font-extrabold m-0" style={gradTitle}>Đội thi</h2>
 
-      <div className="sp-row">
+      <div style={{ display: 'flex', gap: 16 }}>
         {/* Left column */}
         <div style={{ flex: '0 0 38%', minWidth: 0 }}>
-          <div className="sp-stack">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* Team info card */}
-            <div className="sp-card">
-              <span className="sp-label">Đội thi</span>
-              <h3 className="sp-strong" style={{ fontSize: '1.15rem', margin: '4px 0 10px' }}>
+            <div style={card}>
+              <span style={label}>Đội thi</span>
+              <h3 style={{ color: '#c9d6e8', fontWeight: 600, fontSize: '1.15rem', margin: '4px 0 10px' }}>
                 {team.team_name}
               </h3>
-              <div className="sp-flex sp-gap-3">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Tag color={STATUS_COLOR[team.status]}>{STATUS_LABEL[team.status]}</Tag>
                 {team.pool_id?.pool_name && <Tag>{team.pool_id.pool_name}</Tag>}
               </div>
             </div>
 
             {/* Topic card */}
-            <div className="sp-card">
-              <span className="sp-label">Đề tài</span>
+            <div style={card}>
+              <span style={label}>Đề tài</span>
               {team.topic_id ? (
                 <>
-                  <div className="sp-strong" style={{ marginBottom: 4 }}>
+                  <div style={{ color: '#c9d6e8', fontWeight: 600, marginBottom: 4 }}>
                     {team.topic_id.title}
                   </div>
-                  <div className="sp-muted" style={{ marginBottom: 8 }}>
+                  <div style={{ color: '#4a6080', fontSize: '0.83rem', marginBottom: 8 }}>
                     {team.topic_id.description}
                   </div>
                   <Tag color={team.topic_id.status === 'approved' ? 'green' : 'orange'}>
@@ -351,15 +356,15 @@ export const StudentTeamPage = () => {
                   </Tag>
                 </>
               ) : (
-                <div className="sp-stack">
-                  <span className="sp-muted">Chưa có đề tài</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <span style={{ color: '#4a6080', fontSize: '0.83rem' }}>Chưa có đề tài</span>
                   {isLeader && (
-                    <div className="sp-flex sp-gap-3">
-                      <button className="sp-btn sp-btn--sm" onClick={() => setProposeOpen(true)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <button style={btnSm} onClick={() => setProposeOpen(true)}>
                         <Ico d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" size={14} />
                         Đề xuất đề tài
                       </button>
-                      <button className="sp-btn sp-btn--sm sp-btn--primary" onClick={() => setSelectOpen(true)}>
+                      <button style={btnSmPrimary} onClick={() => setSelectOpen(true)}>
                         <Ico d="M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" size={14} />
                         Chọn đề tài
                       </button>
@@ -373,24 +378,24 @@ export const StudentTeamPage = () => {
 
         {/* Right column — members table */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="sp-table-wrap">
-            <div className="sp-card-head">
-              <span className="sp-label" style={{ margin: 0 }}>
+          <div style={tableWrap}>
+            <div style={cardHead}>
+              <span style={{ ...label, margin: 0 }}>
                 Thành viên ({team.members?.length ?? 0})
               </span>
               {isLeader && (
-                <button className="sp-btn sp-btn--sm" onClick={() => setInviteOpen(true)}>
+                <button style={btnSm} onClick={() => setInviteOpen(true)}>
                   <Ico d={MAIL_ICO} size={13} />
                   Mời thành viên
                 </button>
               )}
             </div>
-            <table className="sp-table">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
               <thead>
-                <tr>
-                  <th>Thành viên</th>
-                  <th style={{ width: 100 }}>Role</th>
-                  <th style={{ width: 110 }}>Xác minh</th>
+                <tr style={{ background: '#0a1220', borderBottom: '1px solid #162036' }}>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#3a5068', textTransform: 'uppercase', letterSpacing: '.5px' }}>Thành viên</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#3a5068', textTransform: 'uppercase', letterSpacing: '.5px', width: 100 }}>Role</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#3a5068', textTransform: 'uppercase', letterSpacing: '.5px', width: 110 }}>Xác minh</th>
                   {isLeader && <th style={{ width: 50 }} />}
                 </tr>
               </thead>
@@ -399,36 +404,36 @@ export const StudentTeamPage = () => {
                   const isTeamLeader = (m.user_id?._id ?? m.user_id) === (team.leader_id?._id ?? team.leader_id);
                   const isSelf       = (m.user_id?._id ?? m.user_id) === user._id;
                   return (
-                    <tr key={m.email}>
-                      <td>
-                        <div className="sp-flex sp-gap-3">
-                          <div className="sp-av sp-av--sm">
+                    <tr key={m.email} style={{ borderBottom: '1px solid #0f1a2e' }}>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={av}>
                             {(m.full_name?.[0] ?? m.email?.[0] ?? 'U').toUpperCase()}
                           </div>
                           <div>
-                            <div style={{ color: 'var(--pg-text2, #c9d6e8)', lineHeight: 1.3 }}>
+                            <div style={{ color: '#c9d6e8', lineHeight: 1.3 }}>
                               {m.full_name || '—'}
                             </div>
-                            <div style={{ color: 'var(--pg-muted, #4a6080)', fontSize: '0.72rem' }}>
+                            <div style={{ color: '#4a6080', fontSize: '0.72rem' }}>
                               {m.email}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
                         {isTeamLeader
                           ? <Tag icon={<CrownOutlined />} color="gold">Leader</Tag>
                           : <Tag>Member</Tag>
                         }
                       </td>
-                      <td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
                         {m.email_verified
                           ? <Tag color="green">Đã xác minh</Tag>
                           : <Tag color="orange">Chờ</Tag>
                         }
                       </td>
                       {isLeader && (
-                        <td>
+                        <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
                           {!isSelf && (
                             <Button
                               type="text"
@@ -450,8 +455,8 @@ export const StudentTeamPage = () => {
       </div>
 
       {/* Leave team */}
-      <div className="sp-mt-6">
-        <button className="sp-btn sp-btn--danger" onClick={handleLeave}>
+      <div style={{ marginTop: 24 }}>
+        <button style={btnDanger} onClick={handleLeave}>
           <Ico d={LEAVE_ICO} size={15} />
           Rời đội
         </button>

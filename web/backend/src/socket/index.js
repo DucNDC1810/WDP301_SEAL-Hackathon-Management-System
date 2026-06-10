@@ -38,6 +38,25 @@ export const initSocket = (httpServer) => {
     socket.on("leave_ranking_room", ({ contestId, roundId }) => {
       socket.leave(`contest:${contestId}:round:${roundId}`);
     });
+
+    // Chat rooms: mentor ↔ team trong một round
+    socket.on("join_chat_room", ({ contestId, roundId, teamId, mentorId }) => {
+      if (!socket.userId) return;
+      const room = `chat:${contestId}:${roundId}:${teamId}:${mentorId}`;
+      socket.join(room);
+    });
+
+    socket.on("leave_chat_room", ({ contestId, roundId, teamId, mentorId }) => {
+      const room = `chat:${contestId}:${roundId}:${teamId}:${mentorId}`;
+      socket.leave(room);
+    });
+
+    // Typing indicator
+    socket.on("chat:typing", ({ contestId, roundId, teamId, mentorId, isTyping }) => {
+      if (!socket.userId) return;
+      const room = `chat:${contestId}:${roundId}:${teamId}:${mentorId}`;
+      socket.to(room).emit("chat:typing", { userId: socket.userId, isTyping });
+    });
   });
 
   return io;

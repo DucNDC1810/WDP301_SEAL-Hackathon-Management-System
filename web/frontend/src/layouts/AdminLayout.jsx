@@ -52,8 +52,16 @@ export default function AdminLayout() {
 
   const activeKey = NAV.find(n => n.path && location.pathname.startsWith(n.path))?.key || 'dashboard';
 
+  const initials = (name) => {
+    if (!name) return 'A';
+    const parts = name.trim().split(' ');
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : name[0].toUpperCase();
+  };
+
   return (
-    <div className="al-root">
+    <div className="al-root" data-theme={theme}>
       {/* ── Sidebar ── */}
       <aside className={`al-sidebar${collapsed ? ' al-sm' : ''}`}>
         <div className="al-logo-row">
@@ -70,7 +78,6 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        {/* Toggle — absolute trên cạnh phải sidebar */}
         <button className="al-toggle" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}>
           <Ico d={collapsed ? CR : CL} size={13} sw={2.5} />
         </button>
@@ -90,15 +97,6 @@ export default function AdminLayout() {
         </nav>
 
         <div className="al-sidebar-foot">
-          {!collapsed && user && (
-            <div className="al-user">
-              <div className="al-user-av">{(user.full_name?.[0] || 'A').toUpperCase()}</div>
-              <div className="al-user-info">
-                <span className="al-user-name">{user.full_name}</span>
-                <span className="al-user-role">Admin</span>
-              </div>
-            </div>
-          )}
           <button
             className="al-theme-toggle"
             onClick={toggleTheme}
@@ -107,16 +105,30 @@ export default function AdminLayout() {
             <Ico d={theme === 'dark' ? SUN : MOON} size={16} />
             {!collapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
           </button>
-          <button className="al-logout" onClick={handleLogout} title="Logout">
-            <Ico d={LOGOUT} size={16} sw={1.8} />
-            {!collapsed && <span>Logout</span>}
-          </button>
         </div>
       </aside>
 
-      {/* ── Page content ── */}
-      <div className="al-content">
-        <Outlet />
+      {/* ── Right side: topbar + content ── */}
+      <div className="al-main">
+        <header className="al-topbar">
+          <div className="al-topbar-right">
+            <div className="al-profile-chip">
+              <div className="al-profile-av">{initials(user?.full_name)}</div>
+              <div className="al-profile-info">
+                <div className="al-profile-name">{user?.full_name || 'Admin'}</div>
+                <span className="al-profile-role">ADMIN</span>
+              </div>
+            </div>
+            <button className="al-topbar-logout" onClick={handleLogout} title="Logout">
+              <Ico d={LOGOUT} size={16} sw={1.8} />
+              <span>Logout</span>
+            </button>
+          </div>
+        </header>
+
+        <div className="al-content">
+          <Outlet />
+        </div>
       </div>
     </div>
   );

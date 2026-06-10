@@ -26,14 +26,14 @@ import HackathonDetailPage from './pages/admin/hackathons/HackathonDetailPage';
 import UserManagementPage from './pages/admin/users/UserManagementPage';
 
 // Mentor
-import MentorHomePage from './pages/mentor/MentorHomePage';
+import MentorHomePage from './pages/mentor/MentorDashboard';
 import MentorDashboardPage from './pages/mentor/MentorDashboardPage';
 import MentorPortalPage from './pages/mentor/MentorPortalPage';
 import MentorScoringPage from './pages/mentor/JudgeScoringPage';
 import ScoreFormPage from './pages/mentor/ScoreFormPage';
 
 // Judge
-import JudgeHomePage from './pages/judge/JudgeHomePage';
+import JudgeHomePage from './pages/judge/JudgeDashboard';
 import JudgeScoringPage from './pages/judge/JudgeScoringPage';
 import JudgeAcceptInvitePage from './pages/judge/JudgeAcceptInvitePage';
 import LeaderboardPage from './pages/leaderboard/LeaderboardPage';

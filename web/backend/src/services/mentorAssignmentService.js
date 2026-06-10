@@ -70,6 +70,18 @@ export const getMentorAssignments = async (contestId, roundId, mentorId) => {
     .populate("board_id", "pool_name");
 };
 
+export const getMyAssignments = async (mentorId) => {
+  return MentorAssignment.find({ mentor_id: mentorId })
+    .populate("contest_id", "title start_date end_date status rounds")
+    .populate({
+      path: "team_id",
+      select: "team_name status members topic_id leader_id pool_id",
+      populate: { path: "topic_id", select: "title" },
+    })
+    .populate("board_id", "pool_name teams")
+    .sort({ assigned_at: -1 });
+};
+
 export const removeAssignment = async (assignmentId) => {
   const assignment = await MentorAssignment.findById(assignmentId);
   if (!assignment) {

@@ -154,5 +154,15 @@ export const getMyJudgeAssignments = async (judgeId, contestId, roundId) => {
   if (roundId)   query.round_id   = roundId;
 
   return JudgeAssignment.find(query)
-    .populate("pool_id", "pool_name teams");
+    .populate("contest_id", "title start_date end_date status rounds score_criteria")
+    .populate({
+      path: "pool_id",
+      select: "pool_name teams",
+      populate: {
+        path: "teams",
+        select: "team_name status topic_id members leader_id",
+        populate: { path: "topic_id", select: "title" },
+      },
+    })
+    .sort({ created_at: -1 });
 };

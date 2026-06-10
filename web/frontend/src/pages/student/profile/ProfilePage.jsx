@@ -1,6 +1,13 @@
 import { useRef, useState, useEffect } from 'react';
-import { Form, Input, Button, Avatar, Tag, message, Space, Tooltip } from 'antd';
-import { CameraOutlined, UserOutlined, CheckCircleFilled, WarningFilled, IdcardOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Tag, message } from 'antd';
+import {
+  CameraOutlined,
+  CheckCircleFilled,
+  WarningFilled,
+  IdcardOutlined,
+  EditOutlined,
+  UnlockOutlined
+} from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
 import '../student.css';
@@ -18,19 +25,24 @@ export function ProfilePage() {
   const [pwOpen,        setPwOpen]       = useState(false);
   const cardRef = useRef(null);
 
+  // States cho Custom Password Modal
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwErrors, setPwErrors] = useState({});
+
   const [infoForm] = Form.useForm();
-  const [pwForm]   = Form.useForm();
+
+  // Kiểm tra profile đã đầy đủ chưa
+  const isProfileComplete = !!(user?.phone && user?.student_id && user?.student_card);
 
   // Tự động mở edit nếu profile chưa hoàn thiện
   useEffect(() => {
     if (user && !isProfileComplete) {
       handleEdit();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Kiểm tra profile đã đầy đủ chưa
-  const isProfileComplete = !!(user?.phone && user?.student_id && user?.student_card);
 
   const handleEdit = () => {
     infoForm.setFieldsValue({
@@ -108,15 +120,32 @@ export function ProfilePage() {
     }
   };
 
-  const handleChangePassword = async (values) => {
+  const handleCustomPasswordSubmit = async (e) => {
+    e.preventDefault();
+    const errs = {};
+    if (!oldPassword) errs.oldPassword = "Vui lòng nhập mật khẩu hiện tại";
+    if (!newPassword) errs.newPassword = "Vui lòng nhập mật khẩu mới";
+    else if (newPassword.length < 6) errs.newPassword = "Mật khẩu mới phải có ít nhất 6 ký tự";
+    
+    if (!confirmPassword) errs.confirmPassword = "Vui lòng xác nhận mật khẩu mới";
+    else if (newPassword !== confirmPassword) errs.confirmPassword = "Mật khẩu xác nhận không khớp";
+    
+    if (Object.keys(errs).length > 0) {
+      setPwErrors(errs);
+      return;
+    }
+    
+    setPwErrors({});
     setPwLoading(true);
     try {
       await request('/api/users/me/password', {
         method: 'PATCH',
-        body: { current_password: values.oldPassword, new_password: values.newPassword },
+        body: { current_password: oldPassword, new_password: newPassword },
       });
       message.success('Đổi mật khẩu thành công');
-      pwForm.resetFields();
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
       setPwOpen(false);
     } catch (err) {
       message.error(err.message || 'Đổi mật khẩu thất bại');
@@ -129,14 +158,49 @@ export function ProfilePage() {
 
   return (
     <div className="sp-page">
-      <h2 className="sp-page-title">Hồ sơ</h2>
+      {/* Header aligned with status badge */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 12 }}>
+        <h2 className="sp-page-title" style={{ margin: 0, fontSize: '1.8rem', fontWeight: 800 }}>Hồ sơ</h2>
+        <div>
+          {user?.profile_verify_status === 'approved' && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(52,211,153,.1)', border: '1px solid rgba(52,211,153,.3)', borderRadius: 8, padding: '6px 14px', fontSize: '.82rem', fontWeight: 700, color: '#34d399' }}>
+              <CheckCircleFilled /> Thông tin đã được xác thực
+            </span>
+          )}
+          {user?.profile_verify_status === 'pending' && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(251,191,36,.1)', border: '1px solid rgba(251,191,36,.3)', borderRadius: 8, padding: '6px 14px', fontSize: '.82rem', fontWeight: 700, color: '#fbbf24' }}>
+              ⏳ Đang chờ Admin xét duyệt
+            </span>
+          )}
+          {user?.profile_verify_status === 'rejected' && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 8, padding: '6px 14px', fontSize: '.82rem', fontWeight: 700, color: '#ef4444' }}>
+              ✕ Yêu cầu bị từ chối
+            </span>
+          )}
+          {(user?.profile_verify_status === 'unsubmitted' || !user?.profile_verify_status) && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(251,146,60,.1)', border: '1px solid rgba(251,146,60,.3)', borderRadius: 8, padding: '6px 14px', fontSize: '.82rem', fontWeight: 700, color: '#fb923c' }}>
+              <WarningFilled /> Chưa xác thực thông tin
+            </span>
+          )}
+          {isProfileComplete && (user?.profile_verify_status === 'unsubmitted' || user?.profile_verify_status === 'rejected' || !user?.profile_verify_status) && (
+            <Button
+              type="primary"
+              loading={verifyLoading}
+              onClick={handleSendVerifyRequest}
+              style={{ borderRadius: 8, fontSize: '.82rem', height: 32, background: '#00d4ff', color: '#060b16', border: 'none', fontWeight: 700, marginLeft: 12 }}
+            >
+              Gửi yêu cầu xác thực →
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Banner cảnh báo nếu chưa hoàn thiện thông tin */}
       {!isProfileComplete && (
         <div style={{
           display: 'flex', alignItems: 'flex-start', gap: 12,
           background: 'rgba(251,146,60,.08)', border: '1px solid rgba(251,146,60,.35)',
-          borderRadius: 10, padding: '14px 18px', marginBottom: 20,
+          borderRadius: 10, padding: '14px 18px', marginBottom: 12,
         }}>
           <WarningFilled style={{ color: '#fb923c', fontSize: 20, marginTop: 2, flexShrink: 0 }} />
           <div>
@@ -151,40 +215,6 @@ export function ProfilePage() {
         </div>
       )}
 
-      {/* Badge trạng thái */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        {user?.profile_verify_status === 'approved' && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(52,211,153,.1)', border: '1px solid rgba(52,211,153,.3)', borderRadius: 20, padding: '3px 12px', fontSize: '.75rem', fontWeight: 700, color: '#34d399' }}>
-            <CheckCircleFilled /> Thông tin đã được xác thực
-          </span>
-        )}
-        {user?.profile_verify_status === 'pending' && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.3)', borderRadius: 20, padding: '3px 12px', fontSize: '.75rem', fontWeight: 700, color: '#60a5fa' }}>
-            ⏳ Đang chờ Admin xét duyệt
-          </span>
-        )}
-        {user?.profile_verify_status === 'rejected' && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(248,113,113,.1)', border: '1px solid rgba(248,113,113,.3)', borderRadius: 20, padding: '3px 12px', fontSize: '.75rem', fontWeight: 700, color: '#f87171' }}>
-            ✕ Yêu cầu bị từ chối
-          </span>
-        )}
-        {(user?.profile_verify_status === 'unsubmitted' || !user?.profile_verify_status) && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(251,146,60,.1)', border: '1px solid rgba(251,146,60,.3)', borderRadius: 20, padding: '3px 12px', fontSize: '.75rem', fontWeight: 700, color: '#fb923c' }}>
-            <WarningFilled /> Chưa xác thực thông tin
-          </span>
-        )}
-        {isProfileComplete && (user?.profile_verify_status === 'unsubmitted' || user?.profile_verify_status === 'rejected' || !user?.profile_verify_status) && (
-          <Button
-            type="primary"
-            loading={verifyLoading}
-            onClick={handleSendVerifyRequest}
-            style={{ borderRadius: 20, fontSize: '.75rem', height: 28, background: '#00d4ff', color: '#060b16', border: 'none', fontWeight: 700 }}
-          >
-            Gửi yêu cầu xác thực →
-          </Button>
-        )}
-      </div>
-
       {/* Lý do từ chối */}
       {user?.profile_verify_status === 'rejected' && user?.profile_verify_note && (
         <div style={{ background: 'rgba(248,113,113,.07)', border: '1px solid rgba(248,113,113,.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
@@ -193,99 +223,90 @@ export function ProfilePage() {
         </div>
       )}
 
-      <div className="sp-card sp-profile">
+      <div className="profile-grid-container">
+        {/* Left Column - Main Details */}
+        <div className="profile-main-col">
+          <div className="sp-card">
+            <Form form={infoForm} layout="vertical">
+              {/* Divider: THÔNG TIN CƠ BẢN */}
+              <div className="sp-profile-divider"><span>Thông tin cơ bản</span></div>
 
-        {/* Basic info divider */}
-        <div className="sp-profile-divider"><span>Thông tin cơ bản</span></div>
+              {/* Email */}
+              <div className="activity-row" style={{ padding: '14px 0' }}>
+                <span className="activity-label" style={{ fontSize: '.85rem' }}>Email</span>
+                <span className="activity-value" style={{ color: '#fff', fontSize: '.85rem', fontWeight: 400 }}>{user?.email}</span>
+              </div>
 
-        <div className="sp-profile-row">
-          {/* Left: fields */}
-          <div className="sp-profile-fields">
-            {!editing ? (
-              <>
-                <div className="sp-profile-field">
-                  <span className="sp-profile-field-label">Email</span>
-                  <span className="sp-text">{user?.email}</span>
-                </div>
-                <div className="sp-profile-field">
-                  <span className="sp-profile-field-label">Họ và tên</span>
-                  <span className="sp-text">{user?.full_name || '—'}</span>
-                </div>
-                <div className="sp-profile-field">
-                  <span className="sp-profile-field-label">Số điện thoại</span>
-                  <span className="sp-text" style={{ color: user?.phone ? undefined : '#ef4444' }}>
+              {/* Họ và tên */}
+              <div className="activity-row" style={{ padding: '14px 0' }}>
+                <span className="activity-label" style={{ fontSize: '.85rem' }}>Họ và tên</span>
+                {editing ? (
+                  <Form.Item name="full_name" style={{ margin: 0, flex: 1, maxWidth: 350 }} rules={[{ required: true, message: 'Nhập họ và tên' }]}>
+                    <Input style={{ background: '#0c1524', border: '1px solid #162036', color: '#fff' }} />
+                  </Form.Item>
+                ) : (
+                  <span className="activity-value" style={{ color: '#fff', fontSize: '.85rem', fontWeight: 400 }}>{user?.full_name || '—'}</span>
+                )}
+              </div>
+
+              {/* Số điện thoại */}
+              <div className="activity-row" style={{ padding: '14px 0' }}>
+                <span className="activity-label" style={{ fontSize: '.85rem' }}>Số điện thoại</span>
+                {editing ? (
+                  <Form.Item name="phone" style={{ margin: 0, flex: 1, maxWidth: 350 }} rules={[{ required: true, message: 'Nhập số điện thoại' }]}>
+                    <Input style={{ background: '#0c1524', border: '1px solid #162036', color: '#fff' }} />
+                  </Form.Item>
+                ) : (
+                  <span className="activity-value" style={{ color: user?.phone ? '#fff' : '#ef4444', fontSize: '.85rem', fontWeight: 400 }}>
                     {user?.phone || '⚠ Chưa cập nhật'}
                   </span>
-                </div>
-                <div className="sp-profile-field">
-                  <span className="sp-profile-field-label">Vai trò</span>
-                  <div>
-                    {user?.roles?.map((r) => (
-                      <Tag key={r.role_name} color="blue">{r.role_name}</Tag>
-                    ))}
-                  </div>
-                </div>
+                )}
+              </div>
 
-                {/* Divider sinh viên */}
-                <div className="sp-profile-divider" style={{ margin: '16px 0 12px' }}><span>Thông tin sinh viên</span></div>
+              {/* Vai trò */}
+              <div className="activity-row" style={{ padding: '14px 0', borderBottom: 'none' }}>
+                <span className="activity-label" style={{ fontSize: '.85rem' }}>Vai trò</span>
+                <div>
+                  {user?.roles?.map((r) => (
+                    <span key={r.role_name} style={{
+                      display: 'inline-block', border: '1px solid #00d4ff', color: '#00d4ff',
+                      padding: '2px 10px', borderRadius: 20, fontSize: '.7rem', fontWeight: 700,
+                      background: 'rgba(0,212,255,0.05)'
+                    }}>
+                      {r.role_name.toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+              </div>
 
-                <div className="sp-profile-field">
-                  <span className="sp-profile-field-label">Mã số sinh viên</span>
-                  <span className="sp-text" style={{ color: user?.student_id ? undefined : '#ef4444' }}>
+              {/* Divider: THÔNG TIN SINH VIÊN */}
+              <div className="sp-profile-divider" style={{ margin: '24px 0 16px' }}><span>Thông tin sinh viên</span></div>
+
+              {/* Mã số sinh viên */}
+              <div className="activity-row" style={{ padding: '14px 0' }}>
+                <span className="activity-label" style={{ fontSize: '.85rem' }}>Mã số sinh viên</span>
+                {editing ? (
+                  <Form.Item name="student_id" style={{ margin: 0, flex: 1, maxWidth: 350 }} rules={[{ required: true, message: 'Nhập mã số sinh viên' }]}>
+                    <Input style={{ background: '#0c1524', border: '1px solid #162036', color: '#fff' }} />
+                  </Form.Item>
+                ) : (
+                  <span className="activity-value" style={{ color: '#fff', fontSize: '1.4rem', fontWeight: 700 }}>
                     {user?.student_id || '⚠ Chưa cập nhật'}
                   </span>
-                </div>
-                <div className="sp-profile-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
-                  <span className="sp-profile-field-label">Hình ảnh thẻ sinh viên</span>
-                  {user?.student_card ? (
-                    <div style={{ position: 'relative', display: 'inline-block' }}>
-                      <img
-                        src={user.student_card}
-                        alt="Thẻ sinh viên"
-                        style={{ maxWidth: 280, maxHeight: 160, borderRadius: 8, border: '1px solid #1e3a54', objectFit: 'cover' }}
-                      />
-                      <span style={{ display: 'block', marginTop: 4, fontSize: '.72rem', color: '#34d399' }}>✓ Đã tải lên</span>
-                    </div>
-                  ) : (
-                    <span style={{ color: '#ef4444', fontSize: '.85rem' }}>⚠ Chưa tải lên</span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <Form form={infoForm}>
-                <div className="sp-profile-field">
-                  <span className="sp-profile-field-label">Email</span>
-                  <Input value={user?.email} disabled style={{ flex: 1 }} />
-                </div>
-                <div className="sp-profile-field">
-                  <span className="sp-profile-field-label">Họ và tên</span>
-                  <Form.Item name="full_name" style={{ flex: 1, margin: 0 }} rules={[{ required: true, message: 'Nhập họ và tên' }]}>
-                    <Input />
-                  </Form.Item>
-                </div>
-                <div className="sp-profile-field">
-                  <span className="sp-profile-field-label">Số điện thoại</span>
-                  <Form.Item name="phone" style={{ flex: 1, margin: 0 }} rules={[{ required: true, message: 'Nhập số điện thoại' }]}>
-                    <Input placeholder="0901234567" />
-                  </Form.Item>
-                </div>
+                )}
+              </div>
 
-                <div className="sp-profile-divider" style={{ margin: '16px 0 12px' }}><span>Thông tin sinh viên</span></div>
+              {/* Hình ảnh thẻ sinh viên */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+                <span className="activity-label" style={{ fontSize: '.85rem' }}>Hình ảnh thẻ sinh viên</span>
 
-                <div className="sp-profile-field">
-                  <span className="sp-profile-field-label">Mã số sinh viên</span>
-                  <Form.Item name="student_id" style={{ flex: 1, margin: 0 }} rules={[{ required: true, message: 'Nhập mã số sinh viên' }]}>
-                    <Input placeholder="VD: SE123456" />
-                  </Form.Item>
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <span className="sp-profile-field-label" style={{ display: 'block', marginBottom: 8 }}>Hình ảnh thẻ sinh viên *</span>
+                {editing ? (
                   <div
                     onClick={() => cardRef.current?.click()}
                     style={{
-                      border: '2px dashed #1e3a54', borderRadius: 8, padding: '16px',
+                      border: '2px dashed #1e3a54', borderRadius: 8, padding: '24px 16px',
                       cursor: 'pointer', textAlign: 'center', transition: 'border-color .2s',
-                      background: 'rgba(0,212,255,.03)',
+                      background: 'rgba(0,212,255,.02)', maxWidth: 450
                     }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = '#00d4ff'}
                     onMouseLeave={e => e.currentTarget.style.borderColor = '#1e3a54'}
@@ -295,9 +316,9 @@ export function ProfilePage() {
                         <img
                           src={cardPreview || user?.student_card}
                           alt="Preview thẻ sinh viên"
-                          style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 6, objectFit: 'cover', marginBottom: 8 }}
+                          style={{ maxWidth: '100%', maxHeight: 180, borderRadius: 6, objectFit: 'cover' }}
                         />
-                        <div style={{ fontSize: '.75rem', color: '#64748b' }}>Nhấn để đổi ảnh</div>
+                        <div style={{ fontSize: '.75rem', color: '#64748b', marginTop: 8 }}>Nhấn để đổi ảnh</div>
                       </div>
                     ) : (
                       <div style={{ color: '#64748b' }}>
@@ -307,91 +328,195 @@ export function ProfilePage() {
                       </div>
                     )}
                   </div>
-                  <input ref={cardRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCardChange} />
-                </div>
-              </Form>
-            )}
-          </div>
-
-          {/* Right: avatar + action buttons */}
-          <div className="sp-profile-avatar-col">
-            <div
-              className={`sp-avatar-wrap${editing ? ' sp-avatar-wrap--editing' : ''}`}
-              onClick={editing ? () => fileRef.current?.click() : undefined}
-            >
-              <Avatar size={80} src={avatarSrc} icon={<UserOutlined />} />
-              {editing && (
-                <Tooltip title="Đổi ảnh (tối đa 2MB)">
-                  <div className="sp-avatar-overlay">
-                    <CameraOutlined />
-                  </div>
-                </Tooltip>
-              )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleAvatarChange}
-              />
-            </div>
-
-            <div className="sp-stack" style={{ marginTop: 10, width: '100%' }}>
-              {!editing ? (
-                <button className="sp-btn sp-btn--sm" onClick={handleEdit}>Chỉnh sửa</button>
-              ) : (
-                <>
-                  <Button type="primary" size="small" loading={saveLoading} onClick={handleSave} block>Lưu</Button>
-                  <Button size="small" onClick={handleCancel} disabled={saveLoading} block>Huỷ</Button>
-                </>
-              )}
-              {!editing && (
-                <button
-                  className="sp-btn sp-btn--sm"
-                  onClick={() => { setPwOpen((v) => !v); pwForm.resetFields(); }}
-                >
-                  Đổi mật khẩu
-                </button>
-              )}
-            </div>
+                ) : (
+                  user?.student_card ? (
+                    <div style={{ display: 'inline-block', maxWidth: 450 }}>
+                      <img
+                        src={user.student_card}
+                        alt="Thẻ sinh viên"
+                        style={{ width: '100%', height: 260, borderRadius: '8px 8px 0 0', objectFit: 'cover', display: 'block', border: '1px solid #162036', borderBottom: 'none' }}
+                      />
+                      <div className="card-upload-footer">
+                        <CheckCircleFilled /> Đã tải lên thành công
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ color: '#ef4444', fontSize: '.85rem' }}>⚠ Chưa tải lên</span>
+                  )
+                )}
+                <input ref={cardRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCardChange} />
+              </div>
+            </Form>
           </div>
         </div>
 
-        {/* Change password — collapsible */}
-        {pwOpen && (
-          <>
-            <div className="sp-profile-divider"><span>Đổi mật khẩu</span></div>
-            <Form form={pwForm} layout="vertical" onFinish={handleChangePassword} style={{ maxWidth: 480 }}>
-              <Form.Item name="oldPassword" label="Mật khẩu hiện tại" rules={[{ required: true }]}>
-                <Input.Password />
-              </Form.Item>
-              <Form.Item name="newPassword" label="Mật khẩu mới" rules={[{ required: true, min: 6 }]}>
-                <Input.Password />
-              </Form.Item>
-              <Form.Item
-                name="confirmPassword"
-                label="Xác nhận mật khẩu mới"
-                dependencies={['newPassword']}
-                rules={[
-                  { required: true },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
-                      return Promise.reject(new Error('Mật khẩu không khớp'));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password />
-              </Form.Item>
-              <Space>
-                <Button type="primary" htmlType="submit" loading={pwLoading}>Lưu</Button>
-                <Button onClick={() => { setPwOpen(false); pwForm.resetFields(); }}>Huỷ</Button>
-              </Space>
-            </Form>
-          </>
-        )}
+        {/* Right Column - Sidebar */}
+        <div className="profile-sidebar-col">
+          {/* Sidebar Card 1: Avatar and main action buttons */}
+          <div className="sp-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 16px' }}>
+            <div className="profile-sidebar-avatar-wrap">
+              <img
+                src={avatarSrc || 'https://via.placeholder.com/150'}
+                alt="Avatar"
+                className="profile-sidebar-avatar-img"
+                style={{ cursor: editing ? 'pointer' : 'default' }}
+                onClick={editing ? () => fileRef.current?.click() : undefined}
+              />
+              {editing && (
+                <div className="profile-sidebar-camera-btn" onClick={() => fileRef.current?.click()}>
+                  <CameraOutlined style={{ fontSize: 13 }} />
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>
+                {user?.full_name || '—'}
+              </h3>
+              <div style={{ fontSize: '.82rem', color: '#64748b' }}>
+                @{user?.email ? user.email.split('@')[0] : 'user'}_dev
+              </div>
+            </div>
+
+            {/* Sidebar action buttons */}
+            {editing ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+                <button
+                  className="sp-btn sp-btn--primary"
+                  style={{ width: '100%', justifyContent: 'center', background: '#00d4ff', color: '#060b16', border: 'none', fontWeight: 700 }}
+                  onClick={handleSave}
+                  disabled={saveLoading}
+                >
+                  {saveLoading ? 'Đang lưu...' : 'Lưu'}
+                </button>
+                <button
+                  className="sp-btn"
+                  style={{ width: '100%', justifyContent: 'center', background: 'transparent', color: '#fff', border: '1px solid #162036' }}
+                  onClick={handleCancel}
+                  disabled={saveLoading}
+                >
+                  Huỷ
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+                <button
+                  className="sp-btn"
+                  style={{ width: '100%', justifyContent: 'center', background: '#00d4ff', color: '#060b16', border: 'none', fontWeight: 700 }}
+                  onClick={handleEdit}
+                >
+                  <EditOutlined style={{ marginRight: 4 }} /> Chỉnh sửa hồ sơ
+                </button>
+                <button
+                  className="sp-btn"
+                  style={{ width: '100%', justifyContent: 'center', background: 'transparent', color: '#fff', border: '1px solid #162036' }}
+                  onClick={() => {
+                    setOldPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setPwErrors({});
+                    setPwOpen(true);
+                  }}
+                >
+                  <UnlockOutlined style={{ marginRight: 4 }} /> Đổi mật khẩu
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar Card 2: Activity Stats */}
+          <div className="sp-card" style={{ padding: '20px 24px' }}>
+            <h4 style={{ margin: '0 0 16px', fontSize: '.8rem', fontWeight: 700, color: '#4a6080', letterSpacing: '.8px', textTransform: 'uppercase' }}>
+              HOẠT ĐỘNG
+            </h4>
+
+            <div className="activity-row">
+              <span className="activity-label">Xếp hạng hackathon</span>
+              <span className="activity-value" style={{ color: '#fbbf24' }}>#14</span>
+            </div>
+            <div className="activity-row">
+              <span className="activity-label">Đồ án đã nộp</span>
+              <span className="activity-value">3</span>
+            </div>
+            <div className="activity-row">
+              <span className="activity-label">Đồng đội kết nối</span>
+              <span className="activity-value">12</span>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Custom Password Modal - Premium Glassmorphism Experience */}
+      {pwOpen && (
+        <div className="custom-pw-modal-overlay" onClick={() => { setPwOpen(false); setPwErrors({}); }}>
+          <div className="custom-pw-modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3 className="custom-pw-modal-title">Đổi mật khẩu</h3>
+            <p className="custom-pw-modal-subtitle">Nhập mật khẩu hiện tại và mật khẩu mới của bạn để cập nhật thông tin bảo mật.</p>
+            
+            <form onSubmit={handleCustomPasswordSubmit}>
+              <div className="custom-pw-field">
+                <label className="custom-pw-label">Mật khẩu hiện tại</label>
+                <div className="custom-pw-input-wrapper">
+                  <input
+                    type="password"
+                    className="custom-pw-input"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+                {pwErrors.oldPassword && <span className="custom-pw-error">{pwErrors.oldPassword}</span>}
+              </div>
+
+              <div className="custom-pw-field">
+                <label className="custom-pw-label">Mật khẩu mới</label>
+                <div className="custom-pw-input-wrapper">
+                  <input
+                    type="password"
+                    className="custom-pw-input"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Tối thiểu 6 ký tự"
+                  />
+                </div>
+                {pwErrors.newPassword && <span className="custom-pw-error">{pwErrors.newPassword}</span>}
+              </div>
+
+              <div className="custom-pw-field">
+                <label className="custom-pw-label">Xác nhận mật khẩu mới</label>
+                <div className="custom-pw-input-wrapper">
+                  <input
+                    type="password"
+                    className="custom-pw-input"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Nhập lại mật khẩu mới"
+                  />
+                </div>
+                {pwErrors.confirmPassword && <span className="custom-pw-error">{pwErrors.confirmPassword}</span>}
+              </div>
+
+              <div className="custom-pw-actions">
+                <button
+                  type="button"
+                  className="custom-pw-btn custom-pw-btn--cancel"
+                  onClick={() => { setPwOpen(false); setPwErrors({}); }}
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="submit"
+                  className="custom-pw-btn custom-pw-btn--submit"
+                  disabled={pwLoading}
+                >
+                  {pwLoading ? 'Đang lưu...' : 'Lưu'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

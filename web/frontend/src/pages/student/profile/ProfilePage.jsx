@@ -1,22 +1,21 @@
 import { useRef, useState } from 'react';
-import { Form, Input, Button, Card, Avatar, Typography, Divider, Tag, message, Space, Tooltip } from 'antd';
+import { Form, Input, Button, Avatar, Tag, message, Space, Tooltip } from 'antd';
 import { CameraOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
-import './ProfilePage.css';
+import '../student.css';
 
-const { Text } = Typography;
-
-export default function ProfilePage() {
+// Named export for direct use; default export kept for router compatibility
+export function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const { request } = useApi();
   const fileRef = useRef(null);
 
-  const [editing,      setEditing]      = useState(false);
-  const [saveLoading,  setSaveLoading]  = useState(false);
-  const [pwLoading,    setPwLoading]    = useState(false);
+  const [editing,       setEditing]      = useState(false);
+  const [saveLoading,   setSaveLoading]  = useState(false);
+  const [pwLoading,     setPwLoading]    = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
-  const [pwOpen,       setPwOpen]       = useState(false);
+  const [pwOpen,        setPwOpen]       = useState(false);
 
   const [infoForm] = Form.useForm();
   const [pwForm]   = Form.useForm();
@@ -81,31 +80,33 @@ export default function ProfilePage() {
   const avatarSrc = avatarPreview || user?.avatar_url || undefined;
 
   return (
-    <div className="profile-page">
-      <Card className="profile-page__card">
+    <div className="sp-page">
+      <h2 className="sp-page-title">Hồ sơ</h2>
 
-        {/* Thông tin cơ bản */}
-        <Divider orientation="left">Thông tin cơ bản</Divider>
+      <div className="sp-card sp-profile">
 
-        <div className="profile-page__info-row">
+        {/* Basic info divider */}
+        <div className="sp-profile-divider"><span>Thông tin cơ bản</span></div>
+
+        <div className="sp-profile-row">
           {/* Left: fields */}
-          <div className="profile-page__fields">
+          <div className="sp-profile-fields">
             {!editing ? (
               <>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Email</Text>
-                  <Text>{user?.email}</Text>
+                <div className="sp-profile-field">
+                  <span className="sp-profile-field-label">Email</span>
+                  <span className="sp-text">{user?.email}</span>
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Họ và tên</Text>
-                  <Text>{user?.full_name || '—'}</Text>
+                <div className="sp-profile-field">
+                  <span className="sp-profile-field-label">Họ và tên</span>
+                  <span className="sp-text">{user?.full_name || '—'}</span>
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Số điện thoại</Text>
-                  <Text>{user?.phone || '—'}</Text>
+                <div className="sp-profile-field">
+                  <span className="sp-profile-field-label">Số điện thoại</span>
+                  <span className="sp-text">{user?.phone || '—'}</span>
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Vai trò</Text>
+                <div className="sp-profile-field">
+                  <span className="sp-profile-field-label">Vai trò</span>
                   <div>
                     {user?.roles?.map((r) => (
                       <Tag key={r.role_name} color="blue">{r.role_name}</Tag>
@@ -115,18 +116,18 @@ export default function ProfilePage() {
               </>
             ) : (
               <Form form={infoForm}>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Email</Text>
+                <div className="sp-profile-field">
+                  <span className="sp-profile-field-label">Email</span>
                   <Input value={user?.email} disabled style={{ flex: 1 }} />
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Họ và tên</Text>
+                <div className="sp-profile-field">
+                  <span className="sp-profile-field-label">Họ và tên</span>
                   <Form.Item name="full_name" style={{ flex: 1, margin: 0 }} rules={[{ required: true, message: 'Nhập họ và tên' }]}>
                     <Input />
                   </Form.Item>
                 </div>
-                <div className="profile-page__view-row">
-                  <Text type="secondary" className="profile-page__view-label">Số điện thoại</Text>
+                <div className="sp-profile-field">
+                  <span className="sp-profile-field-label">Số điện thoại</span>
                   <Form.Item name="phone" style={{ flex: 1, margin: 0 }}>
                     <Input />
                   </Form.Item>
@@ -136,15 +137,15 @@ export default function ProfilePage() {
           </div>
 
           {/* Right: avatar + action buttons */}
-          <div className="profile-page__avatar-col">
+          <div className="sp-profile-avatar-col">
             <div
-              className={`profile-page__avatar-wrap${editing ? ' profile-page__avatar-wrap--editing' : ''}`}
+              className={`sp-avatar-wrap${editing ? ' sp-avatar-wrap--editing' : ''}`}
               onClick={editing ? () => fileRef.current?.click() : undefined}
             >
               <Avatar size={80} src={avatarSrc} icon={<UserOutlined />} />
               {editing && (
                 <Tooltip title="Đổi ảnh (tối đa 2MB)">
-                  <div className="profile-page__avatar-overlay">
+                  <div className="sp-avatar-overlay">
                     <CameraOutlined />
                   </div>
                 </Tooltip>
@@ -158,9 +159,9 @@ export default function ProfilePage() {
               />
             </div>
 
-            <Space direction="vertical" style={{ marginTop: 10, width: '100%' }}>
+            <div className="sp-stack" style={{ marginTop: 10, width: '100%' }}>
               {!editing ? (
-                <Button size="small" onClick={handleEdit} block>Chỉnh sửa</Button>
+                <button className="sp-btn sp-btn--sm" onClick={handleEdit}>Chỉnh sửa</button>
               ) : (
                 <>
                   <Button type="primary" size="small" loading={saveLoading} onClick={handleSave} block>Lưu</Button>
@@ -168,22 +169,21 @@ export default function ProfilePage() {
                 </>
               )}
               {!editing && (
-                <Button
-                  size="small"
-                  block
+                <button
+                  className="sp-btn sp-btn--sm"
                   onClick={() => { setPwOpen((v) => !v); pwForm.resetFields(); }}
                 >
                   Đổi mật khẩu
-                </Button>
+                </button>
               )}
-            </Space>
+            </div>
           </div>
         </div>
 
-        {/* Đổi mật khẩu — collapsible */}
+        {/* Change password — collapsible */}
         {pwOpen && (
           <>
-            <Divider orientation="left">Đổi mật khẩu</Divider>
+            <div className="sp-profile-divider"><span>Đổi mật khẩu</span></div>
             <Form form={pwForm} layout="vertical" onFinish={handleChangePassword} style={{ maxWidth: 480 }}>
               <Form.Item name="oldPassword" label="Mật khẩu hiện tại" rules={[{ required: true }]}>
                 <Input.Password />
@@ -214,7 +214,9 @@ export default function ProfilePage() {
             </Form>
           </>
         )}
-      </Card>
+      </div>
     </div>
   );
 }
+
+export default ProfilePage;

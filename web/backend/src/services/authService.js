@@ -141,7 +141,7 @@ export const findOrCreateOAuthUser = async ({
 }) => {
   // 1. Tìm theo provider + provider_id
   let user = await User.findOne({ provider, provider_id });
-  if (user) return { user, isNewUser: false };
+  if (user) return { user, isNewUser: !user.is_profile_complete };
 
   // 2. Tìm theo email → link tài khoản (user đã có từ local)
   user = await User.findOne({ email: email.toLowerCase() });

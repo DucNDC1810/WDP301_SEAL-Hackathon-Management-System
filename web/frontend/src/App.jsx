@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -41,12 +41,15 @@ import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 
 // Student
-import StudentDashboardPage from './pages/student/dashboard/StudentDashboardPage';
 import ProfilePage from './pages/student/profile/ProfilePage';
-import InvitationsPage from './pages/student/invitations/InvitationsPage';
 import InvitationVerifyPage from './pages/invite-verify/InvitationVerifyPage';
+import { CompleteProfilePage } from './pages/complete-profile/CompleteProfilePage';
 import TeamVerifyPage from './pages/team-verify/TeamVerifyPage';
 import VerifyEmailPage from './pages/verify-email/VerifyEmailPage';
+import { StudentLayout }       from './layouts/StudentLayout';
+import { StudentOverviewPage } from './pages/student/overview/StudentOverviewPage';
+import { StudentTeamPage }     from './pages/student/team/StudentTeamPage';
+import { StudentConnectPage }  from './pages/student/connect/StudentConnectPage';
 
 import './App.css';
 
@@ -71,6 +74,7 @@ function App() {
               {/* Auth */}
               <Route path="/login" element={<GuestRoute><AuthPage /></GuestRoute>} />
               <Route path="/oauth-callback" element={<OAuthCallback />} />
+              <Route path="/complete-profile" element={<CompleteProfilePage />} />
               <Route path="/verify-invitation" element={<InvitationVerifyPage />} />
               <Route path="/team-verify" element={<TeamVerifyPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -103,6 +107,14 @@ function App() {
               <Route path="/judge/dashboard"                              element={<JudgeRoute><JudgeHomePage /></JudgeRoute>} />
               <Route path="/judge/scoring/:contestId/rounds/:roundId/pools/:poolId" element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
 
+              {/* Student dashboard — sidebar layout, no Navbar/Footer */}
+              <Route path="/dashboard" element={<AuthRoute><StudentLayout /></AuthRoute>}>
+                <Route index            element={<StudentOverviewPage />} />
+                <Route path="team"      element={<StudentTeamPage />} />
+                <Route path="connect"   element={<StudentConnectPage />} />
+                <Route path="profile"   element={<ProfilePage />} />
+              </Route>
+
               {/* All public pages with Navbar/Footer */}
               <Route
                 path="/*"
@@ -113,11 +125,10 @@ function App() {
                       <Routes>
                         <Route path="/" element={<HomePage />} />
 
-                        {/* Student (auth required) */}
-                        <Route path="/dashboard"   element={<AuthRoute><StudentDashboardPage /></AuthRoute>} />
-                        <Route path="/team"        element={<AuthRoute><StudentDashboardPage /></AuthRoute>} />
-                        <Route path="/profile"     element={<AuthRoute><ProfilePage /></AuthRoute>} />
-                        <Route path="/invitations" element={<AuthRoute><InvitationsPage /></AuthRoute>} />
+                        {/* Legacy redirects */}
+                        <Route path="/team"        element={<Navigate to="/dashboard/team"    replace />} />
+                        <Route path="/profile"     element={<Navigate to="/dashboard/profile" replace />} />
+                        <Route path="/invitations" element={<Navigate to="/dashboard/team"    replace />} />
 
                         {/* Public */}
                         <Route path="/leaderboard/:contestId/:roundId" element={<LeaderboardPage />} />

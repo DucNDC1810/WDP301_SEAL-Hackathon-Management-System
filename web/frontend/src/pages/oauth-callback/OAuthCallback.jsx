@@ -33,7 +33,7 @@ function OAuthCallback() {
           const userData = { ...data.data, accessToken: token };
           login(userData);
           const isAdmin = data.data.roles?.some((r) => r.role_name === 'admin');
-          navigate(isAdmin ? '/admin/dashboard' : '/');
+          navigate(isAdmin ? '/admin/dashboard' : '/dashboard');
         } else {
           localStorage.setItem('accessToken', token);
           navigate('/');

@@ -17,6 +17,7 @@ import {
   proposeTopic,
   eliminateTeam,
   registerContest,
+  updateTeamContributions,
 } from "../services/teamService.js";
 
 /**
@@ -304,5 +305,19 @@ export const handleRegisterContest = async (req, res) => {
       success: false,
       message: error.message || "Lỗi máy chủ",
     });
+  }
+};
+
+export const handleUpdateTeamContributions = async (req, res) => {
+  try {
+    const { contributions } = req.body;
+    if (!Array.isArray(contributions)) {
+      return res.status(400).json({ success: false, message: "Dữ liệu đánh giá không hợp lệ" });
+    }
+    const team = await updateTeamContributions(req.params.id, req.user._id, contributions);
+    res.status(200).json({ success: true, message: "Cập nhật đánh giá đóng góp thành công", data: team });
+  } catch (error) {
+    console.error("[handleUpdateTeamContributions]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };

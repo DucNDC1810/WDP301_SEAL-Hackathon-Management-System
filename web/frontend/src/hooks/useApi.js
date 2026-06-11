@@ -3,15 +3,18 @@ import { useCallback } from 'react';
 const API = import.meta.env.VITE_API_URL || '';
 
 const doFetch = async (path, options = {}) => {
+  const isFormData = options.formData instanceof FormData;
+  const headers = {
+    Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
+    ...(options.headers || {}),
+  };
+  if (!isFormData) headers['Content-Type'] = 'application/json';
+
   const res = await fetch(`${API}${path}`, {
     ...options,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
-      ...(options.headers || {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    headers,
+    body: isFormData ? options.formData : options.body ? JSON.stringify(options.body) : undefined,
   });
 
   let data;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Form, Input, Modal, Select, Tag, message } from 'antd';
+import { Button, Form, Input, Modal, Select, Tag, message, Slider, Rate } from 'antd';
 import { CrownOutlined, MailOutlined, UserDeleteOutlined, MoreOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
@@ -31,7 +31,7 @@ const STATUS_BADGE = {
 
 const statusDesc = {
   WAITING_APPROVAL: 'Đội đang chờ Ban tổ chức phê duyệt. Hãy đảm bảo tất cả thành viên đã xác thực email.',
-  REJECTED:         'Đội của bạn hiện đang ở trạng thái bị từ chối. Vui lòng kiểm tra lại thông tin hồ sơ đội hoặc liên hệ ban tổ chức để biết thêm chi tiết.',
+  REJECTED:         'Đội của bạn hiện đang bị từ chối. Trưởng nhóm có thể chỉnh sửa thông tin đội, thay đổi thành viên và bấm "Gửi yêu cầu tham gia" bên dưới để gửi yêu cầu duyệt lại.',
   ACTIVE:           'Đội đã sẵn sàng. Hãy đăng ký tham gia một cuộc thi để bắt đầu thi đấu.',
   CONFIRMED:        'Đội đã được xác nhận tham gia cuộc thi. Chúc bạn thi đấu tốt!',
   DISQUALIFIED:     'Đội đã bị loại khỏi cuộc thi.',
@@ -91,6 +91,13 @@ export const StudentTeamPage = () => {
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerForm]  = Form.useForm();
 
+  // Đánh giá đóng góp thành viên
+  const [evalOpen, setEvalOpen] = useState(false);
+  const [evalMembers, setEvalMembers] = useState([]);
+  const [evalSaving, setEvalSaving] = useState(false);
+
+  // Horizontal active tab
+  const [activeTab, setActiveTab] = useState('info');
 
   const refresh = () => setRefreshKey(k => k + 1);
 
@@ -160,9 +167,38 @@ export const StudentTeamPage = () => {
     setRegisterLoading(true);
     try {
       await request(`/api/teams/${team._id}/register-contest`, { method: 'POST', body: { contest_id: values.contest_id } });
-      message.success('Đăng ký thành công! Vui lòng chờ phê duyệt.'); setShowRegister(false); registerForm.resetFields(); refresh();
+      message.success('Đăng ký thành công! Vui lòng chờ phê duyệt.'); registerForm.resetFields(); refresh();
     } catch (err) { message.error(err.message || 'Không thể đăng ký'); }
     finally { setRegisterLoading(false); }
+  };
+
+  const handleSaveContributions = async () => {
+    const totalPct = evalMembers.reduce((sum, m) => sum + (m.contribution_percentage || 0), 0);
+    if (totalPct !== 100) {
+      message.error(`Tổng tỷ lệ đóng góp của cả đội phải bằng 100% (Hiện tại: ${totalPct}%)`);
+      return;
+    }
+
+    setEvalSaving(true);
+    try {
+      const payload = evalMembers.map(m => ({
+        email: m.email,
+        contribution_percentage: m.contribution_percentage,
+        contribution_rating: m.contribution_rating,
+        contribution_note: m.contribution_note,
+      }));
+      await request(`/api/teams/${team._id}/contributions`, {
+        method: 'PUT',
+        body: { contributions: payload }
+      });
+      message.success('Cập nhật đánh giá đóng góp thành công!');
+      setEvalOpen(false);
+      refresh();
+    } catch (err) {
+      message.error(err.message || 'Không thể lưu đánh giá');
+    } finally {
+      setEvalSaving(false);
+    }
   };
 
   const handleLeave = () => {
@@ -218,243 +254,366 @@ export const StudentTeamPage = () => {
   const verified   = team.members?.filter(m => m.user_id && m.user_id.profile_verify_status === 'approved') ?? [];
   const pending    = team.members?.filter(m => !m.user_id || m.user_id.profile_verify_status !== 'approved') ?? [];
 
+  // Tabs Navigation
+  const renderTabs = () => (
+    <div className="stp-tabs-container">
+      <button 
+        type="button"
+        className={`stp-tab-btn ${activeTab === 'info' ? 'active' : ''}`}
+        onClick={() => setActiveTab('info')}
+      >
+        📋 Thông tin chung
+      </button>
+      <button 
+        type="button"
+        className={`stp-tab-btn ${activeTab === 'members' ? 'active' : ''}`}
+        onClick={() => setActiveTab('members')}
+      >
+        👥 Thành viên ({team.members?.length ?? 0})
+      </button>
+      <button 
+        type="button"
+        className={`stp-tab-btn ${activeTab === 'contributions' ? 'active' : ''}`}
+        onClick={() => setActiveTab('contributions')}
+      >
+        ⭐️ Đánh giá đóng góp
+      </button>
+    </div>
+  );
+
   return (
     <div className="stp-page">
       {/* Header */}
       <div className="stp-header">
         <h2 className="stp-title">Đội thi</h2>
         <div className="stp-header-actions" />
-
       </div>
 
-      {/* Main 2-col grid */}
-      <div className="stp-grid">
+      {renderTabs()}
 
-        {/* ── LEFT column ── */}
-        <div className="stp-col-left">
-
-          {/* Team info card */}
-          <div className="stp-card">
-            <div className="stp-card-label">ĐỘI THI</div>
-            <div className="stp-team-name">{team.team_name}</div>
-            <span className="stp-status-badge" style={{ background: badge.bg, color: badge.color }}>
-              {badge.label}
-            </span>
-            {desc && <p className="stp-team-desc">{desc}</p>}
-            <button className="stp-leave-btn" onClick={handleLeave}>
-              <Ico d={LEAVE_D} size={14} />
-              Rời đội
-            </button>
-          </div>
-
-          {/* Team settings card */}
-          {isLeader && (
-            <div className="stp-card">
-              <div className="stp-settings-title">
-                <Ico d={SETTINGS_D} size={18} />
-                Team Settings
-              </div>
-
-              <div className="stp-form-row">
-                <div className="stp-form-group">
-                  <label className="stp-form-label">Tên Đội</label>
-                  <input className="stp-input" value={teamName} onChange={e => setTeamName(e.target.value)} />
-                </div>
-                <div className="stp-form-group">
-                  <label className="stp-form-label">Lĩnh Vực</label>
-                  <select className="stp-select" value={teamField} onChange={e => setTeamField(e.target.value)}>
-                    <option>Web Development</option>
-                    <option>Mobile App</option>
-                    <option>AI / Machine Learning</option>
-                    <option>Game Development</option>
-                    <option>DevOps / Cloud</option>
-                    <option>Khác</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="stp-form-group">
-                <label className="stp-form-label">Mô tả đội thi</label>
-                <textarea className="stp-textarea" rows={4} placeholder="Mô tả ngắn gọn về đội của bạn..." value={teamDesc} onChange={e => setTeamDesc(e.target.value)} />
-              </div>
-
-              <div className="stp-form-actions">
-                <button className="stp-btn stp-btn--ghost" onClick={() => { setTeamName(team.team_name || ''); setTeamDesc(team.description || ''); }}>Hủy</button>
-                <button className="stp-btn stp-btn--cyan" onClick={handleSaveSettings} disabled={settingsLoading}>
-                  {settingsLoading ? 'Đang lưu...' : 'Lưu Thay Đổi'}
+      {/* Tab Content Panels */}
+      <div className="stp-tab-content">
+        {activeTab === 'info' && (
+          <div className="stp-grid" style={{ gridTemplateColumns: isLeader ? '1fr 1fr' : '1fr', gap: '20px' }}>
+            {/* Left Column: Team info & settings */}
+            <div className="stp-col-left" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Team info card */}
+              <div className="stp-card">
+                <div className="stp-card-label">ĐỘI THI</div>
+                <div className="stp-team-name">{team.team_name}</div>
+                <span className="stp-status-badge" style={{ background: badge.bg, color: badge.color }}>
+                  {badge.label}
+                </span>
+                {desc && <p className="stp-team-desc">{desc}</p>}
+                <button className="stp-leave-btn" onClick={handleLeave}>
+                  <Ico d={LEAVE_D} size={14} />
+                  Rời đội
                 </button>
               </div>
+
+              {/* Team settings card */}
+              {isLeader && (
+                <div className="stp-card">
+                  <div className="stp-settings-title">
+                    <Ico d={SETTINGS_D} size={18} />
+                    Cấu hình đội thi
+                  </div>
+
+                  <div className="stp-form-row">
+                    <div className="stp-form-group">
+                      <label className="stp-form-label">Tên Đội</label>
+                      <input className="stp-input" value={teamName} onChange={e => setTeamName(e.target.value)} />
+                    </div>
+                    <div className="stp-form-group">
+                      <label className="stp-form-label">Lĩnh Vực</label>
+                      <select className="stp-select" value={teamField} onChange={e => setTeamField(e.target.value)}>
+                        <option>Web Development</option>
+                        <option>Mobile App</option>
+                        <option>AI / Machine Learning</option>
+                        <option>Game Development</option>
+                        <option>DevOps / Cloud</option>
+                        <option>Khác</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="stp-form-group">
+                    <label className="stp-form-label">Mô tả đội thi</label>
+                    <textarea className="stp-textarea" rows={4} placeholder="Mô tả ngắn gọn về đội của bạn..." value={teamDesc} onChange={e => setTeamDesc(e.target.value)} />
+                  </div>
+
+                  <div className="stp-form-actions">
+                    <button className="stp-btn stp-btn--ghost" onClick={() => { setTeamName(team.team_name || ''); setTeamDesc(team.description || ''); }}>Hủy</button>
+                    <button className="stp-btn stp-btn--cyan" onClick={handleSaveSettings} disabled={settingsLoading}>
+                      {settingsLoading ? 'Đang lưu...' : 'Lưu Thay Đổi'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* ── RIGHT column ── */}
-        <div className="stp-col-right">
+            {/* Right Column: Contest registration info */}
+            <div className="stp-col-right" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Contest info or register card */}
+              {(() => {
+                if (team.status === 'CONFIRMED' || team.status === 'WAITING_APPROVAL') {
+                  const contestTitle = team.contest_id?.title || 'Cuộc thi đã đăng ký';
+                  const isConfirmed = team.status === 'CONFIRMED';
+                  return (
+                    <div className="stp-card">
+                      <div className="stp-card-label" style={{ marginBottom: 12 }}>CUỘC THI ĐÃ ĐĂNG KÝ</div>
+                      <div style={{ padding: '4px 0' }}>
+                        <h4 style={{ margin: '0 0 12px', fontSize: '0.95rem', color: '#fff', fontWeight: 600 }}>{contestTitle}</h4>
+                        <span 
+                          style={{ 
+                            background: isConfirmed ? 'rgba(52,211,153,.15)' : 'rgba(251,146,60,.15)', 
+                            color: isConfirmed ? '#34d399' : '#fb923c', 
+                            border: `1px solid ${isConfirmed ? 'rgba(52,211,153,.3)' : 'rgba(251,146,60,.3)'}`,
+                            padding: '4px 10px',
+                            borderRadius: 4,
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            display: 'inline-block'
+                          }}
+                        >
+                          {isConfirmed ? '✓ Đã xác nhận tham gia' : '⏰ Chờ ban tổ chức duyệt'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
 
-          {/* Members card */}
+                if (team.status === 'ACTIVE' || team.status === 'REJECTED') {
+                  const totalMembers   = team.members?.length ?? 0;
+                  const verifiedCount  = team.members?.filter(m => m.user_id && m.user_id.profile_verify_status === 'approved').length ?? 0;
+                  const canRegister    = totalMembers >= 4 && verifiedCount === totalMembers;
+                  return (
+                    <div className="stp-card">
+                      <div className="stp-card-label" style={{ marginBottom: 6 }}>ĐĂNG KÝ CUỘC THI</div>
+
+                      {!canRegister ? (
+                        <div style={{ marginTop: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: '.83rem', color: '#94a3b8' }}>Thành viên đã xác thực thông tin</span>
+                            <span style={{ fontSize: '.83rem', fontWeight: 700, color: verifiedCount === totalMembers && totalMembers >= 4 ? '#34d399' : '#fb923c' }}>
+                              {verifiedCount}/{Math.max(totalMembers, 4)}
+                            </span>
+                          </div>
+                          {/* Progress bar */}
+                          <div style={{ height: 6, background: '#1e3a54', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
+                            <div style={{ height: '100%', width: `${Math.min((totalMembers / 4) * 100, 100)}%`, background: totalMembers >= 4 ? '#34d399' : '#fb923c', borderRadius: 99, transition: 'width .4s' }} />
+                          </div>
+                          <div style={{ background: 'rgba(251,146,60,.1)', border: '1px solid rgba(251,146,60,.3)', borderRadius: 8, padding: '10px 14px' }}>
+                            <p style={{ margin: 0, fontSize: '.8rem', color: '#fb923c', lineHeight: 1.5 }}>
+                              ⚠ Cần đủ <strong>4 thành viên</strong> và tất cả phải <strong>xác thực thông tin</strong> (vào <a href="/dashboard/profile" style={{ color: '#60a5fa' }}>Hồ sơ</a> để cập nhật).
+                              {totalMembers < 4 && ` (Còn thiếu ${4 - totalMembers} thành viên)`}
+                              {totalMembers >= 4 && verifiedCount < totalMembers && ` (${totalMembers - verifiedCount} thành viên chưa xác thực)`}
+                            </p>
+                          </div>
+                          {isLeader && totalMembers < 4 && (
+                            <button className="stp-btn stp-btn--ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} onClick={() => setInviteOpen(true)}>
+                              + Mời thêm thành viên
+                            </button>
+                          )}
+                        </div>
+                      ) : isLeader ? (
+                        contests.length > 0 ? (
+                          <Form form={registerForm} layout="vertical" onFinish={handleRegister} style={{ marginTop: 8 }}>
+                            <p style={{ fontSize: '.83rem', color: '#94a3b8', margin: '0 0 14px', lineHeight: 1.5 }}>
+                              Chọn một cuộc thi đang mở để gửi yêu cầu tham gia. Đội sẽ chính thức tham gia sau khi được Ban tổ chức phê duyệt.
+                            </p>
+                            <Form.Item name="contest_id" label="Cuộc thi đang mở" rules={[{ required: true, message: 'Vui lòng chọn cuộc thi' }]}>
+                              <Select placeholder="Chọn cuộc thi">
+                                {contests.map(c => <Select.Option key={c._id} value={c._id}>{c.title}</Select.Option>)}
+                              </Select>
+                            </Form.Item>
+                            <button type="submit" className="stp-btn stp-btn--cyan" style={{ width: '100%', justifyContent: 'center' }} disabled={registerLoading}>
+                              {registerLoading ? 'Đang gửi...' : 'Gửi yêu cầu tham gia'}
+                            </button>
+                          </Form>
+                        ) : (
+                          <p style={{ fontSize: '.83rem', color: '#64748b', margin: '8px 0 0' }}>Hiện tại không có cuộc thi nào đang mở đăng ký.</p>
+                        )
+                      ) : (
+                        <p style={{ fontSize: '.83rem', color: '#64748b', margin: '8px 0 0' }}>Vui lòng liên hệ Trưởng nhóm để thực hiện đăng ký tham gia một giải đấu đang mở.</p>
+                      )}
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'members' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Members card */}
+            <div className="stp-card">
+              <div className="stp-card-head">
+                <div className="stp-card-label" style={{ margin: 0 }}>
+                  THÀNH VIÊN ({team.members?.length ?? 0})
+                </div>
+                {isLeader && (
+                  <button className="stp-btn stp-btn--cyan stp-btn--sm" onClick={() => setInviteOpen(true)}>
+                    <Ico d={MAIL_D} size={13} />
+                    Mời thành viên
+                  </button>
+                )}
+              </div>
+
+              <table className="stp-table">
+                <thead>
+                  <tr>
+                    <th>THÀNH VIÊN</th>
+                    <th>ROLE</th>
+                    <th>THÔNG TIN</th>
+                    {isLeader && <th style={{ width: 36 }} />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(team.members ?? []).map(m => {
+                    const isTeamLeader = (m.user_id?._id ?? m.user_id) === (team.leader_id?._id ?? team.leader_id);
+                    const isSelf       = (m.user_id?._id ?? m.user_id) === user._id;
+                    return (
+                      <tr key={m.email}>
+                        <td>
+                          <div className="stp-member-cell">
+                            <Avatar name={m.full_name || m.email} />
+                            <div>
+                              <div className="stp-member-name">{m.full_name || '—'}</div>
+                              <div className="stp-member-email">{m.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          {isTeamLeader
+                            ? <span className="stp-role-badge stp-role-badge--leader">LEADER</span>
+                            : <span className="stp-role-badge stp-role-badge--member">MEMBER</span>
+                          }
+                        </td>
+                        <td>
+                          {m.user_id && m.user_id.profile_verify_status === 'approved'
+                            ? <span className="stp-verify-badge stp-verify-badge--ok">ĐÃ XÁC THỰC</span>
+                            : m.user_id && m.user_id.profile_verify_status === 'pending'
+                              ? <span className="stp-verify-badge stp-verify-badge--pending" style={{ background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.3)', color: '#60a5fa' }}>CHỜ DUYỆT</span>
+                              : isSelf
+                                ? <a href="/dashboard/profile" style={{ textDecoration: 'none' }}>
+                                    <span className="stp-verify-badge stp-verify-badge--pending" style={{ cursor: 'pointer' }}>CẦN XÁC THỰC →</span>
+                                  </a>
+                                : <span className="stp-verify-badge stp-verify-badge--pending">CẦN XÁC THỰC</span>
+                          }
+                        </td>
+                        {isLeader && (
+                          <td>
+                            {!isSelf && (
+                              <button className="stp-icon-btn" title="Tùy chọn">
+                                <MoreOutlined />
+                              </button>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pending invitations card */}
+            {isLeader && pending.length > 0 && (
+              <div className="stp-card">
+                <div className="stp-card-head">
+                  <div className="stp-pending-title">
+                    <span style={{ color: '#facc15' }}>▶</span>
+                    PENDING INVITATIONS
+                  </div>
+                  <span className="stp-pending-count">{pending.length} lời mời</span>
+                </div>
+
+                <div className="stp-invite-list">
+                  {pending.map(m => (
+                    <div key={m.email} className="stp-invite-item">
+                      <div className="stp-member-cell">
+                        <Avatar name={m.email} size={32} />
+                        <div>
+                          <div className="stp-member-name" style={{ fontSize: '0.85rem' }}>{m.email}</div>
+                          <div className="stp-member-email">Sent {timeAgo(m.created_at || team.created_at)}</div>
+                        </div>
+                      </div>
+                      <button className="stp-cancel-invite" title="Hủy lời mời" onClick={() => message.info('Tính năng đang cập nhật.')}>
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <p className="stp-invite-note">Bạn có thể mời tối đa 4 thành viên vào đội của mình.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'contributions' && (
           <div className="stp-card">
-            <div className="stp-card-head">
+            <div className="stp-card-head" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: 12 }}>
               <div className="stp-card-label" style={{ margin: 0 }}>
-                THÀNH VIÊN ({team.members?.length ?? 0})
+                ĐÁNH GIÁ ĐÓNG GÓP THÀNH VIÊN
               </div>
               {isLeader && (
-                <button className="stp-btn stp-btn--cyan stp-btn--sm" onClick={() => setInviteOpen(true)}>
-                  <Ico d={MAIL_D} size={13} />
-                  Mời thành viên
+                <button
+                  type="button"
+                  className="stp-btn stp-btn--cyan stp-btn--sm"
+                  onClick={() => {
+                    const initial = (team.members ?? []).map(m => ({
+                      email: m.email,
+                      full_name: m.full_name || m.email,
+                      contribution_percentage: m.contribution_percentage ?? 0,
+                      contribution_rating: m.contribution_rating ?? 5,
+                      contribution_note: m.contribution_note ?? '',
+                    }));
+                    setEvalMembers(initial);
+                    setEvalOpen(true);
+                  }}
+                >
+                  ⚙ Đánh giá
                 </button>
               )}
             </div>
 
-            <table className="stp-table">
-              <thead>
-                <tr>
-                  <th>THÀNH VIÊN</th>
-                  <th>ROLE</th>
-                  <th>THÔNG TIN</th>
-                  {isLeader && <th style={{ width: 36 }} />}
-                </tr>
-              </thead>
-              <tbody>
-                {(team.members ?? []).map(m => {
-                  const isTeamLeader = (m.user_id?._id ?? m.user_id) === (team.leader_id?._id ?? team.leader_id);
-                  const isSelf       = (m.user_id?._id ?? m.user_id) === user._id;
+            <div className="contributions-list" style={{ marginTop: 16 }}>
+              {(team.members ?? []).length === 0 ? (
+                <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>Chưa có thành viên nào.</p>
+              ) : (
+                (team.members ?? []).map(m => {
+                  const pct = m.contribution_percentage ?? 0;
+                  const rating = m.contribution_rating ?? 5;
+                  const note = m.contribution_note || 'Chưa có nhận xét';
+                  const name = m.full_name || m.email;
+
                   return (
-                    <tr key={m.email}>
-                      <td>
-                        <div className="stp-member-cell">
-                          <Avatar name={m.full_name || m.email} />
-                          <div>
-                            <div className="stp-member-name">{m.full_name || '—'}</div>
-                            <div className="stp-member-email">{m.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        {isTeamLeader
-                          ? <span className="stp-role-badge stp-role-badge--leader">LEADER</span>
-                          : <span className="stp-role-badge stp-role-badge--member">MEMBER</span>
-                        }
-                      </td>
-                      <td>
-                        {m.user_id && m.user_id.profile_verify_status === 'approved'
-                          ? <span className="stp-verify-badge stp-verify-badge--ok">ĐÃ XÁC THỰC</span>
-                          : m.user_id && m.user_id.profile_verify_status === 'pending'
-                            ? <span className="stp-verify-badge stp-verify-badge--pending" style={{ background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.3)', color: '#60a5fa' }}>CHỜ DUYỆT</span>
-                            : isSelf
-                              ? <a href="/dashboard/profile" style={{ textDecoration: 'none' }}>
-                                  <span className="stp-verify-badge stp-verify-badge--pending" style={{ cursor: 'pointer' }}>CẦN XÁC THỰC →</span>
-                                </a>
-                              : <span className="stp-verify-badge stp-verify-badge--pending">CẦN XÁC THỰC</span>
-                        }
-                      </td>
-                      {isLeader && (
-                        <td>
-                          {!isSelf && (
-                            <button className="stp-icon-btn" title="Tùy chọn">
-                              <MoreOutlined />
-                            </button>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pending invitations card */}
-          {isLeader && pending.length > 0 && (
-            <div className="stp-card">
-              <div className="stp-card-head">
-                <div className="stp-pending-title">
-                  <span style={{ color: '#facc15' }}>▶</span>
-                  PENDING INVITATIONS
-                </div>
-                <span className="stp-pending-count">{pending.length} lời mời</span>
-              </div>
-
-              <div className="stp-invite-list">
-                {pending.map(m => (
-                  <div key={m.email} className="stp-invite-item">
-                    <div className="stp-member-cell">
-                      <Avatar name={m.email} size={32} />
-                      <div>
-                        <div className="stp-member-name" style={{ fontSize: '0.85rem' }}>{m.email}</div>
-                        <div className="stp-member-email">Sent {timeAgo(m.created_at || team.created_at)}</div>
+                    <div key={m.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '12px 0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#fff' }}>{name}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 700 }}>{pct}% đóng góp</span>
+                      </div>
+                      {/* Progress bar */}
+                      <div style={{ height: 6, background: '#1e293b', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg, #38bdf8, #818cf8)', borderRadius: 3 }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: '#94a3b8' }}>
+                        <span>Đánh giá: <span style={{ color: '#fbbf24' }}>{'★'.repeat(rating)}{'☆'.repeat(5 - rating)}</span></span>
+                        <span style={{ fontStyle: 'italic', maxWidth: '75%', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={note}>
+                          "{note}"
+                        </span>
                       </div>
                     </div>
-                    <button className="stp-cancel-invite" title="Hủy lời mời" onClick={() => message.info('Tính năng đang cập nhật.')}>
-                      ✕
-                    </button>
-                  </div>
-                ))}
-                <p className="stp-invite-note">Bạn có thể mời tối đa 4 thành viên vào đội của mình.</p>
-              </div>
+                  );
+                })
+              )}
             </div>
-          )}
-
-          {/* Register contest card - visible for ACTIVE and REJECTED teams */}
-          {(team.status === 'ACTIVE' || team.status === 'REJECTED') && (() => {
-            const totalMembers   = team.members?.length ?? 0;
-            const verifiedCount  = team.members?.filter(m => m.user_id && m.user_id.profile_verify_status === 'approved').length ?? 0;
-            const canRegister    = totalMembers >= 4 && verifiedCount === totalMembers;
-            return (
-              <div className="stp-card">
-                <div className="stp-card-label" style={{ marginBottom: 6 }}>ĐĂNG KÝ CUỘC THI</div>
-
-                {!canRegister ? (
-                  <div style={{ marginTop: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontSize: '.83rem', color: '#94a3b8' }}>Thành viên đã xác thực thông tin</span>
-                      <span style={{ fontSize: '.83rem', fontWeight: 700, color: verifiedCount === totalMembers && totalMembers >= 4 ? '#34d399' : '#fb923c' }}>
-                        {verifiedCount}/{Math.max(totalMembers, 4)}
-                      </span>
-                    </div>
-                    {/* Progress bar */}
-                    <div style={{ height: 6, background: '#1e3a54', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
-                      <div style={{ height: '100%', width: `${Math.min((totalMembers / 4) * 100, 100)}%`, background: totalMembers >= 4 ? '#34d399' : '#fb923c', borderRadius: 99, transition: 'width .4s' }} />
-                    </div>
-                    <div style={{ background: 'rgba(251,146,60,.1)', border: '1px solid rgba(251,146,60,.3)', borderRadius: 8, padding: '10px 14px' }}>
-                      <p style={{ margin: 0, fontSize: '.8rem', color: '#fb923c', lineHeight: 1.5 }}>
-                        ⚠ Cần đủ <strong>4 thành viên</strong> và tất cả phải <strong>xác thực thông tin</strong> (vào <a href="/dashboard/profile" style={{ color: '#60a5fa' }}>Hồ sơ</a> để cập nhật).
-                        {totalMembers < 4 && ` (Còn thiếu ${4 - totalMembers} thành viên)`}
-                        {totalMembers >= 4 && verifiedCount < totalMembers && ` (${totalMembers - verifiedCount} thành viên chưa xác thực)`}
-                      </p>
-                    </div>
-                    {isLeader && totalMembers < 4 && (
-                      <button className="stp-btn stp-btn--ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} onClick={() => setInviteOpen(true)}>
-                        + Mời thêm thành viên
-                      </button>
-                    )}
-                  </div>
-                ) : isLeader ? (
-                  contests.length > 0 ? (
-                    <Form form={registerForm} layout="vertical" onFinish={handleRegister} style={{ marginTop: 8 }}>
-                      <p style={{ fontSize: '.83rem', color: '#94a3b8', margin: '0 0 14px', lineHeight: 1.5 }}>
-                        Chọn một cuộc thi đang mở để gửi yêu cầu tham gia. Đội sẽ chính thức tham gia sau khi được Ban tổ chức phê duyệt.
-                      </p>
-                      <Form.Item name="contest_id" label="Cuộc thi đang mở" rules={[{ required: true, message: 'Vui lòng chọn cuộc thi' }]}>
-                        <Select placeholder="Chọn cuộc thi">
-                          {contests.map(c => <Select.Option key={c._id} value={c._id}>{c.title}</Select.Option>)}
-                        </Select>
-                      </Form.Item>
-                      <button type="submit" className="stp-btn stp-btn--cyan" style={{ width: '100%', justifyContent: 'center' }} disabled={registerLoading}>
-                        {registerLoading ? 'Đang gửi...' : 'Gửi yêu cầu tham gia'}
-                      </button>
-                    </Form>
-                  ) : (
-                    <p style={{ fontSize: '.83rem', color: '#64748b', margin: '8px 0 0' }}>Hiện tại không có cuộc thi nào đang mở đăng ký.</p>
-                  )
-                ) : (
-                  <p style={{ fontSize: '.83rem', color: '#64748b', margin: '8px 0 0' }}>Vui lòng liên hệ Trưởng nhóm để thực hiện đăng ký tham gia một giải đấu đang mở.</p>
-                )}
-              </div>
-            );
-          })()}
-
-
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Invite modal */}
@@ -464,6 +623,101 @@ export const StudentTeamPage = () => {
             <Input prefix={<MailOutlined />} placeholder="member@edu.vn" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Member contribution evaluation modal */}
+      <Modal
+        title="Đánh giá đóng góp thành viên"
+        open={evalOpen}
+        onCancel={() => setEvalOpen(false)}
+        onOk={handleSaveContributions}
+        confirmLoading={evalSaving}
+        okText="Lưu đánh giá"
+        width={600}
+        styles={{ body: { padding: '12px 0' } }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0 0 8px' }}>
+            Nhập tỷ lệ phần trăm đóng góp, điểm đánh giá và nhận xét cho từng thành viên.
+          </p>
+          <div style={{
+            background: evalMembers.reduce((sum, m) => sum + (m.contribution_percentage || 0), 0) === 100 ? 'rgba(52, 211, 153, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            border: evalMembers.reduce((sum, m) => sum + (m.contribution_percentage || 0), 0) === 100 ? '1px solid rgba(52, 211, 153, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: 6,
+            padding: '8px 12px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '0.85rem'
+          }}>
+            <span style={{ color: '#e2e8f0' }}>Tổng tỷ lệ đóng góp của cả đội:</span>
+            <strong style={{ color: evalMembers.reduce((sum, m) => sum + (m.contribution_percentage || 0), 0) === 100 ? '#34d399' : '#f87171' }}>
+              {evalMembers.reduce((sum, m) => sum + (m.contribution_percentage || 0), 0)}% / 100%
+            </strong>
+          </div>
+        </div>
+
+        <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+          {evalMembers.map((m, idx) => (
+            <div key={m.email} style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              borderRadius: 8,
+              padding: 14,
+              marginBottom: 12
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{m.full_name || m.email}</span>
+                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{m.email}</span>
+              </div>
+
+              {/* Slider for percentage */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#94a3b8', marginBottom: 4 }}>
+                  <span>Tỷ lệ đóng góp</span>
+                  <strong style={{ color: '#38bdf8' }}>{m.contribution_percentage}%</strong>
+                </div>
+                <Slider
+                  min={0}
+                  max={100}
+                  value={m.contribution_percentage}
+                  onChange={(val) => {
+                    const next = [...evalMembers];
+                    next[idx].contribution_percentage = val;
+                    setEvalMembers(next);
+                  }}
+                  tooltip={{ formatter: (v) => `${v}%` }}
+                />
+              </div>
+
+              {/* Rating */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Đánh giá sao:</span>
+                <Rate
+                  value={m.contribution_rating}
+                  onChange={(val) => {
+                    const next = [...evalMembers];
+                    next[idx].contribution_rating = val;
+                    setEvalMembers(next);
+                  }}
+                />
+              </div>
+
+              {/* Note */}
+              <div>
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8', display: 'block', marginBottom: 4 }}>Ghi chú nhận xét:</span>
+                <Input
+                  value={m.contribution_note}
+                  placeholder="Nhập nhận xét đóng góp..."
+                  onChange={(e) => {
+                    const next = [...evalMembers];
+                    next[idx].contribution_note = e.target.value;
+                    setEvalMembers(next);
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </Modal>
     </div>
   );

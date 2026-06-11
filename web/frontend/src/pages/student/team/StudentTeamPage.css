@@ -271,3 +271,35 @@
   .stp-no-team-grid { grid-template-columns: 1fr; }
   .stp-form-row { grid-template-columns: 1fr; }
 }
+
+/* ── Tabs Navigation ────────────────────────────────────────────────────── */
+.stp-tabs-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  border-bottom: 1.5px solid #1a3a50;
+  padding-bottom: 10px;
+}
+.stp-tab-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stp-tab-btn:hover {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.05);
+}
+.stp-tab-btn.active {
+  color: #0a1929;
+  background: #00d4ff;
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+}

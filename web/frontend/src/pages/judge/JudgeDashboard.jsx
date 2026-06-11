@@ -290,9 +290,8 @@ function SectionDashboard({ enriched, loading, navigate, onNav }) {
                   className="md-btn-primary"
                   style={{ flex:1 }}
                   onClick={() => navigate(`/judge/scoring/${a.contestId}/rounds/${a.roundId}/pools/${a.poolId}`)}
-                  disabled={a.roundIsActive}
                 >
-                  {a.roundIsActive ? '🔒 Chờ vòng kết thúc' : '⚖ Chấm điểm'}
+                  ⚖ Chấm điểm
                 </button>
               </div>
             </div>
@@ -747,20 +746,14 @@ export default function JudgeDashboard() {
 
       // Collect unique ended rounds for score fetch
       const endedKeys = [...new Set(
-        raw
-          .filter(a => {
-            const contest = a.contest_id || {};
-            const round = (contest.rounds || []).find(r => r._id?.toString() === a.round_id?.toString());
-            return round && !round.is_active;
-          })
-          .map(a => {
-            const cid = (a.contest_id?._id || a.contest_id)?.toString();
-            const rid = a.round_id?.toString();
-            return `${cid}___${rid}`;
-          })
+        raw.map(a => {
+          const cid = (a.contest_id?._id || a.contest_id)?.toString();
+          const rid = a.round_id?.toString();
+          return `${cid}___${rid}`;
+        })
       )];
 
-      // Fetch my scores for ended rounds
+      // Fetch my scores for all assigned rounds
       const scoreMap = {};
       if (endedKeys.length > 0) {
         const results = await Promise.allSettled(

@@ -189,6 +189,7 @@ export const getMyTeams = async (userId, userEmail) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
+    .populate("contest_id", "title description status start_date end_date")
     .sort({ created_at: -1 });
 };
 
@@ -203,6 +204,7 @@ export const getTeamsByContest = async (contestId, { status } = {}) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
+    .populate("contest_id", "title description status start_date end_date")
     .sort({ created_at: -1 });
 
   return teams;
@@ -215,7 +217,8 @@ export const getTeamById = async (teamId) => {
   const team = await Team.findById(teamId)
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
-    .populate("topic_id", "title description difficulty status admin_note resources");
+    .populate("topic_id", "title description difficulty status admin_note resources")
+    .populate("contest_id", "title description status start_date end_date");
 
   if (!team) {
     const err = new Error("Không tìm thấy đội thi");
@@ -252,7 +255,8 @@ export const getMyTeam = async (contestId, userId) => {
   })
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
-    .populate("topic_id", "title description difficulty status admin_note resources");
+    .populate("topic_id", "title description difficulty status admin_note resources")
+    .populate("contest_id", "title description status start_date end_date");
 
   return team;
 };
@@ -280,8 +284,8 @@ export const updateTeam = async (teamId, leaderId, { team_name }) => {
     throw err;
   }
 
-  if (["DISQUALIFIED", "ELIMINATED", "REJECTED"].includes(team.status)) {
-    const err = new Error("Không thể cập nhật đội đã bị loại hoặc bị từ chối");
+  if (["DISQUALIFIED", "ELIMINATED"].includes(team.status)) {
+    const err = new Error("Không thể cập nhật đội đã bị loại");
     err.statusCode = 400;
     throw err;
   }
@@ -377,9 +381,7 @@ export const rejectTeam = async (teamId, reason) => {
     throw err;
   }
 
-  // Giữ nguyên WAITING_APPROVAL để đội có thể đăng ký lại hoặc chỉnh sửa
-  // (không chuyển sang REJECTED vĩnh viễn)
-  // team.status không thay đổi
+  team.status = "REJECTED";
   await team.save();
 
   // Gửi notification đến tất cả thành viên trong đội
@@ -426,8 +428,8 @@ export const joinTeam = async (teamCode, userId, userEmail) => {
     throw err;
   }
 
-  if (["DISQUALIFIED", "ELIMINATED", "REJECTED"].includes(team.status)) {
-    const err = new Error("Đội này không hoạt động hoặc đã bị loại/từ chối");
+  if (["DISQUALIFIED", "ELIMINATED"].includes(team.status)) {
+    const err = new Error("Đội này không hoạt động hoặc đã bị loại");
     err.statusCode = 400;
     throw err;
   }
@@ -860,6 +862,48 @@ export const registerContest = async (teamId, contestId, userId) => {
   // Cập nhật cuộc thi và chuyển trạng thái sang WAITING_APPROVAL
   team.contest_id = contestId;
   team.status = "WAITING_APPROVAL";
+
+  await team.save();
+  return team;
+};
+
+/**
+ * Cập nhật đánh giá đóng góp của các thành viên (chỉ leader mới được thực hiện).
+ */
+export const updateTeamContributions = async (teamId, leaderId, contributions) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.leader_id.toString() !== leaderId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có quyền đánh giá thành viên");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  for (const item of contributions) {
+    const member = team.members.find(m => m.email.toLowerCase() === item.email.toLowerCase());
+    if (member) {
+      if (typeof item.contribution_percentage === "number") {
+        member.contribution_percentage = item.contribution_percentage;
+      }
+      if (typeof item.contribution_rating === "number") {
+        member.contribution_rating = item.contribution_rating;
+      }
+      if (typeof item.contribution_note === "string") {
+        member.contribution_note = item.contribution_note.trim();
+      }
+    }
+  }
 
   await team.save();
   return team;

@@ -2,15 +2,16 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Layout, List, Avatar, Badge, Typography, Input, Button, Spin,
-  Empty, Tag, Tooltip, message as antMessage, Divider,
+  Empty, Tag, Tooltip, Upload, message as antMessage, Divider,
 } from "antd";
 import {
   SendOutlined, MessageOutlined, LockOutlined,
-  TeamOutlined, ArrowLeftOutlined, LoadingOutlined,
+  TeamOutlined, ArrowLeftOutlined, LoadingOutlined, PaperClipOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../../context/AuthContext";
 import { useApi } from "../../hooks/useApi";
 import { useChatSocket } from "../../hooks/useChatSocket";
+import AttachmentBubble from "../../components/chat/AttachmentBubble";
 
 const { Sider, Content } = Layout;
 const { Text, Title } = Typography;
@@ -68,6 +69,8 @@ function ConversationItem({ conv, selected, onClick }) {
 }
 
 function MessageBubble({ msg, isMe }) {
+  const hasText = !!msg.content;
+  const hasAttachments = msg.attachments?.length > 0;
   return (
     <div className={`flex mb-3 ${isMe ? "justify-end" : "justify-start"}`}>
       {!isMe && (
@@ -80,15 +83,20 @@ function MessageBubble({ msg, isMe }) {
         {!isMe && (
           <Text className="text-xs text-gray-400 mb-1 px-1">{msg.sender_id?.full_name || "Ẩn danh"}</Text>
         )}
-        <div
-          className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words
-            ${isMe
-              ? "bg-gradient-to-br from-cyan-500 to-blue-600 text-white rounded-tr-sm"
-              : "bg-white/10 text-gray-100 rounded-tl-sm"
-            }`}
-        >
-          {msg.content}
-        </div>
+        {hasText && (
+          <div
+            className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words
+              ${isMe
+                ? "bg-gradient-to-br from-cyan-500 to-blue-600 text-white rounded-tr-sm"
+                : "bg-white/10 text-gray-100 rounded-tl-sm"
+              }`}
+          >
+            {msg.content}
+          </div>
+        )}
+        {hasAttachments && (
+          <AttachmentBubble attachments={msg.attachments} isMe={isMe} />
+        )}
         <Text className="text-gray-600 text-xs mt-1 px-1">{fmtTime(msg.created_at)}</Text>
       </div>
       {isMe && (
@@ -106,6 +114,7 @@ function ChatWindow({ conv, userId, request }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [inputVal, setInputVal] = useState("");
+  const [fileList, setFileList] = useState([]);
   const [typingUsers, setTypingUsers] = useState({});
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -172,13 +181,17 @@ function ChatWindow({ conv, userId, request }) {
 
   const handleSend = async () => {
     const content = inputVal.trim();
-    if (!content || sending) return;
+    if (!content && fileList.length === 0) return;
+    if (sending) return;
     setSending(true);
     setInputVal("");
     emitTyping(false);
     try {
-      await request(msgPath, { method: "POST", body: { content } });
-      // Message arrives via socket, no need to append manually
+      const formData = new FormData();
+      if (content) formData.append("content", content);
+      fileList.forEach((f) => formData.append("files", f.originFileObj));
+      await request(msgPath, { method: "POST", formData });
+      setFileList([]);
     } catch (e) {
       antMessage.error(e.message || "Gửi thất bại");
       setInputVal(content);
@@ -279,7 +292,43 @@ function ChatWindow({ conv, userId, request }) {
       {conv.chatOpen && (
         <div className="px-4 py-3 border-t border-white/10 flex-shrink-0"
           style={{ background: "rgba(17,24,39,0.9)" }}>
+          {fileList.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {fileList.map((f) => (
+                <span
+                  key={f.uid}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs text-gray-300"
+                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
+                >
+                  <PaperClipOutlined />
+                  <span className="max-w-[120px] truncate">{f.name}</span>
+                  <button
+                    className="text-gray-500 hover:text-red-400 ml-1"
+                    onClick={() => setFileList((prev) => prev.filter((x) => x.uid !== f.uid))}
+                  >×</button>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2 items-end">
+            <Upload
+              multiple
+              maxCount={5}
+              showUploadList={false}
+              beforeUpload={(file) => {
+                const MAX = 10 * 1024 * 1024;
+                if (file.size > MAX) { antMessage.error(`${file.name} vượt quá 10MB`); return Upload.LIST_IGNORE; }
+                setFileList((prev) => [...prev, { uid: file.uid, name: file.name, originFileObj: file }]);
+                return false;
+              }}
+            >
+              <Button
+                icon={<PaperClipOutlined />}
+                type="text"
+                style={{ color: "rgba(255,255,255,0.4)", height: 40, width: 40 }}
+                className="flex-shrink-0 rounded-xl hover:text-cyan-400"
+              />
+            </Upload>
             <Input.TextArea
               value={inputVal}
               onChange={handleInputChange}
@@ -294,7 +343,7 @@ function ChatWindow({ conv, userId, request }) {
               icon={<SendOutlined />}
               onClick={handleSend}
               loading={sending}
-              disabled={!inputVal.trim()}
+              disabled={!inputVal.trim() && fileList.length === 0}
               style={{ background: "linear-gradient(135deg,#00d4ff,#0ea5e9)", border: "none", height: 40, width: 44 }}
               className="flex-shrink-0 rounded-xl"
             />
@@ -427,9 +476,9 @@ export default function MentorChatPage() {
                       key={`${conv.contestId}-${conv.roundId}-${conv.teamId}`}
                       conv={conv}
                       selected={
-                        selected?.contestId === conv.contestId &&
-                        selected?.roundId === conv.roundId &&
-                        selected?.teamId === conv.teamId
+                        `${selected?.contestId}` === `${conv.contestId}` &&
+                        `${selected?.roundId}` === `${conv.roundId}` &&
+                        `${selected?.teamId}` === `${conv.teamId}`
                       }
                       onClick={() => setSelected(conv)}
                     />

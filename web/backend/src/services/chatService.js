@@ -72,18 +72,19 @@ export const getMessages = async ({ contestId, roundId, teamId, mentorId, page =
   return { messages, total, page, limit };
 };
 
-export const sendMessage = async ({ contestId, roundId, teamId, mentorId, senderId, content }) => {
+export const sendMessage = async ({ contestId, roundId, teamId, mentorId, senderId, content, attachments = [] }) => {
   const msg = await ChatMessage.create({
     contest_id: contestId,
     round_id: roundId,
     team_id: teamId,
     mentor_id: mentorId,
     sender_id: senderId,
-    content,
+    content: content || "",
+    attachments,
     read_by: [senderId],
   });
 
-  return msg.populate("sender_id", "full_name email");
+  return await msg.populate("sender_id", "full_name email");
 };
 
 export const markMessagesRead = async ({ contestId, roundId, teamId, mentorId, userId }) => {
@@ -100,7 +101,7 @@ export const markMessagesRead = async ({ contestId, roundId, teamId, mentorId, u
 };
 
 /** Lấy danh sách mentor được phân công cho một team (để team biết ai để chat) */
-export const getTeamMentors = async (teamId) => {
+export const getTeamMentors = async (teamId, userId) => {
   const assignments = await MentorAssignment.find({ team_id: teamId })
     .populate("contest_id", "title status rounds")
     .populate("mentor_id", "full_name email");
@@ -119,13 +120,15 @@ export const getTeamMentors = async (teamId) => {
         .sort({ created_at: -1 })
         .select("content created_at sender_id");
 
-      const unreadCount = await ChatMessage.countDocuments({
-        contest_id: a.contest_id._id,
-        round_id: a.round_id,
-        team_id: teamId,
-        mentor_id: a.mentor_id._id,
-        read_by: { $ne: teamId }, // placeholder — team member userId sẽ được dùng khi mark read
-      });
+      const unreadCount = userId
+        ? await ChatMessage.countDocuments({
+            contest_id: a.contest_id._id,
+            round_id: a.round_id,
+            team_id: teamId,
+            mentor_id: a.mentor_id._id,
+            read_by: { $ne: userId },
+          })
+        : 0;
 
       const chatOpen = contest.status !== "closed" && round && !round.scoring_locked && round.is_active;
 
@@ -192,7 +195,7 @@ export const getMentorConversations = async (mentorId) => {
         roundLocked: round?.scoring_locked || false,
         teamId: a.team_id._id,
         teamName: a.team_id.team_name,
-        mentorId: a.mentor_id,
+        mentorId: mentorId,
         chatOpen,
         lastMessage: lastMsg || null,
         unreadCount,

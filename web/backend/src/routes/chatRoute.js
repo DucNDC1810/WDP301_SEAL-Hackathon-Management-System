@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import * as chatController from "../controllers/chatController.js";
+import { upload } from "../middlewares/uploadMiddleware.js";
 
 const router = Router();
 
@@ -28,11 +29,12 @@ router.get(
   chatController.getMessages
 );
 
-// Gửi tin nhắn
+// Gửi tin nhắn (hỗ trợ multipart/form-data với tối đa 5 file)
 router.post(
   "/:contestId/:roundId/:teamId/:mentorId/messages",
   authenticate,
   authorize("mentor", "contestant", "admin"),
+  upload.array("files", 5),
   chatController.sendMessage
 );
 

@@ -1,5 +1,5 @@
 .al-root,
-[data-theme="dark"] .al-root {
+.al-root[data-theme="dark"] {
   --al-bg: #060b16;
   --al-sidebar-bg: #0b1120;
   --al-border: #162036;
@@ -20,7 +20,7 @@
   --bg-nest-item: #0c1524;
 }
 
-[data-theme="light"] .al-root {
+.al-root[data-theme="light"] {
   --al-bg: #f0f4f8;
   --al-sidebar-bg: #ffffff;
   --al-border: #e2e8f0;
@@ -159,6 +159,101 @@
   background: var(--al-nav-hover-bg);
   color: var(--al-accent);
   border-color: var(--al-accent-border);
+}
+
+/* ── Right column ── */
+.al-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Topbar ── */
+.al-topbar {
+  height: 56px;
+  background: var(--al-sidebar-bg);
+  border-bottom: 1px solid var(--al-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 20px;
+  gap: 12px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 9;
+}
+
+.al-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.al-profile-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 6px;
+  background: var(--al-user-bg);
+  border: 1px solid var(--al-border);
+  border-radius: 10px;
+}
+
+.al-profile-av {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--al-accent), #7c3aed);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.al-profile-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.al-profile-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--al-text);
+  white-space: nowrap;
+}
+
+.al-profile-role {
+  font-size: 0.62rem;
+  color: var(--al-accent);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.al-topbar-logout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--al-border);
+  background: transparent;
+  color: var(--al-text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.al-topbar-logout:hover {
+  background: var(--al-logout-hover-bg);
+  color: var(--al-logout-hover-text);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 /* ── Content area ── */

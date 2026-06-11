@@ -30,6 +30,22 @@ const memberSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    contribution_percentage: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
+    contribution_rating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 5,
+    },
+    contribution_note: {
+      type: String,
+      default: "",
+    },
   }
 );
 
@@ -38,7 +54,8 @@ const teamSchema = new mongoose.Schema(
     contest_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Contest",
-      required: true,
+      required: false,
+      default: null,
     },
     team_name: {
       type: String,
@@ -56,8 +73,9 @@ const teamSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "disqualified", "ELIMINATED"],
-      default: "pending",
+      enum: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED", "DISQUALIFIED", "ELIMINATED"],
+      default: "PENDING_MEMBERS",
+      set: v => typeof v === 'string' ? v.toUpperCase() : v,
     },
     pool_id: {
       type: mongoose.Schema.Types.ObjectId,
@@ -80,6 +98,16 @@ teamSchema.index({ contest_id: 1 });
 teamSchema.index({ status: 1 });
 teamSchema.index({ "members.email": 1 });
 teamSchema.index({ leader_id: 1 });
+
+// Pre-save hook to normalize status to uppercase to avoid validation errors with legacy or lowercase statuses
+teamSchema.pre("save", function () {
+  if (typeof this.status === "string") {
+    this.status = this.status.toUpperCase();
+    if (this.status === "PENDING") {
+      this.status = "WAITING_APPROVAL";
+    }
+  }
+});
 
 // Post-save middleware to trigger re-rank when status is changed to ELIMINATED
 teamSchema.post("save", async function (doc) {

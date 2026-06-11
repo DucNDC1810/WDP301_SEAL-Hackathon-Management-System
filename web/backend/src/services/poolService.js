@@ -28,8 +28,8 @@ export const drawPools = async (contestId, { pool_count, assign_topics }) => {
       throw err;
     }
 
-    // Lấy tất cả đội thi có trạng thái "confirmed"
-    const teams = await Team.find({ contest_id: contestId, status: "confirmed" }).session(session);
+    // Lấy tất cả đội thi có trạng thái "CONFIRMED"
+    const teams = await Team.find({ contest_id: contestId, status: "CONFIRMED" }).session(session);
 
     // 2. Kiểm tra điều kiện số đội >= số bảng đấu
     if (teams.length < pool_count) {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Avatar, Button, Card, Divider, Empty, Form, Input, message,
   Modal, Select, Spin, Table, Tag, Tooltip, Typography,
@@ -6,7 +7,7 @@ import {
 import {
   CheckCircleOutlined, ClockCircleOutlined, CopyOutlined, CrownOutlined,
   FileTextOutlined, MailOutlined, PlusOutlined, TeamOutlined, TrophyOutlined,
-  UserOutlined, AppstoreOutlined, OrderedListOutlined,
+  UserOutlined, AppstoreOutlined, OrderedListOutlined, MessageOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
@@ -35,6 +36,7 @@ const getContestPhase = (contest) => {
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const { request } = useApi();
+  const navigate = useNavigate();
   const [myTeam,         setMyTeam]         = useState(null);
   const [myPool,         setMyPool]         = useState(null);
   const [myRank,         setMyRank]         = useState(null);
@@ -403,14 +405,25 @@ export default function StudentDashboardPage() {
         style={{ marginBottom: 24 }}
         title={<><TeamOutlined style={{ marginRight: 8 }} />Đội thi của tôi</>}
         extra={
-          myTeam && isLeader && (
-            <Button
-              type="primary"
-              icon={<MailOutlined />}
-              onClick={() => setInviteOpen(true)}
-            >
-              Mời thành viên
-            </Button>
+          myTeam && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                icon={<MessageOutlined />}
+                onClick={() => navigate('/chat/mentor')}
+                style={{ borderColor: '#10b981', color: '#10b981' }}
+              >
+                Chat với Mentor
+              </Button>
+              {isLeader && (
+                <Button
+                  type="primary"
+                  icon={<MailOutlined />}
+                  onClick={() => setInviteOpen(true)}
+                >
+                  Mời thành viên
+                </Button>
+              )}
+            </div>
           )
         }
       >

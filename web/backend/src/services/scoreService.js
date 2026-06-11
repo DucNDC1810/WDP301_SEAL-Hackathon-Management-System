@@ -3,6 +3,7 @@ import ScoreDetail from "../models/ScoreDetail.js";
 import MentorAssignment from "../models/MentorAssignment.js";
 import JudgeAssignment from "../models/JudgeAssignment.js";
 import Contest from "../models/Contest.js";
+import Pool from "../models/Pool.js";
 import User from "../models/User.js";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -40,12 +41,7 @@ export const createScore = async ({
 }) => {
   const actorId = judge_id || mentor_id;
 
-  // Guard: scoring_locked
   const round = await getRound(contest_id, round_id);
-  if (round.scoring_locked) {
-    const err = new Error("Vòng thi đã bị khóa chấm điểm, không thể nhập điểm mới");
-    err.statusCode = 403; throw err;
-  }
 
   // Conflict of interest: mentor không được chấm team mình đang hướng dẫn
   const isMentorOfThisTeam = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id });
@@ -62,9 +58,18 @@ export const createScore = async ({
     err.statusCode = 403; throw err;
   }
 
-  // Kiểm tra assignment (JudgeAssignment hoặc MentorAssignment)
-  const judgeAssigned = await JudgeAssignment.exists({ judge_id: actorId, contest_id, round_id, team_id });
-  const mentorAssigned = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id });
+  // Kiểm tra assignment
+  // Mentor: round-level — any mentor assignment in this round grants scoring rights for OTHER teams
+  // (conflict check above already blocks scoring own mentees)
+  const mentorAssigned = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id });
+  // Judge: pool-level — find which pool contains this team, then check judge assignment
+  let judgeAssigned = false;
+  if (!mentorAssigned) {
+    const pool = await Pool.findOne({ contest_id, teams: team_id }).select("_id").lean();
+    if (pool) {
+      judgeAssigned = !!(await JudgeAssignment.exists({ judge_id: actorId, contest_id, round_id, pool_id: pool._id }));
+    }
+  }
   if (!judgeAssigned && !mentorAssigned) {
     const err = new Error("Bạn không được phân công chấm đội này"); err.statusCode = 403; throw err;
   }
@@ -117,12 +122,6 @@ export const updateScore = async (scoreId, judgeId, { comment, score_details, su
   }
   if (score.status === "submitted") {
     const err = new Error("Không thể chỉnh sửa điểm đã nộp"); err.statusCode = 400; throw err;
-  }
-
-  // Guard: scoring_locked
-  const round = await getRound(score.contest_id, score.round_id);
-  if (round.scoring_locked) {
-    const err = new Error("Vòng thi đã bị khóa chấm điểm"); err.statusCode = 403; throw err;
   }
 
   score.total_score = calcWeightedTotal(score_details);

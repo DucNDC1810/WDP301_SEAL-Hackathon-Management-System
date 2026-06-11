@@ -1,11 +1,11 @@
-/* ===== Contest Form Page Styling ===== */
+﻿/* ===== Contest Form Page Styling ===== */
 
 .contest-form-page {
   position: relative;
   min-height: 100vh;
   background: var(--bg-primary);
   padding: 120px 0 80px; /* Offset for floating navbar */
-  overflow: hidden;
+  /* overflow: hidden removed â€” was clipping the datepicker popper */
 }
 
 /* Background Glowing Orbs */
@@ -582,7 +582,7 @@ input:checked + .slider:before {
   margin-bottom: 16px;
 }
 
-/* ─── Custom DatePicker (react-datepicker) dark theme ───────────────────── */
+/* â”€â”€â”€ Custom DatePicker (react-datepicker) dark theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .contest-dp-wrap {
   position: relative;
@@ -630,24 +630,46 @@ input:checked + .slider:before {
   opacity: 0.6;
 }
 
-/* ── Popper / calendar popup ── */
+/* â”€â”€ Popper / calendar popup â”€â”€ */
 .contest-dp-popper {
   z-index: 9999 !important;
 }
 
+/* Mobile portal overlay â€” centers the picker on small screens */
+.react-datepicker__portal {
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(4px) !important;
+  z-index: 99999 !important;
+}
+
+.react-datepicker__portal .contest-dp-calendar.react-datepicker {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  margin: auto;
+}
+
 .contest-dp-calendar.react-datepicker {
-  background: var(--bg-card) !important;
+  background: #0d1220 !important;
   border: 1px solid var(--border-hover) !important;
   border-radius: 14px !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--border) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 240, 255, 0.12) !important;
   font-family: var(--font-body) !important;
   overflow: hidden;
   padding: 0 !important;
+  /* Force fully opaque â€” no see-through */
+  opacity: 1 !important;
+  isolation: isolate;
+}
+
+.al-root[data-theme="light"] .contest-dp-calendar.react-datepicker {
+  background: #ffffff !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 152, 181, 0.2) !important;
 }
 
 /* Header */
 .contest-dp-calendar .react-datepicker__header {
-  background: var(--bg-header) !important;
+  background: #080c16 !important;
   border-bottom: 1px solid var(--border) !important;
   padding: 16px 0 12px !important;
   border-radius: 0 !important;
@@ -751,14 +773,14 @@ input:checked + .slider:before {
   opacity: 0.4;
 }
 
-/* ── Time column ── */
+/* â”€â”€ Time column â”€â”€ */
 .contest-dp-calendar .react-datepicker__time-container {
   border-left: 1px solid var(--border) !important;
   width: 96px !important;
 }
 
 .contest-dp-calendar .react-datepicker__header--time {
-  background: var(--bg-header) !important;
+  background: #080c16 !important;
   border-bottom: 1px solid var(--border) !important;
   padding: 16px 0 12px !important;
 }
@@ -770,7 +792,16 @@ input:checked + .slider:before {
 }
 
 .contest-dp-calendar .react-datepicker__time {
-  background: var(--bg-card) !important;
+  background: #0d1220 !important;
+}
+
+.al-root[data-theme="light"] .contest-dp-calendar .react-datepicker__header,
+.al-root[data-theme="light"] .contest-dp-calendar .react-datepicker__header--time {
+  background: #f0f4f8 !important;
+}
+
+.al-root[data-theme="light"] .contest-dp-calendar .react-datepicker__time {
+  background: #ffffff !important;
 }
 
 .contest-dp-calendar .react-datepicker__time-box {
@@ -819,7 +850,7 @@ input:checked + .slider:before {
   cursor: not-allowed !important;
 }
 
-/* ─── Field-level validation states ──────────────────────────────────────── */
+/* â”€â”€â”€ Field-level validation states â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .contest-field--error .contest-input,
 .contest-field--error .contest-textarea,
 .contest-field--error .contest-dp-input {
@@ -836,7 +867,7 @@ input:checked + .slider:before {
 }
 
 .contest-field-error::before {
-  content: "✕";
+  content: "âœ•";
   font-size: 0.7rem;
 }
 
@@ -865,7 +896,7 @@ input:checked + .slider:before {
   background: var(--bg-nest);
 }
 
-/* ─── Banner preview ────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Banner preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .contest-banner-preview {
   margin-top: 10px;
   border-radius: 6px;
@@ -880,7 +911,7 @@ input:checked + .slider:before {
   object-fit: cover;
 }
 
-/* ─── Timeline visual hint ──────────────────────────────────────────────── */
+/* â”€â”€â”€ Timeline visual hint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .contest-timeline-hint {
   display: flex;
   align-items: center;
@@ -974,3 +1005,4 @@ input:checked + .slider:before {
     transform: translateY(0);
   }
 }
+

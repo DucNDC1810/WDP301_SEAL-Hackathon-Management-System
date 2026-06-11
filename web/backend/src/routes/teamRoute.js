@@ -18,6 +18,7 @@ import {
   handleProposeTopic,
   handleEliminateTeam,
   handleRegisterContest,
+  handleUpdateTeamContributions,
 } from "../controllers/teamController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import { audit } from "../middlewares/auditMiddleware.js";
@@ -55,6 +56,9 @@ router.get("/:id", authenticate, handleGetTeamById);
 
 // PATCH /api/teams/:id                        — leader cập nhật tên đội
 router.patch("/:id", authenticate, audit("TEAM", "UPDATE"), handleUpdateTeam);
+
+// PUT /api/teams/:id/contributions            — leader đánh giá đóng góp thành viên
+router.put("/:id/contributions", authenticate, audit("TEAM", "UPDATE"), handleUpdateTeamContributions);
 
 // DELETE /api/teams/:id                       — leader/admin xóa đội (pending only)
 router.delete("/:id", authenticate, audit("TEAM", "DELETE"), handleDeleteTeam);

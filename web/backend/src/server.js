@@ -82,6 +82,22 @@ connectDB().then(() => {
     console.log(`Server running on port ${PORT}`);
   });
 
+  // Migration: Normalize legacy lowercase team status values in the database to uppercase to match Mongoose schema enums
+  import("./models/Team.js").then(async ({ default: Team }) => {
+    try {
+      const statusesToMigrate = ["confirmed", "active", "waiting_approval", "rejected", "disqualified", "eliminated", "pending_members", "pending"];
+      for (const lowercaseStatus of statusesToMigrate) {
+        const uppercaseStatus = lowercaseStatus === "pending" ? "WAITING_APPROVAL" : lowercaseStatus.toUpperCase();
+        const res = await Team.collection.updateMany({ status: lowercaseStatus }, { $set: { status: uppercaseStatus } });
+        if (res.modifiedCount > 0) {
+          console.log(`[Migration] Updated ${res.modifiedCount} teams from status "${lowercaseStatus}" to "${uppercaseStatus}"`);
+        }
+      }
+    } catch (err) {
+      console.error("[Migration] Failed to run team status migration:", err);
+    }
+  });
+
   // Chạy auto close ngay khi khởi động
   autoCloseContests();
 

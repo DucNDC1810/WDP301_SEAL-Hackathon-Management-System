@@ -1,4 +1,5 @@
 import * as chatService from "../services/chatService.js";
+import { uploadToCloudinary } from "../middlewares/uploadMiddleware.js";
 
 export const getTeamMentors = async (req, res) => {
   try {
@@ -16,7 +17,7 @@ export const getTeamMentors = async (req, res) => {
         return res.status(403).json({ success: false, message: "Bạn không thuộc đội này" });
       }
     }
-    const mentors = await chatService.getTeamMentors(teamId);
+    const mentors = await chatService.getTeamMentors(teamId, req.user._id);
     res.json({ success: true, data: mentors });
   } catch (err) {
     console.error("[getTeamMentors]", err);
@@ -70,8 +71,10 @@ export const sendMessage = async (req, res) => {
     const userId = req.user._id;
     const userRoles = req.user.roles.map((r) => r.role_name);
 
-    if (!content?.trim()) {
-      return res.status(400).json({ success: false, message: "Nội dung tin nhắn không được trống" });
+    const hasContent = content?.trim();
+    const hasFiles = req.files?.length > 0;
+    if (!hasContent && !hasFiles) {
+      return res.status(400).json({ success: false, message: "Tin nhắn phải có nội dung hoặc file đính kèm" });
     }
 
     const allowed = await chatService.canAccessChat(userId, userRoles, {
@@ -84,10 +87,16 @@ export const sendMessage = async (req, res) => {
       return res.status(403).json({ success: false, message: "Cuộc trò chuyện đã đóng do kỳ thi đã kết thúc" });
     }
 
+    // Upload files to Cloudinary
+    const attachments = hasFiles
+      ? await Promise.all(req.files.map((f) => uploadToCloudinary(f)))
+      : [];
+
     const msg = await chatService.sendMessage({
       contestId, roundId, teamId, mentorId,
       senderId: userId,
-      content: content.trim(),
+      content: hasContent ? content.trim() : "",
+      attachments,
     });
 
     // Emit socket event tới phòng chat

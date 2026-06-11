@@ -63,7 +63,7 @@
   --transition-slow: 0.5s ease;
 }
 
-[data-theme="light"] {
+.al-root[data-theme="light"] {
   --bg-primary: #f0f4f8;
   --bg-secondary: #ffffff;
   --bg-card: rgba(255, 255, 255, 0.9);

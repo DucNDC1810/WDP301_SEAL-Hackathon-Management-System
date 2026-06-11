@@ -19,9 +19,11 @@ import judgeAssignmentRoute, { nestedRouter as judgeAssignmentNestedRoute } from
 import appealRoute from "./routes/appealRoute.js";
 import invitationRoute from "./routes/invitationRoute.js";
 import notificationRoute from "./routes/notificationRoute.js";
+import chatRoute from "./routes/chatRoute.js";
 import auditLogRoute from "./routes/auditLogRoute.js";
 import submissionRoute from "./routes/submissionRoute.js";
 import be2RoundRoute from "./routes/be2RoundRoute.js";
+import presentationSlotRoute from "./routes/presentationSlotRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -42,7 +44,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
 
@@ -66,15 +69,33 @@ app.use("/api/contests/:contestId/rounds/:roundId", rankingRoute);
 app.use("/api/appeals", appealRoute);
 app.use("/api/invitations", invitationRoute);
 app.use("/api/notifications", notificationRoute);
+app.use("/api/chat", chatRoute);
 app.use("/api/audit-logs", auditLogRoute);
 app.use("/api/submissions", submissionRoute);
 app.use("/api/rounds", be2RoundRoute);
+app.use("/api/presentation-slots", presentationSlotRoute);
 
 initSocket(httpServer);
 
 connectDB().then(() => {
   httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+  });
+
+  // Migration: Normalize legacy lowercase team status values in the database to uppercase to match Mongoose schema enums
+  import("./models/Team.js").then(async ({ default: Team }) => {
+    try {
+      const statusesToMigrate = ["confirmed", "active", "waiting_approval", "rejected", "disqualified", "eliminated", "pending_members", "pending"];
+      for (const lowercaseStatus of statusesToMigrate) {
+        const uppercaseStatus = lowercaseStatus === "pending" ? "WAITING_APPROVAL" : lowercaseStatus.toUpperCase();
+        const res = await Team.collection.updateMany({ status: lowercaseStatus }, { $set: { status: uppercaseStatus } });
+        if (res.modifiedCount > 0) {
+          console.log(`[Migration] Updated ${res.modifiedCount} teams from status "${lowercaseStatus}" to "${uppercaseStatus}"`);
+        }
+      }
+    } catch (err) {
+      console.error("[Migration] Failed to run team status migration:", err);
+    }
   });
 
   // Chạy auto close ngay khi khởi động

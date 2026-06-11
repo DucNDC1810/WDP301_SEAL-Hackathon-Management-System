@@ -19,7 +19,8 @@ const mapSubStatus = (s) => {
   return m[s] || 'not_submitted';
 };
 
-const canScore = (status) => ['submitted', 'late_approved'].includes(status);
+// Chỉ dùng để hiển thị label trạng thái nộp bài — không còn dùng để gate nút chấm
+const canScore = (_status) => true;
 
 function calcTotal(criteria, criteriaScores) {
   const weightSum = criteria.reduce((s, c) => s + c.weight, 0);
@@ -349,12 +350,6 @@ export default function JudgeScoringPage() {
                   {roundActive ? (
                     <Tooltip title="Vòng thi chưa kết thúc">
                       <Button size="small" disabled>🔒 Chờ kết thúc</Button>
-                    </Tooltip>
-                  ) : !canScore(team.status) ? (
-                    <Tooltip title={team.status === 'late_pending' ? 'Đội nộp trễ đang chờ duyệt' : 'Đội chưa nộp bài'}>
-                      <Button size="small" disabled>
-                        {team.status === 'late_pending' ? 'Chờ duyệt' : 'Chưa nộp bài'}
-                      </Button>
                     </Tooltip>
                   ) : (
                     <Button

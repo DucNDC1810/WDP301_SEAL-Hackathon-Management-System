@@ -19,17 +19,19 @@ export const createTeam = async (
   contestId,
   { team_name, leader_id, members }
 ) => {
-  // 1. Kiểm tra contest tồn tại và status === "open"
-  const contest = await Contest.findById(contestId);
-  if (!contest) {
-    const err = new Error("Không tìm thấy cuộc thi");
-    err.statusCode = 404;
-    throw err;
-  }
-  if (contest.status !== "open") {
-    const err = new Error("Cuộc thi hiện tại đang không mở đăng ký");
-    err.statusCode = 400;
-    throw err;
+  if (contestId) {
+    // 1. Kiểm tra contest tồn tại và status === "open"
+    const contest = await Contest.findById(contestId);
+    if (!contest) {
+      const err = new Error("Không tìm thấy cuộc thi");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (contest.status !== "open") {
+      const err = new Error("Cuộc thi hiện tại đang không mở đăng ký");
+      err.statusCode = 400;
+      throw err;
+    }
   }
 
   // Lấy thông tin leader
@@ -40,24 +42,43 @@ export const createTeam = async (
     throw err;
   }
 
-  // 2. Kiểm tra leader chưa có team trong contest này
-  const existingTeam = await Team.findOne({
-    contest_id: contestId,
-    $or: [{ leader_id: leader_id }, { "members.user_id": leader_id }],
-  });
-  if (existingTeam) {
-    const err = new Error("Bạn đã tham gia một đội thi khác trong cuộc thi này");
+  // Kiểm tra leader chưa có team đang hoạt động
+  const activeTeamQuery = {
+    leader_id: leader_id,
+    status: { $in: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED"] }
+  };
+  const existingActiveTeam = await Team.findOne(activeTeamQuery);
+  if (existingActiveTeam) {
+    const err = new Error("Bạn đã tham gia hoặc làm trưởng nhóm của một đội thi khác đang hoạt động");
     err.statusCode = 400;
     throw err;
+  }
+
+  if (contestId) {
+    // 2. Kiểm tra leader chưa có team trong contest này
+    const existingTeam = await Team.findOne({
+      contest_id: contestId,
+      $or: [{ leader_id: leader_id }, { "members.user_id": leader_id }],
+    });
+    if (existingTeam) {
+      const err = new Error("Bạn đã tham gia một đội thi khác trong cuộc thi này");
+      err.statusCode = 400;
+      throw err;
+    }
   }
 
   // 3. Xử lý danh sách thành viên và sinh token xác thực
   const processedMembers = [];
   const rawTokenMap = new Map();
 
-  for (const m of members) {
+  const leaderEmail = leader.email.toLowerCase();
+  const hasLeader = members.some((m) => m.email && m.email.toLowerCase() === leaderEmail);
+  const allMembers = hasLeader ? [...members] : [{ email: leaderEmail }, ...members];
+
+  for (const m of allMembers) {
+    if (!m.email) continue;
     const emailLower = m.email.toLowerCase();
-    const isLeader = emailLower === leader.email.toLowerCase();
+    const isLeader = emailLower === leaderEmail;
 
     // Tìm xem email này đã đăng ký tài khoản User chưa
     const memberUser = await User.findOne({ email: emailLower });
@@ -89,7 +110,7 @@ export const createTeam = async (
     team_name,
     leader_id,
     members: processedMembers,
-    status: "pending",
+    status: "PENDING_MEMBERS",
   });
 
   await newTeam.save();
@@ -107,7 +128,7 @@ export const createTeam = async (
   // 5. Nếu tất cả thành viên đã verified (ví dụ: chỉ có trưởng nhóm) thì confirm luôn
   const allVerified = newTeam.members.every((m) => m.email_verified);
   if (allVerified && newTeam.members.length > 0) {
-    newTeam.status = "confirmed";
+    newTeam.status = contestId ? "WAITING_APPROVAL" : "ACTIVE";
     await newTeam.save();
   }
 
@@ -147,7 +168,7 @@ export const verifyMemberEmail = async (token) => {
   // Kiểm tra nếu tất cả thành viên trong đội đều đã xác nhận thành công
   const allVerified = team.members.every((m) => m.email_verified);
   if (allVerified) {
-    team.status = "confirmed";
+    team.status = team.contest_id ? "WAITING_APPROVAL" : "ACTIVE";
   }
 
   await team.save();
@@ -165,9 +186,10 @@ export const getMyTeams = async (userId, userEmail) => {
       { "members.email": userEmail },
     ],
   })
-    .populate("leader_id", "full_name email avatar_url")
-    .populate("members.user_id", "full_name email avatar_url")
+    .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
+    .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
+    .populate("contest_id", "title description status start_date end_date")
     .sort({ created_at: -1 });
 };
 
@@ -179,9 +201,10 @@ export const getTeamsByContest = async (contestId, { status } = {}) => {
   if (status) query.status = status;
 
   const teams = await Team.find(query)
-    .populate("leader_id", "full_name email avatar_url")
-    .populate("members.user_id", "full_name email avatar_url")
+    .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
+    .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
+    .populate("contest_id", "title description status start_date end_date")
     .sort({ created_at: -1 });
 
   return teams;
@@ -192,9 +215,10 @@ export const getTeamsByContest = async (contestId, { status } = {}) => {
  */
 export const getTeamById = async (teamId) => {
   const team = await Team.findById(teamId)
-    .populate("leader_id", "full_name email")
-    .populate("members.user_id", "full_name email")
-    .populate("topic_id", "title description difficulty status admin_note resources");
+    .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
+    .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
+    .populate("topic_id", "title description difficulty status admin_note resources")
+    .populate("contest_id", "title description status start_date end_date");
 
   if (!team) {
     const err = new Error("Không tìm thấy đội thi");
@@ -216,7 +240,7 @@ export const disqualifyTeam = async (teamId) => {
     throw err;
   }
 
-  team.status = "disqualified";
+  team.status = "DISQUALIFIED";
   await team.save();
   return team;
 };
@@ -229,9 +253,10 @@ export const getMyTeam = async (contestId, userId) => {
     contest_id: contestId,
     $or: [{ leader_id: userId }, { "members.user_id": userId }],
   })
-    .populate("leader_id", "full_name email avatar_url")
-    .populate("members.user_id", "full_name email avatar_url")
-    .populate("topic_id", "title description difficulty status admin_note resources");
+    .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
+    .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
+    .populate("topic_id", "title description difficulty status admin_note resources")
+    .populate("contest_id", "title description status start_date end_date");
 
   return team;
 };
@@ -259,7 +284,7 @@ export const updateTeam = async (teamId, leaderId, { team_name }) => {
     throw err;
   }
 
-  if (team.status === "disqualified") {
+  if (["DISQUALIFIED", "ELIMINATED"].includes(team.status)) {
     const err = new Error("Không thể cập nhật đội đã bị loại");
     err.statusCode = 400;
     throw err;
@@ -269,12 +294,12 @@ export const updateTeam = async (teamId, leaderId, { team_name }) => {
   await team.save();
 
   return Team.findById(teamId)
-    .populate("leader_id", "full_name email avatar_url")
-    .populate("members.user_id", "full_name email avatar_url");
+    .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
+    .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card");
 };
 
 /**
- * Xóa đội thi (chỉ leader hoặc admin, khi status còn pending).
+ * Xóa đội thi (chỉ leader hoặc admin, khi status còn PENDING_MEMBERS).
  */
 export const deleteTeam = async (teamId, requesterId, isAdmin = false) => {
   if (!mongoose.Types.ObjectId.isValid(teamId)) {
@@ -296,8 +321,8 @@ export const deleteTeam = async (teamId, requesterId, isAdmin = false) => {
     throw err;
   }
 
-  if (!isAdmin && team.status !== "pending") {
-    const err = new Error("Chỉ có thể xóa đội thi khi đang ở trạng thái chờ xác nhận");
+  if (!isAdmin && team.status !== "PENDING_MEMBERS") {
+    const err = new Error("Chỉ có thể xóa đội thi khi đang ở trạng thái chờ xác nhận thành viên");
     err.statusCode = 400;
     throw err;
   }
@@ -306,7 +331,7 @@ export const deleteTeam = async (teamId, requesterId, isAdmin = false) => {
 };
 
 /**
- * Admin duyệt đội (pending → confirmed).
+ * Admin duyệt đội (WAITING_APPROVAL → CONFIRMED).
  */
 export const approveTeam = async (teamId) => {
   if (!mongoose.Types.ObjectId.isValid(teamId)) {
@@ -322,14 +347,66 @@ export const approveTeam = async (teamId) => {
     throw err;
   }
 
-  if (team.status !== "pending") {
+  if (team.status !== "WAITING_APPROVAL") {
     const err = new Error(`Đội hiện tại ở trạng thái "${team.status}", không thể duyệt`);
     err.statusCode = 400;
     throw err;
   }
 
-  team.status = "confirmed";
+  team.status = "CONFIRMED";
   await team.save();
+  return team;
+};
+
+/**
+ * Admin từ chối duyệt đội (WAITING_APPROVAL → WAITING_APPROVAL, gửi thông báo).
+ */
+export const rejectTeam = async (teamId, reason) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.status !== "WAITING_APPROVAL") {
+    const err = new Error(`Đội hiện tại ở trạng thái "${team.status}", không thể từ chối`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  team.status = "REJECTED";
+  await team.save();
+
+  // Gửi notification đến tất cả thành viên trong đội
+  const recipientIds = [];
+  if (team.leader_id) recipientIds.push(team.leader_id.toString());
+  if (team.members && team.members.length > 0) {
+    team.members.forEach((m) => {
+      if (m.user_id) recipientIds.push(m.user_id.toString());
+    });
+  }
+  const uniqueRecipients = [...new Set(recipientIds)];
+
+  const reasonText = reason && reason.trim() ? reason.trim() : "Không có lý do cụ thể";
+
+  await sendNotification({
+    recipientIds: uniqueRecipients,
+    type: "general",
+    payload: {
+      title: "Đăng ký đội thi bị từ chối",
+      message: `Đội "${team.team_name}" đã bị từ chối duyệt. Lý do: ${reasonText}. Bạn có thể chỉnh sửa và đăng ký lại.`,
+      ref_id: team._id,
+      ref_type: "Team",
+    },
+  });
+
   return team;
 };
 
@@ -351,8 +428,8 @@ export const joinTeam = async (teamCode, userId, userEmail) => {
     throw err;
   }
 
-  if (team.status === "disqualified") {
-    const err = new Error("Đội này đã bị loại khỏi cuộc thi");
+  if (["DISQUALIFIED", "ELIMINATED"].includes(team.status)) {
+    const err = new Error("Đội này không hoạt động hoặc đã bị loại");
     err.statusCode = 400;
     throw err;
   }
@@ -394,6 +471,11 @@ export const joinTeam = async (teamCode, userId, userEmail) => {
     verify_token: null,
     verify_token_expires: null,
   });
+
+  const allVerified = team.members.every((m) => m.email_verified);
+  if (allVerified) {
+    team.status = "WAITING_APPROVAL";
+  }
 
   await team.save();
   return team;
@@ -692,5 +774,137 @@ export const eliminateTeam = async (teamId, { reason }, actorId) => {
 
   await triggerReRank(team.contest_id, activeRoundId, team.pool_id);
 
+  return team;
+};
+
+/**
+ * Đăng ký đội vào cuộc thi.
+ */
+export const registerContest = async (teamId, contestId, userId) => {
+  const team = await Team.findById(teamId)
+    .populate("leader_id")
+    .populate("members.user_id");
+  if (!team) {
+    const err = new Error("Không tìm thấy thông tin đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Phải là leader mới được đăng ký
+  if (team.leader_id._id.toString() !== userId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có quyền đăng ký cuộc thi");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Đội thi phải ở trạng thái ACTIVE hoặc REJECTED mới cho đăng ký
+  if (!["ACTIVE", "REJECTED"].includes(team.status)) {
+    const err = new Error("Trạng thái đội thi không hợp lệ để đăng ký cuộc thi");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Phải có đủ 4 thành viên
+  if (!team.members || team.members.length < 4) {
+    const err = new Error(`Đội phải có đủ 4 thành viên để đăng ký cuộc thi (hiện có ${team.members?.length ?? 0} thành viên)`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Tất cả thành viên phải đã được admin duyệt thông tin (profile_verify_status === 'approved')
+  const notJoined = team.members.filter(m => !m.user_id);
+  if (notJoined.length > 0) {
+    const err = new Error(`Có thành viên chưa đăng ký tài khoản hoặc chưa tham gia đội thi.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const unapproved = team.members.filter((m) => m.user_id.profile_verify_status !== "approved");
+  if (unapproved.length > 0) {
+    const err = new Error(`Còn ${unapproved.length} thành viên chưa được Admin phê duyệt thông tin cá nhân.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Kiểm tra contest tồn tại và status === "open"
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    const err = new Error("Không tìm thấy cuộc thi");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (contest.status !== "open") {
+    const err = new Error("Cuộc thi hiện tại đang không mở đăng ký");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Kiểm tra xem leader và bất kỳ thành viên nào của đội đã tham gia đội khác trong contest này chưa
+  const memberUserIds = team.members.map(m => m.user_id).filter(id => id);
+  const memberEmails = team.members.map(m => m.email);
+
+  const existingTeam = await Team.findOne({
+    contest_id: contestId,
+    _id: { $ne: team._id },
+    $or: [
+      { leader_id: { $in: [team.leader_id, ...memberUserIds] } },
+      { "members.user_id": { $in: [team.leader_id, ...memberUserIds] } },
+      { "members.email": { $in: memberEmails } }
+    ]
+  });
+
+  if (existingTeam) {
+    const err = new Error("Một hoặc nhiều thành viên trong đội của bạn đã tham gia một đội thi khác trong cuộc thi này");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Cập nhật cuộc thi và chuyển trạng thái sang WAITING_APPROVAL
+  team.contest_id = contestId;
+  team.status = "WAITING_APPROVAL";
+
+  await team.save();
+  return team;
+};
+
+/**
+ * Cập nhật đánh giá đóng góp của các thành viên (chỉ leader mới được thực hiện).
+ */
+export const updateTeamContributions = async (teamId, leaderId, contributions) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.leader_id.toString() !== leaderId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có quyền đánh giá thành viên");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  for (const item of contributions) {
+    const member = team.members.find(m => m.email.toLowerCase() === item.email.toLowerCase());
+    if (member) {
+      if (typeof item.contribution_percentage === "number") {
+        member.contribution_percentage = item.contribution_percentage;
+      }
+      if (typeof item.contribution_rating === "number") {
+        member.contribution_rating = item.contribution_rating;
+      }
+      if (typeof item.contribution_note === "string") {
+        member.contribution_note = item.contribution_note.trim();
+      }
+    }
+  }
+
+  await team.save();
   return team;
 };

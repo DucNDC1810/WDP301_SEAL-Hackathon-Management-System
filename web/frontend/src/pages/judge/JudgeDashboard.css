@@ -1,0 +1,373 @@
+/* ─── SEAL Judge Dashboard ─────────────────────────────────────────────────── */
+/* Reuses CSS variables from MentorDashboard.css — import that file first      */
+
+/* ─── Judge-specific overrides ───────────────────────────────────────────────── */
+.jd-judge-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.62rem; font-weight: 700;
+  color: #f59e0b;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+  padding: 1px 7px; border-radius: 20px;
+}
+
+/* ─── Urgent Review Panel ─────────────────────────────────────────────────────── */
+.jd-urgent-card {
+  position: relative; overflow: hidden;
+  padding: 22px 24px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(245,158,11,0.08));
+  border: 1px solid rgba(239,68,68,0.35);
+  margin-bottom: 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  flex-wrap: wrap;
+  box-shadow: 0 0 40px rgba(239,68,68,0.12), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.jd-urgent-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #ef4444, #f59e0b, #ef4444);
+}
+.jd-urgent-glow {
+  position: absolute; top: -30px; right: -30px;
+  width: 120px; height: 120px; border-radius: 50%;
+  background: rgba(239,68,68,0.15); filter: blur(40px);
+}
+.jd-urgent-left { display: flex; align-items: center; gap: 16px; }
+.jd-urgent-icon {
+  font-size: 2rem; width: 56px; height: 56px; border-radius: 16px;
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.3);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  animation: urgentPulse 2s ease-in-out infinite;
+}
+@keyframes urgentPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+.jd-urgent-title { font-size: 1.1rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.jd-urgent-sub { font-size: 0.82rem; color: rgba(255,255,255,0.6); }
+.jd-urgent-deadline {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.78rem; color: #f59e0b; margin-top: 6px; font-weight: 600;
+}
+
+.jd-urgent-stat {
+  text-align: center; padding: 12px 20px;
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 12px;
+}
+.jd-urgent-num { font-size: 2.2rem; font-weight: 900; color: #ef4444; line-height: 1; }
+.jd-urgent-lbl { font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-top: 2px; }
+
+.jd-urgent-btn {
+  padding: 10px 22px; border-radius: 10px;
+  background: linear-gradient(135deg, #ef4444, #f59e0b);
+  border: none; color: #fff; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(239,68,68,0.35);
+}
+.jd-urgent-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(239,68,68,0.5); }
+
+/* ─── Hackathon Cards ──────────────────────────────────────────────────────────── */
+.jd-hack-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.jd-hack-card {
+  border-radius: 18px; overflow: hidden;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  transition: all 0.2s;
+}
+.jd-hack-card:hover { border-color: rgba(0,212,255,0.25); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+
+.jd-hack-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.jd-hack-name { font-size: 1rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.jd-hack-date { font-size: 0.72rem; color: rgba(255,255,255,0.35); margin-bottom: 8px; }
+.jd-hack-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.jd-hack-body { padding: 16px 20px; }
+.jd-hack-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.8rem;
+}
+.jd-hack-row:last-child { border-bottom: none; }
+.jd-hack-row-label { color: rgba(255,255,255,0.4); }
+.jd-hack-row-val { color: rgba(255,255,255,0.85); font-weight: 600; }
+
+.jd-progress-row { padding: 12px 20px 0; }
+.jd-progress-label-row {
+  display: flex; justify-content: space-between;
+  font-size: 0.72rem; color: rgba(255,255,255,0.4);
+  margin-bottom: 6px;
+}
+
+.jd-hack-actions {
+  display: flex; gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.15);
+}
+
+/* ─── Teams Review Table ───────────────────────────────────────────────────────── */
+.jd-review-table-wrap {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px; overflow: hidden; margin-bottom: 28px;
+}
+.jd-review-table { width: 100%; border-collapse: collapse; }
+.jd-review-table th {
+  padding: 11px 16px;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.8px; color: rgba(255,255,255,0.35); text-align: left;
+}
+.jd-review-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.82rem; color: rgba(255,255,255,0.8);
+}
+.jd-review-table tr:last-child td { border-bottom: none; }
+.jd-review-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.jd-team-name-cell { font-weight: 700; color: #fff; }
+.jd-project-cell { color: rgba(255,255,255,0.45); font-size: 0.75rem; }
+
+.jd-review-status {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+}
+.jd-review-status.pending   { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); color: #f59e0b; }
+.jd-review-status.reviewing { background: rgba(0,212,255,0.1);  border: 1px solid rgba(0,212,255,0.25);  color: #00d4ff; }
+.jd-review-status.completed { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); color: #10b981; }
+
+.jd-review-btn {
+  padding: 5px 14px; border-radius: 8px; font-size: 0.76rem; font-weight: 600;
+  border: 1px solid rgba(0,212,255,0.3); background: rgba(0,212,255,0.08);
+  color: #00d4ff; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.jd-review-btn:hover { background: rgba(0,212,255,0.18); box-shadow: 0 0 10px rgba(0,212,255,0.2); }
+.jd-review-btn.done { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); color: #10b981; }
+.jd-review-btn.done:hover { background: rgba(16,185,129,0.15); }
+
+/* ─── Competitions Section ─────────────────────────────────────────────────────── */
+.jd-comp-cards { display: flex; flex-direction: column; gap: 16px; }
+.jd-comp-card {
+  border-radius: 16px; overflow: hidden;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.jd-round-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+.jd-round-seq { font-size: 0.65rem; color: rgba(255,255,255,0.25); min-width: 18px; }
+.jd-round-info { flex: 1; }
+.jd-round-name { font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.85); }
+.jd-round-meta { font-size: 0.7rem; color: rgba(255,255,255,0.35); margin-top: 2px; }
+.jd-round-status { font-size: 0.7rem; font-weight: 700; }
+.jd-round-btn {
+  padding: 5px 14px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+
+/* ─── Score Progress Ring ─────────────────────────────────────────────────────── */
+.jd-ring-wrap {
+  position: relative; display: inline-flex;
+  align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.jd-ring-svg { transform: rotate(-90deg); }
+.jd-ring-bg { fill: none; stroke: rgba(255,255,255,0.07); }
+.jd-ring-fg { fill: none; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+.jd-ring-text {
+  position: absolute; font-size: 0.75rem; font-weight: 800;
+  color: #fff; line-height: 1; text-align: center;
+}
+
+/* ─── Schedule Timeline ─────────────────────────────────────────────────────────── */
+.jd-timeline { display: flex; flex-direction: column; gap: 0; }
+.jd-timeline-item {
+  display: flex; gap: 16px;
+}
+.jd-tl-connector {
+  display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+}
+.jd-tl-dot {
+  width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+  border: 2px solid;
+  transition: all 0.2s;
+}
+.jd-tl-dot.past    { background: #6b7280; border-color: #6b7280; }
+.jd-tl-dot.current { background: #00d4ff; border-color: #00d4ff; box-shadow: 0 0 8px #00d4ff; }
+.jd-tl-dot.future  { background: transparent; border-color: rgba(255,255,255,0.2); }
+.jd-tl-line { width: 1px; flex: 1; background: rgba(255,255,255,0.08); margin: 4px 0; min-height: 24px; }
+.jd-tl-content { flex: 1; padding-bottom: 20px; }
+.jd-tl-date { font-size: 0.7rem; color: rgba(255,255,255,0.3); margin-bottom: 4px; }
+.jd-tl-title { font-size: 0.88rem; font-weight: 600; color: rgba(255,255,255,0.85); }
+.jd-tl-desc { font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-top: 3px; }
+
+/* ─── AI Section ────────────────────────────────────────────────────────────────── */
+.jd-ai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.jd-ai-feature-card {
+  padding: 20px; border-radius: 16px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  cursor: pointer; transition: all 0.2s;
+}
+.jd-ai-feature-card:hover {
+  border-color: rgba(168,85,247,0.35);
+  background: rgba(168,85,247,0.04);
+  transform: translateY(-2px);
+}
+.jd-ai-card-icon {
+  font-size: 1.5rem; width: 48px; height: 48px;
+  border-radius: 14px; background: rgba(168,85,247,0.1);
+  border: 1px solid rgba(168,85,247,0.2);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+}
+.jd-ai-card-title { font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+.jd-ai-card-desc { font-size: 0.78rem; color: rgba(255,255,255,0.45); line-height: 1.5; }
+.jd-ai-card-action {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 12px; font-size: 0.75rem; font-weight: 600; color: #a855f7;
+}
+
+.jd-ai-chat-area {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px; overflow: hidden;
+}
+.jd-ai-chat-header {
+  padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,212,255,0.04));
+}
+.jd-ai-msgs { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 160px; }
+.jd-ai-msg {
+  max-width: 80%; padding: 10px 14px; border-radius: 12px;
+  font-size: 0.82rem; line-height: 1.5;
+}
+.jd-ai-msg.ai {
+  background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.2);
+  color: rgba(255,255,255,0.85); border-radius: 4px 12px 12px 12px;
+  align-self: flex-start;
+}
+.jd-ai-msg.user {
+  background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2);
+  color: rgba(255,255,255,0.85); border-radius: 12px 4px 12px 12px;
+  align-self: flex-end;
+}
+
+/* ─── Results / Rankings ─────────────────────────────────────────────────────── */
+.jd-rank-table-wrap {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px; overflow: hidden;
+}
+.jd-rank-table { width: 100%; border-collapse: collapse; }
+.jd-rank-table th {
+  padding: 10px 16px; background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.8px; color: rgba(255,255,255,0.3); text-align: left;
+}
+.jd-rank-table td {
+  padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.82rem; color: rgba(255,255,255,0.75);
+}
+.jd-rank-table tr:last-child td { border-bottom: none; }
+.jd-rank-table tr:hover td { background: rgba(255,255,255,0.02); }
+.jd-rank-medal { font-size: 1.1rem; }
+
+.jd-rank-locked {
+  padding: 40px; text-align: center; color: rgba(255,255,255,0.25);
+}
+.jd-rank-locked-icon { font-size: 2rem; margin-bottom: 10px; }
+
+/* ─── Analytics Cards ─────────────────────────────────────────────────────── */
+.jd-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px; margin-bottom: 24px;
+}
+.jd-analytics-card {
+  padding: 18px; border-radius: 14px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  text-align: center;
+}
+.jd-analytics-big { font-size: 2.2rem; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.jd-analytics-lbl { font-size: 0.72rem; color: rgba(255,255,255,0.4); }
+
+/* ─── Scoring Criteria Preview ─────────────────────────────────────────────── */
+.jd-criteria-list { display: flex; flex-direction: column; gap: 10px; }
+.jd-criteria-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 16px; border-radius: 12px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.jd-criteria-label { flex: 1; font-size: 0.85rem; color: rgba(255,255,255,0.8); font-weight: 500; }
+.jd-criteria-weight {
+  font-size: 0.72rem; padding: 2px 9px; border-radius: 20px;
+  background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.2);
+  color: #a855f7; font-weight: 700;
+}
+.jd-criteria-score {
+  display: flex; align-items: center; gap: 6px;
+}
+.jd-criteria-input {
+  width: 60px; padding: 5px 8px; border-radius: 8px;
+  background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+  color: #fff; font-size: 0.85rem; font-weight: 600;
+  text-align: center; outline: none; transition: border-color 0.15s;
+}
+.jd-criteria-input:focus { border-color: rgba(0,212,255,0.4); }
+.jd-criteria-max { font-size: 0.72rem; color: rgba(255,255,255,0.3); }
+
+.jd-score-total-bar {
+  padding: 14px 20px; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0,212,255,0.08), rgba(168,85,247,0.08));
+  border: 1px solid rgba(0,212,255,0.2);
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 12px;
+}
+.jd-score-total-label { font-size: 0.85rem; color: rgba(255,255,255,0.6); font-weight: 600; }
+.jd-score-total-val { font-size: 1.6rem; font-weight: 900; color: #00d4ff; }
+
+/* ─── Completed Badge ─────────────────────────────────────────────────────── */
+.jd-completed-badge {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 14px 20px; border-radius: 12px;
+  background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);
+  color: #10b981; font-size: 0.9rem; font-weight: 700;
+}
+
+/* ─── Empty State ────────────────────────────────────────────────────────────── */
+.jd-empty {
+  text-align: center; padding: 60px 20px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.jd-empty-icon { font-size: 3rem; margin-bottom: 16px; }
+.jd-empty-title { font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.4); margin-bottom: 8px; }
+.jd-empty-sub { font-size: 0.82rem; color: rgba(255,255,255,0.25); }

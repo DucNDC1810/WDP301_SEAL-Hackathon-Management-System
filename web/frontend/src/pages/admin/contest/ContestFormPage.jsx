@@ -55,6 +55,11 @@ function DateField({ label, hint, selected, onChange, minDate, disabled, error, 
           popperPlacement="bottom-start"
           showPopperArrow={false}
           isClearable={false}
+          popperModifiers={[
+            { name: 'offset', options: { offset: [0, 6] } },
+            { name: 'preventOverflow', options: { boundary: 'viewport', padding: 12 } },
+            { name: 'flip', options: { fallbackPlacements: ['top-start'] } },
+          ]}
         />
       </div>
       {disabled && !selected && <span className="contest-field-hint">Chọn bước trước để mở khóa</span>}

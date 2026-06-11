@@ -79,6 +79,25 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    student_id: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    student_card: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    profile_verify_status: {
+      type: String,
+      enum: ["unsubmitted", "pending", "approved", "rejected"],
+      default: "unsubmitted",
+    },
+    profile_verify_note: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

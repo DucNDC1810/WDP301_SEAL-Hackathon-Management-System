@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -26,14 +26,15 @@ import HackathonDetailPage from './pages/admin/hackathons/HackathonDetailPage';
 import UserManagementPage from './pages/admin/users/UserManagementPage';
 
 // Mentor
-import MentorHomePage from './pages/mentor/MentorHomePage';
+import MentorHomePage from './pages/mentor/MentorDashboard';
 import MentorDashboardPage from './pages/mentor/MentorDashboardPage';
 import MentorPortalPage from './pages/mentor/MentorPortalPage';
 import MentorScoringPage from './pages/mentor/JudgeScoringPage';
 import ScoreFormPage from './pages/mentor/ScoreFormPage';
+import MentorChatPage from './pages/mentor/MentorChatPage';
 
 // Judge
-import JudgeHomePage from './pages/judge/JudgeHomePage';
+import JudgeHomePage from './pages/judge/JudgeDashboard';
 import JudgeScoringPage from './pages/judge/JudgeScoringPage';
 import JudgeAcceptInvitePage from './pages/judge/JudgeAcceptInvitePage';
 import LeaderboardPage from './pages/leaderboard/LeaderboardPage';
@@ -41,12 +42,17 @@ import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 
 // Student
-import StudentDashboardPage from './pages/student/dashboard/StudentDashboardPage';
+import TeamChatPage from './pages/student/chat/TeamChatPage';
 import ProfilePage from './pages/student/profile/ProfilePage';
-import InvitationsPage from './pages/student/invitations/InvitationsPage';
 import InvitationVerifyPage from './pages/invite-verify/InvitationVerifyPage';
+import { CompleteProfilePage } from './pages/complete-profile/CompleteProfilePage';
 import TeamVerifyPage from './pages/team-verify/TeamVerifyPage';
 import VerifyEmailPage from './pages/verify-email/VerifyEmailPage';
+import { StudentLayout }       from './layouts/StudentLayout';
+import { StudentOverviewPage } from './pages/student/overview/StudentOverviewPage';
+import { StudentTeamPage }     from './pages/student/team/StudentTeamPage';
+import { StudentConnectPage }  from './pages/student/connect/StudentConnectPage';
+import { StudentSubmitPage }   from './pages/student/submit/StudentSubmitPage';
 
 import './App.css';
 
@@ -71,6 +77,7 @@ function App() {
               {/* Auth */}
               <Route path="/login" element={<GuestRoute><AuthPage /></GuestRoute>} />
               <Route path="/oauth-callback" element={<OAuthCallback />} />
+              <Route path="/complete-profile" element={<CompleteProfilePage />} />
               <Route path="/verify-invitation" element={<InvitationVerifyPage />} />
               <Route path="/team-verify" element={<TeamVerifyPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -93,6 +100,7 @@ function App() {
 
               {/* Mentor — coaching + scoring (không được chấm team mình mentor) */}
               <Route path="/mentor/dashboard"                             element={<MentorRoute><MentorHomePage /></MentorRoute>} />
+              <Route path="/mentor/chat"                                  element={<MentorRoute><MentorChatPage /></MentorRoute>} />
               <Route path="/mentor/portal/:contestId/:roundId"            element={<MentorRoute><MentorPortalPage /></MentorRoute>} />
               <Route path="/mentor/scoring/:contestId/rounds/:roundId"    element={<MentorScoringRoute><MentorScoringPage /></MentorScoringRoute>} />
               <Route path="/mentor/contests/:contestId/rounds/:roundId"   element={<MentorRoute><MentorDashboardPage /></MentorRoute>} />
@@ -102,6 +110,15 @@ function App() {
               <Route path="/judge/accept-invite"                           element={<JudgeAcceptInvitePage />} />
               <Route path="/judge/dashboard"                              element={<JudgeRoute><JudgeHomePage /></JudgeRoute>} />
               <Route path="/judge/scoring/:contestId/rounds/:roundId/pools/:poolId" element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
+
+              {/* Student dashboard — sidebar layout, no Navbar/Footer */}
+              <Route path="/dashboard" element={<AuthRoute><StudentLayout /></AuthRoute>}>
+                <Route index            element={<StudentOverviewPage />} />
+                <Route path="team"      element={<StudentTeamPage />} />
+                <Route path="connect"   element={<StudentConnectPage />} />
+                <Route path="submit"    element={<StudentSubmitPage />} />
+                <Route path="profile"   element={<ProfilePage />} />
+              </Route>
 
               {/* All public pages with Navbar/Footer */}
               <Route
@@ -113,11 +130,11 @@ function App() {
                       <Routes>
                         <Route path="/" element={<HomePage />} />
 
-                        {/* Student (auth required) */}
-                        <Route path="/dashboard"   element={<AuthRoute><StudentDashboardPage /></AuthRoute>} />
-                        <Route path="/team"        element={<AuthRoute><StudentDashboardPage /></AuthRoute>} />
-                        <Route path="/profile"     element={<AuthRoute><ProfilePage /></AuthRoute>} />
-                        <Route path="/invitations" element={<AuthRoute><InvitationsPage /></AuthRoute>} />
+                        {/* Legacy redirects */}
+                        <Route path="/team"        element={<Navigate to="/dashboard/team"    replace />} />
+                        <Route path="/profile"     element={<Navigate to="/dashboard/profile" replace />} />
+                        <Route path="/invitations" element={<Navigate to="/dashboard/team"    replace />} />
+                        <Route path="/chat/mentor" element={<AuthRoute><TeamChatPage /></AuthRoute>} />
 
                         {/* Public */}
                         <Route path="/leaderboard/:contestId/:roundId" element={<LeaderboardPage />} />

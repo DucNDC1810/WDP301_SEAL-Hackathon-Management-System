@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import './TeamDashboardPage.css';
 
@@ -99,6 +99,40 @@ function TeamDashboardPage() {
     }
   };
 
+  // ─── Reject Team ───────────────────────────────────────────────────────────
+  const handleReject = async (teamId, teamName) => {
+    const reason = window.prompt(
+      `Nhập lý do từ chối đội thi "${teamName}" (bắt buộc):`,
+      ''
+    );
+    if (reason === null) return; // Người dùng bấm Cancel
+    if (!reason.trim()) {
+      setError('Vui lòng nhập lý do từ chối.');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await fetch(`${API_URL}/api/teams/${teamId}/reject`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+
+      setSuccess(`Đã từ chối đội thi "${teamName}". Thông báo đã được gửi đến đội.`);
+      fetchTeams(false);
+    } catch (err) {
+      setError(err.message || 'Lỗi khi từ chối duyệt đội thi.');
+    }
+  };
+
   // ─── Disqualify Team ───────────────────────────────────────────────────────
   const handleDisqualify = async (teamId, teamName) => {
     const confirm = window.confirm(`Bạn có chắc chắn muốn loại đội thi "${teamName}" khỏi cuộc thi này?`);
@@ -186,9 +220,9 @@ function TeamDashboardPage() {
 
   // ─── Statistics calculations ───────────────────────────────────────────────
   const totalTeams = teams.length;
-  const confirmedTeams = teams.filter((t) => t.status === 'confirmed').length;
-  const pendingTeams = teams.filter((t) => t.status === 'pending').length;
-  const hasConfirmedTeam = teams.some((t) => t.status === 'confirmed');
+  const confirmedTeams = teams.filter((t) => t.status === 'CONFIRMED').length;
+  const pendingTeams = teams.filter((t) => t.status === 'WAITING_APPROVAL').length;
+  const hasConfirmedTeam = teams.some((t) => t.status === 'CONFIRMED');
 
   return (
     <div className="team-dashboard-page" id="team-dashboard-page">
@@ -206,7 +240,7 @@ function TeamDashboardPage() {
         {/* Page Header */}
         <div className="team-header">
           <div>
-            <h1 className="team-title">Dashboard Cuộc Thi</h1>
+            <h1 className="team-title">Dashboard <span>Cuộc Thi</span></h1>
             <p className="team-subtitle">Quản lý trạng thái đội thi, xác thực thành viên và chia bảng đấu tự động</p>
           </div>
         </div>
@@ -217,21 +251,21 @@ function TeamDashboardPage() {
             <div className="team-stat-card__icon">👥</div>
             <div>
               <div className="team-stat-card__val">{totalTeams}</div>
-              <div className="team-stat-card__lbl">Tổng đội đăng ký</div>
+              <div className="team-stat-card__lbl">TỔNG ĐỘI ĐĂNG KÝ</div>
             </div>
           </div>
           <div className="team-stat-card team-stat-card--green">
             <div className="team-stat-card__icon">✓</div>
             <div>
               <div className="team-stat-card__val">{confirmedTeams}</div>
-              <div className="team-stat-card__lbl">Đội đã xác nhận (Confirmed)</div>
+              <div className="team-stat-card__lbl">ĐỘI ĐÃ XÁC NHẬN (CONFIRMED)</div>
             </div>
           </div>
           <div className="team-stat-card team-stat-card--orange">
             <div className="team-stat-card__icon">⏳</div>
             <div>
               <div className="team-stat-card__val">{pendingTeams}</div>
-              <div className="team-stat-card__lbl">Đội đang chờ duyệt (Pending)</div>
+              <div className="team-stat-card__lbl">ĐỘI ĐANG CHỜ DUYỆT (PENDING)</div>
             </div>
           </div>
         </div>
@@ -308,12 +342,12 @@ function TeamDashboardPage() {
                   </thead>
                   <tbody>
                     {teams.map((team) => {
-                      const verifiedCount = team.members.filter((m) => m.email_verified).length;
+                      const verifiedCount = team.members.filter((m) => m.user_id && m.user_id.profile_verify_status === 'approved').length;
                       const totalMembers = team.members.length;
                       const isExpanded = expandedTeamId === team._id;
 
                       return (
-                        <optgroup key={team._id} style={{ border: 'none' }}>
+                        <Fragment key={team._id}>
                           <tr className={`team-row-main ${isExpanded ? 'team-row-main--expanded' : ''}`}>
                             <td className="cell-expand">
                               <button
@@ -346,25 +380,36 @@ function TeamDashboardPage() {
                                 {team.status}
                               </span>
                             </td>
-                            <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                              {team.status === 'pending' && (
-                                <button
-                                  type="button"
-                                  className="btn btn--sm btn--outline-green"
-                                  onClick={() => handleApprove(team._id, team.team_name)}
-                                >
-                                  ✓ Duyệt
-                                </button>
-                              )}
-                              {team.status !== 'disqualified' && (
-                                <button
-                                  type="button"
-                                  className="btn btn--sm btn--outline-red"
-                                  onClick={() => handleDisqualify(team._id, team.team_name)}
-                                >
-                                  Loại bỏ
-                                </button>
-                              )}
+                            <td>
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                {team.status === 'WAITING_APPROVAL' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="btn btn--sm btn--outline-green"
+                                      onClick={() => handleApprove(team._id, team.team_name)}
+                                    >
+                                      ✓ Duyệt
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn--sm btn--outline-red"
+                                      onClick={() => handleReject(team._id, team.team_name)}
+                                    >
+                                      ✗ Từ chối
+                                    </button>
+                                  </>
+                                )}
+                                {!['DISQUALIFIED', 'ELIMINATED', 'REJECTED'].includes(team.status) && (
+                                  <button
+                                    type="button"
+                                    className="btn btn--sm btn--outline-red"
+                                    onClick={() => handleDisqualify(team._id, team.team_name)}
+                                  >
+                                    Loại bỏ
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
 
@@ -375,27 +420,34 @@ function TeamDashboardPage() {
                                 <div className="members-detail-box">
                                   <h4 className="detail-box-title">Thành viên chi tiết</h4>
                                   <div className="members-grid">
-                                    {team.members.map((member, mIdx) => (
-                                      <div className="member-detail-card" key={mIdx}>
-                                        <div className="member-detail-card__top">
-                                          <span className="member-name">{member.full_name || 'Chưa cập nhật'}</span>
-                                          <span className={`member-verify-indicator ${member.email_verified ? 'member-verify-indicator--verified' : ''}`}>
-                                            {member.email_verified ? '✓ Đã xác thực' : '⏳ Chờ xác thực'}
-                                          </span>
+                                    {team.members.map((member, mIdx) => {
+                                      const memberName = member.user_id?.full_name || member.full_name || 'Chưa tham gia';
+                                      const isVerified = member.user_id && member.user_id.profile_verify_status === 'approved';
+                                      return (
+                                        <div className="member-detail-card" key={mIdx}>
+                                          <div className="member-detail-card__top">
+                                            <span className="member-name">{memberName}</span>
+                                            <span className={`member-verify-indicator ${isVerified ? 'member-verify-indicator--verified' : ''}`}>
+                                              {isVerified ? '✓ Đã xác thực' : '⏳ Chờ xác thực'}
+                                            </span>
+                                          </div>
+                                          <div className="member-email">{member.email}</div>
                                         </div>
-                                        <div className="member-email">{member.email}</div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               </td>
                             </tr>
                           )}
-                        </optgroup>
+                        </Fragment>
                       );
                     })}
                   </tbody>
                 </table>
+                <div style={{ textAlign: 'center', padding: '16px', color: '#64748b', fontSize: '0.85rem', borderTop: '1px solid rgba(0, 240, 255, 0.05)' }}>
+                  Không còn dữ liệu khác để hiển thị
+                </div>
               </div>
             )}
           </div>
@@ -513,7 +565,7 @@ function TeamDashboardPage() {
                     </button>
                     {!hasConfirmedTeam && (
                       <p className="pools-btn-disabled-warning">
-                        ⚠ Cần có ít nhất 1 đội đấu ở trạng thái "confirmed" để bắt đầu thực hiện chia bảng.
+                        ⚠ Cần có ít nhất 1 đội đấu ở trạng thái "CONFIRMED" để bắt đầu thực hiện chia bảng.
                       </p>
                     )}
                   </div>

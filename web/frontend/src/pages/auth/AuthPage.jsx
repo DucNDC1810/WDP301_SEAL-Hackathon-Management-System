@@ -213,6 +213,9 @@ export default function AuthPage() {
                         Google
                       </a>
                     </div>
+                    <p style={{ textAlign: 'center', fontSize: 12, color: '#6b7280', marginTop: 8 }}>
+                      Thí sinh vui lòng đăng nhập bằng tài khoản Google edu.
+                    </p>
                   </>
                 ),
               },

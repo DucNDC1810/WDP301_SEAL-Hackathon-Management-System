@@ -8,6 +8,7 @@ import {
   handleGetTeamById,
   handleGetMyTeam,
   handleApproveTeam,
+  handleRejectTeam,
   handleUpdateTeam,
   handleDeleteTeam,
   handleDisqualifyTeam,
@@ -16,6 +17,8 @@ import {
   handleSelectTopic,
   handleProposeTopic,
   handleEliminateTeam,
+  handleRegisterContest,
+  handleUpdateTeamContributions,
 } from "../controllers/teamController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import { audit } from "../middlewares/auditMiddleware.js";
@@ -33,6 +36,12 @@ router.get("/me", authenticate, handleGetMyTeams);
 // POST /api/teams/join — tham gia đội bằng mã đội (team_code = _id)
 router.post("/join", authenticate, handleJoinTeam);
 
+// POST /api/teams — tạo đội tự do
+router.post("/", authenticate, audit("TEAM", "CREATE"), handleCreateTeam);
+
+// POST /api/teams/:id/register-contest — đăng ký đội thi vào cuộc thi
+router.post("/:id/register-contest", authenticate, handleRegisterContest);
+
 // POST /api/teams/contests/:contestId/teams — đăng ký đội (alias)
 router.post("/contests/:contestId/teams", authenticate, handleCreateTeam);
 
@@ -47,6 +56,9 @@ router.get("/:id", authenticate, handleGetTeamById);
 
 // PATCH /api/teams/:id                        — leader cập nhật tên đội
 router.patch("/:id", authenticate, audit("TEAM", "UPDATE"), handleUpdateTeam);
+
+// PUT /api/teams/:id/contributions            — leader đánh giá đóng góp thành viên
+router.put("/:id/contributions", authenticate, audit("TEAM", "UPDATE"), handleUpdateTeamContributions);
 
 // DELETE /api/teams/:id                       — leader/admin xóa đội (pending only)
 router.delete("/:id", authenticate, audit("TEAM", "DELETE"), handleDeleteTeam);
@@ -73,8 +85,19 @@ router.get(
   handleGetTeamsByContest
 );
 
-// PUT /api/teams/:id/approve                  — admin duyệt đội (pending → confirmed)
+// GET /api/teams/contests/:contestId/teams    — danh sách tất cả đội của contest
+router.get(
+  "/contests/:contestId/teams",
+  authenticate,
+  authorize("admin", "mentor"),
+  handleGetTeamsByContest
+);
+
+// PUT /api/teams/:id/approve                  — admin duyệt đội
 router.put("/:id/approve", authenticate, authorize("admin"), handleApproveTeam);
+
+// PUT /api/teams/:id/reject                   — admin từ chối duyệt
+router.put("/:id/reject", authenticate, authorize("admin"), handleRejectTeam);
 
 // PUT /api/teams/:id/disqualify               — loại đội thi
 router.put("/:id/disqualify", authenticate, authorize("admin"), audit("TEAM", "DISQUALIFY"), handleDisqualifyTeam);

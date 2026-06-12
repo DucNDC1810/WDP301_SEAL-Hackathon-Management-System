@@ -114,7 +114,7 @@ const NAV_GROUPS = [
   ]},
 ];
 
-function Sidebar({ active, onChange }) {
+function Sidebar({ active, onChange, onNavigate }) {
   return (
     <aside className="md-sidebar" style={{ padding: '8px 12px' }}>
       {NAV_GROUPS.map((g, gi) => (
@@ -124,7 +124,7 @@ function Sidebar({ active, onChange }) {
             <div
               key={item.id}
               className={`md-nav-item ${active === item.id ? 'active' : ''}`}
-              onClick={() => onChange(item.id)}
+              onClick={() => item.id === 'chat' ? onNavigate('/mentor/chat') : onChange(item.id)}
             >
               <span className="md-nav-icon">{item.icon}</span>
               <span>{item.label}</span>
@@ -400,7 +400,7 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
 }
 
 // ─── Section: My Teams ────────────────────────────────────────────────────────
-function SectionTeams({ enriched, onOpenTeam }) {
+function SectionTeams({ enriched, onOpenTeam, navigate }) {
   if (enriched.length === 0) {
     return (
       <div className="md-empty">
@@ -486,7 +486,7 @@ function SectionTeams({ enriched, onOpenTeam }) {
                 <button className="md-btn-primary" onClick={e => { e.stopPropagation(); onOpenTeam(t); }}>
                   Xem chi tiết
                 </button>
-                <button className="md-btn-secondary" onClick={e => e.stopPropagation()}>
+                <button className="md-btn-secondary" onClick={e => { e.stopPropagation(); navigate('/mentor/chat'); }}>
                   💬 Chat
                 </button>
               </div>
@@ -1041,9 +1041,8 @@ export default function MentorDashboard() {
     }
     switch (activeView) {
       case 'dashboard': return <SectionDashboard contests={contests} enriched={enriched} loading={loading} navigate={navigate} />;
-      case 'teams':     return <SectionTeams     enriched={enriched} onOpenTeam={setSelectedTeam} />;
+      case 'teams':     return <SectionTeams     enriched={enriched} onOpenTeam={setSelectedTeam} navigate={navigate} />;
       case 'scoring':   return <SectionScoring   enriched={enriched} judgeMap={judgeMap} navigate={navigate} />;
-      case 'chat':      return <SectionChat      enriched={enriched} />;
       case 'schedule':  return <SectionSchedule  contests={contests} enriched={enriched} />;
       case 'eval':      return <SectionEval      enriched={enriched} scores={scores} navigate={navigate} />;
       case 'settings':  return <SectionSettings  user={user} />;
@@ -1081,7 +1080,7 @@ export default function MentorDashboard() {
       </header>
 
       {/* Sidebar */}
-      <Sidebar active={activeView} onChange={setActiveView} />
+      <Sidebar active={activeView} onChange={setActiveView} onNavigate={navigate} />
 
       {/* Main content */}
       <main className="md-main">

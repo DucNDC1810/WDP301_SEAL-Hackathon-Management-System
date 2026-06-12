@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Empty } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { Empty, Button } from 'antd';
+import { MessageOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import '../student.css';
 
@@ -34,8 +36,9 @@ const PHONE = [
 // ---------------------------------------------------------------------------
 export const StudentConnectPage = () => {
   const { request } = useApi();
+  const navigate = useNavigate();
 
-  const [mentor, setMentor] = useState(null);
+  const [mentors, setMentors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasTeam, setHasTeam] = useState(false);
 
@@ -52,28 +55,11 @@ export const StudentConnectPage = () => {
 
         setHasTeam(true);
         const team = teams[0];
-        const contestId = team.contest_id?._id ?? team.contest_id;
-        const rounds = team.contest_id?.rounds ?? [];
-        const active = rounds.find((r) => r.is_active) ?? rounds[0];
-        if (!active || !contestId) {
-          setLoading(false);
-          return;
-        }
 
-        try {
-          const res = await request(
-            `/api/mentor-assignments/contests/${contestId}/rounds/${active._id}`
-          );
-          const list = Array.isArray(res) ? res : res?.data ?? [];
-          const assignment = list.find(
-            (a) =>
-              (a.pool_id?._id ?? a.pool_id) ===
-              (team.pool_id?._id ?? team.pool_id)
-          );
-          if (assignment?.mentor_id) setMentor(assignment.mentor_id);
-        } catch (_) {
-          // 403 expected for students — show empty state
-        }
+        // Dùng đúng API chat — trả về mentor được phân công cho team của student
+        const res = await request(`/api/chat/team/${team._id}/mentors`);
+        const list = res?.data ?? [];
+        setMentors(list);
       } catch (_) {
         // ignore load errors
       } finally {
@@ -103,32 +89,30 @@ export const StudentConnectPage = () => {
           <div className="sp-card" style={{ maxWidth: 480 }}>
             <span className="sp-label">MENTOR PHỤ TRÁCH</span>
 
-            {mentor ? (
-              <div className="sp-mentor-card">
-                <div className="sp-av sp-av--lg">
-                  {(mentor.full_name?.[0] ?? 'M').toUpperCase()}
-                </div>
-                <div className="sp-mentor-info">
-                  <span className="sp-strong">{mentor.full_name}</span>
-
-                  {mentor.email && (
-                    <div className="sp-flex sp-gap-2">
-                      <span className="sp-muted">
-                        <Ico d={MAIL} />
-                      </span>
-                      <span className="sp-text">{mentor.email}</span>
+            {mentors.length > 0 ? (
+              <div className="sp-stack" style={{ gap: 12, marginTop: 8 }}>
+                {mentors.map((conv) => (
+                  <div key={conv.assignmentId} className="sp-mentor-card">
+                    <div className="sp-av sp-av--lg">
+                      {(conv.mentorName?.[0] ?? 'M').toUpperCase()}
                     </div>
-                  )}
-
-                  {mentor.phone && (
-                    <div className="sp-flex sp-gap-2">
-                      <span className="sp-muted">
-                        <Ico d={PHONE} />
+                    <div className="sp-mentor-info">
+                      <span className="sp-strong">{conv.mentorName}</span>
+                      <span className="sp-muted" style={{ fontSize: '0.78rem' }}>
+                        {conv.contestTitle} · {conv.roundName}
                       </span>
-                      <span className="sp-text">{mentor.phone}</span>
+
+                      {conv.mentorEmail && (
+                        <div className="sp-flex sp-gap-2">
+                          <span className="sp-muted">
+                            <Ico d={MAIL} />
+                          </span>
+                          <span className="sp-text">{conv.mentorEmail}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <Empty
@@ -138,13 +122,23 @@ export const StudentConnectPage = () => {
             )}
           </div>
 
-          {/* Placeholder chat card */}
-          <div className="sp-card" style={{ maxWidth: 480 }}>
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="Tính năng nhắn tin sẽ sớm ra mắt."
-            />
-          </div>
+          {/* Chat card */}
+          {mentors.length > 0 && (
+            <div className="sp-card" style={{ maxWidth: 480 }}>
+              <span className="sp-label">NHẮN TIN VỚI MENTOR</span>
+              <p className="sp-muted" style={{ margin: '8px 0 12px' }}>
+                Đặt câu hỏi, nhận phản hồi và theo dõi cuộc trò chuyện với mentor được phân công.
+              </p>
+              <Button
+                type="primary"
+                icon={<MessageOutlined />}
+                onClick={() => navigate('/chat/mentor')}
+                style={{ background: 'linear-gradient(135deg,#00d4ff,#0ea5e9)', border: 'none' }}
+              >
+                Mở khung chat với Mentor
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

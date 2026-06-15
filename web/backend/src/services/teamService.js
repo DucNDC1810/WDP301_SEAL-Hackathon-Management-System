@@ -83,6 +83,12 @@ export const createTeam = async (
     // Tìm xem email này đã đăng ký tài khoản User chưa
     const memberUser = await User.findOne({ email: emailLower });
 
+    if (!isLeader && !memberUser) {
+      const err = new Error(`Email ${emailLower} chưa đăng ký tài khoản trong hệ thống`);
+      err.statusCode = 400;
+      throw err;
+    }
+
     const rawToken = isLeader ? null : crypto.randomUUID();
     const verifyToken = rawToken ? hashToken(rawToken) : null;
     const verifyTokenExpires = isLeader
@@ -163,6 +169,11 @@ export const verifyMemberEmail = async (token) => {
     member.email_verified = true;
     member.verify_token = null;
     member.verify_token_expires = null;
+    // Link user_id nếu member được mời trước khi có tài khoản
+    if (!member.user_id) {
+      const linkedUser = await User.findOne({ email: member.email });
+      if (linkedUser) member.user_id = linkedUser._id;
+    }
   }
 
   // Kiểm tra nếu tất cả thành viên trong đội đều đã xác nhận thành công
@@ -179,11 +190,18 @@ export const verifyMemberEmail = async (token) => {
  * Lấy danh sách đội thi của user hiện tại (là leader hoặc member).
  */
 export const getMyTeams = async (userId, userEmail) => {
+  const emailLower = userEmail.toLowerCase();
+  // Heal data cũ: member được mời trước khi tạo acc, user_id vẫn null
+  await Team.updateMany(
+    { "members.email": emailLower, "members.user_id": null },
+    { $set: { "members.$[elem].user_id": userId } },
+    { arrayFilters: [{ "elem.email": emailLower, "elem.user_id": null }] }
+  );
   return Team.find({
     $or: [
       { leader_id: userId },
       { "members.user_id": userId },
-      { "members.email": userEmail },
+      { "members.email": emailLower },
     ],
   })
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")

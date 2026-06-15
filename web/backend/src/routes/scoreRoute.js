@@ -1,5 +1,5 @@
 import express from "express";
-import { handleCreateScore, handleUpdateScore, handleGetProgress, handleGetMyScores, handleGetJudgeSchedule } from "../controllers/scoreController.js";
+import { handleCreateScore, handleUpdateScore, handleGetProgress, handleGetMyScores, handleGetJudgeSchedule, handleGetScoresByRound } from "../controllers/scoreController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
@@ -22,6 +22,12 @@ router.get(
   "/contests/:contestId/rounds/:roundId/judge-schedule",
   authenticate, authorize("judge"),
   handleGetJudgeSchedule
+);
+
+router.get(
+  "/contests/:contestId/rounds/:roundId/all-scores",
+  authenticate, authorize("admin"),
+  handleGetScoresByRound
 );
 
 export default router;

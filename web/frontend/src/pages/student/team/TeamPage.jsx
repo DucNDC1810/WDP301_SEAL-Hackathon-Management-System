@@ -166,11 +166,6 @@ export default function TeamPage() {
             </div>
           )}
 
-          {myTeam.topic_id && (
-            <Paragraph style={{ marginTop: 8 }}>
-              Đề tài: <Text strong>{myTeam.topic_id?.title || myTeam.topic_id}</Text>
-            </Paragraph>
-          )}
 
           <Divider orientation="left">Thành viên</Divider>
           <Table

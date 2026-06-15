@@ -301,31 +301,45 @@ export function ProfilePage() {
                 <span className="activity-label" style={{ fontSize: '.85rem' }}>Hình ảnh thẻ sinh viên</span>
 
                 {editing ? (
-                  <div
-                    onClick={() => cardRef.current?.click()}
-                    style={{
-                      border: '2px dashed #1e3a54', borderRadius: 8, padding: '24px 16px',
-                      cursor: 'pointer', textAlign: 'center', transition: 'border-color .2s',
-                      background: 'rgba(0,212,255,.02)', maxWidth: 450
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = '#00d4ff'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = '#1e3a54'}
-                  >
-                    {cardPreview || user?.student_card ? (
-                      <div>
-                        <img
-                          src={cardPreview || user?.student_card}
-                          alt="Preview thẻ sinh viên"
-                          style={{ maxWidth: '100%', maxHeight: 180, borderRadius: 6, objectFit: 'cover' }}
-                        />
-                        <div style={{ fontSize: '.75rem', color: '#64748b', marginTop: 8 }}>Nhấn để đổi ảnh</div>
-                      </div>
-                    ) : (
-                      <div style={{ color: '#64748b' }}>
-                        <IdcardOutlined style={{ fontSize: 32, marginBottom: 8, display: 'block' }} />
-                        <div style={{ fontSize: '.83rem' }}>Nhấn để tải lên hình ảnh thẻ sinh viên</div>
-                        <div style={{ fontSize: '.72rem', marginTop: 4 }}>JPG, PNG, tối đa 5MB</div>
-                      </div>
+                  <div style={{ position: 'relative', maxWidth: 450 }}>
+                    <div
+                      onClick={() => cardRef.current?.click()}
+                      style={{
+                        border: '2px dashed #1e3a54', borderRadius: 8, padding: '24px 16px',
+                        cursor: 'pointer', textAlign: 'center', transition: 'border-color .2s',
+                        background: 'rgba(0,212,255,.02)',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = '#00d4ff'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = '#1e3a54'}
+                    >
+                      {cardPreview || user?.student_card ? (
+                        <div>
+                          <img
+                            src={cardPreview || user?.student_card}
+                            alt="Preview thẻ sinh viên"
+                            style={{ maxWidth: '100%', maxHeight: 180, borderRadius: 6, objectFit: 'cover' }}
+                          />
+                          <div style={{ fontSize: '.75rem', color: '#64748b', marginTop: 8 }}>Nhấn để đổi ảnh</div>
+                        </div>
+                      ) : (
+                        <div style={{ color: '#64748b' }}>
+                          <IdcardOutlined style={{ fontSize: 32, marginBottom: 8, display: 'block' }} />
+                          <div style={{ fontSize: '.83rem' }}>Nhấn để tải lên hình ảnh thẻ sinh viên</div>
+                          <div style={{ fontSize: '.72rem', marginTop: 4 }}>JPG, PNG, tối đa 5MB</div>
+                        </div>
+                      )}
+                    </div>
+                    {cardPreview && (
+                      <div
+                        onClick={(e) => { e.stopPropagation(); setCardPreview(null); if (cardRef.current) cardRef.current.value = ''; }}
+                        style={{
+                          position: 'absolute', top: 8, right: 8, width: 24, height: 24,
+                          borderRadius: '50%', background: 'rgba(239,68,68,.9)', color: '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', zIndex: 10,
+                        }}
+                        title="Xoá ảnh vừa chọn"
+                      >✕</div>
                     )}
                   </div>
                 ) : (
@@ -366,6 +380,18 @@ export function ProfilePage() {
                 <div className="profile-sidebar-camera-btn" onClick={() => fileRef.current?.click()}>
                   <CameraOutlined style={{ fontSize: 13 }} />
                 </div>
+              )}
+              {editing && avatarPreview && (
+                <div
+                  onClick={(e) => { e.stopPropagation(); setAvatarPreview(null); if (fileRef.current) fileRef.current.value = ''; }}
+                  style={{
+                    position: 'absolute', top: 2, right: 2, width: 20, height: 20,
+                    borderRadius: '50%', background: 'rgba(239,68,68,.9)', color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 700, cursor: 'pointer', zIndex: 10, lineHeight: 1,
+                  }}
+                  title="Xoá ảnh vừa chọn"
+                >✕</div>
               )}
               <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
             </div>

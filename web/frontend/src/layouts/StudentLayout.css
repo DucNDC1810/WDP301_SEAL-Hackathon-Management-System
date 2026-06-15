@@ -133,6 +133,22 @@
 .sl-user-name  { font-size: 0.76rem; font-weight: 600; color: var(--sl-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sl-user-role  { font-size: 0.62rem; color: var(--sl-accent); text-transform: uppercase; letter-spacing: .5px; }
 
+.sl-theme-toggle {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 11px; border-radius: 7px;
+  border: 1px solid var(--sl-border);
+  background: transparent;
+  color: var(--sl-text-muted); font-size: 0.8rem; width: 100%;
+  cursor: pointer; font-family: inherit;
+  transition: background .15s, color .15s, border-color .15s;
+  margin-bottom: 6px;
+}
+.sl-theme-toggle:hover {
+  background: var(--sl-nav-hover-bg);
+  color: var(--sl-accent);
+  border-color: var(--sl-accent-border);
+}
+
 .sl-logout {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 11px; border-radius: 7px;

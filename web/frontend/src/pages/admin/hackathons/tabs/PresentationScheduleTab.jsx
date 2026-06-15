@@ -14,6 +14,32 @@ const fmtTime = (d) => {
   });
 };
 
+const exportCSV = (slots, roundName, poolName, contestTitle) => {
+  const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows = [
+    [`Lịch thuyết trình — ${contestTitle ?? ''}`, '', `Vòng: ${roundName ?? ''}`, `Pool: ${poolName ?? ''}`],
+    [],
+    ['#', 'Thời gian bắt đầu', 'Kết thúc', 'Phòng', 'Đội đặt', 'Trạng thái', 'Ghi chú'],
+    ...slots.map((s, i) => [
+      i + 1,
+      fmtTime(s.start_time),
+      fmtTime(s.end_time),
+      s.room || '',
+      s.booked_team_id?.team_name ?? s.booked_team_id ?? '',
+      { available: 'Trống', booked: 'Đã đặt', cancelled: 'Đã huỷ', completed: 'Hoàn tất' }[s.status] ?? s.status,
+      s.note || '',
+    ]),
+  ];
+  const csv = '﻿' + rows.map(r => r.map(escape).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `lich-thuyet-trinh-${(roundName ?? 'round').replace(/\s+/g, '-')}-${(poolName ?? 'pool').replace(/\s+/g, '-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 const STATUS_CFG = {
   available:  { label: 'Trống',     color: 'green'   },
   booked:     { label: 'Đã đặt',   color: 'blue'    },
@@ -182,6 +208,16 @@ export default function PresentationScheduleTab({ contestId, contest }) {
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
+          <Button
+            disabled={!slots.length}
+            onClick={() => {
+              const roundName = rounds.find(r => r._id === selectedRound)?.name ?? selectedRound;
+              const poolName  = pools.find(p => p._id === selectedPool)?.pool_name ?? selectedPool;
+              exportCSV(slots, roundName, poolName, contest?.title);
+            }}
+          >
+            Xuất lịch CSV
+          </Button>
           <Button
             onClick={() => { setShowBulk(true); setBulkForm(EMPTY_BULK); }}
             disabled={!selectedRound || !selectedPool}

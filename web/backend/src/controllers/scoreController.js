@@ -1,6 +1,17 @@
 import * as service from "../services/scoreService.js";
 import ScoreDetail from "../models/ScoreDetail.js";
 
+export const handleGetScoresByRound = async (req, res) => {
+  try {
+    const { contestId, roundId } = req.params;
+    const { score_type } = req.query;
+    const scores = await service.getScoresByRound(contestId, roundId, { score_type });
+    res.json(scores);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ message: err.message });
+  }
+};
+
 export const handleCreateScore = async (req, res) => {
   try {
     const { team_id, contest_id, round_id, comment, score_details, submit } = req.body;

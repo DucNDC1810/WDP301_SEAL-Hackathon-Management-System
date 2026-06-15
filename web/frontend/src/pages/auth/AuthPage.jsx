@@ -24,7 +24,8 @@ function LoginForm({ onSuccess }) {
         credentials: 'include',
         body: JSON.stringify(values),
       });
-      const data = await res.json();
+      let data;
+      try { data = await res.json(); } catch { throw new Error('Không thể kết nối đến server'); }
       if (!data.success) throw new Error(data.message);
       if (!data.data) throw new Error('Phản hồi từ server không hợp lệ');
       onSuccess(data.data);
@@ -70,7 +71,8 @@ function RegisterForm({ onSuccess }) {
           phone: values.phone,
         }),
       });
-      const data = await res.json();
+      let data;
+      try { data = await res.json(); } catch { throw new Error('Không thể kết nối đến server'); }
       if (!data.success) throw new Error(data.message);
 
       const signinRes = await fetch(`${API}/api/auth/signin`, {
@@ -79,7 +81,8 @@ function RegisterForm({ onSuccess }) {
         credentials: 'include',
         body: JSON.stringify({ email: values.email, password: values.password }),
       });
-      const signinData = await signinRes.json();
+      let signinData;
+      try { signinData = await signinRes.json(); } catch { throw new Error('Không thể kết nối đến server'); }
       if (!signinData.success) throw new Error(signinData.message);
       onSuccess(signinData.data);
     } catch (err) {

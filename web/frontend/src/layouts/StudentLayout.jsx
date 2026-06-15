@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import './StudentLayout.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -21,6 +22,8 @@ const ZAP    = 'M13 2 3 14h9l-1 8 10-12h-9l1-8z';
 const CL     = 'M15 18l-6-6 6-6';
 const CR     = 'M9 18l6-6-6-6';
 const LOGOUT = ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'M16 17l5-5-5-5', 'M21 12H9'];
+const SUN    = 'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z';
+const MOON   = 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z';
 
 const NAV = [
   { key: 'dashboard',         label: 'Tổng quan', path: '/dashboard',         d: GRID },
@@ -32,6 +35,7 @@ const NAV = [
 
 export const StudentLayout = () => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate  = useNavigate();
   const location  = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -90,6 +94,14 @@ export const StudentLayout = () => {
               </div>
             </div>
           )}
+          <button
+            className="sl-theme-toggle"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+          >
+            <Ico d={theme === 'dark' ? SUN : MOON} size={16} />
+            {!collapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+          </button>
           <button className="sl-logout" onClick={handleLogout} title="Đăng xuất">
             <Ico d={LOGOUT} size={16} sw={1.8} />
             {!collapsed && <span>Đăng xuất</span>}

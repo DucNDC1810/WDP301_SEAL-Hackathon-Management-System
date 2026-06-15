@@ -5,6 +5,8 @@ import JudgeAssignment from "../models/JudgeAssignment.js";
 import Contest from "../models/Contest.js";
 import Pool from "../models/Pool.js";
 import User from "../models/User.js";
+import PresentationSlot from "../models/PresentationSlot.js";
+import Submission from "../models/Submission.js";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -50,12 +52,23 @@ export const createScore = async ({
     err.statusCode = 403; throw err;
   }
 
-  // Timing check: judge-role user chỉ chấm được sau khi vòng kết thúc
+  // Timing check: judge-role user chỉ chấm được sau khi slot của team bắt đầu
   const actor = await User.findById(actorId).select("roles").lean();
   const actorRoles = (actor?.roles || []).map(r => r.role_name);
-  if (actorRoles.includes("judge") && !actorRoles.includes("mentor") && round.is_active) {
-    const err = new Error("Giám khảo chỉ có thể chấm điểm sau khi vòng thi kết thúc");
-    err.statusCode = 403; throw err;
+  if (actorRoles.includes("judge") && !actorRoles.includes("mentor")) {
+    const slot = await PresentationSlot.findOne({
+      round_id,
+      booked_team_id: team_id,
+      status: { $in: ["booked", "completed"] },
+    }).select("start_time").lean();
+    if (!slot) {
+      const err = new Error("Team chưa có lịch trình bày");
+      err.statusCode = 403; throw err;
+    }
+    if (slot.start_time > new Date()) {
+      const err = new Error("Chưa đến giờ trình bày của team này");
+      err.statusCode = 403; throw err;
+    }
   }
 
   // Kiểm tra assignment
@@ -160,6 +173,81 @@ export const getMyScores = async (contestId, roundId, judgeId) => {
     ...s.toObject(),
     score_details: details.filter(d => d.score_id.toString() === s._id.toString()),
   }));
+};
+
+// ─── getJudgeSchedule ────────────────────────────────────────────────────────
+
+export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
+  const assignment = await JudgeAssignment.findOne({ judge_id: judgeId, contest_id: contestId, round_id: roundId })
+    .populate("pool_id", "pool_name")
+    .lean();
+
+  if (!assignment) return { pool_id: null, pool_name: null, slots: [] };
+
+  const poolId   = assignment.pool_id._id;
+  const poolName = assignment.pool_id.pool_name;
+
+  const slots = await PresentationSlot.find({
+    contest_id: contestId,
+    round_id:   roundId,
+    pool_id:    poolId,
+    status:     { $in: ["booked", "completed"] },
+  })
+    .populate("booked_team_id", "team_name")
+    .sort({ start_time: 1 })
+    .lean();
+
+  if (!slots.length) return { pool_id: poolId, pool_name: poolName, slots: [] };
+
+  const teamIds = slots.map((s) => s.booked_team_id?._id).filter(Boolean);
+
+  const [scores, submissions] = await Promise.all([
+    Score.find({ judge_id: judgeId, round_id: roundId, team_id: { $in: teamIds } }).lean(),
+    Submission.find({ round_id: roundId, team_id: { $in: teamIds } }).select("team_id repo_url slide_url").lean(),
+  ]);
+
+  const scoreDetails = await ScoreDetail.find({ score_id: { $in: scores.map((s) => s._id) } }).lean();
+
+  const scoreByTeam = {};
+  for (const sc of scores) {
+    scoreByTeam[String(sc.team_id)] = {
+      score_id:     sc._id,
+      score_status: sc.status,
+      total_score:  sc.total_score,
+      score_details: scoreDetails
+        .filter((d) => String(d.score_id) === String(sc._id))
+        .map((d) => ({ criteria_name: d.criteria_name, score_value: d.score_value, weight: d.weight, max_score: d.max_score })),
+    };
+  }
+
+  const subByTeam = {};
+  for (const sub of submissions) {
+    subByTeam[String(sub.team_id)] = { repo_url: sub.repo_url, slide_url: sub.slide_url };
+  }
+
+  return {
+    pool_id:   poolId,
+    pool_name: poolName,
+    slots: slots.map((slot) => {
+      const teamId = String(slot.booked_team_id?._id);
+      const sc  = scoreByTeam[teamId] || {};
+      const sub = subByTeam[teamId]   || {};
+      return {
+        slot_id:      slot._id,
+        team_id:      slot.booked_team_id?._id,
+        team_name:    slot.booked_team_id?.team_name ?? "—",
+        start_time:   slot.start_time,
+        end_time:     slot.end_time,
+        room:         slot.room,
+        repo_url:     sub.repo_url  ?? null,
+        slide_url:    sub.slide_url ?? null,
+        score_status: sc.score_status  ?? null,
+        score_id:     sc.score_id      ?? null,
+        total_score:  sc.total_score   ?? null,
+        score_details: sc.score_details ?? [],
+      };
+    }),
+  };
 };
 
 // ─── getScoresByRound ─────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Select, Button, Tag, Modal, Input, Alert, Progress, message, Spin } from 'antd';
+import { Select, Button, Tag, Modal, Input, Alert, Progress, message, Spin, Table } from 'antd';
 import { useApi } from '../../../../hooks/useApi';
 
 const { TextArea } = Input;
@@ -30,6 +30,23 @@ export default function ScoringLockTab({ config, contestId, contest }) {
   const [showAudit, setShowAudit] = useState(false);
   const [auditLog, setAuditLog] = useState([]);
   const [locking, setLocking] = useState(false);
+
+  const [scores, setScores] = useState([]);
+  const [scoresLoading, setScoresLoading] = useState(false);
+  const [showScores, setShowScores] = useState(false);
+
+  const fetchScores = useCallback(async (rid) => {
+    if (!contestId || !rid) return;
+    setScoresLoading(true);
+    try {
+      const data = await request(`/api/scores/contests/${contestId}/rounds/${rid}/all-scores`);
+      setScores(Array.isArray(data) ? data : []);
+    } catch {
+      setScores([]);
+    } finally {
+      setScoresLoading(false);
+    }
+  }, [contestId, request]);
 
   const fetchProgress = useCallback(async (rid) => {
     if (!contestId || !rid) return;
@@ -203,6 +220,100 @@ export default function ScoringLockTab({ config, contestId, contest }) {
           })}
         </div>
       )}
+
+      {/* Score detail section */}
+      <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>
+            Chi tiết điểm đã chấm {scores.length > 0 && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({scores.length} bản ghi)</span>}
+          </h3>
+          <Button
+            size="small"
+            loading={scoresLoading}
+            onClick={() => {
+              setShowScores(v => !v);
+              if (!showScores && scores.length === 0) fetchScores(selectedRound);
+            }}
+          >
+            {showScores ? 'Ẩn' : 'Xem điểm'}
+          </Button>
+        </div>
+
+        {showScores && (
+          scoresLoading ? (
+            <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
+          ) : scores.length === 0 ? (
+            <div className="p-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Chưa có điểm nào được chấm cho vòng này</div>
+          ) : (
+            <Table
+              size="small"
+              rowKey="_id"
+              dataSource={scores}
+              pagination={{ pageSize: 10, size: 'small' }}
+              style={{ fontSize: 13 }}
+              expandable={{
+                expandedRowRender: (record) => (
+                  <div style={{ padding: '8px 16px' }}>
+                    {record.score_details?.length > 0 ? (
+                      <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ color: '#64748b' }}>
+                            <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 600 }}>Tiêu chí</th>
+                            <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>Điểm</th>
+                            <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>Tối đa</th>
+                            <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>Trọng số</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {record.score_details.map((d, i) => (
+                            <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                              <td style={{ padding: '4px 8px', color: '#c9d6e8' }}>{d.criteria_name}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', color: '#00d4ff', fontWeight: 600 }}>{d.score_value}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', color: '#64748b' }}>{d.max_score}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', color: '#64748b' }}>{d.weight != null ? `${(d.weight * 100).toFixed(0)}%` : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <span style={{ color: '#64748b', fontSize: 12 }}>Không có chi tiết tiêu chí</span>
+                    )}
+                    {record.comment && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>
+                        Nhận xét: {record.comment}
+                      </div>
+                    )}
+                  </div>
+                ),
+                rowExpandable: () => true,
+              }}
+              columns={[
+                {
+                  title: 'Đội', dataIndex: ['team_id', 'team_name'], key: 'team',
+                  render: (_, r) => <span style={{ fontWeight: 600, color: '#c9d6e8' }}>{r.team_id?.team_name ?? '—'}</span>,
+                },
+                {
+                  title: 'Judge / Mentor', key: 'judge',
+                  render: (_, r) => <span style={{ color: '#94a3b8' }}>{r.judge_id?.full_name ?? r.judge_id?.email ?? '—'}</span>,
+                },
+                {
+                  title: 'Tổng điểm', dataIndex: 'total_score', key: 'total',
+                  render: v => <span style={{ fontWeight: 700, color: '#00d4ff' }}>{v ?? '—'}</span>,
+                  sorter: (a, b) => (a.total_score ?? 0) - (b.total_score ?? 0),
+                },
+                {
+                  title: 'Trạng thái', dataIndex: 'status', key: 'status',
+                  render: v => <Tag color={v === 'submitted' ? 'green' : v === 'draft' ? 'orange' : 'default'}>{v === 'submitted' ? 'Đã nộp' : v === 'draft' ? 'Nháp' : v}</Tag>,
+                },
+                {
+                  title: 'Thời gian', dataIndex: 'submitted_at', key: 'submitted_at',
+                  render: v => v ? new Date(v).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—',
+                },
+              ]}
+            />
+          )
+        )}
+      </div>
 
       {/* Action buttons */}
       {!isLocked && (

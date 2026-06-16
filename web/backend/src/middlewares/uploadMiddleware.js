@@ -2,6 +2,12 @@ import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { Readable } from "stream";
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 // Allowed file types
 const ALLOWED_MIME = [
   "image/jpeg", "image/png", "image/gif", "image/webp",
@@ -33,10 +39,18 @@ export const upload = multer({
 /**
  * Upload buffer to Cloudinary, return { url, original_name, mime_type, size }
  */
-export const uploadToCloudinary = (file) =>
-  new Promise((resolve, reject) => {
+export const uploadToCloudinary = (file) => {
+  const isImage = file.mimetype.startsWith("image/");
+  const resourceType = isImage ? "image" : "raw";
+
+  return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder: "seal-hackathon/chat", resource_type: "auto" },
+      {
+        folder: "seal-hackathon/chat",
+        resource_type: resourceType,
+        use_filename: true,
+        unique_filename: true,
+      },
       (err, result) => {
         if (err) return reject(err);
         resolve({
@@ -49,3 +63,4 @@ export const uploadToCloudinary = (file) =>
     );
     Readable.from(file.buffer).pipe(stream);
   });
+};

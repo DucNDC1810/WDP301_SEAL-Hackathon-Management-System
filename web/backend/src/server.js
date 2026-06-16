@@ -82,6 +82,15 @@ connectDB().then(() => {
     console.log(`Server running on port ${PORT}`);
   });
 
+  httpServer.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`[server] Port ${PORT} is already in use. Kill the process holding it and restart.`);
+    } else {
+      console.error("[server] HTTP server error:", err);
+    }
+    process.exit(1);
+  });
+
   // Migration: Normalize legacy lowercase team status values in the database to uppercase to match Mongoose schema enums
   import("./models/Team.js").then(async ({ default: Team }) => {
     try {

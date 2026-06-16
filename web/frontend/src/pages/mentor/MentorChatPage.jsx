@@ -300,14 +300,21 @@ function ChatWindow({ conv, userId, request }) {
                   className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs text-gray-300"
                   style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
                 >
-                  <PaperClipOutlined />
+                  {sending ? <LoadingOutlined className="text-cyan-400" /> : <PaperClipOutlined />}
                   <span className="max-w-[120px] truncate">{f.name}</span>
-                  <button
-                    className="text-gray-500 hover:text-red-400 ml-1"
-                    onClick={() => setFileList((prev) => prev.filter((x) => x.uid !== f.uid))}
-                  >×</button>
+                  {!sending && (
+                    <button
+                      className="text-gray-500 hover:text-red-400 ml-1"
+                      onClick={() => setFileList((prev) => prev.filter((x) => x.uid !== f.uid))}
+                    >×</button>
+                  )}
                 </span>
               ))}
+              {sending && (
+                <span className="text-xs text-cyan-400 flex items-center gap-1">
+                  <LoadingOutlined /> Đang tải lên...
+                </span>
+              )}
             </div>
           )}
           <div className="flex gap-2 items-end">
@@ -335,6 +342,7 @@ function ChatWindow({ conv, userId, request }) {
               onKeyDown={handleKeyDown}
               placeholder="Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng)"
               autoSize={{ minRows: 1, maxRows: 4 }}
+              disabled={sending}
               className="flex-1 rounded-xl"
               style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", resize: "none" }}
             />

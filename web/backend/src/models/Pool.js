@@ -12,6 +12,11 @@ const poolSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    description: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     teams: {
       type: [
         {

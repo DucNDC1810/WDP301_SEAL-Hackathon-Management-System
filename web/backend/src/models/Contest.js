@@ -107,7 +107,20 @@ const contestSchema = new mongoose.Schema(
     },
     rounds: {
       type: [roundSchema],
-      default: [],
+      default: () => [
+        {
+          round_number: 1,
+          name: "Vòng sơ loại",
+          is_active: false,
+          scoring_locked: false,
+        },
+        {
+          round_number: 2,
+          name: "Vòng chung kết",
+          is_active: false,
+          scoring_locked: false,
+        }
+      ],
     },
     max_teams_per_pool: {
       type: Number,

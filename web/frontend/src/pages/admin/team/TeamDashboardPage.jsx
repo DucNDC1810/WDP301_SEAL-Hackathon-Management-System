@@ -157,15 +157,19 @@ function TeamDashboardPage() {
   };
 
   // ─── Draw Pools ────────────────────────────────────────────────────────────
-  const handleDrawPools = async (e) => {
+  const [isCreatingEmpty, setIsCreatingEmpty] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // ─── Create Empty Pools ───────────────────────────────────────────────────
+  const handleCreateEmptyPools = async (e) => {
     e.preventDefault();
     setError('');
     setWarning('');
     setSuccess('');
-    setIsDrawing(true);
+    setIsCreatingEmpty(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/pools/contests/${contestId}/draw-pools`, {
+      const res = await fetch(`${API_URL}/api/pools/contests/${contestId}/create-empty`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -173,6 +177,36 @@ function TeamDashboardPage() {
         },
         body: JSON.stringify({
           pool_count: poolCount,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+
+      setPools(data.data || []);
+      setSuccess('Đã tạo các bảng đấu trống thành công!');
+    } catch (err) {
+      setError(err.message || 'Lỗi khi tạo bảng đấu trống.');
+    } finally {
+      setIsCreatingEmpty(false);
+    }
+  };
+
+  // ─── Assign Teams to Pools ────────────────────────────────────────────────
+  const handleAssignTeams = async () => {
+    setError('');
+    setWarning('');
+    setSuccess('');
+    setIsAssigning(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/pools/contests/${contestId}/assign-teams`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           assign_topics: assignTopics,
         }),
       });
@@ -184,12 +218,13 @@ function TeamDashboardPage() {
       if (data.warning) {
         setWarning(data.warning);
       } else {
-        setSuccess('Đã thực hiện chia bảng đấu thành công!');
+        setSuccess('Đã thực hiện xếp các đội vào các bảng đấu thành công!');
       }
+      fetchTeams(false);
     } catch (err) {
-      setError(err.message || 'Lỗi khi chia bảng đấu.');
+      setError(err.message || 'Lỗi khi xếp đội thi vào bảng đấu.');
     } finally {
-      setIsDrawing(false);
+      setIsAssigning(false);
     }
   };
 
@@ -457,29 +492,85 @@ function TeamDashboardPage() {
         {activeTab === 'pools' && (
           <div className="team-tab-content">
             
-            {/* Case A: Pools already drawn -> Show result */}
+            {/* Case A: Pools exist -> Show pools */}
             {pools.length > 0 ? (
               <div className="pools-result-container">
                 <div className="pools-result-header">
                   <div>
-                    <h3 className="pools-result-title">Kết Quả Chia Bảng Đấu</h3>
-                    <p className="pools-result-subtitle">Các đội đã được xếp đều ngẫu nhiên vào các bảng đấu tương ứng</p>
+                    <h3 className="pools-result-title">
+                      {pools.some(p => p.teams && p.teams.length > 0) ? 'Kết Quả Chia Bảng Đấu' : 'Các Bảng Đấu Trống Đã Tạo'}
+                    </h3>
+                    <p className="pools-result-subtitle">
+                      {pools.some(p => p.teams && p.teams.length > 0)
+                        ? 'Các đội đã được xếp đều ngẫu nhiên vào các bảng đấu tương ứng'
+                        : 'Bảng đấu đã được chuẩn bị sẵn. Hãy xếp đội đấu đăng ký vào các bảng.'}
+                    </p>
                   </div>
                   <button
                     type="button"
                     className="btn btn--outline-red"
                     onClick={handleResetPools}
                   >
-                    Xóa Kết Quả & Chia Lại
+                    Xóa các bảng đấu hiện tại
                   </button>
                 </div>
+
+                {/* If empty pools, show assignment panel */}
+                {!pools.some(p => p.teams && p.teams.length > 0) && (
+                  <div className="pools-config-box" style={{ margin: '0 0 40px 0', maxWidth: '100%' }}>
+                    <h4 className="pools-config-title">Xếp các đội thi đã CONFIRMED vào các bảng đấu này</h4>
+                    <p className="pools-config-desc">
+                      Hiện tại có <strong>{confirmedTeams}</strong> đội thi đã CONFIRMED. 
+                      Hệ thống sẽ trộn ngẫu nhiên tất cả các đội thi này và chia đều vào <strong>{pools.length}</strong> bảng đấu trống ở dưới.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      <div className="contest-field contest-field--row">
+                        <div className="contest-toggle-info">
+                          <label className="contest-label">Tự động gán đề tài đấu</label>
+                          <span className="contest-label-sub">Lựa chọn ngẫu nhiên các đề tài trống chưa được giao để gán cho từng bảng đấu</span>
+                        </div>
+                        <label className="switch">
+                          <input
+                            type="checkbox"
+                            checked={assignTopics}
+                            onChange={(e) => setAssignTopics(e.target.checked)}
+                          />
+                          <span className="slider round"></span>
+                        </label>
+                      </div>
+
+                      <div className="pools-action-section">
+                        <button
+                          type="button"
+                          className={`btn btn--primary btn--lg ${isAssigning ? 'btn--loading' : ''}`}
+                          onClick={handleAssignTeams}
+                          disabled={isAssigning || confirmedTeams < pools.length}
+                        >
+                          {isAssigning ? (
+                            <>
+                              <span className="btn-spinner" />
+                              <span>Đang xếp các đội ngẫu nhiên...</span>
+                            </>
+                          ) : (
+                            'Bắt đầu xếp đội ngẫu nhiên'
+                          )}
+                        </button>
+                        {confirmedTeams < pools.length && (
+                          <p className="pools-btn-disabled-warning">
+                            ⚠ Cần có ít nhất {pools.length} đội đấu ở trạng thái "CONFIRMED" để chia vào các bảng. Hiện có {confirmedTeams} đội.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="pools-grid">
                   {pools.map((pool) => (
                     <div className="pool-card" key={pool._id}>
                       <div className="pool-card__header">
                         <h4 className="pool-card__title">{pool.pool_name}</h4>
-                        <span className="pool-card__count">{pool.teams.length} đội</span>
+                        <span className="pool-card__count">{(pool.teams || []).length} đội</span>
                       </div>
                       
                       {pool.topic_id ? (
@@ -494,17 +585,23 @@ function TeamDashboardPage() {
                       )}
 
                       <div className="pool-card__body">
-                        <ul className="pool-teams-list">
-                          {pool.teams.map((team, tIdx) => (
-                            <li className="pool-team-item" key={team._id}>
-                              <span className="pool-team-number">{tIdx + 1}</span>
-                              <div className="pool-team-info">
-                                <span className="pool-team-name">{team.team_name}</span>
-                                <span className="pool-team-status">{team.status}</span>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
+                        {pool.teams && pool.teams.length > 0 ? (
+                          <ul className="pool-teams-list">
+                            {pool.teams.map((team, tIdx) => (
+                              <li className="pool-team-item" key={team._id}>
+                                <span className="pool-team-number">{tIdx + 1}</span>
+                                <div className="pool-team-info">
+                                  <span className="pool-team-name">{team.team_name}</span>
+                                  <span className="pool-team-status">{team.status}</span>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>
+                            Chưa xếp đội thi
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -512,16 +609,16 @@ function TeamDashboardPage() {
               </div>
             ) : (
               
-              /* Case B: No pools drawn yet -> Show parameters configurations form */
+              /* Case B: No pools created yet -> Show parameters configurations form to create empty pools */
               <div className="pools-config-box">
-                <h3 className="pools-config-title">Cấu Hình Chia Bảng Tự Động</h3>
+                <h3 className="pools-config-title">Chuẩn Bị Tạo Bảng Đấu</h3>
                 <p className="pools-config-desc">
-                  Hệ thống sẽ thực hiện trộn ngẫu nhiên tất cả các đội đấu đã được xác nhận (Confirmed) và phân bổ đều vào các bảng đấu tương ứng.
+                  Bước này sẽ khởi tạo sẵn các bảng đấu trống (Ví dụ: Bảng A, Bảng B, Bảng C...). Sau khi tạo xong bảng đấu, bạn sẽ thực hiện xếp các đội thi vào các bảng đấu này.
                 </p>
 
-                <form onSubmit={handleDrawPools} className="pools-config-form">
+                <form onSubmit={handleCreateEmptyPools} className="pools-config-form">
                   <div className="contest-field">
-                    <label className="contest-label">Số lượng bảng đấu cần chia *</label>
+                    <label className="contest-label">Số lượng bảng đấu cần tạo sẵn *</label>
                     <input
                       type="number"
                       className="contest-input"
@@ -533,41 +630,21 @@ function TeamDashboardPage() {
                     />
                   </div>
 
-                  <div className="contest-field contest-field--row">
-                    <div className="contest-toggle-info">
-                      <label className="contest-label">Tự động gán đề tài đấu</label>
-                      <span className="contest-label-sub">Lựa chọn ngẫu nhiên các đề tài trống chưa được giao để gán cho từng bảng đấu</span>
-                    </div>
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={assignTopics}
-                        onChange={(e) => setAssignTopics(e.target.checked)}
-                      />
-                      <span className="slider round"></span>
-                    </label>
-                  </div>
-
                   <div className="pools-action-section">
                     <button
                       type="submit"
-                      className={`btn btn--primary btn--lg ${isDrawing ? 'btn--loading' : ''}`}
-                      disabled={isDrawing || !hasConfirmedTeam}
+                      className={`btn btn--primary btn--lg ${isCreatingEmpty ? 'btn--loading' : ''}`}
+                      disabled={isCreatingEmpty}
                     >
-                      {isDrawing ? (
+                      {isCreatingEmpty ? (
                         <>
                           <span className="btn-spinner" />
-                          <span>Đang thực hiện phân bảng ngẫu nhiên...</span>
+                          <span>Đang tạo các bảng đấu trống...</span>
                         </>
                       ) : (
-                        'Bắt Đầu Tự Động Chia Bảng'
+                        'Tạo các bảng đấu trống'
                       )}
                     </button>
-                    {!hasConfirmedTeam && (
-                      <p className="pools-btn-disabled-warning">
-                        ⚠ Cần có ít nhất 1 đội đấu ở trạng thái "CONFIRMED" để bắt đầu thực hiện chia bảng.
-                      </p>
-                    )}
                   </div>
                 </form>
               </div>

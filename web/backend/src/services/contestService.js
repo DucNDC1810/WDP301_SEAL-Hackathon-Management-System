@@ -100,10 +100,49 @@ export const updateContest = async (contestId, updateData) => {
     "status",
     "auto_close",
     "max_teams_per_pool",
+    "rounds",
   ];
 
   allowedUpdates.forEach((field) => {
-    if (updateData[field] !== undefined) {
+    if (field === "rounds") {
+      if (Array.isArray(updateData.rounds)) {
+        // Update in-place to preserve subdocument IDs (_id) if match is found by round_number
+        const updatedRounds = updateData.rounds.map((newRound) => {
+          const existing = contest.rounds.find(
+            (r) => r.round_number === newRound.round_number
+          );
+          if (existing) {
+            existing.name = newRound.name || existing.name;
+            existing.start_time = newRound.start_time !== undefined ? newRound.start_time : existing.start_time;
+            existing.end_time = newRound.end_time !== undefined ? newRound.end_time : existing.end_time;
+            existing.submission_deadline = newRound.submission_deadline !== undefined ? newRound.submission_deadline : existing.submission_deadline;
+            existing.problem_released_at = newRound.problem_released_at !== undefined ? newRound.problem_released_at : existing.problem_released_at;
+            existing.is_active = newRound.is_active !== undefined ? newRound.is_active : existing.is_active;
+            existing.scoring_locked = newRound.scoring_locked !== undefined ? newRound.scoring_locked : existing.scoring_locked;
+            existing.force_lock_reason = newRound.force_lock_reason !== undefined ? newRound.force_lock_reason : existing.force_lock_reason;
+
+            // In-place update score criteria
+            if (Array.isArray(newRound.score_criteria)) {
+              const updatedCriteria = newRound.score_criteria.map((newCrit, critIdx) => {
+                const existingCrit = existing.score_criteria[critIdx];
+                if (existingCrit) {
+                  existingCrit.name = newCrit.name || existingCrit.name;
+                  existingCrit.max_score = newCrit.max_score !== undefined ? newCrit.max_score : existingCrit.max_score;
+                  existingCrit.weight = newCrit.weight !== undefined ? newCrit.weight : existingCrit.weight;
+                  existingCrit.description = newCrit.description !== undefined ? newCrit.description : existingCrit.description;
+                  return existingCrit;
+                }
+                return newCrit;
+              });
+              existing.score_criteria = updatedCriteria;
+            }
+            return existing;
+          }
+          return newRound;
+        });
+        contest.rounds = updatedRounds;
+      }
+    } else if (updateData[field] !== undefined) {
       contest[field] = updateData[field];
     }
   });

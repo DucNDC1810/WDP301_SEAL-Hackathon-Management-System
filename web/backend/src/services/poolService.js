@@ -176,3 +176,178 @@ export const resetPools = async (contestId) => {
 
   return { success: true };
 };
+
+/**
+ * Tạo các bảng đấu trống ban đầu (Chưa xếp đội)
+ */
+export const createEmptyPools = async (contestId, { pool_count, pools }) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const contest = await Contest.findById(contestId).session(session);
+    if (!contest) {
+      const err = new Error("Không tìm thấy cuộc thi");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const existingPools = await Pool.findOne({ contest_id: contestId }).session(session);
+    if (existingPools) {
+      const err = new Error("Giải đấu đã có bảng đấu trước đó. Vui lòng Reset trước khi tạo mới.");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const createdPools = [];
+    if (pools && Array.isArray(pools) && pools.length > 0) {
+      for (const p of pools) {
+        if (!p.pool_name || !p.pool_name.trim()) {
+          const err = new Error("Tên bảng đấu không được để trống.");
+          err.statusCode = 400;
+          throw err;
+        }
+        const newPool = new Pool({
+          contest_id: contestId,
+          pool_name: p.pool_name.trim(),
+          description: (p.description || "").trim(),
+          teams: [],
+          topic_id: null,
+        });
+        await newPool.save({ session });
+        createdPools.push(newPool);
+      }
+    } else {
+      const count = pool_count || 3;
+      for (let p = 0; p < count; p++) {
+        const newPool = new Pool({
+          contest_id: contestId,
+          pool_name: `Bảng ${String.fromCharCode(65 + p)}`,
+          teams: [],
+          topic_id: null,
+        });
+        await newPool.save({ session });
+        createdPools.push(newPool);
+      }
+    }
+
+    await session.commitTransaction();
+    return createdPools;
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Xếp các đội đã CONFIRMED ngẫu nhiên và chia đều vào các bảng đấu hiện tại
+ */
+export const assignTeamsToExistingPools = async (contestId, { assign_topics }) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const existingPools = await Pool.find({ contest_id: contestId }).session(session);
+    if (existingPools.length === 0) {
+      const err = new Error("Chưa có bảng đấu nào được tạo sẵn. Vui lòng tạo bảng đấu trước.");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const teams = await Team.find({ contest_id: contestId, status: "CONFIRMED" }).session(session);
+    if (teams.length < existingPools.length) {
+      const err = new Error("Không đủ số đội thi để chia đều vào các bảng đấu.");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // Shuffle teams
+    const shuffledTeams = [...teams];
+    for (let i = shuffledTeams.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledTeams[i], shuffledTeams[j]] = [shuffledTeams[j], shuffledTeams[i]];
+    }
+
+    const pool_count = existingPools.length;
+    const base = Math.floor(shuffledTeams.length / pool_count);
+    const remainder = shuffledTeams.length % pool_count;
+
+    let currentIndex = 0;
+    const poolsResult = [];
+
+    // Deal with topics
+    let warningMessage = null;
+    let shouldAssignTopics = assign_topics;
+    let shuffledTopics = [];
+
+    if (shouldAssignTopics) {
+      const availableTopics = await Topic.find({
+        contest_id: contestId,
+        is_assigned: false,
+      }).session(session);
+
+      if (availableTopics.length < pool_count) {
+        warningMessage = `Không đủ đề tài trống để gán cho các bảng đấu (yêu cầu: ${pool_count}, hiện có: ${availableTopics.length}). Đã bỏ qua bước gán đề tài.`;
+        shouldAssignTopics = false;
+      } else {
+        shuffledTopics = [...availableTopics];
+        for (let i = shuffledTopics.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffledTopics[i], shuffledTopics[j]] = [shuffledTopics[j], shuffledTopics[i]];
+        }
+      }
+    }
+
+    for (let p = 0; p < pool_count; p++) {
+      const size = p < remainder ? base + 1 : base;
+      const groupTeams = shuffledTeams.slice(currentIndex, currentIndex + size);
+      const teamIds = groupTeams.map((t) => t._id);
+
+      const pool = existingPools[p];
+      const assignedTopicId = shouldAssignTopics ? shuffledTopics[p]._id : null;
+
+      pool.teams = teamIds;
+      if (assignedTopicId) {
+        pool.topic_id = assignedTopicId;
+      }
+      await pool.save({ session });
+
+      await Team.updateMany(
+        { _id: { $in: teamIds } },
+        {
+          $set: {
+            pool_id: pool._id,
+            topic_id: assignedTopicId,
+          },
+        },
+        { session }
+      );
+
+      if (shouldAssignTopics && assignedTopicId) {
+        await Topic.findByIdAndUpdate(assignedTopicId, {
+          $set: { is_assigned: true },
+        }, { session });
+      }
+
+      currentIndex += size;
+    }
+
+    const populatedPools = await Pool.find({ contest_id: contestId })
+      .populate("teams", "team_name status pool_id topic_id")
+      .populate("topic_id", "title")
+      .session(session);
+
+    await session.commitTransaction();
+    return {
+      pools: populatedPools,
+      warning: warningMessage,
+    };
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
+};

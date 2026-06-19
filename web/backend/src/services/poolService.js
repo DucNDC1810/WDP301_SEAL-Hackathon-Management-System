@@ -351,3 +351,39 @@ export const assignTeamsToExistingPools = async (contestId, { assign_topics }) =
     session.endSession();
   }
 };
+
+/**
+ * Thêm một bảng đấu đơn lẻ vào cuộc thi
+ */
+export const addSinglePool = async (contestId, { pool_name, description }) => {
+  if (!pool_name || !pool_name.trim()) {
+    const err = new Error("Tên bảng đấu không được để trống.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    const err = new Error("Không tìm thấy cuộc thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const newPool = new Pool({
+    contest_id: contestId,
+    pool_name: pool_name.trim(),
+    description: (description || "").trim(),
+    teams: [],
+    topic_id: null,
+  });
+
+  await newPool.save();
+
+  // Populate data
+  const populated = await Pool.findById(newPool._id)
+    .populate("teams", "team_name status pool_id topic_id")
+    .populate("topic_id", "title");
+
+  return populated;
+};
+

@@ -4,6 +4,7 @@ import {
   resetPools,
   createEmptyPools,
   assignTeamsToExistingPools,
+  addSinglePool,
 } from "../services/poolService.js";
 
 /**
@@ -152,3 +153,29 @@ export const handleAssignTeams = async (req, res) => {
     });
   }
 };
+
+/**
+ * POST /contests/:contestId/add-single
+ * Thêm một bảng đấu đơn lẻ vào cuộc thi.
+ */
+export const handleAddSinglePool = async (req, res) => {
+  try {
+    const { contestId } = req.params;
+    const { pool_name, description } = req.body;
+
+    const newPool = await addSinglePool(contestId, { pool_name, description });
+
+    res.status(201).json({
+      success: true,
+      message: "Thêm bảng đấu thành công",
+      data: newPool,
+    });
+  } catch (error) {
+    console.error("[handleAddSinglePool]", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Lỗi máy chủ",
+    });
+  }
+};
+

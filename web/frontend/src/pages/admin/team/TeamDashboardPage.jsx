@@ -4,7 +4,7 @@ import './TeamDashboardPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-function TeamDashboardPage() {
+function TeamDashboardPage({ isEmbedded = false }) {
   const { contestId } = useParams();
 
   // ─── States ────────────────────────────────────────────────────────────────
@@ -16,6 +16,7 @@ function TeamDashboardPage() {
   const [error, setError] = useState('');
   const [warning, setWarning] = useState('');
   const [success, setSuccess] = useState('');
+  const [confirmModal, setConfirmModal] = useState(null);
 
   // Tab 1: Expand row states
   const [expandedTeamId, setExpandedTeamId] = useState(null);
@@ -78,9 +79,6 @@ function TeamDashboardPage() {
 
   // ─── Approve Team ──────────────────────────────────────────────────────────
   const handleApprove = async (teamId, teamName) => {
-    const confirm = window.confirm(`Duyệt đội thi "${teamName}"?`);
-    if (!confirm) return;
-
     setError('');
     setSuccess('');
 
@@ -100,13 +98,8 @@ function TeamDashboardPage() {
   };
 
   // ─── Reject Team ───────────────────────────────────────────────────────────
-  const handleReject = async (teamId, teamName) => {
-    const reason = window.prompt(
-      `Nhập lý do từ chối đội thi "${teamName}" (bắt buộc):`,
-      ''
-    );
-    if (reason === null) return; // Người dùng bấm Cancel
-    if (!reason.trim()) {
+  const handleReject = async (teamId, teamName, reason) => {
+    if (!reason || !reason.trim()) {
       setError('Vui lòng nhập lý do từ chối.');
       return;
     }
@@ -135,9 +128,6 @@ function TeamDashboardPage() {
 
   // ─── Disqualify Team ───────────────────────────────────────────────────────
   const handleDisqualify = async (teamId, teamName) => {
-    const confirm = window.confirm(`Bạn có chắc chắn muốn loại đội thi "${teamName}" khỏi cuộc thi này?`);
-    if (!confirm) return;
-
     setError('');
     setSuccess('');
 
@@ -230,9 +220,6 @@ function TeamDashboardPage() {
 
   // ─── Reset Pools ───────────────────────────────────────────────────────────
   const handleResetPools = async () => {
-    const confirm = window.confirm('Bạn có chắc chắn muốn xóa tất cả bảng đấu hiện tại và đặt lại các cấu hình đội thi/đề tài?');
-    if (!confirm) return;
-
     setError('');
     setWarning('');
     setSuccess('');
@@ -260,25 +247,29 @@ function TeamDashboardPage() {
   const hasConfirmedTeam = teams.some((t) => t.status === 'CONFIRMED');
 
   return (
-    <div className="team-dashboard-page" id="team-dashboard-page">
-      <div className="team-dashboard-page__glow" />
+    <div className={isEmbedded ? "" : "team-dashboard-page"} id="team-dashboard-page" style={isEmbedded ? { padding: 0, minHeight: 'auto', background: 'transparent' } : {}}>
+      {!isEmbedded && <div className="team-dashboard-page__glow" />}
 
-      <div className="team-dashboard-container container">
+      <div className={isEmbedded ? "team-dashboard-container" : "team-dashboard-container container"}>
         
         {/* Navigation Breadcrumbs */}
-        <div className="team-breadcrumbs">
-          <Link to="/" className="breadcrumb-link">Trang chủ</Link>
-          <span className="breadcrumb-separator">/</span>
-          <span className="breadcrumb-current">Dashboard Đội thi & Bảng đấu</span>
-        </div>
+        {!isEmbedded && (
+          <div className="team-breadcrumbs">
+            <Link to="/" className="breadcrumb-link">Trang chủ</Link>
+            <span className="breadcrumb-separator">/</span>
+            <span className="breadcrumb-current">Dashboard Đội thi & Bảng đấu</span>
+          </div>
+        )}
 
         {/* Page Header */}
-        <div className="team-header">
-          <div>
-            <h1 className="team-title">Dashboard <span>Cuộc Thi</span></h1>
-            <p className="team-subtitle">Quản lý trạng thái đội thi, xác thực thành viên và chia bảng đấu tự động</p>
+        {!isEmbedded && (
+          <div className="team-header">
+            <div>
+              <h1 className="team-title">Dashboard <span>Cuộc Thi</span></h1>
+              <p className="team-subtitle">Quản lý trạng thái đội thi, xác thực thành viên và chia bảng đấu tự động</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Stats Summary Cards */}
         <div className="team-stats-grid">
@@ -328,27 +319,29 @@ function TeamDashboardPage() {
         )}
 
         {/* Tabs Control */}
-        <div className="team-tabs">
-          <button
-            type="button"
-            className={`team-tab-btn ${activeTab === 'teams' ? 'team-tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('teams')}
-            id="tab-btn-teams"
-          >
-            Danh sách đội đăng ký
-          </button>
-          <button
-            type="button"
-            className={`team-tab-btn ${activeTab === 'pools' ? 'team-tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('pools')}
-            id="tab-btn-pools"
-          >
-            Chia bảng đấu
-          </button>
-        </div>
+        {!isEmbedded && (
+          <div className="team-tabs">
+            <button
+              type="button"
+              className={`team-tab-btn ${activeTab === 'teams' ? 'team-tab-btn--active' : ''}`}
+              onClick={() => setActiveTab('teams')}
+              id="tab-btn-teams"
+            >
+              Danh sách đội đăng ký
+            </button>
+            <button
+              type="button"
+              className={`team-tab-btn ${activeTab === 'pools' ? 'team-tab-btn--active' : ''}`}
+              onClick={() => setActiveTab('pools')}
+              id="tab-btn-pools"
+            >
+              Chia bảng đấu
+            </button>
+          </div>
+        )}
 
         {/* ─── TAB 1: TEAMS LIST ─────────────────────────────────────────────── */}
-        {activeTab === 'teams' && (
+        {(activeTab === 'teams' || isEmbedded) && (
           <div className="team-tab-content">
             {loadingTeams ? (
               <div className="team-loading">
@@ -422,24 +415,24 @@ function TeamDashboardPage() {
                                     <button
                                       type="button"
                                       className="btn btn--sm btn--outline-green"
-                                      onClick={() => handleApprove(team._id, team.team_name)}
+                                      onClick={() => setConfirmModal({ type: 'approve', teamId: team._id, teamName: team.team_name })}
                                     >
                                       ✓ Duyệt
                                     </button>
                                     <button
                                       type="button"
                                       className="btn btn--sm btn--outline-red"
-                                      onClick={() => handleReject(team._id, team.team_name)}
+                                      onClick={() => setConfirmModal({ type: 'reject', teamId: team._id, teamName: team.team_name, reason: '' })}
                                     >
                                       ✗ Từ chối
                                     </button>
                                   </>
                                 )}
-                                {!['DISQUALIFIED', 'ELIMINATED', 'REJECTED'].includes(team.status) && (
+                                {team.status === 'CONFIRMED' && (
                                   <button
                                     type="button"
                                     className="btn btn--sm btn--outline-red"
-                                    onClick={() => handleDisqualify(team._id, team.team_name)}
+                                    onClick={() => setConfirmModal({ type: 'disqualify', teamId: team._id, teamName: team.team_name })}
                                   >
                                     Loại bỏ
                                   </button>
@@ -489,7 +482,7 @@ function TeamDashboardPage() {
         )}
 
         {/* ─── TAB 2: POOLS DIVISION ─────────────────────────────────────────── */}
-        {activeTab === 'pools' && (
+        {activeTab === 'pools' && !isEmbedded && (
           <div className="team-tab-content">
             
             {/* Case A: Pools exist -> Show pools */}
@@ -509,7 +502,7 @@ function TeamDashboardPage() {
                   <button
                     type="button"
                     className="btn btn--outline-red"
-                    onClick={handleResetPools}
+                    onClick={() => setConfirmModal({ type: 'resetPools' })}
                   >
                     Xóa các bảng đấu hiện tại
                   </button>
@@ -649,6 +642,127 @@ function TeamDashboardPage() {
                 </form>
               </div>
             )}
+          </div>
+        )}
+        {/* Custom Confirmation Modal */}
+        {confirmModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            backdropFilter: 'blur(4px)',
+          }}>
+            <div style={{
+              background: '#0b1120',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '450px',
+              width: '90%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
+              color: '#fff',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                margin: 0,
+                color: confirmModal.type === 'approve' ? '#22c55e' : '#ef4444'
+              }}>
+                {confirmModal.type === 'approve' && 'Xác nhận duyệt đội thi'}
+                {confirmModal.type === 'reject' && 'Từ chối duyệt đội thi'}
+                {confirmModal.type === 'disqualify' && 'Xác nhận loại bỏ đội thi'}
+                {confirmModal.type === 'resetPools' && 'Xác nhận xóa bảng đấu'}
+              </h3>
+              
+              <p style={{ fontSize: '0.9rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
+                {confirmModal.type === 'approve' && `Bạn có chắc chắn muốn duyệt đội thi "${confirmModal.teamName}" vào giải đấu?`}
+                {confirmModal.type === 'reject' && `Nhập lý do từ chối duyệt đội thi "${confirmModal.teamName}":`}
+                {confirmModal.type === 'disqualify' && `Bạn có chắc chắn muốn loại bỏ đội thi "${confirmModal.teamName}" khỏi giải đấu?`}
+                {confirmModal.type === 'resetPools' && 'Bạn có chắc chắn muốn xóa tất cả bảng đấu hiện tại và đặt lại cấu hình đội thi/đề tài?'}
+              </p>
+
+              {confirmModal.type === 'reject' && (
+                <textarea
+                  style={{
+                    width: '100%',
+                    background: '#060b16',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'vertical',
+                    minHeight: '80px'
+                  }}
+                  placeholder="Lý do từ chối (bắt buộc)..."
+                  value={confirmModal.reason || ''}
+                  onChange={(e) => setConfirmModal({ ...confirmModal, reason: e.target.value })}
+                />
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmModal(null)}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    color: '#94a3b8',
+                    padding: '8px 16px',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const { type, teamId, teamName, reason } = confirmModal;
+                    if (type === 'reject' && (!reason || !reason.trim())) {
+                      alert('Vui lòng nhập lý do từ chối.');
+                      return;
+                    }
+                    setConfirmModal(null);
+                    if (type === 'approve') {
+                      await handleApprove(teamId, teamName);
+                    } else if (type === 'reject') {
+                      await handleReject(teamId, teamName, reason);
+                    } else if (type === 'disqualify') {
+                      await handleDisqualify(teamId, teamName);
+                    } else if (type === 'resetPools') {
+                      await handleResetPools();
+                    }
+                  }}
+                  style={{
+                    background: confirmModal.type === 'approve' ? '#22c55e' : '#ef4444',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

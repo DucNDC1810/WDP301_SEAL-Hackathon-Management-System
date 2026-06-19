@@ -32,29 +32,32 @@ const ALERT      = ['M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L
 const ROCKET     = ['M4.5 16.5c-1.5 1.5-2.5 3.5-2.5 5.5 2 0 4-1 5.5-2.5L22 5.5c.5-.5.5-1.5 0-2s-1.5-.5-2 0L4.5 16.5z', 'M12 12l2.5-2.5', 'M9 15l2.5-2.5'];
 const COPY       = ['M9 15H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2', 'M13 9h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z'];
 
-const TABS = [
-  'Tổng quan',     
-  'Quản lý Vòng Thi',
-  'Tiêu chí chấm điểm',   
-  'Bảng đấu', 
-  'Phân công Judge & Mentor', 
-  'Phát đề bài',         
-  'Duyệt Bài Nộp',        
-  'Khóa Chấm Điểm',    
-  'Loại Đội Vi Phạm',        
-  'Review & ONGOING',      
-  'Lịch trình',            
-  'Đặt lịch trình bày',     
+const MAIN_TABS = [
+  { id: 0, label: 'Tổng quan' },
+  { id: 1, label: 'Quản lý Vòng Thi' },
+  { id: 2, label: 'Tiêu chí chấm điểm' },
+  { id: 3, label: 'Bảng đấu' },
+  { id: 4, label: 'Phân công Judge & Mentor' },
+  { id: 5, label: 'Phát đề bài' },
+  { id: 9, label: 'Review & ONGOING' },
 ];
 
-export default function HackathonDetailPage() {
+export default function HackathonDetailPage({ defaultTab }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [contest, setContest] = useState(null);
   const [pools, setPools]     = useState([]);
   const [teams, setTeams]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab]         = useState(0);
+  const [tab, setTab]         = useState(defaultTab !== undefined ? defaultTab : 0);
+
+  useEffect(() => {
+    if (defaultTab !== undefined) {
+      setTab(defaultTab);
+    } else {
+      setTab(0);
+    }
+  }, [defaultTab]);
 
   // Tab 3: Pools config states
   const [customPools, setCustomPools] = useState([
@@ -67,6 +70,11 @@ export default function HackathonDetailPage() {
   const [poolError, setPoolError] = useState('');
   const [poolSuccess, setPoolSuccess] = useState('');
   const [poolWarning, setPoolWarning] = useState('');
+
+  // Single Pool Add Modal States
+  const [showSinglePoolModal, setShowSinglePoolModal] = useState(false);
+  const [singlePoolForm, setSinglePoolForm] = useState({ pool_name: '', description: '' });
+  const [isAddingSinglePool, setIsAddingSinglePool] = useState(false);
 
   // Custom persistent mock configuration state
   const [config, setConfig] = useState(null);
@@ -157,6 +165,36 @@ export default function HackathonDetailPage() {
     setCustomPools(updated);
   };
 
+  const handleAddSinglePoolSubmit = async (e) => {
+    e.preventDefault();
+    if (!singlePoolForm.pool_name.trim()) return;
+    setIsAddingSinglePool(true);
+    setPoolError('');
+    setPoolSuccess('');
+    setPoolWarning('');
+    try {
+      const res = await fetch(`${API_URL}/api/pools/contests/${id}/add-single`, {
+        method: 'POST',
+        headers: hdrs(),
+        body: JSON.stringify(singlePoolForm),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setPoolSuccess('Thêm bảng đấu thành công!');
+        setSinglePoolForm({ pool_name: '', description: '' });
+        setShowSinglePoolModal(false);
+        fetchPools();
+      } else {
+        setPoolError(d.message || 'Lỗi khi thêm bảng đấu');
+      }
+    } catch (err) {
+      console.error(err);
+      setPoolError('Lỗi kết nối máy chủ');
+    } finally {
+      setIsAddingSinglePool(false);
+    }
+  };
+
   const handleCreateEmptyPools = async (e) => {
     e.preventDefault();
     setPoolError('');
@@ -229,28 +267,34 @@ export default function HackathonDetailPage() {
     }
   };
 
-  const handleResetPools = async () => {
-    const confirm = window.confirm('Bạn có chắc chắn muốn xóa tất cả bảng đấu hiện tại và đặt lại các cấu hình đội thi/đề tài?');
-    if (!confirm) return;
+  const handleResetPools = () => {
+    AntModal.confirm({
+      title: 'Xác nhận xóa bảng đấu',
+      content: 'Bạn có chắc chắn muốn xóa tất cả bảng đấu hiện tại và đặt lại các cấu hình đội thi/đề tài?',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setPoolError('');
+        setPoolSuccess('');
+        setPoolWarning('');
 
-    setPoolError('');
-    setPoolSuccess('');
-    setPoolWarning('');
+        try {
+          const res = await fetch(`${API_URL}/api/pools/contests/${id}/pools`, {
+            method: 'DELETE',
+            headers: hdrs(),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message);
 
-    try {
-      const res = await fetch(`${API_URL}/api/pools/contests/${id}/pools`, {
-        method: 'DELETE',
-        headers: hdrs(),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-
-      setPools([]);
-      setPoolSuccess('Đã reset bảng đấu và cấu hình đội thi về ban đầu.');
-      fetchTeams();
-    } catch (err) {
-      setPoolError(err.message || 'Lỗi khi đặt lại bảng đấu.');
-    }
+          setPools([]);
+          setPoolSuccess('Đã reset bảng đấu và cấu hình đội thi về ban đầu.');
+          fetchTeams();
+        } catch (err) {
+          setPoolError(err.message || 'Lỗi khi đặt lại bảng đấu.');
+        }
+      }
+    });
   };
 
   useEffect(() => {
@@ -280,11 +324,23 @@ export default function HackathonDetailPage() {
             kickoff_date: parsed.kickoff_date || ''
           });
           if (parsed.tracks?.length > 0) {
-            setActiveTrackId(parsed.tracks[0].id);
-            setSelectedCritTrackId(parsed.tracks[0].id);
-            if (parsed.tracks[0].rounds?.length > 0) {
-              setSelectedCritRoundId(parsed.tracks[0].rounds[0].id);
-            }
+            setActiveTrackId(prev => {
+              const exists = parsed.tracks.some(t => t.id === prev);
+              return (prev && exists) ? prev : parsed.tracks[0].id;
+            });
+            setSelectedCritTrackId(prev => {
+              const exists = parsed.tracks.some(t => t.id === prev);
+              const nextId = (prev && exists) ? prev : parsed.tracks[0].id;
+              
+              // Also update selectedCritRoundId based on the selected track
+              setSelectedCritRoundId(prevRound => {
+                const targetTrack = parsed.tracks.find(t => t.id === nextId) || parsed.tracks[0];
+                const roundExists = targetTrack?.rounds?.some(r => r.id === prevRound);
+                return (prevRound && roundExists) ? prevRound : (targetTrack?.rounds?.[0]?.id || '');
+              });
+              
+              return nextId;
+            });
           }
         } catch (e) {
           console.error('Error parsing config', e);
@@ -407,91 +463,98 @@ export default function HackathonDetailPage() {
   };
 
   const handleLoadMockData = () => {
-    if (!window.confirm("Bạn có muốn khởi tạo nhanh dữ liệu cấu hình mẫu (Bao gồm 2 Track, các Vòng thi và Tiêu chí chấm điểm) để trải nghiệm thử không?")) return;
-    const startDateStr = contest.start_date ? contest.start_date.slice(0, 16) : '2026-06-11T09:00';
-    const mockConfig = {
-      ...config,
-      mentors_assigned: true,
-      tracks: [
-        {
-          id: 'track-1',
-          name: 'AI & Machine Learning',
-          description: 'Phát triển các ứng dụng đột phá sử dụng công nghệ Trí tuệ Nhân tạo.',
-          rounds: [
+    AntModal.confirm({
+      title: 'Khởi tạo dữ liệu cấu hình mẫu?',
+      content: 'Bạn có muốn khởi tạo nhanh dữ liệu cấu hình mẫu (Bao gồm 2 Track, các Vòng thi và Tiêu chí chấm điểm) để trải nghiệm thử không?',
+      okText: 'Khởi tạo',
+      cancelText: 'Hủy',
+      onOk: () => {
+        const startDateStr = contest.start_date ? contest.start_date.slice(0, 16) : '2026-06-11T09:00';
+        const mockConfig = {
+          ...config,
+          mentors_assigned: true,
+          tracks: [
             {
-              id: 'round-1-1',
-              name: 'Vòng Ý Tưởng (Sơ loại)',
-              sequence_order: 1,
-              submission_deadline: new Date(new Date(startDateStr).getTime() + 24*60*60*1000).toISOString().slice(0, 16),
-              coding_duration_hours: 24,
-              top_n_advance: 10,
-              wildcard_enabled: true,
-              active: true,
-              criteria: [
-                { id: 'c-1', name: 'Tính thực tiễn', type: 'Relevance', weight: 0.3, max_score: 10, description: 'Độ khả thi và giải quyết bài toán thực tế', rubric_url: 'http://example.com/rubric1', display_order: 1 },
-                { id: 'c-2', name: 'Tính sáng tạo', type: 'Innovation', weight: 0.4, max_score: 10, description: 'Ý tưởng mới lạ độc đáo', rubric_url: 'http://example.com/rubric2', display_order: 2 },
-                { id: 'c-3', name: 'Khả năng thuyết trình', type: 'Presentation', weight: 0.3, max_score: 10, description: 'Trình bày rõ ràng, thuyết phục', rubric_url: 'http://example.com/rubric3', display_order: 3 }
+              id: 'track-1',
+              name: 'AI & Machine Learning',
+              description: 'Phát triển các ứng dụng đột phá sử dụng công nghệ Trí tuệ Nhân tạo.',
+              rounds: [
+                {
+                  id: 'round-1-1',
+                  name: 'Vòng Ý Tưởng (Sơ loại)',
+                  sequence_order: 1,
+                  submission_deadline: new Date(new Date(startDateStr).getTime() + 24*60*60*1000).toISOString().slice(0, 16),
+                  coding_duration_hours: 24,
+                  top_n_advance: 10,
+                  wildcard_enabled: true,
+                  active: true,
+                  criteria: [
+                    { id: 'c-1', name: 'Tính thực tiễn', type: 'Relevance', weight: 0.3, max_score: 10, description: 'Độ khả thi và giải quyết bài toán thực tế', rubric_url: 'http://example.com/rubric1', display_order: 1 },
+                    { id: 'c-2', name: 'Tính sáng tạo', type: 'Innovation', weight: 0.4, max_score: 10, description: 'Ý tưởng mới lạ độc đáo', rubric_url: 'http://example.com/rubric2', display_order: 2 },
+                    { id: 'c-3', name: 'Khả năng thuyết trình', type: 'Presentation', weight: 0.3, max_score: 10, description: 'Trình bày rõ ràng, thuyết phục', rubric_url: 'http://example.com/rubric3', display_order: 3 }
+                  ]
+                },
+                {
+                  id: 'round-1-2',
+                  name: 'Vòng Chung Kết',
+                  sequence_order: 2,
+                  submission_deadline: new Date(new Date(startDateStr).getTime() + 48*60*60*1000).toISOString().slice(0, 16),
+                  coding_duration_hours: 48,
+                  top_n_advance: 3,
+                  wildcard_enabled: false,
+                  active: true,
+                  criteria: [
+                    { id: 'c-4', name: 'Hoàn thiện kỹ thuật', type: 'Technical', weight: 0.5, max_score: 10, description: 'Chất lượng code và độ hoàn thiện ứng dụng', rubric_url: 'http://example.com/rubric4', display_order: 1 },
+                    { id: 'c-5', name: 'Tính sáng tạo', type: 'Innovation', weight: 0.3, max_score: 10, description: 'Mức độ sáng tạo so với sơ loại', rubric_url: 'http://example.com/rubric5', display_order: 2 },
+                    { id: 'c-6', name: 'Demo & Hỏi đáp', type: 'Presentation', weight: 0.2, max_score: 10, description: 'Phản biện trước hội đồng giám khảo', rubric_url: 'http://example.com/rubric6', display_order: 3 }
+                  ]
+                }
               ]
             },
             {
-              id: 'round-1-2',
-              name: 'Vòng Chung Kết',
-              sequence_order: 2,
-              submission_deadline: new Date(new Date(startDateStr).getTime() + 48*60*60*1000).toISOString().slice(0, 16),
-              coding_duration_hours: 48,
-              top_n_advance: 3,
-              wildcard_enabled: false,
-              active: true,
-              criteria: [
-                { id: 'c-4', name: 'Hoàn thiện kỹ thuật', type: 'Technical', weight: 0.5, max_score: 10, description: 'Chất lượng code và độ hoàn thiện ứng dụng', rubric_url: 'http://example.com/rubric4', display_order: 1 },
-                { id: 'c-5', name: 'Tính sáng tạo', type: 'Innovation', weight: 0.3, max_score: 10, description: 'Mức độ sáng tạo so với sơ loại', rubric_url: 'http://example.com/rubric5', display_order: 2 },
-                { id: 'c-6', name: 'Demo & Hỏi đáp', type: 'Presentation', weight: 0.2, max_score: 10, description: 'Phản biện trước hội đồng giám khảo', rubric_url: 'http://example.com/rubric6', display_order: 3 }
+              id: 'track-2',
+              name: 'Web3 & Blockchain',
+              description: 'Phát triển các ứng dụng phi tập trung (dApps) trên nền tảng Blockchain.',
+              rounds: [
+                {
+                  id: 'round-2-1',
+                  name: 'Vòng Đề Xuất',
+                  sequence_order: 1,
+                  submission_deadline: new Date(new Date(startDateStr).getTime() + 12*60*60*1000).toISOString().slice(0, 16),
+                  coding_duration_hours: 12,
+                  top_n_advance: 8,
+                  wildcard_enabled: false,
+                  active: true,
+                  criteria: [
+                    { id: 'c-7', name: 'Thiết kế hệ thống', type: 'Architecture', weight: 0.5, max_score: 10, description: 'Kiến trúc dApp hợp lý, tối ưu gas', rubric_url: 'http://example.com/rubric7', display_order: 1 },
+                    { id: 'c-8', name: 'Ý tưởng sản phẩm', type: 'Innovation', weight: 0.5, max_score: 10, description: 'Giải quyết nỗi đau cụ thể', rubric_url: 'http://example.com/rubric8', display_order: 2 }
+                  ]
+                },
+                {
+                  id: 'round-2-2',
+                  name: 'Vòng Chung Cuộc',
+                  sequence_order: 2,
+                  submission_deadline: new Date(new Date(startDateStr).getTime() + 36*60*60*1000).toISOString().slice(0, 16),
+                  coding_duration_hours: 36,
+                  top_n_advance: 3,
+                  wildcard_enabled: true,
+                  active: true,
+                  criteria: [
+                    { id: 'c-9', name: 'Hoàn thiện Smart Contract', type: 'Technical', weight: 0.4, max_score: 10, description: 'Hợp đồng thông minh chạy tốt, bảo mật', rubric_url: 'http://example.com/rubric9', display_order: 1 },
+                    { id: 'c-10', name: 'Giao diện & Trải nghiệm', type: 'UX', weight: 0.3, max_score: 10, description: 'UI/UX đẹp mắt, dễ tương tác ví', rubric_url: 'http://example.com/rubric10', display_order: 2 },
+                    { id: 'c-11', name: 'Thuyết trình', type: 'Presentation', weight: 0.3, max_score: 10, description: 'Pitching dự án xuất sắc', rubric_url: 'http://example.com/rubric11', display_order: 3 }
+                  ]
+                }
               ]
             }
           ]
-        },
-        {
-          id: 'track-2',
-          name: 'Web3 & Blockchain',
-          description: 'Phát triển các ứng dụng phi tập trung (dApps) trên nền tảng Blockchain.',
-          rounds: [
-            {
-              id: 'round-2-1',
-              name: 'Vòng Đề Xuất',
-              sequence_order: 1,
-              submission_deadline: new Date(new Date(startDateStr).getTime() + 12*60*60*1000).toISOString().slice(0, 16),
-              coding_duration_hours: 12,
-              top_n_advance: 8,
-              wildcard_enabled: false,
-              active: true,
-              criteria: [
-                { id: 'c-7', name: 'Thiết kế hệ thống', type: 'Architecture', weight: 0.5, max_score: 10, description: 'Kiến trúc dApp hợp lý, tối ưu gas', rubric_url: 'http://example.com/rubric7', display_order: 1 },
-                { id: 'c-8', name: 'Ý tưởng sản phẩm', type: 'Innovation', weight: 0.5, max_score: 10, description: 'Giải quyết nỗi đau cụ thể', rubric_url: 'http://example.com/rubric8', display_order: 2 }
-              ]
-            },
-            {
-              id: 'round-2-2',
-              name: 'Vòng Chung Cuộc',
-              sequence_order: 2,
-              submission_deadline: new Date(new Date(startDateStr).getTime() + 36*60*60*1000).toISOString().slice(0, 16),
-              coding_duration_hours: 36,
-              top_n_advance: 3,
-              wildcard_enabled: true,
-              active: true,
-              criteria: [
-                { id: 'c-9', name: 'Hoàn thiện Smart Contract', type: 'Technical', weight: 0.4, max_score: 10, description: 'Hợp đồng thông minh chạy tốt, bảo mật', rubric_url: 'http://example.com/rubric9', display_order: 1 },
-                { id: 'c-10', name: 'Giao diện & Trải nghiệm', type: 'UX', weight: 0.3, max_score: 10, description: 'UI/UX đẹp mắt, dễ tương tác ví', rubric_url: 'http://example.com/rubric10', display_order: 2 },
-                { id: 'c-11', name: 'Thuyết trình', type: 'Presentation', weight: 0.3, max_score: 10, description: 'Pitching dự án xuất sắc', rubric_url: 'http://example.com/rubric11', display_order: 3 }
-              ]
-            }
-          ]
-        }
-      ]
-    };
-    updateConfigState(mockConfig);
-    setActiveTrackId('track-1');
-    setSelectedCritTrackId('track-1');
-    setSelectedCritRoundId('round-1-1');
+        };
+        updateConfigState(mockConfig);
+        setActiveTrackId('track-1');
+        setSelectedCritTrackId('track-1');
+        setSelectedCritRoundId('round-1-1');
+      }
+    });
   };
 
   // Run checklist validations
@@ -676,16 +739,24 @@ export default function HackathonDetailPage() {
   };
 
   const handleDeleteTrack = (trackId, name) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa Track "${name}"? Thao tác này cũng xóa toàn bộ Vòng đấu bên trong.`)) return;
-    const filteredTracks = config.tracks.filter(t => t.id !== trackId);
-    const updated = {
-      ...config,
-      tracks: filteredTracks
-    };
-    updateConfigState(updated);
-    if (activeTrackId === trackId && filteredTracks.length > 0) {
-      setActiveTrackId(filteredTracks[0].id);
-    }
+    AntModal.confirm({
+      title: 'Xác nhận xóa Track?',
+      content: `Bạn có chắc chắn muốn xóa Track "${name}"? Thao tác này cũng xóa toàn bộ Vòng đấu bên trong.`,
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        const filteredTracks = config.tracks.filter(t => t.id !== trackId);
+        const updated = {
+          ...config,
+          tracks: filteredTracks
+        };
+        updateConfigState(updated);
+        if (activeTrackId === trackId && filteredTracks.length > 0) {
+          setActiveTrackId(filteredTracks[0].id);
+        }
+      }
+    });
   };
 
   // ─── ROUND HANDLERS ────────────────────────────────────────────────────────
@@ -751,19 +822,27 @@ export default function HackathonDetailPage() {
   };
 
   const handleDeleteRound = (roundId, name) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa Vòng đấu "${name}"?`)) return;
-    const activeTrack = config.tracks.find(t => t.id === activeTrackId) || config.tracks[0];
-    if (!activeTrack) return;
-    const updatedTracks = config.tracks.map(t => {
-      if (t.id === activeTrack.id) {
-        return {
-          ...t,
-          rounds: t.rounds.filter(r => r.id !== roundId)
-        };
+    AntModal.confirm({
+      title: 'Xác nhận xóa Vòng đấu?',
+      content: `Bạn có chắc chắn muốn xóa Vòng đấu "${name}"?`,
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        const activeTrack = config.tracks.find(t => t.id === activeTrackId) || config.tracks[0];
+        if (!activeTrack) return;
+        const updatedTracks = config.tracks.map(t => {
+          if (t.id === activeTrack.id) {
+            return {
+              ...t,
+              rounds: t.rounds.filter(r => r.id !== roundId)
+            };
+          }
+          return t;
+        });
+        updateConfigState({ ...config, tracks: updatedTracks });
       }
-      return t;
     });
-    updateConfigState({ ...config, tracks: updatedTracks });
   };
 
   // FE-1.2: Kích hoạt chính thức 1 round per track
@@ -848,22 +927,30 @@ export default function HackathonDetailPage() {
   };
 
   const handleDeleteCriteria = (critId) => {
-    if (!window.confirm('Xóa tiêu chí chấm điểm này?')) return;
-    const updatedTracks = config.tracks.map(t => {
-      if (t.id === selectedCritTrackId) {
-        return {
-          ...t,
-          rounds: t.rounds.map(r => {
-            if (r.id === selectedCritRoundId) {
-              return { ...r, criteria: r.criteria.filter(c => c.id !== critId) };
-            }
-            return r;
-          })
-        };
+    AntModal.confirm({
+      title: 'Xác nhận xóa tiêu chí?',
+      content: 'Bạn có chắc chắn muốn xóa tiêu chí chấm điểm này?',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        const updatedTracks = config.tracks.map(t => {
+          if (t.id === selectedCritTrackId) {
+            return {
+              ...t,
+              rounds: t.rounds.map(r => {
+                if (r.id === selectedCritRoundId) {
+                  return { ...r, criteria: r.criteria.filter(c => c.id !== critId) };
+                }
+                return r;
+              })
+            };
+          }
+          return t;
+        });
+        updateConfigState({ ...config, tracks: updatedTracks });
       }
-      return t;
     });
-    updateConfigState({ ...config, tracks: updatedTracks });
   };
 
   // Clone Criteria
@@ -961,8 +1048,17 @@ export default function HackathonDetailPage() {
 
       {/* Tabs */}
       <div className="hd-tabs">
-        {TABS.map((t, i) => (
-          <button key={i} className={`hd-tab ${tab === i ? 'hd-tab--active' : ''}`} onClick={() => setTab(i)}>{t}</button>
+        {MAIN_TABS.map((t) => (
+          <button
+            key={t.id}
+            className={`hd-tab ${tab === t.id ? 'hd-tab--active' : ''}`}
+            onClick={() => {
+              setTab(t.id);
+              navigate(`/admin/hackathons/${id}`);
+            }}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 
@@ -1043,7 +1139,7 @@ export default function HackathonDetailPage() {
               <div className="hd-section-header">
                 <div>
                   <h2 className="hd-section-title">Danh sách Vòng thi</h2>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  <p className="hd-section-desc">
                     Quản lý các vòng đấu chính thức của cuộc thi
                   </p>
                 </div>
@@ -1089,95 +1185,125 @@ export default function HackathonDetailPage() {
 
               {selectedTrack.rounds.length === 0 && <p className="hd-empty-hint">Chưa có vòng thi nào. Hãy nhấn "Thêm Vòng đấu" để bắt đầu.</p>}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {selectedTrack.rounds.map(round => (
-                  <div key={round.id} className={`hd-round-card ${!round.active ? 'hd-round-card--inactive' : ''}`}>
-                    <div className="hd-round-header">
-                      <div className="hd-round-title-group">
-                        <span className="hd-round-seq">ROUND {round.sequence_order}</span>
-                        <span className="hd-round-name">{round.name}</span>
-                        <span className={`hd-badge ${round.active ? 'hd-badge--green' : 'hd-badge--gray'}`} style={{ fontSize: '0.65rem' }}>
-                          {round.active ? 'Active (Bật)' : 'Inactive (Tắt)'}
-                        </span>
-                        {round.is_official_active && (
-                          <span className="hd-badge" style={{ fontSize: '0.65rem', background: 'rgba(0,212,255,0.18)', color: 'var(--cyan)', border: '1px solid var(--cyan)' }}>
-                            ✓ Kích hoạt chính thức
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        {/* Toggle Active Switch */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Kích hoạt:</span>
-                          <label className="hd-switch">
-                            <input type="checkbox" checked={round.active} onChange={() => handleToggleRoundActive(selectedTrack.id, round.id)}/>
-                            <span className="hd-switch-slider"></span>
-                          </label>
-                        </div>
-                        {/* FE-1.2: Official Round Activation */}
-                        {(() => {
-                          const wsum = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
-                          const valid = Math.abs(wsum - 1.0) < 0.001 && (round.criteria?.length || 0) > 0;
-                          const isOfficialActive = round.is_official_active;
-                          const tip = isOfficialActive ? 'Round đang kích hoạt chính thức'
-                            : !valid ? `Weight tổng = ${wsum.toFixed(2)} ≠ 1.0 — thêm tiêu chí để kích hoạt`
-                            : 'Kích hoạt làm Round chính thức (chỉ 1 round)';
-                          return (
-                            <Tooltip title={tip}>
-                              <button
-                                type="button"
-                                disabled={!valid || isOfficialActive}
-                                onClick={() => {
-                                  AntModal.confirm({
-                                    title: `Kích hoạt "${round.name}"?`,
-                                    content: 'Các Round còn lại sẽ bị hủy kích hoạt làm round chính thức.',
-                                    okText: 'Kích hoạt',
-                                    cancelText: 'Hủy',
-                                    onOk: () => handleActivateRound(selectedTrack.id, round.id),
-                                  });
-                                }}
-                                style={{
-                                  padding: '4px 12px',
-                                  borderRadius: '6px',
-                                  border: isOfficialActive ? '1px solid #10b981' : valid ? '1px solid var(--cyan)' : '1px solid var(--border)',
-                                  background: isOfficialActive ? 'rgba(16,185,129,0.15)' : valid ? 'rgba(0,212,255,0.1)' : 'transparent',
-                                  color: isOfficialActive ? '#10b981' : valid ? 'var(--cyan)' : 'var(--text-muted)',
-                                  fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap',
-                                  cursor: valid && !isOfficialActive ? 'pointer' : 'not-allowed',
-                                  transition: 'all 0.15s',
-                                }}
-                              >
-                                {isOfficialActive ? '✓ Đang Active' : '▷ Kích hoạt'}
-                              </button>
-                            </Tooltip>
-                          );
-                        })()}
-                        <button type="button" className="hd-btn-add-sm" onClick={() => handleEditRound(round)}>Sửa</button>
-                        <button type="button" className="btn-text-danger" onClick={() => handleDeleteRound(round.id, round.name)}>Xóa</button>
-                      </div>
-                    </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {selectedTrack.rounds.map(round => {
+                  const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
+                  const ok = Math.abs(ws - 1.0) < 0.001;
+                  const isOfficialActive = round.is_official_active;
+                  const valid = ok && (round.criteria?.length || 0) > 0;
+                  const tip = isOfficialActive ? 'Vòng thi đang kích hoạt chấm điểm chính thức'
+                    : !valid ? `Tổng trọng số = ${ws.toFixed(2)} ≠ 1.0 (Hoặc chưa có tiêu chí) — thêm/sửa tiêu chí để kích hoạt`
+                    : 'Kích hoạt làm Vòng thi chính thức';
 
-                    <div className="hd-round-meta-grid">
-                      <div className="hd-meta-item"><span className="hd-meta-label">Hạn nộp bài</span><span className="hd-meta-value">{fmtDate(round.submission_deadline)}</span></div>
-                      <div className="hd-meta-item"><span className="hd-meta-label">Thời gian làm bài</span><span className="hd-meta-value">{round.coding_duration_hours} giờ</span></div>
-                      <div className="hd-meta-item"><span className="hd-meta-label">Top N đi tiếp</span><span className="hd-meta-value">{round.top_n_advance} đội</span></div>
-                      <div className="hd-meta-item"><span className="hd-meta-label">Vé vớt (Wildcard)</span><span className="hd-meta-value">{round.wildcard_enabled ? 'Bật' : 'Tắt'}</span></div>
-                      <div className="hd-meta-item">
-                        <span className="hd-meta-label">Tổng trọng số</span>
-                        {(() => {
-                          const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
-                          const ok = Math.abs(ws - 1.0) < 0.001;
-                          return (
-                            <span className="hd-meta-value" style={{ color: ok ? 'var(--green, #10b981)' : 'var(--orange, #f59e0b)', fontWeight: 700 }}>
-                              {ws.toFixed(2)} {ok ? '✓' : '✗ (cần 1.0 để kích hoạt)'}
+                  return (
+                    <div key={round.id} className={`hd-round-card-modern ${!round.active ? 'hd-round-card-modern--inactive' : ''}`}>
+                      {/* Left: Identity and Badges */}
+                      <div className="hd-round-left">
+                        <div className="hd-round-badge-seq">
+                          {round.sequence_order < 10 ? `0${round.sequence_order}` : round.sequence_order}
+                        </div>
+                        <div className="hd-round-main-info">
+                          <div className="hd-round-name-row">
+                            <span className="hd-round-name-text">{round.name}</span>
+                            {isOfficialActive && (
+                              <span className="hd-round-badge-official">Official</span>
+                            )}
+                          </div>
+                          <div className="hd-round-status-badges">
+                            <span className={`hd-round-status-tag ${round.active ? 'active' : ''}`}>
+                              {round.active ? 'Đang bật' : 'Đang tắt'}
                             </span>
-                          );
-                        })()}
+                            {round.wildcard_enabled && (
+                              <span className="hd-round-status-tag wildcard">Wildcard</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="hd-meta-item"><span className="hd-meta-label">Số Tiêu chí cấu hình</span><span className="hd-meta-value" style={{ color: 'var(--purple)' }}>{round.criteria?.length || 0}</span></div>
+
+                      {/* Middle: Key details with icons */}
+                      <div className="hd-round-middle">
+                        <div className="hd-round-meta-item">
+                          <span className="hd-round-meta-icon">📅</span>
+                          <div className="hd-round-meta-content">
+                            <span className="hd-round-meta-lbl">Hạn nộp bài</span>
+                            <span className="hd-round-meta-val">{fmtDate(round.submission_deadline)}</span>
+                          </div>
+                        </div>
+                        <div className="hd-round-meta-item">
+                          <span className="hd-round-meta-icon">🕒</span>
+                          <div className="hd-round-meta-content">
+                            <span className="hd-round-meta-lbl">Thời gian làm bài</span>
+                            <span className="hd-round-meta-val">{round.coding_duration_hours} giờ</span>
+                          </div>
+                        </div>
+                        <div className="hd-round-meta-item">
+                          <span className="hd-round-meta-icon">🏆</span>
+                          <div className="hd-round-meta-content">
+                            <span className="hd-round-meta-lbl">Đội đi tiếp</span>
+                            <span className="hd-round-meta-val">Top {round.top_n_advance}</span>
+                          </div>
+                        </div>
+                        <div className="hd-round-meta-item">
+                          <span className="hd-round-meta-icon">📋</span>
+                          <div className="hd-round-meta-content">
+                            <span className="hd-round-meta-lbl">Số tiêu chí</span>
+                            <span className="hd-round-meta-val" style={{ color: 'var(--purple)' }}>
+                              {round.criteria?.length || 0} barem
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Weight and Actions */}
+                      <div className="hd-round-right">
+                        <div className="hd-round-weight-section">
+                          <span className="hd-round-weight-lbl">Tổng trọng số</span>
+                          <span className={`hd-round-weight-val ${ok ? 'valid' : 'invalid'}`}>
+                            {ws.toFixed(2)} / 1.00 {ok ? '✓' : '✗'}
+                          </span>
+                        </div>
+
+                        <div className="hd-round-actions">
+                          {/* Official active trigger */}
+                          <Tooltip title={tip}>
+                            <button
+                              type="button"
+                              disabled={!valid || isOfficialActive}
+                              onClick={() => {
+                                AntModal.confirm({
+                                  title: `Kích hoạt "${round.name}"?`,
+                                  content: 'Các Vòng thi còn lại sẽ bị hủy kích hoạt làm vòng thi chính thức.',
+                                  okText: 'Kích hoạt',
+                                  cancelText: 'Hủy',
+                                  onOk: () => handleActivateRound(selectedTrack.id, round.id),
+                                });
+                              }}
+                              className={`hd-btn-official ${isOfficialActive ? 'active' : ''}`}
+                            >
+                              {isOfficialActive ? '✓ Đang chạy' : '▷ Kích hoạt'}
+                            </button>
+                          </Tooltip>
+
+                          {/* Quick active toggler */}
+                          <Tooltip title={round.active ? 'Tạm tắt vòng thi' : 'Mở hoạt động vòng thi'}>
+                            <label className="hd-switch">
+                              <input type="checkbox" checked={round.active} onChange={() => handleToggleRoundActive(selectedTrack.id, round.id)}/>
+                              <span className="hd-switch-slider"></span>
+                            </label>
+                          </Tooltip>
+
+                          {/* Edit / Delete buttons */}
+                          <button type="button" className="hd-btn-icon" onClick={() => handleEditRound(round)} title="Chỉnh sửa">
+                            <Ico d={EDIT} size={15} sw={2} />
+                          </button>
+                          <button type="button" className="hd-btn-icon text-danger" onClick={() => handleDeleteRound(round.id, round.name)} title="Xóa">
+                            <Ico d={TRASH} size={15} sw={2} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -1360,20 +1486,32 @@ export default function HackathonDetailPage() {
             </div>
           )}
 
-          {pools.length > 0 ? (
+           {pools.length > 0 ? (
             <>
               <div className="hd-section-header">
                 <h2 className="hd-section-title">
                   {pools.some(p => p.teams && p.teams.length > 0) ? 'Kết quả chia bảng đấu / Pools' : 'Danh sách bảng đấu trống / Empty Pools'} ({pools.length})
                 </h2>
-                <button 
-                  type="button" 
-                  className="hd-btn-add" 
-                  style={{ background: '#ef4444', border: 'none', color: '#fff' }} 
-                  onClick={handleResetPools}
-                >
-                  Xóa các bảng đấu hiện tại
-                </button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button 
+                    type="button" 
+                    className="hd-btn-add" 
+                    onClick={() => {
+                      setSinglePoolForm({ pool_name: `Bảng ${String.fromCharCode(65 + pools.length)}`, description: '' });
+                      setShowSinglePoolModal(true);
+                    }}
+                  >
+                    <Ico d={PLUS}/> Thêm bảng đấu
+                  </button>
+                  <button 
+                    type="button" 
+                    className="hd-btn-add" 
+                    style={{ background: '#ef4444', border: 'none', color: '#fff' }} 
+                    onClick={handleResetPools}
+                  >
+                    Xóa các bảng đấu hiện tại
+                  </button>
+                </div>
               </div>
 
               {/* If empty pools, show assignment panel */}
@@ -1524,6 +1662,59 @@ export default function HackathonDetailPage() {
               </div>
             </>
           )}
+          {/* Add Single Pool Modal */}
+          <AntModal
+            title={<span style={{ color: 'var(--cyan)', fontFamily: 'var(--font-display), monospace', fontWeight: 700 }}>Thêm Bảng đấu mới</span>}
+            open={showSinglePoolModal}
+            onCancel={() => setShowSinglePoolModal(false)}
+            footer={null}
+            className="hd-modal-dark"
+            styles={{
+              body: { background: '#0b1329', color: '#fff', padding: '24px 16px 0 16px' },
+              content: { background: '#0b1329', border: '1px solid var(--border)' }
+            }}
+          >
+            <form onSubmit={handleAddSinglePoolSubmit} className="hd-form" style={{ padding: 0, border: 'none', background: 'transparent', boxShadow: 'none', backdropFilter: 'none' }}>
+              <div className="hd-field" style={{ marginBottom: '16px' }}>
+                <label style={{ color: 'var(--text-secondary)' }}>Tên bảng đấu *</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Bảng D"
+                  value={singlePoolForm.pool_name}
+                  onChange={(e) => setSinglePoolForm(f => ({ ...f, pool_name: e.target.value }))}
+                  required
+                  style={{ background: '#080d1a', color: '#fff', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px' }}
+                />
+              </div>
+              <div className="hd-field" style={{ marginBottom: '24px' }}>
+                <label style={{ color: 'var(--text-secondary)' }}>Mô tả bảng đấu</label>
+                <input
+                  type="text"
+                  placeholder="Mô tả cho bảng đấu mới này..."
+                  value={singlePoolForm.description || ''}
+                  onChange={(e) => setSinglePoolForm(f => ({ ...f, description: e.target.value }))}
+                  style={{ background: '#080d1a', color: '#fff', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px' }}
+                />
+              </div>
+              <div className="hd-form-actions" style={{ justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  className="hd-btn-cancel"
+                  onClick={() => setShowSinglePoolModal(false)}
+                  style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="hd-btn-save"
+                  disabled={isAddingSinglePool}
+                >
+                  {isAddingSinglePool ? 'Đang thêm...' : 'Thêm bảng đấu'}
+                </button>
+              </div>
+            </form>
+          </AntModal>
         </div>
       )}
 

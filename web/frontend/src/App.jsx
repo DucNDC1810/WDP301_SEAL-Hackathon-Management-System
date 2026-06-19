@@ -23,6 +23,7 @@ import AIAssistantPage from './pages/admin/ai-assistant/AIAssistantPage';
 import ResultsPage from './pages/admin/results/ResultsPage';
 import HackathonListPage from './pages/admin/hackathons/HackathonListPage';
 import HackathonDetailPage from './pages/admin/hackathons/HackathonDetailPage';
+import HackathonFeaturePage from './pages/admin/hackathons/HackathonFeaturePage';
 import UserManagementPage from './pages/admin/users/UserManagementPage';
 
 // Mentor
@@ -91,10 +92,21 @@ function App() {
                 <Route path="contests/:contestId/topics"    element={<TopicManagerPage />} />
                 <Route path="contests/:contestId/dashboard" element={<TeamDashboardPage />} />
                 <Route path="team"                          element={<TeamRegistrationPage />} />
+                <Route path="team/:contestId"               element={<TeamRegistrationPage />} />
                 <Route path="ai-assistant"                  element={<AIAssistantPage />} />
                 <Route path="results"                       element={<ResultsPage />} />
                 <Route path="hackathons"                    element={<HackathonListPage />} />
                 <Route path="hackathons/:id"                element={<HackathonDetailPage />} />
+                <Route path="submission-review"                element={<HackathonFeaturePage feature="submission-review" />} />
+                <Route path="submission-review/:contestId"     element={<HackathonFeaturePage feature="submission-review" />} />
+                <Route path="scoring-lock"                     element={<HackathonFeaturePage feature="scoring-lock" />} />
+                <Route path="scoring-lock/:contestId"          element={<HackathonFeaturePage feature="scoring-lock" />} />
+                <Route path="elimination"                      element={<HackathonFeaturePage feature="elimination" />} />
+                <Route path="elimination/:contestId"           element={<HackathonFeaturePage feature="elimination" />} />
+                <Route path="timeline"                         element={<HackathonFeaturePage feature="timeline" />} />
+                <Route path="timeline/:contestId"              element={<HackathonFeaturePage feature="timeline" />} />
+                <Route path="presentation"                     element={<HackathonFeaturePage feature="presentation" />} />
+                <Route path="presentation/:contestId"          element={<HackathonFeaturePage feature="presentation" />} />
                 <Route path="users"                         element={<UserManagementPage />} />
               </Route>
 

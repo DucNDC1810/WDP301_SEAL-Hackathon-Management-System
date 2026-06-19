@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, theme } from 'antd';
+import { ConfigProvider, theme, App as AntApp } from 'antd';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AdminRoute, GuestRoute, AuthRoute, MentorRoute, JudgeRoute, MentorScoringRoute } from './components/ProtectedRoute';
@@ -71,6 +71,7 @@ function App() {
         },
       }}
     >
+      <AntApp>
       <ThemeProvider>
         <AuthProvider>
           <BrowserRouter>
@@ -162,6 +163,7 @@ function App() {
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
+      </AntApp>
     </ConfigProvider>
   );
 }

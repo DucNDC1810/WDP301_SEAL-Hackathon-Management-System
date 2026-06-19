@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import TeamDashboardPage from '../team/TeamDashboardPage';
 import './TeamRegistrationPage.css';
+import '../hackathons/HackathonFeaturePage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -36,6 +38,7 @@ function getStatus(c) {
 }
 
 export default function TeamRegistrationPage() {
+  const { contestId } = useParams();
   const navigate = useNavigate();
   const [contests, setContests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,91 +54,153 @@ export default function TeamRegistrationPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleContestChange = (e) => {
+    const newId = e.target.value;
+    if (newId) {
+      navigate(`/admin/team/${newId}`);
+    } else {
+      navigate(`/admin/team`);
+    }
+  };
+
   const filtered = contests.filter(c =>
     getStatus(c) !== 'closed' &&
     c.title?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="str-page">
+    <div className="hfp-page">
       {/* Header */}
-      <div className="str-header">
-        <div>
-          <h1 className="str-title">Team Registration</h1>
-          <p className="str-subtitle">Quản lý đăng ký đội thi theo từng cuộc thi</p>
+      <div className="hfp-header" style={{ marginBottom: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {contestId && (
+            <button
+              onClick={() => navigate('/admin/team')}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--al-border)',
+                borderRadius: '8px',
+                color: '#fff',
+                padding: '8px 16px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+            >
+              ← Quay lại
+            </button>
+          )}
+          <div>
+            <h1 className="hfp-title">Duyệt Đội Thi & Bảng Đấu</h1>
+            <p className="hfp-subtitle">Lựa chọn giải đấu đang diễn ra để thực hiện duyệt đội thi và quản lý chia bảng đấu</p>
+          </div>
         </div>
-        <div className="str-search-wrap">
-          <Ico d={SEARCH} size={15} sw={2} />
-          <input
-            className="str-search"
-            placeholder="Tìm kiếm cuộc thi..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+        <div className="hfp-selector-wrap">
+          <label className="hfp-select-label">Chọn cuộc thi:</label>
+          {loading ? (
+            <div className="hfp-select-loader">Đang tải cuộc thi...</div>
+          ) : (
+            <select
+              className="hfp-select"
+              value={contestId || ''}
+              onChange={handleContestChange}
+            >
+              <option value="">-- Vui lòng chọn cuộc thi --</option>
+              {contests.filter(c => getStatus(c) !== 'closed').map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.title} {c.status === 'open' ? '🟢 (ONGOING)' : '⚪ (Draft)'}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
       {/* Content */}
-      {loading ? (
-        <div className="str-loading">
-          <div className="str-spinner" />
-          <span>Đang tải...</span>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="str-empty">
-          <Ico d={TROPHY} size={40} sw={1.2} />
-          <p>{search ? 'Không tìm thấy cuộc thi nào.' : 'Chưa có cuộc thi nào. Hãy tạo cuộc thi mới!'}</p>
-          {!search && (
-            <button className="str-btn-primary" onClick={() => navigate('/admin/contest/create')}>
-              + Tạo cuộc thi
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="str-grid">
-          {filtered.map(c => {
-            const status = getStatus(c);
-            const st = STATUS_MAP[status] || STATUS_MAP.open;
-            const deadline = c.registration_deadline
-              ? new Date(c.registration_deadline).toLocaleDateString('vi-VN')
-              : '—';
-            return (
-              <div className="str-card" key={c._id}>
-                <div className="str-card__top">
-                  <div className="str-card__icon-wrap">
-                    <Ico d={TROPHY} size={22} sw={1.5} />
-                  </div>
-                  <span className={`str-badge ${st.cls}`}>{st.label}</span>
-                </div>
-
-                <h3 className="str-card__name">{c.title}</h3>
-                {c.description && (
-                  <p className="str-card__desc">{c.description.slice(0, 80)}{c.description.length > 80 ? '…' : ''}</p>
-                )}
-
-                <div className="str-card__meta">
-                  <div className="str-meta-item">
-                    <Ico d={USERS} size={13} sw={2} />
-                    <span>{c.max_teams_per_pool ? `${c.max_teams_per_pool} teams/pool` : 'Không giới hạn'}</span>
-                  </div>
-                  <div className="str-meta-item">
-                    <Ico d={CLOCK} size={13} sw={2} />
-                    <span>Hạn: {deadline}</span>
-                  </div>
-                </div>
-
-                <button
-                  className="str-card__btn"
-                  onClick={() => navigate(`/admin/contests/${c._id}/dashboard`)}
-                >
-                  Quản lý đội thi
-                  <Ico d={ARROW} size={14} sw={2} />
-                </button>
+      <div className="hfp-content">
+        {contestId ? (
+          <div className="hfp-feature-card" style={{ padding: '32px' }}>
+            <TeamDashboardPage isEmbedded={true} />
+          </div>
+        ) : (
+          <div className="str-page" style={{ padding: 0 }}>
+            {/* Search Bar for card view */}
+            <div className="flex justify-end" style={{ marginBottom: '16px' }}>
+              <div className="str-search-wrap" style={{ width: '100%', maxWidth: '360px' }}>
+                <Ico d={SEARCH} size={15} sw={2} />
+                <input
+                  className="str-search"
+                  placeholder="Tìm kiếm cuộc thi..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+
+            {loading ? (
+              <div className="str-loading">
+                <div className="str-spinner" />
+                <span>Đang tải...</span>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="str-empty">
+                <Ico d={TROPHY} size={40} sw={1.2} />
+                <p>{search ? 'Không tìm thấy cuộc thi nào.' : 'Chưa có cuộc thi nào đang diễn ra.'}</p>
+              </div>
+            ) : (
+              <div className="str-grid">
+                {filtered.map(c => {
+                  const status = getStatus(c);
+                  const st = STATUS_MAP[status] || STATUS_MAP.open;
+                  const deadline = c.registration_deadline
+                    ? new Date(c.registration_deadline).toLocaleDateString('vi-VN')
+                    : '—';
+                  return (
+                    <div className="str-card" key={c._id}>
+                      <div className="str-card__top">
+                        <div className="str-card__icon-wrap">
+                          <Ico d={TROPHY} size={22} sw={1.5} />
+                        </div>
+                        <span className={`str-badge ${st.cls}`}>{st.label}</span>
+                      </div>
+
+                      <h3 className="str-card__name">{c.title}</h3>
+                      {c.description && (
+                        <p className="str-card__desc">{c.description.slice(0, 80)}{c.description.length > 80 ? '…' : ''}</p>
+                      )}
+
+                      <div className="str-card__meta">
+                        <div className="str-meta-item">
+                          <Ico d={USERS} size={13} sw={2} />
+                          <span>{c.max_teams_per_pool ? `${c.max_teams_per_pool} teams/pool` : 'Không giới hạn'}</span>
+                        </div>
+                        <div className="str-meta-item">
+                          <Ico d={CLOCK} size={13} sw={2} />
+                          <span>Hạn: {deadline}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        className="str-card__btn"
+                        onClick={() => navigate(`/admin/team/${c._id}`)}
+                      >
+                        Quản lý đội thi
+                        <Ico d={ARROW} size={14} sw={2} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

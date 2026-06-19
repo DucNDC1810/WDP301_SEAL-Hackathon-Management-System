@@ -224,6 +224,12 @@ export const releaseProblem = async (roundId, actorId) => {
     throw err;
   }
 
+  if (contest.status !== "open") {
+    const err = new Error("Không thể phát đề bài khi giải đấu chưa diễn ra (Trạng thái hiện tại không phải ONGOING)");
+    err.statusCode = 400;
+    throw err;
+  }
+
   const round = contest.rounds.id(roundId);
   if (!round) {
     const err = new Error("Không tìm thấy vòng thi");

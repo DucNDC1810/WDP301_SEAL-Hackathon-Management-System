@@ -95,6 +95,12 @@ export const StudentTeamPage = () => {
   const [evalMembers, setEvalMembers] = useState([]);
   const [evalSaving, setEvalSaving] = useState(false);
 
+  // Leave / Transfer leader
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferForm] = Form.useForm();
+
   const refresh = () => setRefreshKey(k => k + 1);
 
   useEffect(() => {
@@ -197,6 +203,33 @@ export const StudentTeamPage = () => {
     }
   };
 
+  const handleLeaveTeam = async () => {
+    setLeaveLoading(true);
+    try {
+      const res = await request(`/api/teams/${team._id}/leave`, { method: 'POST' });
+      message.success(res?.message || 'Đã rời đội thành công');
+      refresh();
+    } catch (err) {
+      message.error(err.message || 'Không thể rời đội');
+    } finally {
+      setLeaveLoading(false);
+    }
+  };
+
+  const handleTransferLeader = async (values) => {
+    setTransferLoading(true);
+    try {
+      await request(`/api/teams/${team._id}/transfer-leader`, { method: 'PATCH', body: { new_leader_email: values.new_leader_email } });
+      message.success('Chuyển quyền Leader thành công!');
+      setTransferOpen(false);
+      transferForm.resetFields();
+      refresh();
+    } catch (err) {
+      message.error(err.message || 'Không thể chuyển quyền Leader');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
 
   if (loading) return <div className="sp-loading"><div className="sp-spinner" /></div>;
 
@@ -207,16 +240,64 @@ export const StudentTeamPage = () => {
     return (
       <div className="stp-page">
         <div className="stp-header"><h2 className="stp-title">Đội thi</h2></div>
+
+        {/* Info banner */}
+        <div className="stp-no-team-banner">
+          <div className="stp-no-team-banner-icon">🏆</div>
+          <div>
+            <div className="stp-no-team-banner-title">Bạn chưa có đội thi</div>
+            <div className="stp-no-team-banner-sub">
+              Tạo đội mới hoặc tham gia một đội để bắt đầu thi đấu. Mỗi đội cần <strong>4 thành viên</strong> và tất cả phải xác thực thông tin sinh viên trước khi đăng ký cuộc thi.
+            </div>
+          </div>
+        </div>
+
         <div className="stp-no-team-grid">
           <div className="stp-action-card" onClick={() => setCreateOpen(true)}>
-            <Ico d={TEAM_D} size={40} sw={1.4} />
+            <div className="stp-action-card-icon stp-action-card-icon--cyan">
+              <Ico d={TEAM_D} size={36} sw={1.4} />
+            </div>
             <h4>Tạo đội mới</h4>
             <p>Đặt tên đội và mời thành viên ngay từ đầu</p>
+            <div className="stp-action-card-steps">
+              <span>① Đặt tên đội</span>
+              <span>② Mời thành viên qua email</span>
+              <span>③ Đăng ký cuộc thi</span>
+            </div>
+            <div className="stp-action-card-cta stp-action-card-cta--cyan">Tạo đội ngay →</div>
           </div>
+
           <div className="stp-action-card stp-action-card--purple" onClick={() => setJoinOpen(true)}>
-            <Ico d={PLUS_D} size={40} sw={1.4} />
+            <div className="stp-action-card-icon stp-action-card-icon--purple">
+              <Ico d={PLUS_D} size={36} sw={1.4} />
+            </div>
             <h4>Tham gia đội</h4>
-            <p>Nhập mã đội để tham gia</p>
+            <p>Bạn đã được mời? Nhập mã đội để tham gia</p>
+            <div className="stp-action-card-steps">
+              <span>① Nhận mã đội từ Leader</span>
+              <span>② Nhập mã và xác nhận</span>
+              <span>③ Sẵn sàng thi đấu</span>
+            </div>
+            <div className="stp-action-card-cta stp-action-card-cta--purple">Nhập mã đội →</div>
+          </div>
+        </div>
+
+        {/* Requirements note */}
+        <div className="stp-no-team-reqs">
+          <div className="stp-no-team-reqs-title">📋 Yêu cầu tham gia cuộc thi</div>
+          <div className="stp-no-team-reqs-list">
+            <div className="stp-req-item">
+              <span className="stp-req-icon">👥</span>
+              <span>Đội cần đủ <strong>4 thành viên</strong></span>
+            </div>
+            <div className="stp-req-item">
+              <span className="stp-req-icon">✅</span>
+              <span>Tất cả thành viên phải <strong>xác thực thông tin sinh viên</strong></span>
+            </div>
+            <div className="stp-req-item">
+              <span className="stp-req-icon">📧</span>
+              <span>Xác thực qua email sau khi được mời vào đội</span>
+            </div>
           </div>
         </div>
 
@@ -334,6 +415,39 @@ export const StudentTeamPage = () => {
             <div className="stp-team-name">{team.team_name}</div>
             <span className="stp-status-badge" style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
             {desc && <p className="stp-team-desc">{desc}</p>}
+
+            {/* Leave / Transfer actions */}
+            {!['CONFIRMED','DISQUALIFIED','ELIMINATED'].includes(team.status) && (
+              <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {isLeader && (team.members?.filter(m => m.user_id && (m.user_id?._id ?? m.user_id).toString() !== user._id.toString()).length > 0) && (
+                  <button
+                    className="stp-btn stp-btn--ghost"
+                    style={{ width: '100%', justifyContent: 'center', fontSize: '.8rem', color: '#60a5fa', borderColor: 'rgba(96,165,250,.3)' }}
+                    onClick={() => setTransferOpen(true)}
+                  >
+                    🔄 Chuyển quyền Leader
+                  </button>
+                )}
+                <button
+                  className="stp-leave-btn"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  disabled={leaveLoading}
+                  onClick={() => {
+                    const otherMembers = team.members?.filter(m => (m.user_id?._id ?? m.user_id)?.toString() !== user._id.toString()) ?? [];
+                    if (isLeader && otherMembers.length > 0) {
+                      message.warning('Bạn cần chuyển quyền Leader trước khi rời đội');
+                      return;
+                    }
+                    const confirmMsg = isLeader
+                      ? 'Bạn là thành viên duy nhất. Rời đội sẽ giải tán đội này. Tiếp tục?'
+                      : 'Bạn có chắc muốn rời khỏi đội này?';
+                    if (window.confirm(confirmMsg)) handleLeaveTeam();
+                  }}
+                >
+                  {leaveLoading ? 'Đang xử lý...' : (isLeader && (team.members?.filter(m => (m.user_id?._id ?? m.user_id)?.toString() !== user._id.toString()).length === 0) ? '🗑 Giải tán đội' : '← Rời đội')}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Contest card */}
@@ -616,6 +730,35 @@ export const StudentTeamPage = () => {
             </div>
           ))}
         </div>
+      </Modal>
+
+      {/* Transfer Leader modal */}
+      <Modal
+        title="Chuyển quyền Leader"
+        open={transferOpen}
+        onCancel={() => { setTransferOpen(false); transferForm.resetFields(); }}
+        onOk={() => transferForm.submit()}
+        confirmLoading={transferLoading}
+        okText="Xác nhận chuyển"
+        okButtonProps={{ danger: false }}
+      >
+        <p style={{ fontSize: '.85rem', color: '#94a3b8', marginBottom: 16 }}>
+          Sau khi chuyển, bạn sẽ trở thành thành viên thường. Hành động này không thể hoàn tác (trừ khi Leader mới chuyển lại cho bạn).
+        </p>
+        <Form form={transferForm} layout="vertical" onFinish={handleTransferLeader}>
+          <Form.Item name="new_leader_email" label="Chọn thành viên nhận quyền Leader" rules={[{ required: true, message: 'Vui lòng chọn thành viên' }]}>
+            <Select placeholder="Chọn thành viên">
+              {(team?.members ?? [])
+                .filter(m => m.user_id && (m.user_id?._id ?? m.user_id)?.toString() !== user._id.toString())
+                .map(m => (
+                  <Select.Option key={m.email} value={m.email}>
+                    {m.full_name || m.user_id?.full_name || m.email} — {m.email}
+                  </Select.Option>
+                ))
+              }
+            </Select>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

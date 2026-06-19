@@ -926,3 +926,119 @@ export const updateTeamContributions = async (teamId, leaderId, contributions) =
   await team.save();
   return team;
 };
+
+/**
+ * Rời đội thi.
+ * - Nếu là member thường: xóa khỏi members array.
+ * - Nếu là leader và đội còn thành viên khác: phải transfer leader trước.
+ * - Nếu là leader và đội chỉ còn mình: xóa luôn đội.
+ */
+export const leaveTeam = async (teamId, requesterId) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId)
+    .populate("members.user_id", "full_name email");
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (["CONFIRMED", "DISQUALIFIED", "ELIMINATED"].includes(team.status)) {
+    const err = new Error("Không thể rời đội khi đội đã được xác nhận tham gia hoặc bị loại");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const isLeader = team.leader_id.toString() === requesterId.toString();
+  const isMember = team.members.some(
+    m => (m.user_id?._id ?? m.user_id)?.toString() === requesterId.toString()
+  );
+
+  if (!isLeader && !isMember) {
+    const err = new Error("Bạn không phải thành viên của đội này");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const otherMembers = team.members.filter(
+    m => (m.user_id?._id ?? m.user_id)?.toString() !== requesterId.toString()
+  );
+
+  if (isLeader && otherMembers.length > 0) {
+    const err = new Error("Bạn cần chuyển vai trò Leader cho thành viên khác trước khi rời đội");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (isLeader && otherMembers.length === 0) {
+    await Team.findByIdAndDelete(teamId);
+    return { deleted: true };
+  }
+
+  team.members = otherMembers;
+  if (["WAITING_APPROVAL", "REJECTED"].includes(team.status)) {
+    team.status = "ACTIVE";
+  }
+  await team.save();
+  return { deleted: false };
+};
+
+/**
+ * Chuyển quyền Leader cho thành viên khác.
+ * Chỉ leader hiện tại mới có thể thực hiện.
+ */
+export const transferLeader = async (teamId, requesterId, newLeaderEmail) => {
+  if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    const err = new Error("Team ID không hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const team = await Team.findById(teamId)
+    .populate("members.user_id", "full_name email");
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (team.leader_id.toString() !== requesterId.toString()) {
+    const err = new Error("Chỉ Leader hiện tại mới có thể chuyển quyền");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (["CONFIRMED", "DISQUALIFIED", "ELIMINATED"].includes(team.status)) {
+    const err = new Error("Không thể chuyển Leader khi đội đã được xác nhận hoặc bị loại");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const targetMember = team.members.find(
+    m => m.email === newLeaderEmail && m.user_id
+  );
+  if (!targetMember) {
+    const err = new Error("Không tìm thấy thành viên với email này trong đội");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const newLeaderId = targetMember.user_id?._id ?? targetMember.user_id;
+  if (newLeaderId.toString() === requesterId.toString()) {
+    const err = new Error("Bạn đã là Leader của đội");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  team.leader_id = newLeaderId;
+  await team.save();
+
+  return Team.findById(teamId)
+    .populate("leader_id", "full_name email avatar_url profile_verify_status")
+    .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card");
+};

@@ -112,7 +112,7 @@ export default function AdminLayout() {
           <div className="al-nav-divider" style={{ height: '1px', background: 'var(--al-border)', margin: '10px 4px' }} />
           {!collapsed && (
             <div className="al-nav-section-title" style={{ padding: '4px 11px 8px 11px', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--al-accent)', opacity: 0.8 }}>
-              Nghiệp vụ giải đấu
+              Quản lý giải đấu
             </div>
           )}
           {HACKATHON_SUB_NAV.map(({ key, label, subPath, d }) => {

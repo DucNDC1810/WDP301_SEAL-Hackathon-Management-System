@@ -194,7 +194,10 @@ function ChatWindow({ conv, userId, request }) {
     try {
       const formData = new FormData();
       if (content) formData.append("content", content);
-      fileList.forEach((f) => formData.append("files", f.originFileObj));
+      fileList.forEach((f) => {
+        const file = f.originFileObj ?? f;
+        if (file instanceof File) formData.append("files", file);
+      });
       await request(msgPath, { method: "POST", formData });
       setFileList([]);
     } catch (e) {

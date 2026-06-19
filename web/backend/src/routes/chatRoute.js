@@ -34,7 +34,10 @@ router.post(
   "/:contestId/:roundId/:teamId/:mentorId/messages",
   authenticate,
   authorize("mentor", "contestant", "admin"),
-  upload.array("files", 5),
+  (req, res, next) => upload.array("files", 5)(req, res, (err) => {
+    if (err) return res.status(400).json({ success: false, message: err.message });
+    next();
+  }),
   chatController.sendMessage
 );
 

@@ -88,6 +88,7 @@ export const sendMessage = async (req, res) => {
     }
 
     // Upload files to Cloudinary
+    console.log("[sendMessage] files:", req.files?.map(f => ({ name: f.originalname, size: f.size, mime: f.mimetype, bufLen: f.buffer?.length })));
     const attachments = hasFiles
       ? await Promise.all(req.files.map((f) => uploadToCloudinary(f)))
       : [];

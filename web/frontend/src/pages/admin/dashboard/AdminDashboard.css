@@ -8,6 +8,7 @@
   background: linear-gradient(180deg, rgba(8, 18, 35, 0.95), rgba(9, 23, 45, 0.9));
   padding: 2rem;
   color: #ffffff;
+  font-family: var(--font-body);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */

@@ -291,10 +291,12 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
             <div className="md-stat-icon-wrap" style={{ background: s.iconBg, border: `1px solid ${s.iconBorder}` }}>
               {s.icon}
             </div>
-            <div className="md-stat-num" style={{ color: s.color }}>
-              {loading ? <Spin size="small" /> : s.value}
+            <div className="md-stat-body">
+              <div className="md-stat-num" style={{ color: s.color }}>
+                {loading ? <Spin size="small" /> : s.value}
+              </div>
+              <div className="md-stat-label">{s.label}</div>
             </div>
-            <div className="md-stat-label">{s.label}</div>
             <div className="md-stat-glow" style={{ background: s.glow }} />
           </div>
         ))}
@@ -325,18 +327,19 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
           return (
             <div key={h.id} style={{
               borderRadius:16, overflow:'hidden',
-              background:'rgba(255,255,255,0.025)',
-              border:'1px solid rgba(255,255,255,0.07)',
+              background:'rgba(255,255,255,0.03)',
+              border:`1px solid rgba(255,255,255,0.09)`,
+              borderLeft:`3px solid ${h.accentColor}`,
             }}>
               <div style={{
                 padding:'16px 20px',
-                background:`linear-gradient(135deg,${h.accentColor}08,${h.accentColor}03)`,
-                borderBottom:'1px solid rgba(255,255,255,0.06)',
+                background:`linear-gradient(135deg,${h.accentColor}12,${h.accentColor}05)`,
+                borderBottom:'1px solid rgba(255,255,255,0.07)',
                 display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12,
               }}>
                 <div>
                   <div style={{ fontWeight:800, fontSize:'1rem', color:'#fff', marginBottom:4 }}>{h.name}</div>
-                  <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.4)' }}>
+                  <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)' }}>
                     {fmtDate(h.startDate)} → {fmtDate(h.endDate)}
                   </div>
                   <div style={{ marginTop:6, fontSize:'0.72rem', color:'rgba(255,255,255,0.35)' }}>

@@ -13,7 +13,7 @@
   --md-red:       #ef4444;
   --md-text:      rgba(255,255,255,0.9);
   --md-text2:     rgba(255,255,255,0.55);
-  --md-text3:     rgba(255,255,255,0.3);
+  --md-text3:     rgba(255,255,255,0.45);
   --md-sidebar-w: 240px;
   --md-top-h:     56px;
 }
@@ -22,7 +22,7 @@
 .md-root {
   min-height: 100vh;
   background: var(--md-bg);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-body);
   color: var(--md-text);
 }
 
@@ -54,7 +54,8 @@
   font-size: 1.1rem;
   font-weight: 900;
   color: var(--md-cyan);
-  letter-spacing: 2px;
+  letter-spacing: 3px;
+  font-family: 'Orbitron', var(--font-body);
 }
 
 .md-brand-sep { width: 1px; height: 16px; background: var(--md-border2); margin: 0 10px; }
@@ -162,7 +163,7 @@
 .md-sidebar-label {
   font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--md-text3);
   padding: 0 8px;
@@ -238,7 +239,7 @@
 /* ─── Stats ──────────────────────────────────────────────────────────────────── */
 .md-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 16px;
   margin-bottom: 28px;
 }
@@ -455,7 +456,7 @@
 .md-drawer-section { margin-bottom: 24px; }
 .md-drawer-section-title {
   font-size: 0.72rem; font-weight: 700;
-  letter-spacing: 1px; text-transform: uppercase;
+  letter-spacing: 0.3px; text-transform: uppercase;
   color: var(--md-text3); margin-bottom: 12px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--md-border);
@@ -699,7 +700,7 @@
   background: rgba(0,0,0,0.2);
   border-bottom: 1px solid var(--md-border);
   font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.8px; color: var(--md-text2); text-align: left;
+  letter-spacing: 0.3px; color: var(--md-text2); text-align: left;
 }
 .md-eval-table td {
   padding: 11px 16px;
@@ -829,3 +830,19 @@
 .md-tag-amber { display:inline-flex; align-items:center; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: var(--md-amber); }
 
 .md-scroll-fade { overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  :root { --md-sidebar-w: 0px; }
+  .md-sidebar { display: none; }
+  .md-main { margin-left: 0; padding: 20px 16px 48px; }
+  .md-topbar-brand { display: none; }
+  .md-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .md-main { padding: 16px 12px 40px; }
+  .md-stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .md-hero-greeting { font-size: 1.3rem; }
+  .md-topbar { padding: 0 12px 0 0; }
+}

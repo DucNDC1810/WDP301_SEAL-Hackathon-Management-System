@@ -5,6 +5,7 @@
     padding: 28px 32px 32px;
     background: linear-gradient(135deg, #081223 0%, #09172d 45%, #060b16 100%);
     min-height: 100vh;
+    font-family: var(--font-body);
 }
 
 /* Header */

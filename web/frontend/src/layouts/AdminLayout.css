@@ -46,7 +46,7 @@
   min-height: 100vh;
   background: var(--al-bg);
   color: var(--al-text);
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* ── Sidebar ── */

@@ -7,6 +7,7 @@
   flex-direction: column;
   gap: 20px;
   padding-bottom: 40px;
+  font-family: var(--font-body);
 }
 
 /* ─── Top Bar ─── */
@@ -76,7 +77,7 @@
 
 .jp-round-info { flex: 1; min-width: 200px; }
 .jp-round-seq {
-  font-size: 0.7rem; font-weight: 700; letter-spacing: 1.5px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.3px;
   color: var(--cyan, #00d4ff);
   text-transform: uppercase;
   margin-bottom: 4px;
@@ -257,3 +258,16 @@
 .jp-comment-textarea::placeholder { color: var(--text-muted, #4a6a86); }
 
 .jp-form-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .jp-topbar { padding: 12px 16px; }
+  .jp-stats-row { gap: 10px; }
+  .jp-stat { padding: 12px 16px; min-width: 80px; }
+  .jp-stat-num { font-size: 1.3rem; }
+}
+
+@media (max-width: 480px) {
+  .jp-topbar { padding: 10px 12px; }
+  .jp-stat-num { font-size: 1.1rem; }
+}

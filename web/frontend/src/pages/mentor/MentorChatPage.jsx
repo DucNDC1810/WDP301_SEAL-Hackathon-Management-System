@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import {
-  Layout, List, Avatar, Badge, Typography, Input, Button, Spin,
-  Empty, Tag, Tooltip, Upload, message as antMessage, Divider,
+  Layout, Avatar, Badge, Typography, Input, Button, Spin,
+  Empty, Tag, Tooltip, Upload, message as antMessage,
 } from "antd";
 import {
   SendOutlined, MessageOutlined, LockOutlined,
@@ -12,6 +13,8 @@ import { useAuth } from "../../context/AuthContext";
 import { useApi } from "../../hooks/useApi";
 import { useChatSocket } from "../../hooks/useChatSocket";
 import AttachmentBubble from "../../components/chat/AttachmentBubble";
+
+const SOCKET_URL = import.meta.env.VITE_API_URL || "";
 
 const { Sider, Content } = Layout;
 const { Text, Title } = Typography;
@@ -38,7 +41,7 @@ function ConversationItem({ conv, selected, onClick }) {
         <Badge count={conv.unreadCount} size="small" color="#00d4ff">
           <Avatar
             size={40}
-            style={{ background: conv.chatOpen ? "linear-gradient(135deg,#00d4ff,#a855f7)" : "#374151" }}
+            style={{ background: conv.chatOpen ? "linear-gradient(135deg, var(--cyan, #00f0ff), var(--purple, #a855f7))" : "rgba(255,255,255,0.1)" }}
             icon={<TeamOutlined />}
           />
         </Badge>
@@ -75,7 +78,7 @@ function MessageBubble({ msg, isMe }) {
     <div className={`flex mb-3 ${isMe ? "justify-end" : "justify-start"}`}>
       {!isMe && (
         <Avatar size={28} className="mr-2 flex-shrink-0 mt-1"
-          style={{ background: "linear-gradient(135deg,#a855f7,#6366f1)", fontSize: 12 }}>
+          style={{ background: "linear-gradient(135deg, var(--purple, #a855f7), #6366f1)", fontSize: 12 }}>
           {(msg.sender_id?.full_name || "?")[0].toUpperCase()}
         </Avatar>
       )}
@@ -101,7 +104,7 @@ function MessageBubble({ msg, isMe }) {
       </div>
       {isMe && (
         <Avatar size={28} className="ml-2 flex-shrink-0 mt-1"
-          style={{ background: "linear-gradient(135deg,#00d4ff,#0ea5e9)", fontSize: 12 }}>
+          style={{ background: "linear-gradient(135deg, var(--cyan, #00f0ff), #0ea5e9)", fontSize: 12 }}>
           {(msg.sender_id?.full_name || "M")[0].toUpperCase()}
         </Avatar>
       )}
@@ -224,9 +227,9 @@ function ChatWindow({ conv, userId, request }) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-5 py-3 border-b border-white/10 flex items-center gap-3 flex-shrink-0"
-        style={{ background: "rgba(17,24,39,0.8)" }}>
+        style={{ background: "var(--bg-secondary, rgba(17,24,39,0.8))", backdropFilter: "blur(12px)" }}>
         <Avatar size={36} icon={<TeamOutlined />}
-          style={{ background: conv.chatOpen ? "linear-gradient(135deg,#00d4ff,#a855f7)" : "#374151" }} />
+          style={{ background: conv.chatOpen ? "linear-gradient(135deg, var(--cyan, #00f0ff), var(--purple, #a855f7))" : "rgba(255,255,255,0.1)" }} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <Text strong className="text-white text-base">{conv.teamName}</Text>
@@ -250,7 +253,7 @@ function ChatWindow({ conv, userId, request }) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-4" style={{ background: "rgba(10,15,25,0.5)" }}>
+      <div className="flex-1 overflow-y-auto px-5 py-4" style={{ background: "rgba(10,14,23,0.5)" }}>
         {hasMore && (
           <div className="text-center mb-4">
             <Button size="small" type="text" className="text-gray-400"
@@ -262,7 +265,7 @@ function ChatWindow({ conv, userId, request }) {
 
         {loading ? (
           <div className="flex justify-center items-center h-32">
-            <Spin indicator={<LoadingOutlined style={{ fontSize: 28, color: "#00d4ff" }} spin />} />
+            <Spin indicator={<LoadingOutlined style={{ fontSize: 28, color: "var(--cyan, #00f0ff)" }} spin />} />
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-gray-500">
@@ -295,7 +298,7 @@ function ChatWindow({ conv, userId, request }) {
       {/* Input */}
       {conv.chatOpen && (
         <div className="px-4 py-3 border-t border-white/10 flex-shrink-0"
-          style={{ background: "rgba(17,24,39,0.9)" }}>
+          style={{ background: "var(--bg-secondary, rgba(17,24,39,0.9))", backdropFilter: "blur(8px)" }}>
           {fileList.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
               {fileList.map((f) => (
@@ -348,7 +351,7 @@ function ChatWindow({ conv, userId, request }) {
               autoSize={{ minRows: 1, maxRows: 4 }}
               disabled={sending}
               className="flex-1 rounded-xl"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", resize: "none" }}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--border, rgba(0,240,255,0.1))", color: "var(--text-primary, #f1f5f9)", resize: "none" }}
             />
             <Button
               type="primary"
@@ -356,7 +359,7 @@ function ChatWindow({ conv, userId, request }) {
               onClick={handleSend}
               loading={sending}
               disabled={!inputVal.trim() && fileList.length === 0}
-              style={{ background: "linear-gradient(135deg,#00d4ff,#0ea5e9)", border: "none", height: 40, width: 44 }}
+              style={{ background: "linear-gradient(135deg, var(--cyan, #00f0ff), #0ea5e9)", border: "none", height: 40, width: 44 }}
               className="flex-shrink-0 rounded-xl"
             />
           </div>
@@ -374,13 +377,19 @@ export default function MentorChatPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
+  const selectedRef = useRef(null);
+  const globalSocketRef = useRef(null);
+
+  // Keep selectedRef in sync so the socket callback always has current value
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await request("/api/chat/conversations");
         const convs = res?.data || [];
-        // Sort: open first, then by unread desc, then by last message desc
         convs.sort((a, b) => {
           if (a.chatOpen !== b.chatOpen) return b.chatOpen - a.chatOpen;
           if (b.unreadCount !== a.unreadCount) return b.unreadCount - a.unreadCount;
@@ -398,6 +407,52 @@ export default function MentorChatPage() {
     };
     load();
   }, []);
+
+  // Global socket — joins ALL conversation rooms to track unread badges in realtime
+  useEffect(() => {
+    if (conversations.length === 0) return;
+
+    const token = localStorage.getItem("accessToken") || "";
+    const socket = io(SOCKET_URL, { withCredentials: true, auth: { token } });
+    globalSocketRef.current = socket;
+
+    // Join every conversation room
+    conversations.forEach(({ contestId, roundId, teamId, mentorId }) => {
+      socket.emit("join_chat_room", { contestId, roundId, teamId, mentorId });
+    });
+
+    socket.on("chat:message", (msg) => {
+      const cur = selectedRef.current;
+      const isActiveConv =
+        cur &&
+        String(cur.contestId) === String(msg.contestId) &&
+        String(cur.roundId)   === String(msg.roundId) &&
+        String(cur.teamId)    === String(msg.teamId);
+
+      setConversations((prev) =>
+        prev.map((c) => {
+          const matches =
+            String(c.contestId) === String(msg.contestId) &&
+            String(c.roundId)   === String(msg.roundId) &&
+            String(c.teamId)    === String(msg.teamId);
+          if (!matches) return c;
+          return {
+            ...c,
+            lastMessage: { content: msg.content, created_at: msg.created_at },
+            // Only increment unread if this conversation is NOT currently open
+            unreadCount: isActiveConv ? 0 : (c.unreadCount || 0) + 1,
+          };
+        })
+      );
+    });
+
+    return () => {
+      conversations.forEach(({ contestId, roundId, teamId, mentorId }) => {
+        socket.emit("leave_chat_room", { contestId, roundId, teamId, mentorId });
+      });
+      socket.disconnect();
+    };
+  }, [conversations.length]); // re-run only when list size changes (new convs added)
 
   // Group conversations by contest
   const grouped = conversations
@@ -417,11 +472,11 @@ export default function MentorChatPage() {
   return (
     <div
       className="h-screen flex flex-col"
-      style={{ background: "linear-gradient(135deg,#0a0f19,#111827,#0d1b2a)" }}
+      style={{ background: "var(--bg-primary, #0a0e17)" }}
     >
       {/* Topbar */}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10 flex-shrink-0"
-        style={{ background: "rgba(17,24,39,0.95)" }}>
+        style={{ background: "rgba(17,24,39,0.95)", backdropFilter: "blur(12px)" }}>
         <Button
           icon={<ArrowLeftOutlined />}
           type="text"
@@ -445,7 +500,7 @@ export default function MentorChatPage() {
         <Sider
           width={300}
           className="overflow-hidden flex flex-col"
-          style={{ background: "rgba(17,24,39,0.7)", borderRight: "1px solid rgba(255,255,255,0.07)" }}
+          style={{ background: "var(--bg-secondary, rgba(17,24,39,0.7))", borderRight: "1px solid var(--border, rgba(0,240,255,0.1))" }}
         >
           <div className="p-3 flex-shrink-0">
             <Input
@@ -454,14 +509,14 @@ export default function MentorChatPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="rounded-lg"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--border, rgba(0,240,255,0.1))", color: "var(--text-primary, #f1f5f9)" }}
             />
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex justify-center py-10">
-                <Spin indicator={<LoadingOutlined style={{ fontSize: 24, color: "#00d4ff" }} spin />} />
+                <Spin indicator={<LoadingOutlined style={{ fontSize: 24, color: "var(--cyan, #00f0ff)" }} spin />} />
               </div>
             ) : Object.keys(grouped).length === 0 ? (
               <Empty
@@ -492,7 +547,19 @@ export default function MentorChatPage() {
                         `${selected?.roundId}` === `${conv.roundId}` &&
                         `${selected?.teamId}` === `${conv.teamId}`
                       }
-                      onClick={() => setSelected(conv)}
+                      onClick={() => {
+                        setSelected(conv);
+                        // Reset unread badge when opening this conversation
+                        setConversations((prev) =>
+                          prev.map((c) =>
+                            String(c.contestId) === String(conv.contestId) &&
+                            String(c.roundId)   === String(conv.roundId) &&
+                            String(c.teamId)    === String(conv.teamId)
+                              ? { ...c, unreadCount: 0 }
+                              : c
+                          )
+                        );
+                      }}
                     />
                   ))}
                 </div>

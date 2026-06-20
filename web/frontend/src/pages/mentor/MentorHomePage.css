@@ -5,6 +5,7 @@
   background: var(--bg-primary, #060b16);
   display: flex;
   flex-direction: column;
+  font-family: var(--font-body);
 }
 
 /* ─── Topbar ─── */
@@ -24,8 +25,9 @@
 
 .mh-topbar-brand { display: flex; align-items: center; gap: 12px; }
 .mh-topbar-logo {
-  font-size: 1.1rem; font-weight: 900; letter-spacing: 2px;
+  font-size: 1.1rem; font-weight: 900; letter-spacing: 3px;
   color: var(--cyan, #00d4ff);
+  font-family: 'Orbitron', var(--font-body);
 }
 .mh-topbar-divider {
   width: 1px; height: 18px;
@@ -278,5 +280,5 @@
   border: 1px dashed var(--border, #162036);
 }
 .mh-empty-icon { font-size: 2.5rem; opacity: 0.4; }
-.mh-empty-text { font-size: 0.9rem; font-weight: 600; color: var(--text-secondary, #7f9bb3); }
-.mh-empty-sub { font-size: 0.78rem; color: var(--text-muted, #4a6a86); }
+.mh-empty-text { font-size: 0.9rem; font-weight: 600; color: var(--text-secondary, #94a3b8); }
+.mh-empty-sub { font-size: 0.78rem; color: var(--text-secondary, #94a3b8); opacity: 0.75; }

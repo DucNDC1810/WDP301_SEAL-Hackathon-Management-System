@@ -67,7 +67,7 @@ function App() {
           colorBgContainer: '#111827',
           colorBgElevated: '#1a2332',
           borderRadius: 8,
-          fontFamily: "'Inter', system-ui, sans-serif",
+          fontFamily: "'Be Vietnam Pro', 'Inter', system-ui, sans-serif",
         },
       }}
     >

@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { Progress, Spin, Tooltip, message, Tag } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
 import './MentorDashboard.css';
+
+const SOCKET_URL = import.meta.env.VITE_API_URL || '';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso) {
@@ -105,7 +108,7 @@ const NAV_GROUPS = [
   ]},
   { items: [
     { id: 'scoring',  icon: '⚖',  label: 'Đội cần chấm' },
-    { id: 'chat',     icon: '💬', label: 'Nhóm chat',  badge: 3 },
+    { id: 'chat',     icon: '💬', label: 'Nhóm chat' },
     { id: 'schedule', icon: '📅', label: 'Lịch trình' },
     { id: 'eval',     icon: '📊',  label: 'Đánh giá' },
   ]},
@@ -114,23 +117,26 @@ const NAV_GROUPS = [
   ]},
 ];
 
-function Sidebar({ active, onChange, onNavigate }) {
+function Sidebar({ active, onChange, onNavigate, chatUnread }) {
   return (
     <aside className="md-sidebar" style={{ padding: '8px 12px' }}>
       {NAV_GROUPS.map((g, gi) => (
-        <div key={g.section}>
+        <div key={gi}>
           {gi > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
-          {g.items.map(item => (
-            <div
-              key={item.id}
-              className={`md-nav-item ${active === item.id ? 'active' : ''}`}
-              onClick={() => item.id === 'chat' ? onNavigate('/mentor/chat') : onChange(item.id)}
-            >
-              <span className="md-nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-              {item.badge ? <span className="md-nav-badge">{item.badge}</span> : null}
-            </div>
-          ))}
+          {g.items.map(item => {
+            const badge = item.id === 'chat' ? chatUnread : 0;
+            return (
+              <div
+                key={item.id}
+                className={`md-nav-item ${active === item.id ? 'active' : ''}`}
+                onClick={() => item.id === 'chat' ? onNavigate('/mentor/chat') : onChange(item.id)}
+              >
+                <span className="md-nav-icon">{item.icon}</span>
+                <span>{item.label}</span>
+                {badge > 0 ? <span className="md-nav-badge">{badge > 99 ? '99+' : badge}</span> : null}
+              </div>
+            );
+          })}
         </div>
       ))}
     </aside>
@@ -969,6 +975,50 @@ export default function MentorDashboard() {
   const [judgeMap, setJudgeMap]     = useState({}); // "contestId___roundId" → poolId
   const [scores, setScores]         = useState({});  // { "contestId___roundId": [score,...] }
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatSocketRef = useRef(null);
+  const chatConvsRef  = useRef([]);
+
+  // Fetch unread count and set up global socket for realtime badge
+  useEffect(() => {
+    let cancelled = false;
+    const init = async () => {
+      try {
+        const res = await request('/api/chat/conversations');
+        const convs = res?.data || [];
+        if (cancelled) return;
+        chatConvsRef.current = convs;
+        const total = convs.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        setChatUnread(total);
+
+        // Connect socket and join all rooms
+        const token = localStorage.getItem('accessToken') || '';
+        const socket = io(SOCKET_URL, { withCredentials: true, auth: { token } });
+        chatSocketRef.current = socket;
+
+        convs.forEach(({ contestId, roundId, teamId, mentorId }) => {
+          socket.emit('join_chat_room', { contestId, roundId, teamId, mentorId });
+        });
+
+        socket.on('chat:message', () => {
+          // Increment badge — will reset to 0 when user navigates to /mentor/chat
+          setChatUnread((prev) => prev + 1);
+        });
+      } catch {
+        // non-critical, ignore
+      }
+    };
+    init();
+    return () => {
+      cancelled = true;
+      if (chatSocketRef.current) {
+        chatConvsRef.current.forEach(({ contestId, roundId, teamId, mentorId }) => {
+          chatSocketRef.current.emit('leave_chat_room', { contestId, roundId, teamId, mentorId });
+        });
+        chatSocketRef.current.disconnect();
+      }
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -1080,7 +1130,15 @@ export default function MentorDashboard() {
       </header>
 
       {/* Sidebar */}
-      <Sidebar active={activeView} onChange={setActiveView} onNavigate={navigate} />
+      <Sidebar
+        active={activeView}
+        onChange={setActiveView}
+        onNavigate={(path) => {
+          if (path === '/mentor/chat') setChatUnread(0);
+          navigate(path);
+        }}
+        chatUnread={chatUnread}
+      />
 
       {/* Main content */}
       <main className="md-main">

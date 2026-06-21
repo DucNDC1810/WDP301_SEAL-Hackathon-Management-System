@@ -46,6 +46,10 @@ const memberSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    role: {
+      type: String,
+      default: "member",
+    },
   }
 );
 
@@ -62,6 +66,14 @@ const teamSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    name: {
+      type: String,
+      trim: true,
+    },
+    assigned_group: {
+      type: String,
+      default: "",
+    },
     leader_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -73,7 +85,7 @@ const teamSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED", "DISQUALIFIED", "ELIMINATED"],
+      enum: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED", "DISQUALIFIED", "ELIMINATED", "PENDING"],
       default: "PENDING_MEMBERS",
       set: v => typeof v === 'string' ? v.toUpperCase() : v,
     },
@@ -106,6 +118,9 @@ teamSchema.pre("save", function () {
     if (this.status === "PENDING") {
       this.status = "WAITING_APPROVAL";
     }
+  }
+  if (!this.name && this.team_name) {
+    this.name = this.team_name;
   }
 });
 

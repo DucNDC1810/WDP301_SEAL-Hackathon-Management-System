@@ -8,7 +8,15 @@ const scoreSchema = new mongoose.Schema(
     // giữ mentor_id alias để backward compat
     mentor_id:     { type: mongoose.Schema.Types.ObjectId, ref: "User",    default: null },
     contest_id:    { type: mongoose.Schema.Types.ObjectId, ref: "Contest", required: true },
-    round_id:      { type: mongoose.Schema.Types.ObjectId, required: true },
+    round_id:      { type: mongoose.Schema.Types.ObjectId, ref: "Round", required: true },
+    criteria_scores: [
+      {
+        criteria_name: { type: String, required: true },
+        weight: { type: Number, required: true },
+        score: { type: Number, required: true }
+      }
+    ],
+    weighted_avg_score: { type: Number, default: 0 },
     total_score:   { type: Number, default: 0 },
     comment:       { type: String, default: "" },
     score_type:    { type: String, enum: ["NORMAL", "CALIBRATION", "PENALTY"], default: "NORMAL" },

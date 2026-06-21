@@ -1,10 +1,46 @@
-import React from 'react';
+import React, { useState } from 'react';
 import StatusBadge from './StatusBadge';
 
-export default function TiebreakAlert({ tiebreakGroups }) {
+export default function TiebreakAlert({ tiebreakGroups, onApplyRule }) {
+  // ⚠️ Hooks phải được khai báo trước mọi early return (Rules of Hooks)
+  const [applyingGroup, setApplyingGroup] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+
   if (!tiebreakGroups || tiebreakGroups.length === 0) {
     return null;
   }
+
+  // Chỉ giữ lại các group còn ít nhất 1 đội chưa RESOLVED
+  const pendingGroups = tiebreakGroups.filter((group) =>
+    group.tied_teams?.some((team) => team.tiebreak_status !== 'RESOLVED')
+  );
+
+  // Nếu tất cả group đều đã resolved thì ẩn toàn bộ alert
+  if (pendingGroups.length === 0) {
+    return null;
+  }
+
+  const handleApply = async (group) => {
+    const rule = group.tied_teams?.[0]?.tiebreak_rule;
+    console.log('[TiebreakAlert] handleApply called. group:', group.group_name, '| rule:', rule);
+    if (!rule || rule === 'COORDINATOR_DECISION') {
+      console.warn('[TiebreakAlert] Early return - rule is null or COORDINATOR_DECISION:', rule);
+      return;
+    }
+    setErrorMsg(null);
+    setApplyingGroup(group.group_name);
+    try {
+      console.log('[TiebreakAlert] Calling onApplyRule for group:', group.group_name);
+      await onApplyRule?.(group.group_name);
+      console.log('[TiebreakAlert] onApplyRule completed successfully');
+    } catch (err) {
+      console.error('[TiebreakAlert] Error from onApplyRule:', err);
+      setErrorMsg(err?.message || 'Lỗi không xác định');
+    } finally {
+      setApplyingGroup(null);
+    }
+  };
+
 
   const formatTime = (timeStr) => {
     if (!timeStr) return 'Chưa nộp';
@@ -50,8 +86,26 @@ export default function TiebreakAlert({ tiebreakGroups }) {
         </h4>
       </div>
 
+      {/* Hiển thị lỗi từ API nếu có */}
+      {errorMsg && (
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          borderRadius: '8px',
+          padding: '10px 14px',
+          marginBottom: '12px',
+          color: '#ef4444',
+          fontSize: '0.88rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          ❌ {errorMsg}
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        {tiebreakGroups.map((group, idx) => (
+        {pendingGroups.map((group, idx) => (
           <div
             key={idx}
             style={{
@@ -65,9 +119,48 @@ export default function TiebreakAlert({ tiebreakGroups }) {
               <span style={{ color: '#f59e0b', fontWeight: 'bold', fontSize: '0.95rem' }}>
                 Bảng đấu: <span style={{ color: '#fff' }}>{group.group_name}</span> &mdash; Ranh giới: <span style={{ color: '#fff' }}>Top {group.boundary_rank}</span>
               </span>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                Số lượng đội đồng điểm: <strong style={{ color: '#fff' }}>{group.tied_teams.length}</strong>
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  Số lượng đội đồng điểm: <strong style={{ color: '#fff' }}>{group.tied_teams.length}</strong>
+                </span>
+                {/* Nút Áp dụng luật – ẩn khi rule là COORDINATOR_DECISION */}
+                {group.tied_teams?.[0]?.tiebreak_rule !== 'COORDINATOR_DECISION' && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleApply(group); }}
+                    disabled={applyingGroup === group.group_name}
+                    style={{
+                      background: applyingGroup === group.group_name
+                        ? 'rgba(245, 158, 11, 0.08)'
+                        : 'rgba(245, 158, 11, 0.15)',
+                      color: '#f59e0b',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      borderRadius: '8px',
+                      padding: '6px 14px',
+                      fontSize: '0.82rem',
+                      fontWeight: '600',
+                      cursor: applyingGroup === group.group_name ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s',
+                      opacity: applyingGroup === group.group_name ? 0.6 : 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (applyingGroup !== group.group_name) {
+                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
+                        e.currentTarget.style.borderColor = '#f59e0b';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
+                      e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+                    }}
+                  >
+                    {applyingGroup === group.group_name ? '⏳ Đang xử lý...' : '⚡ Áp dụng luật'}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ overflowX: 'auto' }}>

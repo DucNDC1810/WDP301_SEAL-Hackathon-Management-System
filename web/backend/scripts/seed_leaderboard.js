@@ -126,10 +126,73 @@ async function seed() {
     console.log(`  Added Score for ${team.team_name} with Weighted Average: ${Math.round(weightedAvg * 100) / 100}`);
   }
 
+  // 5. Seed some Judge users
+  const judge1 = await User.findOneAndUpdate(
+    { email: "judge1@seal.com" },
+    {
+      email: "judge1@seal.com",
+      full_name: "Ban giám khảo 01 (John)",
+      roles: [{ role_id: new mongoose.Types.ObjectId(), role_name: "judge" }],
+      is_profile_complete: true
+    },
+    { upsert: true, new: true }
+  );
+  const judge2 = await User.findOneAndUpdate(
+    { email: "judge2@seal.com" },
+    {
+      email: "judge2@seal.com",
+      full_name: "Ban giám khảo 02 (Jane)",
+      roles: [{ role_id: new mongoose.Types.ObjectId(), role_name: "judge" }],
+      is_profile_complete: true
+    },
+    { upsert: true, new: true }
+  );
+  console.log("Seeded Judges:", judge1.email, judge2.email);
+
+  // 6. Create a Final Round (inactive)
+  const finalRound = await Round.create({
+    contest_id: contest._id,
+    name: "Vòng Chung Kết Hackathon 2026",
+    type: "FINAL",
+    is_active: false,
+    top_n: 6,
+    wildcard_enabled: false,
+    round_start: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000),
+    round_end: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+  });
+  console.log("Created Final Round:", finalRound.name, "ID:", finalRound._id);
+
+  // 7. Seed Criteria for Final Round (Total weight = 1.0)
+  // We need to import Criteria from our models path
+  const Criteria = (await import("../src/models/Criteria.js")).default;
+  await Criteria.create([
+    {
+      round_id: finalRound._id,
+      name: "Kỹ thuật & Sản phẩm hoàn thiện",
+      weight: 0.4,
+      description: "Đánh giá chất lượng lập trình, giải thuật và độ hoàn thiện của sản phẩm chạy thử."
+    },
+    {
+      round_id: finalRound._id,
+      name: "Tính sáng tạo & Giá trị thực tiễn",
+      weight: 0.3,
+      description: "Đánh giá giải pháp có tính đột phá, mới mẻ và có khả năng ứng dụng thực tế cao."
+    },
+    {
+      round_id: finalRound._id,
+      name: "Thuyết trình & Phản biện",
+      weight: 0.3,
+      description: "Kỹ năng pitch sản phẩm trước BGK và trả lời phản biện."
+    }
+  ]);
+  console.log("Seeded 3 Criteria for Final Round (Total Weight = 1.0)");
+
   console.log("\n==========================================");
   console.log("SEEDING COMPLETED SUCCESSFULLY!");
   console.log(`Please visit the following URL to view the Leaderboard:`);
   console.log(`http://localhost:5173/leaderboard/${round._id}`);
+  console.log(`Active round setup dashboard for final round:`);
+  console.log(`http://localhost:5173/round/${finalRound._id}/activate`);
   console.log("==========================================\n");
 
   await mongoose.disconnect();

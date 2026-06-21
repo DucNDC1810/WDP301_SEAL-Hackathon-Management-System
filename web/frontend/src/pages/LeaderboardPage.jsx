@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getLeaderboard } from '../api/leaderboard';
+import { getLeaderboard, getTiebreakStatus } from '../api/leaderboard';
 import LeaderboardTable from '../components/LeaderboardTable';
+import TiebreakAlert from '../components/TiebreakAlert';
 
 export default function LeaderboardPage() {
   const { round_id } = useParams();
@@ -10,6 +11,7 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeGroup, setActiveGroup] = useState("");
+  const [tiebreakGroups, setTiebreakGroups] = useState([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -33,6 +35,16 @@ export default function LeaderboardPage() {
           setError(errMsg);
           setLoading(false);
         }
+      });
+
+    getTiebreakStatus(round_id)
+      .then((res) => {
+        if (isMounted && res.data && res.data.success) {
+          setTiebreakGroups(res.data.tiebreak_groups || []);
+        }
+      })
+      .catch((err) => {
+        console.error("Lỗi khi tải trạng thái phân tranh (bỏ qua):", err);
       });
 
     return () => {
@@ -180,6 +192,8 @@ export default function LeaderboardPage() {
             Vòng thi: {data?.round_name || "Sơ loại"}
           </div>
         </header>
+
+        <TiebreakAlert tiebreakGroups={tiebreakGroups} />
 
         {/* Group Tabs Selection */}
         {data?.groups && data.groups.length > 0 ? (

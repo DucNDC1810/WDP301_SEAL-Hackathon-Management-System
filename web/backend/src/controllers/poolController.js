@@ -5,6 +5,7 @@ import {
   createEmptyPools,
   assignTeamsToExistingPools,
   addSinglePool,
+  updatePool,
 } from "../services/poolService.js";
 
 /**
@@ -14,7 +15,7 @@ import {
 export const handleDrawPools = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const { pool_count, assign_topics } = req.body;
+    const { pool_count, assign_topics, round_id } = req.body;
 
     // Validate required fields
     if (pool_count === undefined || Number(pool_count) <= 0) {
@@ -27,6 +28,7 @@ export const handleDrawPools = async (req, res) => {
     const { pools, warning } = await drawPools(contestId, {
       pool_count: Number(pool_count),
       assign_topics: !!assign_topics,
+      round_id,
     });
 
     res.status(201).json({
@@ -51,7 +53,8 @@ export const handleDrawPools = async (req, res) => {
 export const handleGetPoolsByContest = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const pools = await getPoolsByContest(contestId);
+    const { round_id } = req.query;
+    const pools = await getPoolsByContest(contestId, round_id);
 
     res.status(200).json({
       success: true,
@@ -73,7 +76,8 @@ export const handleGetPoolsByContest = async (req, res) => {
 export const handleResetPools = async (req, res) => {
   try {
     const { contestId } = req.params;
-    await resetPools(contestId);
+    const { round_id } = req.query;
+    await resetPools(contestId, round_id);
 
     res.status(200).json({
       success: true,
@@ -95,7 +99,7 @@ export const handleResetPools = async (req, res) => {
 export const handleCreateEmptyPools = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const { pool_count, pools } = req.body;
+    const { pool_count, pools, round_id } = req.body;
 
     if (
       (!pools || !Array.isArray(pools) || pools.length === 0) &&
@@ -110,6 +114,7 @@ export const handleCreateEmptyPools = async (req, res) => {
     const createdPools = await createEmptyPools(contestId, {
       pool_count: pool_count ? Number(pool_count) : undefined,
       pools,
+      round_id,
     });
 
     res.status(201).json({
@@ -133,10 +138,11 @@ export const handleCreateEmptyPools = async (req, res) => {
 export const handleAssignTeams = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const { assign_topics } = req.body;
+    const { assign_topics, round_id } = req.body;
 
     const { pools, warning } = await assignTeamsToExistingPools(contestId, {
       assign_topics: !!assign_topics,
+      round_id,
     });
 
     res.status(200).json({
@@ -161,9 +167,9 @@ export const handleAssignTeams = async (req, res) => {
 export const handleAddSinglePool = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const { pool_name, description } = req.body;
+    const { pool_name, description, round_id } = req.body;
 
-    const newPool = await addSinglePool(contestId, { pool_name, description });
+    const newPool = await addSinglePool(contestId, { pool_name, description, round_id });
 
     res.status(201).json({
       success: true,
@@ -179,3 +185,27 @@ export const handleAddSinglePool = async (req, res) => {
   }
 };
 
+/**
+ * PUT /pools/:poolId
+ * Cập nhật một bảng đấu (tên, mô tả, đề tài, danh sách đội)
+ */
+export const handleUpdatePool = async (req, res) => {
+  try {
+    const { poolId } = req.params;
+    const { pool_name, description, teams, topic_id } = req.body;
+
+    const updated = await updatePool(poolId, { pool_name, description, teams, topic_id });
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật bảng đấu thành công",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("[handleUpdatePool]", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Lỗi máy chủ",
+    });
+  }
+};

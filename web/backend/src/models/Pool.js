@@ -7,6 +7,11 @@ const poolSchema = new mongoose.Schema(
       ref: "Contest",
       required: true,
     },
+    round_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contest.rounds",
+      default: null,
+    },
     pool_name: {
       type: String,
       required: true,
@@ -38,7 +43,7 @@ const poolSchema = new mongoose.Schema(
 );
 
 // Indexes for frequently queried fields
-poolSchema.index({ contest_id: 1 });
+poolSchema.index({ contest_id: 1, round_id: 1 });
 
 const Pool = mongoose.model("Pool", poolSchema);
 export default Pool;

@@ -79,7 +79,7 @@ export const createScore = async ({
   // Judge: pool-level — find which pool contains this team, then check judge assignment
   let judgeAssigned = false;
   if (!mentorAssigned) {
-    const pool = await Pool.findOne({ contest_id, teams: team_id }).select("_id").lean();
+    const pool = await Pool.findOne({ contest_id, round_id, teams: team_id }).select("_id").lean();
     if (pool) {
       judgeAssigned = !!(await JudgeAssignment.exists({ judge_id: actorId, contest_id, round_id, pool_id: pool._id }));
     }
@@ -124,7 +124,7 @@ export const createScore = async ({
     try {
       const { triggerReRank } = await import("./roundService.js");
       const Pool = mongoose.models.Pool || mongoose.model("Pool");
-      const pool = await Pool.findOne({ contest_id, teams: team_id }).select("_id").lean();
+      const pool = await Pool.findOne({ contest_id, round_id, teams: team_id }).select("_id").lean();
       await triggerReRank(contest_id, round_id, pool?._id);
     } catch (e) {
       console.error("Error triggering rerank on score submit:", e);
@@ -161,7 +161,7 @@ export const updateScore = async (scoreId, judgeId, { comment, score_details, su
     try {
       const { triggerReRank } = await import("./roundService.js");
       const Pool = mongoose.models.Pool || mongoose.model("Pool");
-      const pool = await Pool.findOne({ contest_id: score.contest_id, teams: score.team_id }).select("_id").lean();
+      const pool = await Pool.findOne({ contest_id: score.contest_id, round_id: score.round_id, teams: score.team_id }).select("_id").lean();
       await triggerReRank(score.contest_id, score.round_id, pool?._id);
     } catch (e) {
       console.error("Error triggering rerank on score update submit:", e);

@@ -3,6 +3,7 @@ import ScoreDetail from "../models/ScoreDetail.js";
 import Ranking from "../models/Ranking.js";
 import Team from "../models/Team.js";
 import Contest from "../models/Contest.js";
+import Pool from "../models/Pool.js";
 import { getIO } from "../socket/index.js";
 
 // ─── calculateRankings ────────────────────────────────────────────────────────
@@ -61,9 +62,20 @@ export const calculateRankings = async (contestId, roundId) => {
   }
 
   const teamIds = Object.keys(scoresByTeam);
-  const teams = await Team.find({ _id: { $in: teamIds } }).select("team_name pool_id");
+  const teams = await Team.find({ _id: { $in: teamIds } }).select("team_name");
   const teamMap = {};
   for (const t of teams) teamMap[t._id.toString()] = t;
+
+  // Map team_id to pool_id dynamically for this specific round
+  const pools = await Pool.find({ contest_id: contestId, round_id: roundId }).lean();
+  const teamPoolMap = {};
+  for (const p of pools) {
+    if (p.teams) {
+      for (const tId of p.teams) {
+        teamPoolMap[tId.toString()] = p._id;
+      }
+    }
+  }
 
   // Tính weighted average cho từng team
   const entries = [];
@@ -90,7 +102,7 @@ export const calculateRankings = async (contestId, roundId) => {
     entries.push({
       team_id: val.team_id,
       team_name: team?.team_name || "Unknown",
-      pool_id: team?.pool_id || null,
+      pool_id: teamPoolMap[teamKey] || null,
       final_score: Math.round(finalScore * 100) / 100,
     });
   }

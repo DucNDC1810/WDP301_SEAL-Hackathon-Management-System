@@ -126,7 +126,10 @@ export default function HackathonDetailPage({ defaultTab }) {
 
   const fetchPools = async () => {
     try {
-      const r = await fetch(`${API_URL}/api/pools/contests/${id}/pools`, { headers: hdrs() });
+      const url = selectedPoolRoundId
+        ? `${API_URL}/api/pools/contests/${id}/pools?round_id=${selectedPoolRoundId}`
+        : `${API_URL}/api/pools/contests/${id}/pools`;
+      const r = await fetch(url, { headers: hdrs() });
       const d = await r.json();
       if (d.success) setPools(d.data || []);
     } catch (e) {
@@ -176,7 +179,10 @@ export default function HackathonDetailPage({ defaultTab }) {
       const res = await fetch(`${API_URL}/api/pools/contests/${id}/add-single`, {
         method: 'POST',
         headers: hdrs(),
-        body: JSON.stringify(singlePoolForm),
+        body: JSON.stringify({
+          ...singlePoolForm,
+          round_id: selectedPoolRoundId,
+        }),
       });
       const d = await res.json();
       if (d.success) {
@@ -220,6 +226,7 @@ export default function HackathonDetailPage({ defaultTab }) {
         headers: hdrs(),
         body: JSON.stringify({
           pools: customPools,
+          round_id: selectedPoolRoundId,
         }),
       });
 
@@ -247,6 +254,7 @@ export default function HackathonDetailPage({ defaultTab }) {
         headers: hdrs(),
         body: JSON.stringify({
           assign_topics: assignTopics,
+          round_id: selectedPoolRoundId,
         }),
       });
 
@@ -280,7 +288,10 @@ export default function HackathonDetailPage({ defaultTab }) {
         setPoolWarning('');
 
         try {
-          const res = await fetch(`${API_URL}/api/pools/contests/${id}/pools`, {
+          const url = selectedPoolRoundId
+            ? `${API_URL}/api/pools/contests/${id}/pools?round_id=${selectedPoolRoundId}`
+            : `${API_URL}/api/pools/contests/${id}/pools`;
+          const res = await fetch(url, {
             method: 'DELETE',
             headers: hdrs(),
           });
@@ -297,10 +308,118 @@ export default function HackathonDetailPage({ defaultTab }) {
     });
   };
 
+  const [selectedPoolRoundId, setSelectedPoolRoundId] = useState('');
+  const [eligibleTeams, setEligibleTeams] = useState([]);
+  const [loadingEligibility, setLoadingEligibility] = useState(false);
+
+  const fetchEligibility = async (targetRoundId) => {
+    if (!targetRoundId || !contest || !contest.rounds) return;
+    setLoadingEligibility(true);
+    try {
+      const sortedRounds = [...contest.rounds].sort((a, b) => a.sequence_order - b.sequence_order);
+      const idx = sortedRounds.findIndex(r => r._id === targetRoundId);
+      if (idx <= 0) {
+        setEligibleTeams(teams.filter(t => t.status === 'CONFIRMED'));
+      } else {
+        const prevRound = sortedRounds[idx - 1];
+        const res = await fetch(`${API_URL}/api/contests/${id}/rounds/${prevRound._id}/rankings`, { headers: hdrs() });
+        const rankings = await res.json();
+        const allRankings = Array.isArray(rankings) ? rankings : rankings.data || [];
+        const qualifiedIds = allRankings.filter(r => r.qualified).map(r => r.team_id?._id || r.team_id);
+        setEligibleTeams(teams.filter(t => t.status === 'CONFIRMED' && qualifiedIds.includes(t._id)));
+      }
+    } catch (err) {
+      console.error('Error fetching round eligibility:', err);
+      setEligibleTeams([]);
+    } finally {
+      setLoadingEligibility(false);
+    }
+  };
+
+  const handleRemoveTeamFromPool = async (poolId, teamId) => {
+    setPoolError('');
+    setPoolSuccess('');
+    setPoolWarning('');
+    try {
+      const pool = pools.find(p => p._id === poolId);
+      if (!pool) return;
+      const updatedTeams = (pool.teams || []).map(t => t._id || t).filter(tid => tid !== teamId);
+      const res = await fetch(`${API_URL}/api/pools/${poolId}`, {
+        method: 'PUT',
+        headers: hdrs(),
+        body: JSON.stringify({ teams: updatedTeams }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setPoolSuccess('Đã xóa đội thi khỏi bảng đấu!');
+        fetchPools();
+        fetchTeams();
+      } else {
+        setPoolError(d.message || 'Lỗi khi xóa đội thi');
+      }
+    } catch (err) {
+      console.error(err);
+      setPoolError('Lỗi kết nối máy chủ');
+    }
+  };
+
+  const handleKeyTeamToPool = async (poolId, teamId) => {
+    setPoolError('');
+    setPoolSuccess('');
+    setPoolWarning('');
+    try {
+      const pool = pools.find(p => p._id === poolId);
+      if (!pool) return;
+      const currentTeams = (pool.teams || []).map(t => t._id || t);
+      if (currentTeams.includes(teamId)) return;
+      const updatedTeams = [...currentTeams, teamId];
+      const res = await fetch(`${API_URL}/api/pools/${poolId}`, {
+        method: 'PUT',
+        headers: hdrs(),
+        body: JSON.stringify({ teams: updatedTeams }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setPoolSuccess('Đã thêm đội thi vào bảng đấu!');
+        fetchPools();
+        fetchTeams();
+      } else {
+        setPoolError(d.message || 'Lỗi khi thêm đội thi');
+      }
+    } catch (err) {
+      console.error(err);
+      setPoolError('Lỗi kết nối máy chủ');
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchContest(), fetchPools(), fetchTeams()]).finally(() => setLoading(false));
+    Promise.all([fetchContest(), fetchTeams()]).finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (contest && contest.rounds && contest.rounds.length > 0 && !selectedPoolRoundId) {
+      const active = contest.rounds.find(r => r.is_active);
+      if (active) {
+        setSelectedPoolRoundId(active._id);
+      } else {
+        const sorted = [...contest.rounds].sort((a, b) => a.sequence_order - b.sequence_order);
+        setSelectedPoolRoundId(sorted[0]._id);
+      }
+    }
+  }, [contest, selectedPoolRoundId]);
+
+  useEffect(() => {
+    if (selectedPoolRoundId) {
+      fetchPools();
+    }
+  }, [selectedPoolRoundId]);
+
+  useEffect(() => {
+    if (selectedPoolRoundId && teams.length > 0 && contest) {
+      fetchEligibility(selectedPoolRoundId);
+    }
+  }, [selectedPoolRoundId, teams, contest]);
 
   // Synchronize state with LocalStorage or set default mock data
   useEffect(() => {
@@ -1486,6 +1605,35 @@ export default function HackathonDetailPage({ defaultTab }) {
             </div>
           )}
 
+          {/* Round Selector for Pools */}
+          {contest?.rounds && contest.rounds.length > 0 && (
+            <div className="results-select-group" style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span className="results-select-label" style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Vòng thi:</span>
+              <select
+                className="results-select"
+                value={selectedPoolRoundId}
+                onChange={(e) => setSelectedPoolRoundId(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                  fontSize: '0.85rem',
+                  width: '260px',
+                  cursor: 'pointer'
+                }}
+              >
+                {contest.rounds.map(r => (
+                  <option key={r._id} value={r._id}>
+                    {r.name} {r.is_active ? '🟢 (ONGOING)' : ''}
+                  </option>
+                ))}
+              </select>
+              {loadingEligibility && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Đang kiểm tra điều kiện vòng đấu...</span>}
+            </div>
+          )}
+
            {pools.length > 0 ? (
             <>
               <div className="hd-section-header">
@@ -1517,9 +1665,9 @@ export default function HackathonDetailPage({ defaultTab }) {
               {/* If empty pools, show assignment panel */}
               {!pools.some(p => p.teams && p.teams.length > 0) && (
                 <div className="hd-form" style={{ marginBottom: '30px' }}>
-                  <h3 className="hd-rules-title" style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--cyan)' }}>Xếp các đội thi đã CONFIRMED vào các bảng đấu</h3>
+                  <h3 className="hd-rules-title" style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--cyan)' }}>Xếp các đội thi vào các bảng đấu</h3>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '16px' }}>
-                    Hiện có <strong>{teams.filter(t => t.status === 'CONFIRMED').length}</strong> đội thi đã CONFIRMED.
+                    Hiện có <strong>{eligibleTeams.length}</strong> đội thi đủ điều kiện trong vòng này.
                     Hệ thống sẽ trộn ngẫu nhiên tất cả các đội thi này và chia đều vào <strong>{pools.length}</strong> bảng đấu trống ở dưới.
                   </p>
                   
@@ -1542,13 +1690,13 @@ export default function HackathonDetailPage({ defaultTab }) {
                       type="button"
                       className="hd-btn-save"
                       onClick={handleAssignTeams}
-                      disabled={isAssigning || teams.filter(t => t.status === 'CONFIRMED').length < pools.length}
+                      disabled={isAssigning || eligibleTeams.length < pools.length}
                     >
                       {isAssigning ? 'Đang xếp các đội...' : 'Bắt đầu xếp đội ngẫu nhiên'}
                     </button>
-                    {teams.filter(t => t.status === 'CONFIRMED').length < pools.length && (
+                    {eligibleTeams.length < pools.length && (
                       <span style={{ color: '#f59e0b', fontSize: '0.8rem', alignSelf: 'center' }}>
-                        ⚠ Cần có ít nhất {pools.length} đội đấu CONFIRMED. Hiện chỉ có {teams.filter(t => t.status === 'CONFIRMED').length} đội.
+                        ⚠ Cần có ít nhất {pools.length} đội đấu đủ điều kiện. Hiện chỉ có {eligibleTeams.length} đội.
                       </span>
                     )}
                   </div>
@@ -1572,16 +1720,55 @@ export default function HackathonDetailPage({ defaultTab }) {
                         📝 {p.description}
                       </div>
                     )}
-                    <ul className="hd-pool-teams">
+                    <ul className="hd-pool-teams" style={{ listStyle: 'none', padding: 0, margin: '12px 0 0 0' }}>
                       {p.teams && p.teams.length > 0 ? (
-                        <>
-                          {p.teams.slice(0, 5).map(t => <li key={t._id}>{t.team_name}</li>)}
-                          {p.teams.length > 5 && <li className="hd-pool-more">+{p.teams.length - 5} đội khác</li>}
-                        </>
+                        p.teams.map(t => (
+                          <li key={t._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'rgba(255,255,255,0.02)', marginBottom: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <span style={{ fontWeight: 500, color: '#c9d6e8', fontSize: '0.85rem' }}>{t.team_name}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTeamFromPool(p._id, t._id)}
+                              style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem', padding: '2px 6px', fontWeight: 'bold' }}
+                              title="Xóa đội khỏi bảng đấu"
+                            >
+                              ✕
+                            </button>
+                          </li>
+                        ))
                       ) : (
-                        <li style={{ color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', background: 'transparent' }}>Chưa xếp đội thi</li>
+                        <li style={{ color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', background: 'transparent', fontSize: '0.85rem', padding: '10px 0' }}>Chưa xếp đội thi</li>
                       )}
                     </ul>
+
+                    {/* Dropdown to add unassigned teams */}
+                    <div style={{ marginTop: '12px', borderTop: '1px dashed var(--border)', paddingTop: '10px' }}>
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleKeyTeamToPool(p._id, e.target.value);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          fontSize: '0.8rem',
+                          borderRadius: '6px',
+                          background: 'var(--bg-nest)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="">➕ Thêm đội thi vào bảng...</option>
+                        {eligibleTeams
+                          .filter(t => !pools.some(pool => (pool.teams || []).some(pt => (pt._id || pt) === t._id)))
+                          .map(t => (
+                            <option key={t._id} value={t._id}>{t.team_name}</option>
+                          ))
+                        }
+                      </select>
+                    </div>
                   </div>
                 ))}
               </div>

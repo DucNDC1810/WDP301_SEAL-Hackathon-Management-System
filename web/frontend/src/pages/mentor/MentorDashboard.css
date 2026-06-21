@@ -16,6 +16,24 @@
   --md-text3:     rgba(255,255,255,0.45);
   --md-sidebar-w: 240px;
   --md-top-h:     56px;
+  --md-sidebar-bg: rgba(4,10,22,0.97);
+  --md-topbar-bg:  rgba(4,10,22,0.97);
+  --md-nav-hover:  rgba(255,255,255,0.05);
+}
+
+[data-theme="light"] {
+  --md-bg:        #f0f4f8;
+  --md-bg2:       #ffffff;
+  --md-sidebar:   #ffffff;
+  --md-card:      #ffffff;
+  --md-border:    #e2e8f0;
+  --md-border2:   #cbd5e1;
+  --md-text:      #1e293b;
+  --md-text2:     #64748b;
+  --md-text3:     #94a3b8;
+  --md-sidebar-bg: rgba(255,255,255,0.96);
+  --md-topbar-bg:  rgba(255,255,255,0.96);
+  --md-nav-hover:  rgba(0,0,0,0.05);
 }
 
 /* ─── Layout ─────────────────────────────────────────────────────────────────── */
@@ -30,10 +48,10 @@
   position: fixed;
   top: 0; left: 0; right: 0;
   height: var(--md-top-h);
-  background: rgba(4,10,22,0.97);
+  background: var(--md-topbar-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--md-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -107,8 +125,8 @@
 
 .md-avatar {
   width: 32px; height: 32px; border-radius: 50%;
-  background: linear-gradient(135deg, #00d4ff33, #a855f733);
-  border: 1.5px solid rgba(0,212,255,0.4);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(168, 85, 247, 0.2));
+  border: 1.5px solid rgba(0, 212, 255, 0.4);
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 0.85rem; color: var(--md-cyan);
   flex-shrink: 0;
@@ -127,21 +145,32 @@
 .md-role-badge {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 0.62rem; font-weight: 700;
-  color: var(--md-purple);
-  background: rgba(168,85,247,0.1);
-  border: 1px solid rgba(168,85,247,0.25);
+  color: var(--md-cyan);
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.25);
   padding: 1px 7px; border-radius: 20px;
 }
 
 .md-logout-btn {
-  padding: 5px 14px; border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--md-border);
   background: transparent;
-  border: 1px solid var(--md-border2);
   color: var(--md-text2);
-  font-size: 0.78rem; cursor: pointer;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
   transition: all 0.15s;
+  white-space: nowrap;
 }
-.md-logout-btn:hover { border-color: var(--md-red); color: var(--md-red); }
+.md-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: var(--md-red);
+  color: var(--md-red);
+}
 
 /* ─── Sidebar ────────────────────────────────────────────────────────────────── */
 .md-sidebar {
@@ -149,12 +178,46 @@
   top: var(--md-top-h);
   left: 0; bottom: 0;
   width: var(--md-sidebar-w);
-  background: rgba(4,10,22,0.97);
-  border-right: 1px solid rgba(255,255,255,0.06);
-  padding: 12px 0;
-  overflow-y: auto;
+  background: var(--md-sidebar-bg);
+  border-right: 1px solid var(--md-border);
+  display: flex;
+  flex-direction: column;
   z-index: 100;
   backdrop-filter: blur(12px);
+}
+
+.md-sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+.md-sidebar-foot {
+  margin-top: auto;
+  padding: 10px 12px;
+  border-top: 1px solid var(--md-border);
+}
+
+.md-theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: 7px;
+  border: 1px solid var(--md-border);
+  background: transparent;
+  color: var(--md-text2);
+  font-size: 0.8rem;
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.md-theme-toggle:hover {
+  background: var(--md-nav-hover);
+  color: var(--md-cyan);
+  border-color: rgba(0, 212, 255, 0.3);
 }
 
 .md-sidebar-section {
@@ -177,7 +240,7 @@
   padding: 9px 12px;
   border-radius: 10px;
   cursor: pointer;
-  color: rgba(255,255,255,0.42);
+  color: var(--md-text2);
   font-size: 0.84rem;
   font-weight: 500;
   transition: all 0.15s;
@@ -186,13 +249,13 @@
   border: 1px solid transparent;
 }
 .md-nav-item:hover {
-  background: rgba(255,255,255,0.05);
-  color: rgba(255,255,255,0.78);
-  border-color: rgba(255,255,255,0.05);
+  background: var(--md-nav-hover);
+  color: var(--md-text);
+  border-color: var(--md-border);
 }
 .md-nav-item.active {
-  background: linear-gradient(90deg, rgba(0,212,255,0.13), rgba(168,85,247,0.08));
-  border-color: rgba(0,212,255,0.22);
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.13), rgba(168, 85, 247, 0.08));
+  border-color: rgba(0, 212, 255, 0.22);
   color: var(--md-cyan);
   font-weight: 600;
 }

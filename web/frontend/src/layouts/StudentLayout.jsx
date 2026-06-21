@@ -90,7 +90,7 @@ export const StudentLayout = () => {
               <div className="sl-user-av">{(user.full_name?.[0] || 'U').toUpperCase()}</div>
               <div className="sl-user-info">
                 <span className="sl-user-name">{user.full_name}</span>
-                <span className="sl-user-role">Thí sinh</span>
+                <span className="sl-user-role">👥 Thí sinh</span>
               </div>
             </div>
           )}

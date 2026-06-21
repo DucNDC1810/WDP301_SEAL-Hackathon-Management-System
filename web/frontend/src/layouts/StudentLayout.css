@@ -125,13 +125,27 @@
 }
 .sl-user-av {
   width: 30px; height: 30px; border-radius: 50%;
-  background: linear-gradient(135deg,var(--sl-accent),#7c3aed);
-  color: #fff; font-weight: 700; font-size: 0.8rem;
+  background: linear-gradient(135deg, var(--sl-accent-bg), rgba(124, 58, 237, 0.2));
+  border: 1.5px solid var(--sl-accent-border);
+  color: var(--sl-accent); font-weight: 700; font-size: 0.8rem;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .sl-user-info  { display: flex; flex-direction: column; overflow: hidden; }
 .sl-user-name  { font-size: 0.76rem; font-weight: 600; color: var(--sl-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sl-user-role  { font-size: 0.62rem; color: var(--sl-accent); text-transform: uppercase; letter-spacing: .5px; }
+.sl-user-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--sl-accent);
+  background: var(--sl-accent-bg);
+  border: 1px solid var(--sl-accent-border);
+  padding: 1px 7px;
+  border-radius: 20px;
+  margin-top: 3px;
+  width: fit-content;
+}
 
 .sl-theme-toggle {
   display: flex; align-items: center; gap: 8px;

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { Progress, Spin, Tooltip, message, Tag } from 'antd';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useApi } from '../../hooks/useApi';
 import './MentorDashboard.css';
 
@@ -118,27 +119,47 @@ const NAV_GROUPS = [
 ];
 
 function Sidebar({ active, onChange, onNavigate, chatUnread }) {
+  const { theme, toggleTheme } = useTheme();
   return (
-    <aside className="md-sidebar" style={{ padding: '8px 12px' }}>
-      {NAV_GROUPS.map((g, gi) => (
-        <div key={gi}>
-          {gi > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
-          {g.items.map(item => {
-            const badge = item.id === 'chat' ? chatUnread : 0;
-            return (
-              <div
-                key={item.id}
-                className={`md-nav-item ${active === item.id ? 'active' : ''}`}
-                onClick={() => item.id === 'chat' ? onNavigate('/mentor/chat') : onChange(item.id)}
-              >
-                <span className="md-nav-icon">{item.icon}</span>
-                <span>{item.label}</span>
-                {badge > 0 ? <span className="md-nav-badge">{badge > 99 ? '99+' : badge}</span> : null}
-              </div>
-            );
-          })}
-        </div>
-      ))}
+    <aside className="md-sidebar">
+      <div className="md-sidebar-nav" style={{ padding: '8px 12px' }}>
+        {NAV_GROUPS.map((g, gi) => (
+          <div key={gi}>
+            {gi > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
+            {g.items.map(item => {
+              const badge = item.id === 'chat' ? chatUnread : 0;
+              return (
+                <div
+                  key={item.id}
+                  className={`md-nav-item ${active === item.id ? 'active' : ''}`}
+                  onClick={() => item.id === 'chat' ? onNavigate('/mentor/chat') : onChange(item.id)}
+                >
+                  <span className="md-nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                  {badge > 0 ? <span className="md-nav-badge">{badge > 99 ? '99+' : badge}</span> : null}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="md-sidebar-foot">
+        <button
+          className="md-theme-toggle"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+            {theme === 'dark' ? (
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z" />
+            ) : (
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            )}
+          </svg>
+          <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        </button>
+      </div>
     </aside>
   );
 }
@@ -1125,10 +1146,18 @@ export default function MentorDashboard() {
             <div className="md-avatar">{userInitials}</div>
             <div>
               <div className="md-profile-name">{user?.full_name || 'Mentor'}</div>
-              <span className="md-role-badge">🎯 Mentor</span>
+              <span className="md-role-badge">👥 Mentor</span>
             </div>
           </div>
-          <button className="md-logout-btn" onClick={logout}>Đăng xuất</button>
+          <button className="md-logout-btn" onClick={logout}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5" />
+              <path d="M21 12H9" />
+            </svg>
+            <span>Đăng xuất</span>
+          </button>
         </div>
       </header>
 

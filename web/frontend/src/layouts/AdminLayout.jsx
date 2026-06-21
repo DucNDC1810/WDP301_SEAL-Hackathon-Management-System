@@ -152,12 +152,12 @@ export default function AdminLayout() {
               <div className="al-profile-av">{initials(user?.full_name)}</div>
               <div className="al-profile-info">
                 <div className="al-profile-name">{user?.full_name || 'Admin'}</div>
-                <span className="al-profile-role">ADMIN</span>
+                <span className="al-profile-role">👥 Admin</span>
               </div>
             </div>
-            <button className="al-topbar-logout" onClick={handleLogout} title="Logout">
+            <button className="al-topbar-logout" onClick={handleLogout} title="Đăng xuất">
               <Ico d={LOGOUT} size={16} sw={1.8} />
-              <span>Logout</span>
+              <span>Đăng xuất</span>
             </button>
           </div>
         </header>

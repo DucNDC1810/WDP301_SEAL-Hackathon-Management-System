@@ -293,15 +293,30 @@ export const completeJudgeRegistration = async ({ token, full_name, password }) 
     }
   } else {
     // Tạo tài khoản mới
-    const password_hash = await bcrypt.hash(password, 10);
-    user = await User.create({
-      full_name: full_name.trim(),
-      email: invitation.email,
-      password_hash,
-      provider: "local",
-      is_verified: true,
-      roles: [{ role_id: new mongoose.Types.ObjectId(), role_name: "judge" }],
-    });
+    try {
+      const password_hash = await bcrypt.hash(password, 10);
+      user = await User.create({
+        full_name: full_name.trim(),
+        email: invitation.email,
+        password_hash,
+        provider: "local",
+        is_verified: true,
+        roles: [{ role_id: new mongoose.Types.ObjectId(), role_name: "judge" }],
+      });
+    } catch (createErr) {
+      if (createErr.code === 11000) {
+        // Nếu bị trùng do race condition, lấy lại user đã được tạo
+        user = await User.findOne({ email: invitation.email });
+        if (!user) throw createErr;
+        const hasJudge = user.roles.some(r => r.role_name === "judge");
+        if (!hasJudge) {
+          user.roles.push({ role_id: new mongoose.Types.ObjectId(), role_name: "judge" });
+          await user.save();
+        }
+      } else {
+        throw createErr;
+      }
+    }
   }
 
   // Cập nhật tất cả JudgeAssignment pending của invitation này

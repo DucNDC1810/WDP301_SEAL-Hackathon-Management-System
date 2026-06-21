@@ -47,10 +47,60 @@ export const assignJudge = async ({
     }
     const email = external_email.toLowerCase().trim();
 
+    // Kiểm tra xem người dùng đã tồn tại trong hệ thống chưa
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      // Chặn mentor chấm bảng mình đang mentor
+      const isMentorOfThisPool = await MentorAssignment.exists({
+        mentor_id: existingUser._id, contest_id, round_id, board_id: pool_id,
+      });
+      if (isMentorOfThisPool) {
+        const err = new Error(
+          `${existingUser.full_name || email} đang là Mentor của bảng này — không thể vừa mentor vừa chấm cùng bảng`
+        );
+        err.statusCode = 400; throw err;
+      }
+
+      // Gán role judge nếu chưa có
+      const hasJudgeRole = existingUser.roles?.some((r) => r.role_name === "judge");
+      if (!hasJudgeRole) {
+        existingUser.roles = existingUser.roles || [];
+        existingUser.roles.push({
+          role_id: new mongoose.Types.ObjectId(),
+          role_name: "judge",
+        });
+        await existingUser.save();
+      }
+
+      // Tạo JudgeAssignment trực tiếp ở trạng thái active
+      const assignment = await JudgeAssignment.create({
+        contest_id, round_id, pool_id,
+        judge_id: existingUser._id,
+        external_email: email,
+        invitation_id: null,
+        invitation_status: "active",
+        judge_type: "EXTERNAL",
+        assigned_by,
+      });
+
+      await assignment.populate([
+        { path: "judge_id",    select: "full_name email roles" },
+        { path: "pool_id",     select: "pool_name" },
+        { path: "assigned_by", select: "full_name email" },
+      ]);
+
+      return { assignment, warnings: [] };
+    }
+
     const existingInv = await Invitation.findOne({ contest_id, email, role: "judge", status: "pending" });
     if (existingInv) {
-      const err = new Error("Đã gửi lời mời cho email này, đang chờ xác nhận");
-      err.statusCode = 409; throw err;
+      const hasAssignment = await JudgeAssignment.exists({ invitation_id: existingInv._id });
+      if (!hasAssignment) {
+        await Invitation.deleteOne({ _id: existingInv._id });
+      } else {
+        const err = new Error("Đã gửi lời mời cho email này, đang chờ xác nhận");
+        err.statusCode = 409; throw err;
+      }
     }
 
     const rawToken = crypto.randomBytes(32).toString("hex");
@@ -130,10 +180,16 @@ export const removeJudgeAssignment = async (assignmentId) => {
   if (!mongoose.Types.ObjectId.isValid(assignmentId)) {
     const err = new Error("Assignment ID không hợp lệ"); err.statusCode = 400; throw err;
   }
-  const assignment = await JudgeAssignment.findByIdAndDelete(assignmentId);
+  const assignment = await JudgeAssignment.findById(assignmentId);
   if (!assignment) {
     const err = new Error("Không tìm thấy phân công"); err.statusCode = 404; throw err;
   }
+
+  if (assignment.judge_type === "EXTERNAL" && assignment.invitation_id) {
+    await Invitation.deleteOne({ _id: assignment.invitation_id });
+  }
+
+  await JudgeAssignment.findByIdAndDelete(assignmentId);
 };
 
 // ─── getJudgeAssignmentsByRound ───────────────────────────────────────────────

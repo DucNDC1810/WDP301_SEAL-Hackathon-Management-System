@@ -126,6 +126,10 @@ const contestSchema = new mongoose.Schema(
       type: Number,
       default: 10,
     },
+    wildcard_enabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

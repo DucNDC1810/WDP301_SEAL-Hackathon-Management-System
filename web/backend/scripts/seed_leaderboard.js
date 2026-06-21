@@ -49,6 +49,7 @@ async function seed() {
     description: "Giải đấu dành riêng cho kiểm thử Leaderboard Sơ loại và Tiebreak",
     status: "open",
     created_by: user._id,
+    wildcard_enabled: true,
   });
   console.log("Created Contest:", contest.title, "ID:", contest._id);
 
@@ -59,6 +60,8 @@ async function seed() {
     type: "PRELIMINARY",
     is_active: true,
     top_n: 2,
+    wildcard_enabled: true,
+    wildcard_count: 2,
     round_start: new Date(),
     round_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   });

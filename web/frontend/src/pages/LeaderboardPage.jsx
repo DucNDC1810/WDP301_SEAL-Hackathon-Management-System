@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getLeaderboard, getTiebreakStatus } from '../api/leaderboard';
+import { getWildCardCandidates } from '../api/wildcard';
 import LeaderboardTable from '../components/LeaderboardTable';
 import TiebreakAlert from '../components/TiebreakAlert';
 
@@ -12,6 +13,7 @@ export default function LeaderboardPage() {
   const [error, setError] = useState(null);
   const [activeGroup, setActiveGroup] = useState("");
   const [tiebreakGroups, setTiebreakGroups] = useState([]);
+  const [wildcardEligible, setWildcardEligible] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -45,6 +47,16 @@ export default function LeaderboardPage() {
       })
       .catch((err) => {
         console.error("Lỗi khi tải trạng thái phân tranh (bỏ qua):", err);
+      });
+
+    getWildCardCandidates(round_id)
+      .then((res) => {
+        if (isMounted) {
+          setWildcardEligible(res.data?.eligible || false);
+        }
+      })
+      .catch((err) => {
+        console.error("Lỗi khi tải trạng thái Wild Card (bỏ qua):", err);
       });
 
     return () => {
@@ -191,6 +203,39 @@ export default function LeaderboardPage() {
             }}></span>
             Vòng thi: {data?.round_name || "Sơ loại"}
           </div>
+
+          {wildcardEligible && (
+            <div style={{ marginTop: '16px' }}>
+              <button
+                onClick={() => navigate(`/wildcard/${round_id}`)}
+                style={{
+                  background: 'rgba(168, 85, 247, 0.12)',
+                  color: '#c084fc',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  padding: '8px 16px',
+                  borderRadius: '20px',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 0 12px rgba(168, 85, 247, 0.1)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)';
+                  e.currentTarget.style.borderColor = '#a855f7';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                }}
+              >
+                🔮 Xem Danh Sách Vé Vớt (Wild Card)
+              </button>
+            </div>
+          )}
         </header>
 
         <TiebreakAlert tiebreakGroups={tiebreakGroups} />

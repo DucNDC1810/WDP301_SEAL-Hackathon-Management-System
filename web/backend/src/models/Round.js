@@ -33,6 +33,14 @@ const roundSchema = new mongoose.Schema(
       type: Number,
       default: 6,
     },
+    wildcard_enabled: {
+      type: Boolean,
+      default: false,
+    },
+    wildcard_count: {
+      type: Number,
+      default: 1,
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

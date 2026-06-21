@@ -33,13 +33,6 @@ export const assignJudge = async ({
     const err = new Error("Không tìm thấy vòng thi"); err.statusCode = 404; throw err;
   }
 
-  // Kiểm tra pool đã có judge chưa
-  const existingAssignment = await JudgeAssignment.findOne({ pool_id, round_id });
-  if (existingAssignment) {
-    const err = new Error("Bảng này đã có giám khảo. Xóa phân công cũ trước khi thay.");
-    err.statusCode = 409; throw err;
-  }
-
   // ── EXTERNAL flow ──────────────────────────────────────────────────────────
   if (judge_type === "EXTERNAL") {
     if (!external_email) {
@@ -47,8 +40,19 @@ export const assignJudge = async ({
     }
     const email = external_email.toLowerCase().trim();
 
-    // Kiểm tra xem người dùng đã tồn tại trong hệ thống chưa
+    // Kiểm tra trùng lặp phân công cho giám khảo ngoại
     const existingUser = await User.findOne({ email });
+    const duplicateQuery = { pool_id, round_id };
+    if (existingUser) {
+      duplicateQuery.judge_id = existingUser._id;
+    } else {
+      duplicateQuery.external_email = email;
+    }
+    const dup = await JudgeAssignment.findOne(duplicateQuery);
+    if (dup) {
+      const err = new Error("Giám khảo này đã được phân công chấm bảng này trong vòng thi.");
+      err.statusCode = 409; throw err;
+    }
     if (existingUser) {
       // Chặn mentor chấm bảng mình đang mentor
       const isMentorOfThisPool = await MentorAssignment.exists({
@@ -131,6 +135,13 @@ export const assignJudge = async ({
   // ── INTERNAL flow ──────────────────────────────────────────────────────────
   if (!judge_id) {
     const err = new Error("Vui lòng chọn giám khảo"); err.statusCode = 400; throw err;
+  }
+
+  // Kiểm tra trùng lặp phân công cho giám khảo nội bộ
+  const dup = await JudgeAssignment.findOne({ pool_id, round_id, judge_id });
+  if (dup) {
+    const err = new Error("Giám khảo này đã được phân công chấm bảng này trong vòng thi.");
+    err.statusCode = 409; throw err;
   }
 
   const judge = await User.findById(judge_id).select("email roles full_name");

@@ -112,19 +112,12 @@ export const lockScoring = async (contestId, roundId, { force = false, force_loc
     const err = new Error("Vòng thi này đã bị khóa chấm điểm"); err.statusCode = 409; throw err;
   }
 
-  // Kiểm tra judge chưa chấm đủ
-  const totalAssignments = await JudgeAssignment.countDocuments({ contest_id: contestId, round_id: roundId });
-  const submittedScores = await Score.countDocuments({
-    contest_id: contestId,
-    round_id: roundId,
-    status: "submitted",
-    score_type: "NORMAL",
-  });
-
-  const incomplete = totalAssignments - submittedScores;
+  // Kiểm tra judge chưa chấm đủ bằng cách gọi checkJudgeCompletion
+  const completion = await checkJudgeCompletion(roundId);
+  const incomplete = completion.summary.incomplete_count;
   if (incomplete > 0 && !force) {
     const err = new Error(
-      `Còn ${incomplete} judge chưa chấm đủ. Dùng force_lock=true và nhập force_lock_reason để buộc khóa.`
+      `Còn ${incomplete} giám khảo chưa chấm đủ. Dùng force_lock=true và nhập force_lock_reason để buộc khóa.`
     );
     err.statusCode = 400; throw err;
   }
@@ -358,8 +351,9 @@ export const flagLateTeam = async (roundId, { team_id, reason, check_in_time }, 
  * @returns {Promise<Object>} The summary and judge statistics array
  */
 export const checkJudgeCompletion = async (roundId) => {
-  const assignments = await JudgeAssignment.find({ round_id: roundId }).populate("judge_id", "full_name email");
-  const totalSubmissions = await Submission.countDocuments({ round_id: roundId });
+  const assignments = await JudgeAssignment.find({ round_id: roundId })
+    .populate("judge_id", "full_name email")
+    .populate("pool_id");
 
   // Get unique judges from assignments
   const judgeMap = {};
@@ -372,7 +366,11 @@ export const checkJudgeCompletion = async (roundId) => {
       judgeMap[judgeId] = {
         judge_id: judgeId,
         judge_name: judge.full_name || judge.email || "Unknown Judge",
+        pools: [],
       };
+    }
+    if (assign.pool_id) {
+      judgeMap[judgeId].pools.push(assign.pool_id);
     }
   }
 
@@ -382,15 +380,33 @@ export const checkJudgeCompletion = async (roundId) => {
   for (const judgeId of Object.keys(judgeMap)) {
     const judgeInfo = judgeMap[judgeId];
 
+    // Thu thập tất cả team_id từ các pool mà judge được phân công
+    const teamIds = [];
+    for (const pool of judgeInfo.pools) {
+      if (pool.teams && Array.isArray(pool.teams)) {
+        teamIds.push(...pool.teams.map((t) => t.toString()));
+      }
+    }
+
+    const uniqueTeamIds = [...new Set(teamIds)];
+
+    // Số lượng đội có bài nộp trong vòng này trong pool của judge
+    const expectedCount = await Submission.countDocuments({
+      round_id: roundId,
+      team_id: { $in: uniqueTeamIds },
+      status: { $in: ["SUBMITTED", "LATE_APPROVED"] },
+    });
+
     const scoredCount = await Score.countDocuments({
       round_id: roundId,
       judge_id: judgeId,
+      team_id: { $in: uniqueTeamIds },
       score_type: "NORMAL",
       status: "submitted",
     });
 
-    const missing = Math.max(0, totalSubmissions - scoredCount);
-    const complete = scoredCount >= totalSubmissions;
+    const missing = Math.max(0, expectedCount - scoredCount);
+    const complete = scoredCount >= expectedCount;
 
     if (!complete) {
       incompleteCount++;
@@ -400,7 +416,7 @@ export const checkJudgeCompletion = async (roundId) => {
       judge_id: judgeInfo.judge_id,
       judge_name: judgeInfo.judge_name,
       scored: scoredCount,
-      total: totalSubmissions,
+      total: expectedCount,
       missing,
       complete,
     });

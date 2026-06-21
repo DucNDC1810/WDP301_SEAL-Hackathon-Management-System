@@ -199,12 +199,8 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     }
   };
 
-  // Pool options cho judge — disable nếu đã có judge
-  const judgePoolOptions = poolOptions.map(p => ({
-    ...p,
-    disabled: assignedPoolIds.has(p.value?.toString()),
-    label: assignedPoolIds.has(p.value?.toString()) ? `${p.label} (đã có giám khảo)` : p.label,
-  }));
+  // Pool options cho judge — không disable nữa để hỗ trợ phân công nhiều giám khảo
+  const judgePoolOptions = poolOptions;
 
   return (
     <div className="p-6 space-y-8">

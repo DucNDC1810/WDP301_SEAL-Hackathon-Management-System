@@ -152,6 +152,24 @@ export const handleGetMyPoolSlots = async (req, res) => {
     const round = await findRoundInContest(contest_id, round_id);
     if (!round) return res.status(404).json({ message: "Không tìm thấy vòng thi" });
 
+    // Nếu vòng thi hiện tại không phải vòng đầu tiên, kiểm tra xem đội có lọt vào vòng này không (qualified ở vòng trước)
+    const contest = await Contest.findById(contest_id).select("rounds");
+    const sortedRounds = [...(contest?.rounds || [])].sort((a, b) => a.round_number - b.round_number);
+    const currentRoundIndex = sortedRounds.findIndex((r) => r._id.toString() === round_id.toString());
+    if (currentRoundIndex > 0) {
+      const prevRound = sortedRounds[currentRoundIndex - 1];
+      const Ranking = (await import("mongoose")).default.model("Ranking");
+      const isQualified = await Ranking.exists({
+        contest_id: contest._id,
+        round_id: prevRound._id,
+        team_id: team._id,
+        qualified: true,
+      });
+      if (!isQualified) {
+        return res.status(403).json({ message: "Đội thi của bạn không lọt vào vòng tiếp theo" });
+      }
+    }
+
     if (round.submission_deadline && new Date() > new Date(round.submission_deadline)) {
       return res.status(400).json({
         message: "Đã qua hạn nộp bài. Không thể đăng ký lịch trình bày nữa.",
@@ -207,6 +225,24 @@ export const handleBookSlot = async (req, res) => {
     if (!team) return res.status(404).json({ message: "Không tìm thấy đội thi" });
     if (team.pool_id?.toString() !== slot.pool_id?.toString())
       return res.status(403).json({ message: "Slot này không thuộc pool của đội bạn" });
+
+    // Nếu vòng thi hiện tại không phải vòng đầu tiên, kiểm tra xem đội có lọt vào vòng này không (qualified ở vòng trước)
+    const contest = await Contest.findById(slot.contest_id).select("rounds");
+    const sortedRounds = [...(contest?.rounds || [])].sort((a, b) => a.round_number - b.round_number);
+    const currentRoundIndex = sortedRounds.findIndex((r) => r._id.toString() === slot.round_id.toString());
+    if (currentRoundIndex > 0) {
+      const prevRound = sortedRounds[currentRoundIndex - 1];
+      const Ranking = (await import("mongoose")).default.model("Ranking");
+      const isQualified = await Ranking.exists({
+        contest_id: contest._id,
+        round_id: prevRound._id,
+        team_id: team._id,
+        qualified: true,
+      });
+      if (!isQualified) {
+        return res.status(403).json({ message: "Đội thi của bạn không lọt vào vòng tiếp theo" });
+      }
+    }
 
     const round = await findRoundInContest(slot.contest_id.toString(), slot.round_id.toString());
     if (round?.submission_deadline && new Date() > new Date(round.submission_deadline))

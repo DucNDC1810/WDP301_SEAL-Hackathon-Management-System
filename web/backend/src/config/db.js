@@ -7,6 +7,14 @@ export const connectDB = async () => {
     });
     console.log("Liên kết CSDL thành công !!!!");
     console.log("Connected to MongoDB");
+
+    // Drop old unique index for JudgeAssignment to support multiple judges per pool
+    try {
+      await mongoose.connection.collection("judgeassignments").dropIndex("pool_id_1_round_id_1");
+      console.log("Dropped old unique index pool_id_1_round_id_1 successfully");
+    } catch (e) {
+      // Ignore if index doesn't exist
+    }
   } catch (error) {
     console.error(">>>>>>Error nè:", error);
   }

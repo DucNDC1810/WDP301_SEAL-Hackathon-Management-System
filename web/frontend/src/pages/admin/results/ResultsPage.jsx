@@ -56,9 +56,28 @@ export default function ResultsPage() {
         return;
       }
 
-      // Fetch rankings/leaderboard
+      // Tải chi tiết cuộc thi để phân giải vòng thi hiện tại
+      const contestRes = await fetch(
+        `${API_URL}/api/contests/${contestId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!contestRes.ok) {
+        setLoading(false);
+        return;
+      }
+      const contestJson = await contestRes.json();
+      const contestObj = contestJson.data;
+      if (!contestObj || !contestObj.rounds || contestObj.rounds.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const activeRound = contestObj.rounds.find(r => r.is_active) || contestObj.rounds[contestObj.rounds.length - 1] || contestObj.rounds[0];
+      const targetRoundId = roundId || activeRound._id;
+
+      // Tải bảng xếp hạng với API đúng: GET /api/contests/:contestId/rounds/:roundId/rankings
       const rankRes = await fetch(
-        `${API_URL}/api/rankings/contests/${contestId}/rounds/${roundId || 'latest'}`,
+        `${API_URL}/api/contests/${contestId}/rounds/${targetRoundId}/rankings`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -104,9 +123,9 @@ export default function ResultsPage() {
         }
       }
 
-      // Fetch scores for additional metrics
+      // Tải tiến độ chấm điểm với API đúng: GET /api/scores/contests/:contestId/rounds/:roundId/progress
       const scoresRes = await fetch(
-        `${API_URL}/api/scores/contests/${contestId}/progress/${roundId || 'latest'}`,
+        `${API_URL}/api/scores/contests/${contestId}/rounds/${targetRoundId}/progress`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

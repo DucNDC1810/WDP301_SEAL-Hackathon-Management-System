@@ -65,8 +65,6 @@ export const calculateRankings = async (contestId, roundId) => {
   const teamMap = {};
   for (const t of teams) teamMap[t._id.toString()] = t;
 
-  const topN = contest.max_teams_per_pool || 3;
-
   // Tính weighted average cho từng team
   const entries = [];
   for (const [teamKey, val] of Object.entries(scoresByTeam)) {
@@ -97,31 +95,25 @@ export const calculateRankings = async (contestId, roundId) => {
     });
   }
 
-  // PARTITION BY pool_id — xếp hạng trong từng pool độc lập
-  const poolGroups = {};
-  for (const e of entries) {
-    const poolKey = e.pool_id ? e.pool_id.toString() : "__no_pool__";
-    if (!poolGroups[poolKey]) poolGroups[poolKey] = [];
-    poolGroups[poolKey].push(e);
-  }
+  // Sắp xếp tất cả teams theo final_score giảm dần (Toàn cuộc thi)
+  entries.sort((a, b) => b.final_score - a.final_score);
 
-  const rankingDocs = [];
-  for (const [poolKey, poolEntries] of Object.entries(poolGroups)) {
-    poolEntries.sort((a, b) => b.final_score - a.final_score);
-    poolEntries.forEach((e, i) => {
-      rankingDocs.push({
-        contest_id: contestId,
-        round_id: roundId,
-        board_id: e.pool_id,
-        team_id: e.team_id,
-        team_name: e.team_name,
-        final_score: e.final_score,
-        rank_position: i + 1,
-        qualified: i < topN,
-        calculated_at: new Date(),
-      });
-    });
-  }
+  const sortedRounds = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
+  const currentRoundIndex = sortedRounds.findIndex((r) => r._id.toString() === roundId.toString());
+  const isFinalRound = currentRoundIndex === sortedRounds.length - 1;
+  const topN = isFinalRound ? 3 : 6;
+
+  const rankingDocs = entries.map((e, i) => ({
+    contest_id: contestId,
+    round_id: roundId,
+    board_id: e.pool_id,
+    team_id: e.team_id,
+    team_name: e.team_name,
+    final_score: e.final_score,
+    rank_position: i + 1,
+    qualified: i < topN,
+    calculated_at: new Date(),
+  }));
 
   await Ranking.deleteMany({ contest_id: contestId, round_id: roundId });
   const saved = await Ranking.insertMany(rankingDocs);
@@ -140,21 +132,45 @@ export const getRankings = async (contestId, roundId, { pool_id } = {}) => {
   const query = { contest_id: contestId, round_id: roundId };
   if (pool_id) query.board_id = pool_id;
 
-  return Ranking.find(query)
-    .sort({ board_id: 1, rank_position: 1 })
+  const rankings = await Ranking.find(query)
+    .sort({ rank_position: 1 })
     .populate("team_id",  "team_name")
     .populate("board_id", "pool_name");
+
+  const contest = await Contest.findById(contestId);
+  let isFinalRound = false;
+  if (contest) {
+    const sortedRounds = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
+    const currentRoundIndex = sortedRounds.findIndex(r => r._id.toString() === roundId.toString());
+    isFinalRound = currentRoundIndex === sortedRounds.length - 1;
+  }
+
+  return rankings.map(r => ({
+    ...r.toObject(),
+    is_final_round: isFinalRound,
+  }));
 };
 
 // ─── getLeaderboard (realtime view) ──────────────────────────────────────────
 
 /**
  * Leaderboard realtime — tính trực tiếp từ scores chưa cần lock.
- * Chỉ tính NORMAL, partition by pool.
+ * Chỉ tính NORMAL, toàn cuộc thi.
  */
 export const getLeaderboard = async (contestId, roundId) => {
   try {
-    return await calculateRankings(contestId, roundId);
+    const rankings = await calculateRankings(contestId, roundId);
+    const contest = await Contest.findById(contestId);
+    let isFinalRound = false;
+    if (contest) {
+      const sortedRounds = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
+      const currentRoundIndex = sortedRounds.findIndex(r => r._id.toString() === roundId.toString());
+      isFinalRound = currentRoundIndex === sortedRounds.length - 1;
+    }
+    return rankings.map(r => ({
+      ...(r.toObject ? r.toObject() : r),
+      is_final_round: isFinalRound,
+    }));
   } catch (e) {
     if (e.statusCode === 400) return []; // chưa có score
     throw e;

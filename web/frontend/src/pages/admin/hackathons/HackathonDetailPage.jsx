@@ -2141,6 +2141,36 @@ export default function HackathonDetailPage({ defaultTab }) {
                   🔮 Xem đề cử Wild Card
                 </button>
               )}
+              {selectedLeaderboardRoundId && (
+                <button
+                  onClick={() => navigate(`/finalist/${selectedLeaderboardRoundId}/confirm`)}
+                  style={{
+                    background: 'var(--gradient-primary)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: 'var(--shadow-cyan)',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                    marginLeft: '10px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.02)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  🏆 Xác nhận Chung kết
+                </button>
+              )}
             </div>
           </div>
 

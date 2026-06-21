@@ -55,6 +55,31 @@ const auditLogSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    entity_type: {
+      type: String,
+      default: null,
+    },
+    entity_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    old_value: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    new_value: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    performed_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    performed_at: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: false },

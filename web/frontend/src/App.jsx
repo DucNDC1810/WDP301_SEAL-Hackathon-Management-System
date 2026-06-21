@@ -41,6 +41,7 @@ import JudgeAcceptInvitePage from './pages/judge/JudgeAcceptInvitePage';
 import LegacyLeaderboardPage from './pages/leaderboard/LeaderboardPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import WildCardPage from './pages/WildCardPage';
+import FinalistConfirmPage from './pages/FinalistConfirmPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 
@@ -86,6 +87,10 @@ function App() {
               <Route path="/verify-invitation" element={<InvitationVerifyPage />} />
               <Route path="/team-verify" element={<TeamVerifyPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+              {/* Screens without Navbar/Footer */}
+              <Route path="/wildcard/:round_id" element={<WildCardPage />} />
+              <Route path="/finalist/:round_id/confirm" element={<FinalistConfirmPage />} />
 
               {/* Admin */}
               <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
@@ -155,7 +160,6 @@ function App() {
                         {/* Public */}
                         <Route path="/leaderboard/:contestId/:roundId" element={<LegacyLeaderboardPage />} />
                         <Route path="/leaderboard/:round_id"           element={<LeaderboardPage />} />
-                        <Route path="/wildcard/:round_id"              element={<WildCardPage />} />
                         <Route path="/history"                         element={<ContestHistoryPage />} />
                         <Route path="/appeals/:contestId"              element={<AppealsPage />} />
                       </Routes>

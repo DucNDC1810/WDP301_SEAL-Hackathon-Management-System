@@ -26,6 +26,7 @@ import be2RoundRoute from "./routes/be2RoundRoute.js";
 import presentationSlotRoute from "./routes/presentationSlotRoute.js";
 import leaderboardRoute from "./routes/leaderboard.js";
 import wildcardRoute from "./routes/wildcard.js";
+import finalistRoute from "./routes/finalist.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -78,6 +79,7 @@ app.use("/api/rounds", be2RoundRoute);
 app.use("/api/presentation-slots", presentationSlotRoute);
 app.use("/api/leaderboard", leaderboardRoute);
 app.use("/api/wildcard", wildcardRoute);
+app.use("/api/finalist", finalistRoute);
 
 initSocket(httpServer);
 

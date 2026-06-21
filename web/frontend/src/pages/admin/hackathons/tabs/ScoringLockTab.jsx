@@ -83,8 +83,11 @@ export default function ScoringLockTab({ config, contestId, contest }) {
   }, [contestId, request]);
 
   useEffect(() => {
-    if (selectedRound) fetchProgress(selectedRound);
-  }, [selectedRound, fetchProgress]);
+    if (selectedRound) {
+      fetchProgress(selectedRound);
+      fetchScores(selectedRound);
+    }
+  }, [selectedRound, fetchProgress, fetchScores]);
 
   const allDone = judgeProgress.length > 0 && judgeProgress.every(j => j.scored >= j.total && j.total > 0);
   const totalScored = judgeProgress.reduce((s, j) => s + j.scored, 0);
@@ -220,6 +223,62 @@ export default function ScoringLockTab({ config, contestId, contest }) {
           })}
         </div>
       )}
+
+      {/* Bảng điểm trung bình các đội thi */}
+      {!loading && scores.length > 0 && (() => {
+        const teamMap = {};
+        scores.forEach(s => {
+          if (!s.team_id) return;
+          const tid = s.team_id._id || s.team_id;
+          const name = s.team_id.team_name || '—';
+          if (!teamMap[tid]) {
+            teamMap[tid] = { name, total: 0, count: 0 };
+          }
+          if (s.status === 'submitted') {
+            teamMap[tid].total += s.total_score || 0;
+            teamMap[tid].count += 1;
+          }
+        });
+
+        const teamAverages = Object.values(teamMap).map((t, idx) => ({
+          key: idx,
+          name: t.name,
+          count: t.count,
+          avgScore: t.count > 0 ? parseFloat((t.total / t.count).toFixed(2)) : null
+        })).sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
+
+        return (
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>
+                🏆 Điểm Trung Bình Các Đội Thi
+              </h3>
+            </div>
+            <Table
+              size="small"
+              rowKey="key"
+              dataSource={teamAverages}
+              pagination={false}
+              style={{ fontSize: 13 }}
+              columns={[
+                {
+                  title: 'Đội thi', dataIndex: 'name', key: 'name',
+                  render: text => <span style={{ fontWeight: 600, color: '#c9d6e8' }}>{text}</span>
+                },
+                {
+                  title: 'Số lượt chấm', dataIndex: 'count', key: 'count',
+                  render: val => <span style={{ color: 'var(--text-secondary)' }}>{val} giám khảo đã chấm</span>
+                },
+                {
+                  title: 'Điểm trung bình (Đã nộp)', dataIndex: 'avgScore', key: 'avgScore',
+                  render: val => val != null ? <span style={{ fontWeight: 700, color: '#00d4ff', fontSize: 14 }}>{val.toFixed(2)}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>,
+                  sorter: (a, b) => (a.avgScore ?? 0) - (b.avgScore ?? 0),
+                }
+              ]}
+            />
+          </div>
+        );
+      })()}
 
       {/* Score detail section */}
       <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>

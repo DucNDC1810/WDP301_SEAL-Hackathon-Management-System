@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Score from "../models/Score.js";
 import ScoreDetail from "../models/ScoreDetail.js";
 import MentorAssignment from "../models/MentorAssignment.js";
@@ -119,6 +120,17 @@ export const createScore = async ({
     }))
   );
 
+  if (submit) {
+    try {
+      const { triggerReRank } = await import("./roundService.js");
+      const Pool = mongoose.models.Pool || mongoose.model("Pool");
+      const pool = await Pool.findOne({ contest_id, teams: team_id }).select("_id").lean();
+      await triggerReRank(contest_id, round_id, pool?._id);
+    } catch (e) {
+      console.error("Error triggering rerank on score submit:", e);
+    }
+  }
+
   return score;
 };
 
@@ -145,21 +157,56 @@ export const updateScore = async (scoreId, judgeId, { comment, score_details, su
   await ScoreDetail.deleteMany({ score_id: scoreId });
   await ScoreDetail.insertMany(score_details.map((d) => ({ score_id: scoreId, ...d })));
 
+  if (submit) {
+    try {
+      const { triggerReRank } = await import("./roundService.js");
+      const Pool = mongoose.models.Pool || mongoose.model("Pool");
+      const pool = await Pool.findOne({ contest_id: score.contest_id, teams: score.team_id }).select("_id").lean();
+      await triggerReRank(score.contest_id, score.round_id, pool?._id);
+    } catch (e) {
+      console.error("Error triggering rerank on score update submit:", e);
+    }
+  }
+
   return score;
 };
 
 // ─── getScoringProgress ───────────────────────────────────────────────────────
 
 export const getScoringProgress = async (contestId, roundId) => {
-  const [judgeTotal, mentorTotal, judgeSubmitted, mentorSubmitted] = await Promise.all([
-    JudgeAssignment.countDocuments({ contest_id: contestId, round_id: roundId }),
-    MentorAssignment.countDocuments({ contest_id: contestId, round_id: roundId }),
-    Score.countDocuments({ contest_id: contestId, round_id: roundId, status: "submitted", score_type: "NORMAL" }),
-    Score.countDocuments({ contest_id: contestId, round_id: roundId, status: "submitted", score_type: "NORMAL" }),
-  ]);
+  const Team = mongoose.models.Team || mongoose.model("Team");
 
-  const total = judgeTotal + mentorTotal;
-  const done  = Math.max(judgeSubmitted, mentorSubmitted);
+  // Tìm tất cả các phân công giám khảo cho vòng thi này
+  const judgeAssignments = await JudgeAssignment.find({ contest_id: contestId, round_id: roundId })
+    .populate("pool_id")
+    .lean();
+
+  let judgeExpectedScores = 0;
+  for (const ja of judgeAssignments) {
+    if (ja.pool_id && Array.isArray(ja.pool_id.teams)) {
+      judgeExpectedScores += ja.pool_id.teams.length;
+    }
+  }
+
+  // Tìm tất cả các phân công mentor cho vòng thi này
+  const mentorAssignments = await MentorAssignment.find({ contest_id: contestId, round_id: roundId }).lean();
+  const totalTeams = await Team.countDocuments({ contest_id: contestId, status: { $in: ["CONFIRMED", "confirmed"] } });
+  
+  let mentorExpectedScores = 0;
+  for (const ma of mentorAssignments) {
+    // Mentor chấm tất cả các đội trừ đội họ hướng dẫn
+    const teamCountForMentor = Math.max(0, totalTeams - 1);
+    mentorExpectedScores += teamCountForMentor;
+  }
+
+  const total = judgeExpectedScores + mentorExpectedScores;
+  const done = await Score.countDocuments({
+    contest_id: contestId,
+    round_id: roundId,
+    status: "submitted",
+    score_type: "NORMAL"
+  });
+
   return { total, done, remaining: Math.max(0, total - done) };
 };
 

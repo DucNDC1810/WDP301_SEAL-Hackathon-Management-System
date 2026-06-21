@@ -40,6 +40,7 @@ import JudgeScoringPage from './pages/judge/JudgeScoringPage';
 import JudgeAcceptInvitePage from './pages/judge/JudgeAcceptInvitePage';
 import LegacyLeaderboardPage from './pages/leaderboard/LeaderboardPage';
 import LeaderboardPage from './pages/LeaderboardPage';
+import WildCardPage from './pages/WildCardPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 
@@ -154,6 +155,7 @@ function App() {
                         {/* Public */}
                         <Route path="/leaderboard/:contestId/:roundId" element={<LegacyLeaderboardPage />} />
                         <Route path="/leaderboard/:round_id"           element={<LeaderboardPage />} />
+                        <Route path="/wildcard/:round_id"              element={<WildCardPage />} />
                         <Route path="/history"                         element={<ContestHistoryPage />} />
                         <Route path="/appeals/:contestId"              element={<AppealsPage />} />
                       </Routes>

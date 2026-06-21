@@ -122,6 +122,7 @@ export default function HackathonDetailPage({ defaultTab }) {
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState('');
   const [leaderboardTiebreakGroups, setLeaderboardTiebreakGroups] = useState([]);
+  const [leaderboardWildcardEligible, setLeaderboardWildcardEligible] = useState(false);
 
   // Fetch from DB
   const fetchContest = async () => {
@@ -381,6 +382,16 @@ export default function HackathonDetailPage({ defaultTab }) {
         })
         .catch(err => {
           console.error("Lỗi khi tải trạng thái phân tranh (bỏ qua):", err);
+        });
+
+      // Fetch wildcard details
+      fetch(`${API_URL}/api/wildcard/${selectedLeaderboardRoundId}`, { headers: hdrs() })
+        .then(res => res.json())
+        .then(res => {
+          setLeaderboardWildcardEligible(res.eligible || false);
+        })
+        .catch(err => {
+          console.error("Lỗi khi tải trạng thái Wild Card (bỏ qua):", err);
         });
     }
   }, [tab, selectedLeaderboardRoundId]);
@@ -2098,6 +2109,38 @@ export default function HackathonDetailPage({ defaultTab }) {
                   ))
                 )}
               </select>
+              {leaderboardWildcardEligible && (
+                <button
+                  onClick={() => navigate(`/wildcard/${selectedLeaderboardRoundId}`)}
+                  style={{
+                    background: 'rgba(168, 85, 247, 0.12)',
+                    color: '#c084fc',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 0 12px rgba(168, 85, 247, 0.1)',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                    marginLeft: '10px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)';
+                    e.currentTarget.style.borderColor = '#a855f7';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(168, 85, 247, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                  }}
+                >
+                  🔮 Xem đề cử Wild Card
+                </button>
+              )}
             </div>
           </div>
 

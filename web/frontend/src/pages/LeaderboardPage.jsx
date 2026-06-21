@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getLeaderboard, getTiebreakStatus } from '../api/leaderboard';
+import { getLeaderboard, getTiebreakStatus, applyTiebreakRule } from '../api/leaderboard';
 import { getWildCardCandidates } from '../api/wildcard';
 import LeaderboardTable from '../components/LeaderboardTable';
 import TiebreakAlert from '../components/TiebreakAlert';
@@ -63,6 +63,19 @@ export default function LeaderboardPage() {
       isMounted = false;
     };
   }, [round_id]);
+
+  const handleApplyRule = async (group_name) => {
+    console.log('[LeaderboardPage] handleApplyRule called. round_id:', round_id, '| group_name:', group_name);
+    const result = await applyTiebreakRule(round_id, group_name);
+    console.log('[LeaderboardPage] applyTiebreakRule response:', result.data);
+    // Reload lại trạng thái tiebreak sau khi áp dụng
+    const res = await getTiebreakStatus(round_id);
+    if (res.data?.success) {
+      setTiebreakGroups(res.data.tiebreak_groups || []);
+    }
+  };
+
+
 
   if (loading) {
     return (
@@ -238,7 +251,7 @@ export default function LeaderboardPage() {
           )}
         </header>
 
-        <TiebreakAlert tiebreakGroups={tiebreakGroups} />
+        <TiebreakAlert tiebreakGroups={tiebreakGroups} onApplyRule={handleApplyRule} />
 
         {/* Group Tabs Selection */}
         {data?.groups && data.groups.length > 0 ? (

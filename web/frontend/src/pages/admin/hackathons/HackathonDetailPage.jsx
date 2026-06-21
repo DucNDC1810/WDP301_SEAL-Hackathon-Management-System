@@ -2074,15 +2074,15 @@ export default function HackathonDetailPage({ defaultTab }) {
       {/* ─── TAB 12: BẢNG XẾP HẠNG (LEADERBOARD) ─── */}
       {tab === 12 && (
         <div className="hd-section">
-          <div className="hd-section-header">
+          <div className="hd-section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
             <div>
-              <h2 className="hd-section-title">Bảng Xếp Hạng Kết Quả</h2>
-              <p className="hd-section-desc">
+              <h2 className="hd-section-title" style={{ fontSize: '1.8rem', fontWeight: '800', textShadow: '0 0 10px rgba(0, 240, 255, 0.2)', margin: 0 }}>Bảng Xếp Hạng Kết Quả</h2>
+              <p className="hd-section-desc" style={{ margin: '6px 0 0 0' }}>
                 Xem trực quan xếp hạng điểm số trung bình có trọng số của các đội thi theo từng bảng đấu và vòng thi
               </p>
             </div>
             {/* Dropdown selector for rounds */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Chọn Vòng thi:</span>
               <select
                 value={selectedLeaderboardRoundId}
@@ -2168,13 +2168,35 @@ export default function HackathonDetailPage({ defaultTab }) {
                     e.currentTarget.style.transform = 'none';
                   }}
                 >
-                  🏆 Xác nhận Chung kết
+                  🏆 Xác nhận & Kích hoạt Chung kết
                 </button>
               )}
             </div>
           </div>
 
-          <TiebreakAlert tiebreakGroups={leaderboardTiebreakGroups} />
+          {/* Handler áp dụng tiebreak rule từ admin page */}
+          <TiebreakAlert
+            tiebreakGroups={leaderboardTiebreakGroups}
+            onApplyRule={async (group_name) => {
+              const res = await fetch(
+                `${API_URL}/api/leaderboard/${selectedLeaderboardRoundId}/tiebreak/apply`,
+                {
+                  method: 'POST',
+                  headers: hdrs(),
+                  body: JSON.stringify({ group_name }),
+                }
+              );
+              const json = await res.json();
+              if (!res.ok) throw new Error(json.message || 'Lỗi khi áp dụng luật');
+              // Reload lại tiebreak status
+              const tRes = await fetch(
+                `${API_URL}/api/leaderboard/${selectedLeaderboardRoundId}/tiebreak`,
+                { headers: hdrs() }
+              );
+              const tJson = await tRes.json();
+              if (tJson.success) setLeaderboardTiebreakGroups(tJson.tiebreak_groups || []);
+            }}
+          />
 
           {loadingLeaderboard ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px', flexDirection: 'column', gap: '15px' }}>

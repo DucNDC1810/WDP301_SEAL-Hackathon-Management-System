@@ -42,6 +42,7 @@ import LegacyLeaderboardPage from './pages/leaderboard/LeaderboardPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import WildCardPage from './pages/WildCardPage';
 import FinalistConfirmPage from './pages/FinalistConfirmPage';
+import RoundActivatePage from './pages/RoundActivatePage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 
@@ -91,6 +92,7 @@ function App() {
               {/* Screens without Navbar/Footer */}
               <Route path="/wildcard/:round_id" element={<WildCardPage />} />
               <Route path="/finalist/:round_id/confirm" element={<FinalistConfirmPage />} />
+              <Route path="/round/:round_id/activate" element={<RoundActivatePage />} />
 
               {/* Admin */}
               <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>

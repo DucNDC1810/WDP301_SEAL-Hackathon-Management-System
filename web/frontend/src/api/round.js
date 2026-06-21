@@ -20,14 +20,11 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-export const getLeaderboard = (round_id) =>
-  api.get(`/api/leaderboard/${round_id}`);
+export const getRoundSetup = (round_id) =>
+  api.get(`/api/round/${round_id}/setup`);
 
-export const getContestRounds = (contest_id) =>
-  api.get(`/api/leaderboard/contests/${contest_id}/rounds`);
+export const assignJudges = (round_id, judge_ids) =>
+  api.post(`/api/round/${round_id}/judges`, { judge_ids });
 
-export const getTiebreakStatus = (round_id) =>
-  api.get(`/api/leaderboard/${round_id}/tiebreak`);
-
-export const applyTiebreakRule = (round_id, group_name) =>
-  api.post(`/api/leaderboard/${round_id}/tiebreak/apply`, { group_name });
+export const activateRound = (round_id) =>
+  api.patch(`/api/round/${round_id}/activate`);

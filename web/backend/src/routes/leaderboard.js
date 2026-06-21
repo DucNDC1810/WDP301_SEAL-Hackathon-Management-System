@@ -162,6 +162,174 @@ router.get("/:round_id/tiebreak", async (req, res, next) => {
   }
 });
 
+// POST /api/leaderboard/:round_id/tiebreak/apply
+// Body: { group_name: "A" }
+// Tự động áp dụng tiebreak_rule cho group đó và cập nhật tiebreak_status các đội
+router.post("/:round_id/tiebreak/apply", async (req, res, next) => {
+  try {
+    const { round_id } = req.params;
+    const { group_name } = req.body;
+
+    if (!group_name) {
+      return res.status(400).json({ success: false, message: "Thiếu group_name" });
+    }
+
+    const round = await Round.findById(round_id);
+    if (!round) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+    }
+
+    const boundary = round.top_n || 6;
+
+    // Lấy tất cả đội trong group này
+    const teams = await Team.find({
+      contest_id: round.contest_id,
+      status: "ACTIVE",
+      assigned_group: group_name,
+    });
+
+    // Lấy điểm số
+    const scores = await Score.find({
+      round_id,
+      score_type: "NORMAL",
+      is_final: true,
+    });
+    const scoreMap = {};
+    for (const score of scores) {
+      const key = score.team_id.toString();
+      if (!scoreMap[key]) scoreMap[key] = [];
+      scoreMap[key].push(score.weighted_avg_score || 0);
+    }
+
+    // Lấy submission time
+    const submissions = await Submission.find({ round_id });
+    const submissionMap = {};
+    for (const sub of submissions) {
+      submissionMap[sub.team_id.toString()] = sub.submitted_at || sub.created_at || null;
+    }
+
+    // Build teamList với đầy đủ thông tin
+    const teamList = teams.map((team) => {
+      const teamScores = scoreMap[team._id.toString()] || [];
+      const avgScore = teamScores.length
+        ? teamScores.reduce((s, v) => s + v, 0) / teamScores.length
+        : 0;
+      return {
+        _id: team._id,
+        team_name: team.team_name,
+        weighted_avg_score: Math.round(avgScore * 100) / 100,
+        tiebreak_rule: team.tiebreak_rule,
+        penalty_score: team.penalty_score || 0,
+        submission_time: submissionMap[team._id.toString()] || null,
+      };
+    });
+
+    // Sort DESC theo điểm
+    teamList.sort((a, b) => b.weighted_avg_score - a.weighted_avg_score);
+
+    if (teamList.length <= boundary) {
+      return res.status(400).json({ success: false, message: "Không đủ điều kiện áp dụng tiebreak (số đội <= ranh giới)" });
+    }
+
+    const teamAtBoundary = teamList[boundary - 1];
+    const teamJustAfter = teamList[boundary];
+
+    if (teamAtBoundary.weighted_avg_score !== teamJustAfter.weighted_avg_score) {
+      return res.status(400).json({ success: false, message: "Không có tình trạng đồng điểm tại ranh giới" });
+    }
+
+    const tiedScore = teamAtBoundary.weighted_avg_score;
+    const tiedTeams = teamList.filter((t) => t.weighted_avg_score === tiedScore);
+
+    // Xác định rule chung của group (lấy từ đội đầu tiên)
+    const rule = tiedTeams[0]?.tiebreak_rule;
+
+    const updates = [];
+
+    if (rule === "PENALTY_SCORE") {
+      // Đội penalty thấp hơn (ít bị trừ hơn) → RESOLVED, đội còn lại → giữ PENDING
+      // Nếu vẫn bằng nhau → leo lên COORDINATOR_DECISION
+      const minPenalty = Math.min(...tiedTeams.map((t) => t.penalty_score));
+      const winners = tiedTeams.filter((t) => t.penalty_score === minPenalty);
+      const losers = tiedTeams.filter((t) => t.penalty_score !== minPenalty);
+
+      for (const team of winners) {
+        updates.push(
+          Team.findByIdAndUpdate(team._id, {
+            tiebreak_status: "RESOLVED",
+          })
+        );
+      }
+      for (const team of losers) {
+        updates.push(
+          Team.findByIdAndUpdate(team._id, {
+            tiebreak_status: "RESOLVED",
+          })
+        );
+      }
+
+      // Nếu tất cả bằng nhau về penalty → escalate
+      if (losers.length === 0) {
+        for (const team of winners) {
+          updates.push(
+            Team.findByIdAndUpdate(team._id, {
+              tiebreak_rule: "COORDINATOR_DECISION",
+              tiebreak_status: "ESCALATED",
+            })
+          );
+        }
+      }
+    } else if (rule === "SUBMISSION_TIME") {
+      // Đội nộp sớm hơn → RESOLVED
+      const sorted = [...tiedTeams].sort((a, b) => {
+        if (!a.submission_time) return 1;
+        if (!b.submission_time) return -1;
+        return new Date(a.submission_time) - new Date(b.submission_time);
+      });
+
+      const earliest = new Date(sorted[0].submission_time).getTime();
+      const winners = sorted.filter(
+        (t) => t.submission_time && new Date(t.submission_time).getTime() === earliest
+      );
+      const losers = sorted.filter(
+        (t) => !t.submission_time || new Date(t.submission_time).getTime() !== earliest
+      );
+
+      for (const team of [...winners, ...losers]) {
+        updates.push(
+          Team.findByIdAndUpdate(team._id, { tiebreak_status: "RESOLVED" })
+        );
+      }
+
+      // Vẫn tie về time → escalate
+      if (losers.length === 0) {
+        for (const team of winners) {
+          updates.push(
+            Team.findByIdAndUpdate(team._id, {
+              tiebreak_rule: "COORDINATOR_DECISION",
+              tiebreak_status: "ESCALATED",
+            })
+          );
+        }
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: `Luật "${rule}" cần BTC quyết định thủ công, hệ thống không thể tự xử lý.`,
+      });
+    }
+
+    await Promise.all(updates);
+
+    return res.status(200).json({
+      success: true,
+      message: `Đã áp dụng luật ${rule} cho bảng ${group_name} thành công.`,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/leaderboard/:round_id
 router.get("/:round_id", async (req, res, next) => {
   try {

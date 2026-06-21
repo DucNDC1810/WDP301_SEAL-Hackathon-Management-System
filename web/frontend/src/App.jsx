@@ -38,7 +38,8 @@ import MentorChatPage from './pages/mentor/MentorChatPage';
 import JudgeHomePage from './pages/judge/JudgeDashboard';
 import JudgeScoringPage from './pages/judge/JudgeScoringPage';
 import JudgeAcceptInvitePage from './pages/judge/JudgeAcceptInvitePage';
-import LeaderboardPage from './pages/leaderboard/LeaderboardPage';
+import LegacyLeaderboardPage from './pages/leaderboard/LeaderboardPage';
+import LeaderboardPage from './pages/LeaderboardPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 
@@ -151,7 +152,8 @@ function App() {
                         <Route path="/chat/mentor" element={<AuthRoute><TeamChatPage /></AuthRoute>} />
 
                         {/* Public */}
-                        <Route path="/leaderboard/:contestId/:roundId" element={<LeaderboardPage />} />
+                        <Route path="/leaderboard/:contestId/:roundId" element={<LegacyLeaderboardPage />} />
+                        <Route path="/leaderboard/:round_id"           element={<LeaderboardPage />} />
                         <Route path="/history"                         element={<ContestHistoryPage />} />
                         <Route path="/appeals/:contestId"              element={<AppealsPage />} />
                       </Routes>

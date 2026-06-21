@@ -7,6 +7,7 @@ import SubmissionReviewTab from './tabs/SubmissionReviewTab';
 import ScoringLockTab from './tabs/ScoringLockTab';
 import TeamEliminationTab from './tabs/TeamEliminationTab';
 import PresentationScheduleTab from './tabs/PresentationScheduleTab';
+import LeaderboardTable from '../../../components/LeaderboardTable';
 import './HackathonDetailPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -39,6 +40,7 @@ const MAIN_TABS = [
   { id: 3, label: 'Bảng đấu' },
   { id: 4, label: 'Phân công Judge & Mentor' },
   { id: 5, label: 'Phát đề bài' },
+  { id: 12, label: 'Bảng xếp hạng' },
   { id: 9, label: 'Review & ONGOING' },
 ];
 
@@ -110,6 +112,14 @@ export default function HackathonDetailPage({ defaultTab }) {
 
   const [validationErrors, setValidationErrors] = useState([]);
   const [isSuccessActivating, setIsSuccessActivating] = useState(false);
+
+  // Tab 12: Leaderboard States
+  const [leaderboardRounds, setLeaderboardRounds] = useState([]);
+  const [selectedLeaderboardRoundId, setSelectedLeaderboardRoundId] = useState('');
+  const [leaderboardData, setLeaderboardData] = useState(null);
+  const [activeLeaderboardGroup, setActiveLeaderboardGroup] = useState('');
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState('');
 
   // Fetch from DB
   const fetchContest = async () => {
@@ -301,6 +311,65 @@ export default function HackathonDetailPage({ defaultTab }) {
     setLoading(true);
     Promise.all([fetchContest(), fetchPools(), fetchTeams()]).finally(() => setLoading(false));
   }, [id]);
+
+  // Fetch rounds for leaderboard tab
+  useEffect(() => {
+    if (tab === 12) {
+      setLoadingLeaderboard(true);
+      setLeaderboardError('');
+      fetch(`${API_URL}/api/leaderboard/contests/${id}/rounds`, { headers: hdrs() })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success && res.data) {
+            setLeaderboardRounds(res.data);
+            if (res.data.length > 0) {
+              const defaultRound = res.data.find(r => r.is_active) || res.data[0];
+              setSelectedLeaderboardRoundId(defaultRound._id);
+            } else {
+              setLoadingLeaderboard(false);
+            }
+          } else {
+            throw new Error(res.message || 'Không thể tải danh sách vòng thi');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          setLeaderboardError(err.message || 'Lỗi khi tải danh sách vòng thi.');
+          setLoadingLeaderboard(false);
+        });
+    }
+  }, [tab, id]);
+
+  // Fetch leaderboard data when selected round changes
+  useEffect(() => {
+    if (tab === 12 && selectedLeaderboardRoundId) {
+      setLoadingLeaderboard(true);
+      setLeaderboardError('');
+      fetch(`${API_URL}/api/leaderboard/${selectedLeaderboardRoundId}?admin=true`, { headers: hdrs() })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.message || 'Không thể tải kết quả xếp hạng.');
+          }
+          return data;
+        })
+        .then(data => {
+          setLeaderboardData(data);
+          if (data.groups && data.groups.length > 0) {
+            setActiveLeaderboardGroup(data.groups[0].group_name);
+          } else {
+            setActiveLeaderboardGroup('');
+          }
+          setLoadingLeaderboard(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setLeaderboardError(err.message || 'Lỗi khi tải bảng xếp hạng.');
+          setLeaderboardData(null);
+          setLoadingLeaderboard(false);
+        });
+    }
+  }, [tab, selectedLeaderboardRoundId]);
 
   // Synchronize state with LocalStorage or set default mock data
   useEffect(() => {
@@ -1974,6 +2043,119 @@ export default function HackathonDetailPage({ defaultTab }) {
               ))
             }
           </div>
+        </div>
+      )}
+
+      {/* ─── TAB 12: BẢNG XẾP HẠNG (LEADERBOARD) ─── */}
+      {tab === 12 && (
+        <div className="hd-section">
+          <div className="hd-section-header">
+            <div>
+              <h2 className="hd-section-title">Bảng Xếp Hạng Kết Quả</h2>
+              <p className="hd-section-desc">
+                Xem trực quan xếp hạng điểm số trung bình có trọng số của các đội thi theo từng bảng đấu và vòng thi
+              </p>
+            </div>
+            {/* Dropdown selector for rounds */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Chọn Vòng thi:</span>
+              <select
+                value={selectedLeaderboardRoundId}
+                onChange={(e) => setSelectedLeaderboardRoundId(e.target.value)}
+                style={{
+                  background: 'var(--bg-card)',
+                  color: '#fff',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  minWidth: '220px'
+                }}
+              >
+                {leaderboardRounds.length === 0 ? (
+                  <option value="">-- Không có vòng thi --</option>
+                ) : (
+                  leaderboardRounds.map(r => (
+                    <option key={r._id} value={r._id}>
+                      {r.name} {!r.is_active ? '(Chưa kích hoạt)' : '(Đang chạy)'}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+
+          {loadingLeaderboard ? (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px', flexDirection: 'column', gap: '15px' }}>
+              <div className="hfp-spinner"></div>
+              <span style={{ color: 'var(--text-secondary)' }}>Đang tải kết quả xếp hạng...</span>
+            </div>
+          ) : leaderboardError ? (
+            <div className="hd-alert hd-alert--warning" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '20px', borderRadius: '8px' }}>
+              <span className="hd-alert-icon" style={{ marginRight: '10px', fontSize: '1.2rem' }}>⚠️</span>
+              <span>{leaderboardError}</span>
+            </div>
+          ) : !leaderboardData || !leaderboardData.groups || leaderboardData.groups.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', border: '1px dashed var(--border)', borderRadius: '8px', padding: '20px' }}>
+              <span style={{ fontSize: '3rem', marginBottom: '10px' }}>📊</span>
+              <h3 style={{ color: '#fff', marginBottom: '6px' }}>Chưa có kết quả xếp hạng</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', maxWidth: '500px' }}>
+                Vòng thi được chọn chưa có điểm số nào được nộp chính thức hoặc chưa có đội thi nào trong vòng đấu. Hãy chắc chắn rằng các Judge đã hoàn thành và chấm điểm NORMAL, set is_final = true.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {/* Group selection tabs */}
+              <div className="hd-tabs" style={{ marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '0' }}>
+                {leaderboardData.groups.map(group => (
+                  <button
+                    key={group.group_name}
+                    className={`hd-tab ${activeLeaderboardGroup === group.group_name ? 'hd-tab--active' : ''}`}
+                    onClick={() => setActiveLeaderboardGroup(group.group_name)}
+                    style={{ marginBottom: '-1px' }}
+                  >
+                    📂 {group.group_name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Leaderboard content */}
+              {(() => {
+                const activeGroupData = leaderboardData.groups.find(g => g.group_name === activeLeaderboardGroup);
+                if (!activeGroupData) return null;
+                return (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                        Danh sách đội thi thuộc <strong>{activeLeaderboardGroup}</strong> ({activeGroupData.teams.length} đội)
+                      </span>
+                      <button
+                        onClick={() => {
+                          window.print();
+                        }}
+                        style={{
+                          background: 'transparent',
+                          color: 'var(--cyan)',
+                          border: '1px solid var(--cyan)',
+                          borderRadius: '6px',
+                          padding: '6px 12px',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          fontWeight: '600'
+                        }}
+                      >
+                        🖨️ In bảng kết quả
+                      </button>
+                    </div>
+                    
+                    <LeaderboardTable groupName={activeLeaderboardGroup} teams={activeGroupData.teams} />
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
     </div>

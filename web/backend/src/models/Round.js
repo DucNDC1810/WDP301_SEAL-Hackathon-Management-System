@@ -29,6 +29,10 @@ const roundSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    top_n: {
+      type: Number,
+      default: 6,
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

@@ -99,6 +99,20 @@ const teamSchema = new mongoose.Schema(
       ref: "Topic",
       default: null,
     },
+    tiebreak_rule: {
+      type: String,
+      enum: ['SUBMISSION_TIME', 'PENALTY_SCORE', 'COORDINATOR_DECISION'],
+      default: null
+    },
+    tiebreak_status: {
+      type: String,
+      enum: ['RESOLVED', 'ESCALATED', 'PENDING'],
+      default: null
+    },
+    penalty_score: {
+      type: Number,
+      default: 0
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

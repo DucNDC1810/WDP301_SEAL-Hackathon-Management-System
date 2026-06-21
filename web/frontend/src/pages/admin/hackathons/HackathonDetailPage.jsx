@@ -8,6 +8,7 @@ import ScoringLockTab from './tabs/ScoringLockTab';
 import TeamEliminationTab from './tabs/TeamEliminationTab';
 import PresentationScheduleTab from './tabs/PresentationScheduleTab';
 import LeaderboardTable from '../../../components/LeaderboardTable';
+import TiebreakAlert from '../../../components/TiebreakAlert';
 import './HackathonDetailPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -120,6 +121,7 @@ export default function HackathonDetailPage({ defaultTab }) {
   const [activeLeaderboardGroup, setActiveLeaderboardGroup] = useState('');
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState('');
+  const [leaderboardTiebreakGroups, setLeaderboardTiebreakGroups] = useState([]);
 
   // Fetch from DB
   const fetchContest = async () => {
@@ -367,6 +369,18 @@ export default function HackathonDetailPage({ defaultTab }) {
           setLeaderboardError(err.message || 'Lỗi khi tải bảng xếp hạng.');
           setLeaderboardData(null);
           setLoadingLeaderboard(false);
+        });
+
+      // Fetch tiebreak details
+      fetch(`${API_URL}/api/leaderboard/${selectedLeaderboardRoundId}/tiebreak`, { headers: hdrs() })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success) {
+            setLeaderboardTiebreakGroups(res.tiebreak_groups || []);
+          }
+        })
+        .catch(err => {
+          console.error("Lỗi khi tải trạng thái phân tranh (bỏ qua):", err);
         });
     }
   }, [tab, selectedLeaderboardRoundId]);
@@ -2086,6 +2100,8 @@ export default function HackathonDetailPage({ defaultTab }) {
               </select>
             </div>
           </div>
+
+          <TiebreakAlert tiebreakGroups={leaderboardTiebreakGroups} />
 
           {loadingLeaderboard ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px', flexDirection: 'column', gap: '15px' }}>

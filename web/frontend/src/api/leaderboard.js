@@ -25,3 +25,6 @@ export const getLeaderboard = (round_id) =>
 
 export const getContestRounds = (contest_id) =>
   api.get(`/api/leaderboard/contests/${contest_id}/rounds`);
+
+export const getTiebreakStatus = (round_id) =>
+  api.get(`/api/leaderboard/${round_id}/tiebreak`);

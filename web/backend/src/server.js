@@ -28,6 +28,7 @@ import leaderboardRoute from "./routes/leaderboard.js";
 import wildcardRoute from "./routes/wildcard.js";
 import finalistRoute from "./routes/finalist.js";
 import finalRoundRoute from "./routes/round.js";
+import finalSubmissionRoute from "./routes/finalSubmissionRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -82,6 +83,7 @@ app.use("/api/leaderboard", leaderboardRoute);
 app.use("/api/wildcard", wildcardRoute);
 app.use("/api/finalist", finalistRoute);
 app.use("/api/round", finalRoundRoute);
+app.use("/api/submission", finalSubmissionRoute);
 
 initSocket(httpServer);
 

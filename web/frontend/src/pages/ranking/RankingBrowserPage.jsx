@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getRankingContests, getTeamRanking } from '../../api/ranking';
+import { getRankingContests, getTeamRanking, getChapterRanking } from '../../api/ranking';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const MEDAL_COLOR = {
@@ -18,10 +18,11 @@ export default function RankingBrowserPage() {
   const [contests, setContests]     = useState([]);
   const [selectedContest, setSelectedContest] = useState(null);
   const [selectedRound,   setSelectedRound]   = useState(null);
-  const [ranking,   setRanking]   = useState(null);
+  const [activeTab,       setActiveTab]       = useState('team'); // 'team' | 'chapter'
+  const [ranking,         setRanking]         = useState(null);
   const [loadingContests, setLoadingContests] = useState(true);
   const [loadingRanking,  setLoadingRanking]  = useState(false);
-  const [rankingError,    setRankingError]    = useState(null); // null | 'unpublished' | string
+  const [rankingError,    setRankingError]    = useState(null);
 
   // Load contests on mount
   useEffect(() => {
@@ -61,20 +62,23 @@ export default function RankingBrowserPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch ranking when round selected
+  // Fetch ranking when round or tab changes
   useEffect(() => {
     if (!selectedRound) { setRanking(null); setRankingError(null); return; }
     setLoadingRanking(true);
     setRanking(null);
     setRankingError(null);
-    getTeamRanking(selectedRound._id)
+    const fetcher = activeTab === 'chapter'
+      ? getChapterRanking(selectedRound._id)
+      : getTeamRanking(selectedRound._id);
+    fetcher
       .then((res) => setRanking(res.data))
       .catch((err) => {
         if (err.response?.status === 403) setRankingError('unpublished');
         else setRankingError(err.response?.data?.message || 'Lỗi tải dữ liệu');
       })
       .finally(() => setLoadingRanking(false));
-  }, [selectedRound]);
+  }, [selectedRound, activeTab]);
 
   const pickContest = useCallback((c) => {
     setSelectedContest(c);
@@ -188,11 +192,34 @@ export default function RankingBrowserPage() {
 
           {/* ── RIGHT: Ranking table ── */}
           <main style={s.main}>
+            {/* Tab switcher — luôn hiển thị */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              {[{ key: 'team', label: '👥 Team' }, { key: 'chapter', label: '🏫 Chapter' }].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  style={{
+                    padding: '7px 18px', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600,
+                    cursor: 'pointer', transition: 'all .15s',
+                    background: activeTab === tab.key ? 'var(--gradient-primary)' : 'rgba(17,24,39,.5)',
+                    color: activeTab === tab.key ? 'white' : 'var(--text-secondary)',
+                    border: activeTab === tab.key ? '1px solid transparent' : '1px solid var(--border)',
+                    boxShadow: activeTab === tab.key ? 'var(--shadow-cyan)' : 'none',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             {!selectedContest && (
-              <EmptyHint icon="🏆" text="Chọn một cuộc thi để xem bảng xếp hạng" />
+              <EmptyHint icon={activeTab === 'chapter' ? '🏫' : '🏆'} text="Chọn một cuộc thi để xem bảng xếp hạng" />
             )}
             {selectedContest && !selectedRound && (
-              <EmptyHint icon="📋" text="Chọn vòng thi để xem kết quả" />
+              <EmptyHint
+                icon="📋"
+                text={activeTab === 'chapter' ? 'Chọn vòng thi để xem bảng xếp hạng chapter' : 'Chọn vòng thi để xem kết quả'}
+              />
             )}
             {selectedRound && loadingRanking && <Spinner />}
             {selectedRound && !loadingRanking && rankingError === 'unpublished' && (
@@ -207,11 +234,8 @@ export default function RankingBrowserPage() {
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
                   {selectedContest?.rounds?.filter((r) => r.scoring_locked).map((r) => (
-                    <button
-                      key={r._id}
-                      onClick={() => pickRound(r)}
-                      style={{ padding: '6px 14px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', background: 'rgba(34,197,94,.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,.3)' }}
-                    >
+                    <button key={r._id} onClick={() => pickRound(r)}
+                      style={{ padding: '6px 14px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', background: 'rgba(34,197,94,.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,.3)' }}>
                       {r.name}
                     </button>
                   ))}
@@ -224,12 +248,15 @@ export default function RankingBrowserPage() {
             {selectedRound && !loadingRanking && rankingError && rankingError !== 'unpublished' && (
               <EmptyHint icon="⚠️" text={rankingError} />
             )}
-            {selectedRound && !loadingRanking && !rankingError && ranking && (
+            {selectedRound && !loadingRanking && !rankingError && ranking && activeTab === 'team' && (
               <RankingTable
                 roundName={ranking.round_name}
                 contestName={ranking.contest_name}
                 teams={ranking.teams || []}
               />
+            )}
+            {selectedRound && !loadingRanking && !rankingError && ranking && activeTab === 'chapter' && (
+              <ChapterTable data={ranking} />
             )}
           </main>
         </div>
@@ -302,6 +329,114 @@ function RankingTable({ roundName, contestName, teams }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function ChapterTable({ data }) {
+  const [tooltip, setTooltip] = useState(false);
+  const chapters = data?.chapters || [];
+  return (
+    <div>
+      {/* Sub-header */}
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            {data?.round_name} — Chapter
+          </h2>
+          {data?.season_name && (
+            <p style={{ margin: '3px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{data.season_name}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Pending formula banner */}
+      {data && !data.formula_defined && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+          <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
+          <div>
+            <strong style={{ color: '#f59e0b', display: 'block', marginBottom: 2, fontSize: '0.85rem' }}>
+              Pending BTC #5 — Chưa có định nghĩa chính thức
+            </strong>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+              Điểm tích lũy hiển thị bên dưới chỉ mang tính tham khảo, chưa được ban tổ chức xác nhận.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {chapters.length === 0 ? (
+        <EmptyHint icon="🏫" text="Chưa có team nào thuộc chapter có điểm final trong vòng này" />
+      ) : (
+        <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid rgba(0,240,255,.12)', boxShadow: 'var(--shadow-cyan)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'rgba(17,24,39,.7)' }}>
+            <thead>
+              <tr>
+                {['Hạng', 'Chapter', 'Điểm tốt nhất kỳ này'].map((h, i) => (
+                  <th key={h} style={{ padding: '13px 18px', textAlign: i === 0 || i === 2 ? 'center' : 'left', fontFamily: 'var(--font-display)', fontSize: '0.75rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--cyan)', borderBottom: '1px solid rgba(0,240,255,.15)', background: 'rgba(0,240,255,.04)', whiteSpace: 'nowrap' }}>
+                    {h}
+                  </th>
+                ))}
+                {/* Cumulative col with tooltip */}
+                <th style={{ padding: '13px 18px', textAlign: 'center', fontFamily: 'var(--font-display)', fontSize: '0.75rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--cyan)', borderBottom: '1px solid rgba(0,240,255,.15)', background: 'rgba(0,240,255,.04)', whiteSpace: 'nowrap', position: 'relative' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'help' }}
+                    onMouseEnter={() => setTooltip(true)}
+                    onMouseLeave={() => setTooltip(false)}
+                  >
+                    Điểm tích lũy
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 15, height: 15, borderRadius: '50%', border: '1px solid rgba(0,240,255,.4)', fontSize: '0.6rem', color: 'var(--cyan)', fontWeight: 700 }}>?</span>
+                  </span>
+                  {tooltip && (
+                    <div style={{ position: 'absolute', top: '110%', left: '50%', transform: 'translateX(-50%)', background: '#1a2332', border: '1px solid rgba(0,240,255,.2)', borderRadius: 8, padding: '10px 14px', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.6, width: 240, textAlign: 'left', zIndex: 50, boxShadow: '0 8px 24px rgba(0,0,0,.4)', whiteSpace: 'normal' }}>
+                      <strong style={{ color: '#f59e0b', display: 'block', marginBottom: 4 }}>Pending BTC #5</strong>
+                      Công thức tính điểm tích lũy xuyên mùa đang chờ ban tổ chức xác nhận.
+                    </div>
+                  )}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {chapters.map((ch) => {
+                const medal = MEDAL[ch.rank];
+                const mc    = MEDAL_COLOR[ch.rank];
+                return (
+                  <tr key={ch.chapter_id || ch.chapter_name} style={{ background: mc?.bg || 'transparent', borderBottom: '1px solid rgba(0,240,255,.06)' }}>
+                    <td style={{ padding: '13px 18px', textAlign: 'center', width: 80 }}>
+                      {medal ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, border: `1px solid ${mc.border}`, color: mc.text, fontWeight: 700, fontSize: '0.9rem' }}>
+                          {medal} {ch.rank}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>#{ch.rank}</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '13px 18px', fontWeight: mc ? 700 : 500, color: mc?.text || 'var(--text-primary)', fontSize: '0.93rem' }}>
+                      {ch.chapter_name}
+                    </td>
+                    <td style={{ padding: '13px 18px', textAlign: 'center', fontWeight: 700, color: mc?.text || 'var(--cyan)', fontSize: '1rem' }}>
+                      {ch.best_team_score_this_season.toFixed(2)}
+                    </td>
+                    <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                      {ch.cumulative_score > 0 ? (
+                        <span style={{ fontWeight: 700, color: mc?.text || 'var(--text-primary)', fontSize: '1rem' }}>
+                          {ch.cumulative_score.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: '#f59e0b', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.25)', padding: '2px 8px', borderRadius: 4 }}>
+                          Pending
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p style={{ marginTop: 14, textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+        * Điểm tốt nhất kỳ này = max(điểm TB) của tất cả team thuộc chapter trong vòng này
+      </p>
     </div>
   );
 }

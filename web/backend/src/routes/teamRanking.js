@@ -5,6 +5,8 @@ import Score from "../models/Score.js";
 import Team from "../models/Team.js";
 import Contest from "../models/Contest.js";
 import User from "../models/User.js";
+import Chapter from "../models/Chapter.js";
+import Season from "../models/Season.js";
 
 // Giải mã token nếu có, không throw nếu thiếu/invalid
 const tryGetUser = async (req) => {
@@ -198,6 +200,129 @@ router.get("/:round_id/teams", async (req, res, next) => {
       round_name: roundName,
       contest_name: contest?.title || "",
       teams: ranked,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/ranking/:round_id/chapters
+// Bảng xếp hạng Chapter: best_team_score kỳ này + cumulative_score tích lũy
+router.get("/:round_id/chapters", async (req, res, next) => {
+  try {
+    const { round_id } = req.params;
+
+    // 1. Resolve round + contest (dùng lại logic tương tự /teams)
+    let roundName = null;
+    let contestId = null;
+    let scoringLocked = false;
+    let contest = null;
+
+    const standaloneRound = await Round.findById(round_id);
+    if (standaloneRound) {
+      roundName = standaloneRound.name;
+      contestId = standaloneRound.contest_id;
+      contest = await Contest.findById(contestId);
+      if (contest?.rounds) {
+        const emb = contest.rounds.find((r) => r._id.toString() === round_id);
+        scoringLocked = emb?.scoring_locked === true;
+        if (!roundName) roundName = emb?.name;
+      }
+    } else {
+      contest = await Contest.findOne({ "rounds._id": round_id });
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      const emb = contest.rounds.find((r) => r._id.toString() === round_id);
+      roundName = emb?.name;
+      contestId = contest._id;
+      scoringLocked = emb?.scoring_locked === true;
+    }
+
+    // 2. Gate: scoring_locked hoặc admin
+    if (!scoringLocked) {
+      const caller = await tryGetUser(req);
+      const isAdmin = caller?.roles?.some((r) => r.role_name === "admin");
+      if (!isAdmin) {
+        return res.status(403).json({ success: false, message: "Kết quả chưa được công bố" });
+      }
+    }
+
+    // 3. Tìm season chứa contest này (nếu có)
+    const season = await Season.findOne({ contest_ids: contestId }).lean();
+    const seasonName = season?.name || contest?.title || roundName || "";
+
+    // 4. Lấy teams ACTIVE + điểm final của round
+    const teams = await Team.find({ contest_id: contestId, status: "ACTIVE" }).lean();
+
+    const scores = await Score.find({
+      round_id,
+      score_type: "NORMAL",
+      is_final: true,
+    }).lean();
+
+    // Gom điểm trung bình theo team
+    const scoreMap = {};
+    for (const s of scores) {
+      const k = s.team_id.toString();
+      if (!scoreMap[k]) scoreMap[k] = [];
+      scoreMap[k].push(s.weighted_avg_score || 0);
+    }
+    const teamAvgMap = {};
+    for (const [tid, vals] of Object.entries(scoreMap)) {
+      teamAvgMap[tid] = vals.reduce((a, b) => a + b, 0) / vals.length;
+    }
+
+    // 5. Group teams theo chapter (assigned_group), lấy best score
+    const chapterMap = {}; // chapter_name → best_team_score
+    for (const team of teams) {
+      const chapterName = (team.assigned_group || "").trim();
+      if (!chapterName) continue;
+      const avg = teamAvgMap[team._id.toString()];
+      if (avg === undefined) continue;
+      if (chapterMap[chapterName] === undefined || avg > chapterMap[chapterName]) {
+        chapterMap[chapterName] = avg;
+      }
+    }
+
+    // 6. Load Chapter documents để lấy cumulative_score
+    const chapterNames = Object.keys(chapterMap);
+    const chapterDocs = await Chapter.find({ name: { $in: chapterNames } }).lean();
+    const chapterDocMap = {};
+    for (const doc of chapterDocs) {
+      chapterDocMap[doc.name] = doc;
+    }
+
+    // 7. Build result list
+    const chapterList = chapterNames.map((name) => {
+      const doc = chapterDocMap[name];
+      return {
+        chapter_id: doc?._id || null,
+        chapter_name: name,
+        best_team_score_this_season: Math.round(chapterMap[name] * 100) / 100,
+        cumulative_score: doc?.cumulative_score || 0,
+      };
+    });
+
+    // Sort theo cumulative_score DESC, tie-break bằng best_team_score_this_season DESC
+    chapterList.sort((a, b) =>
+      b.cumulative_score !== a.cumulative_score
+        ? b.cumulative_score - a.cumulative_score
+        : b.best_team_score_this_season - a.best_team_score_this_season
+    );
+
+    const ranked = chapterList.map((c, i) => ({ rank: i + 1, ...c }));
+
+    // 8. formula_defined: true khi có ít nhất 1 Chapter document với cumulative_score > 0
+    const formulaDefined = chapterDocs.some((d) => d.cumulative_score > 0);
+
+    return res.status(200).json({
+      round_id,
+      round_name: roundName,
+      season_name: seasonName,
+      formula_note: "Công thức tích lũy — Pending BTC #5",
+      formula_defined: formulaDefined,
+      chapters: ranked,
     });
   } catch (err) {
     next(err);

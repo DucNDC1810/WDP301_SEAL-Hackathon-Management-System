@@ -54,6 +54,7 @@ import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 import TeamRankingPage from './pages/ranking/TeamRankingPage';
 import RankingBrowserPage from './pages/ranking/RankingBrowserPage';
+import ChapterRankingPage from './pages/ranking/ChapterRankingPage';
 
 // Student
 import TeamChatPage from './pages/student/chat/TeamChatPage';
@@ -175,6 +176,7 @@ function App() {
                         <Route path="/leaderboard/:round_id"           element={<LeaderboardPage />} />
                         <Route path="/ranking"                         element={<RankingBrowserPage />} />
                         <Route path="/ranking/:round_id/teams"         element={<RoundIdRedirect />} />
+                        <Route path="/ranking/:round_id/chapters"      element={<ChapterRankingPage />} />
                         <Route path="/history"                         element={<ContestHistoryPage />} />
                         <Route path="/appeals/:contestId"              element={<AppealsPage />} />
                       </Routes>

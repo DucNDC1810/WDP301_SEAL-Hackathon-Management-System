@@ -49,6 +49,7 @@ const NAV = [
   { key: 'team', label: 'Team Registration', path: '/admin/team', d: USER },
   { key: 'users', label: 'Users', path: '/admin/users', d: USERS_D },
   { key: 'results', label: 'Results', path: '/admin/results', d: BAR },
+  { key: 'ranking', label: 'Bảng XH Team', path: '/admin/ranking', d: TROPHY },
 ];
 
 export default function AdminLayout() {

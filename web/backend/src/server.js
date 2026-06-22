@@ -29,6 +29,7 @@ import wildcardRoute from "./routes/wildcard.js";
 import finalistRoute from "./routes/finalist.js";
 import finalRoundRoute from "./routes/round.js";
 import finalSubmissionRoute from "./routes/finalSubmissionRoute.js";
+import teamRankingRoute from "./routes/teamRanking.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -84,6 +85,7 @@ app.use("/api/wildcard", wildcardRoute);
 app.use("/api/finalist", finalistRoute);
 app.use("/api/round", finalRoundRoute);
 app.use("/api/submission", finalSubmissionRoute);
+app.use("/api/ranking", teamRankingRoute);
 
 initSocket(httpServer);
 

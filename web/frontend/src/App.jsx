@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+
+// Redirect /ranking/:round_id/teams → /ranking?round=:round_id
+function RoundIdRedirect() {
+  const { round_id } = useParams();
+  return <Navigate to={`/ranking?round=${round_id}`} replace />;
+}
 import { ConfigProvider, theme, App as AntApp } from 'antd';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -46,6 +52,8 @@ import RoundActivatePage from './pages/RoundActivatePage';
 import SubmissionPage from './pages/SubmissionPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
+import TeamRankingPage from './pages/ranking/TeamRankingPage';
+import RankingBrowserPage from './pages/ranking/RankingBrowserPage';
 
 // Student
 import TeamChatPage from './pages/student/chat/TeamChatPage';
@@ -121,6 +129,7 @@ function App() {
                 <Route path="presentation"                     element={<HackathonFeaturePage feature="presentation" />} />
                 <Route path="presentation/:contestId"          element={<HackathonFeaturePage feature="presentation" />} />
                 <Route path="users"                         element={<UserManagementPage />} />
+                <Route path="ranking"                       element={<RankingBrowserPage />} />
               </Route>
 
               {/* Mentor — coaching + scoring (không được chấm team mình mentor) */}
@@ -164,6 +173,8 @@ function App() {
                         {/* Public */}
                         <Route path="/leaderboard/:contestId/:roundId" element={<LegacyLeaderboardPage />} />
                         <Route path="/leaderboard/:round_id"           element={<LeaderboardPage />} />
+                        <Route path="/ranking"                         element={<RankingBrowserPage />} />
+                        <Route path="/ranking/:round_id/teams"         element={<RoundIdRedirect />} />
                         <Route path="/history"                         element={<ContestHistoryPage />} />
                         <Route path="/appeals/:contestId"              element={<AppealsPage />} />
                       </Routes>

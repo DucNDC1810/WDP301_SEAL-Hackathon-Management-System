@@ -40,7 +40,7 @@ function buildScheduleEvents(contests) {
   const events = [];
   contests.forEach((c, ci) => {
     const color = ACCENT_COLORS[ci % ACCENT_COLORS.length];
-    (c.rounds || []).forEach(r => {
+    (c.rounds || []).filter(r => r.is_active).forEach(r => {
       const dateStr = r.start_date || r.end_date;
       if (dateStr) {
         events.push({
@@ -65,7 +65,7 @@ function buildScheduleEvents(contests) {
 // ─── Enrich raw assignments from /api/mentor-assignments/me ──────────────────
 function enrichAssignment(a, idx) {
   const contest = a.contest_id || {};
-  const rounds  = contest.rounds || [];
+  const rounds  = (contest.rounds || []).filter(r => r.is_active);
   const round   = rounds.find(r => r._id?.toString() === a.round_id?.toString()) || {};
   const pool    = a.board_id || {};
   const team    = a.team_id  || {};
@@ -1068,7 +1068,7 @@ export default function MentorDashboard() {
       setJudgeMap(jMap);
 
       // 2. Enrich each mentor assignment with flat data
-      const enrichedList = rawAssignments.map((a, idx) => enrichAssignment(a, idx));
+      const enrichedList = rawAssignments.map((a, idx) => enrichAssignment(a, idx)).filter(a => a.roundIsActive);
       setContests(allContests);
       setEnriched(enrichedList);
 

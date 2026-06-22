@@ -61,7 +61,7 @@ export default function MentorPortalPage() {
         const data = await request(`/api/contests/${contestId}`);
         const c = data?.data ?? data;
         setContest(c);
-        const rs = (c.rounds || []).map(r => ({
+        const rs = (c.rounds || []).filter(r => r.is_active).map(r => ({
           id: r._id,
           name: r.name,
           sequence: r.round_number,

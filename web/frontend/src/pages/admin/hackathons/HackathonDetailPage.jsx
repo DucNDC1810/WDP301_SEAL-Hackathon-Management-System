@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Modal as AntModal, Tooltip } from 'antd';
+import { Modal as AntModal, Tooltip, Select } from 'antd';
 import JudgeAssignmentTab from './tabs/JudgeAssignmentTab';
 import ProblemReleaseTab from './tabs/ProblemReleaseTab';
 import SubmissionReviewTab from './tabs/SubmissionReviewTab';
@@ -1234,9 +1234,8 @@ export default function HackathonDetailPage({ defaultTab }) {
 
               <div className="hd-overview-grid">
                 <div className="hd-overview-card"><span className="hd-ov-label">Mùa giải / Năm</span><span className="hd-ov-value">{config.season} {config.year}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Mở đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.registration_open_date)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Hạn đóng đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.registration_deadline)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Ngày thi đấu</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.start_date)}</span></div>
+                <div className="hd-overview-card"><span className="hd-ov-label">Mở đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_open_date || config.registration_open_date || contest.created_at)}</span></div>
+                <div className="hd-overview-card"><span className="hd-ov-label">Hạn đóng đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_deadline || config.registration_deadline)}</span></div>
                 <div className="hd-overview-card"><span className="hd-ov-label">Lịch khai mạc (Kickoff)</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.kickoff_date)}</span></div>
                 <div className="hd-overview-card"><span className="hd-ov-label">Số vòng thi</span><span className="hd-ov-value">{selectedTrack?.rounds?.length || 0}</span></div>
               </div>
@@ -1609,27 +1608,15 @@ export default function HackathonDetailPage({ defaultTab }) {
           {contest?.rounds && contest.rounds.length > 0 && (
             <div className="results-select-group" style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span className="results-select-label" style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Vòng thi:</span>
-              <select
-                className="results-select"
-                value={selectedPoolRoundId}
-                onChange={(e) => setSelectedPoolRoundId(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border)',
-                  fontSize: '0.85rem',
-                  width: '260px',
-                  cursor: 'pointer'
-                }}
-              >
-                {contest.rounds.map(r => (
-                  <option key={r._id} value={r._id}>
-                    {r.name} {r.is_active ? '🟢 (ONGOING)' : ''}
-                  </option>
-                ))}
-              </select>
+            <Select
+              value={selectedPoolRoundId}
+              onChange={setSelectedPoolRoundId}
+              style={{ width: 220 }}
+              options={contest.rounds.map(r => ({
+                value: r._id,
+                label: r.name
+              }))}
+            />
               {loadingEligibility && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Đang kiểm tra điều kiện vòng đấu...</span>}
             </div>
           )}

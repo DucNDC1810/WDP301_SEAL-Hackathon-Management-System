@@ -12,7 +12,7 @@ const getDefaultRoundId = async (contestId) => {
   if (!contest || !contest.rounds || contest.rounds.length === 0) return null;
   const activeRound = contest.rounds.find(r => r.is_active);
   if (activeRound) return activeRound._id.toString();
-  const sortedRounds = [...contest.rounds].sort((a, b) => a.sequence_order - b.sequence_order);
+  const sortedRounds = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
   return sortedRounds[0]._id.toString();
 };
 
@@ -43,7 +43,7 @@ export const drawPools = async (contestId, { pool_count, assign_topics, round_id
     }
 
     // Xác định đội thi hợp lệ cho vòng thi này
-    const sortedRounds = [...contest.rounds].sort((a, b) => a.sequence_order - b.sequence_order);
+    const sortedRounds = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
     const roundIndex = sortedRounds.findIndex(r => r._id.toString() === targetRoundId.toString());
 
     let teams;
@@ -315,7 +315,7 @@ export const assignTeamsToExistingPools = async (contestId, { assign_topics, rou
     }
 
     // Xác định đội thi hợp lệ cho vòng thi này
-    const sortedRounds = [...contest.rounds].sort((a, b) => a.sequence_order - b.sequence_order);
+    const sortedRounds = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
     const roundIndex = sortedRounds.findIndex(r => r._id.toString() === targetRoundId.toString());
 
     let teams;

@@ -65,6 +65,18 @@ const roundSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    coding_duration_hours: {
+      type: Number,
+      default: 24,
+    },
+    top_n_advance: {
+      type: Number,
+      default: 10,
+    },
+    wildcard_enabled: {
+      type: Boolean,
+      default: false,
+    },
   }
 );
 

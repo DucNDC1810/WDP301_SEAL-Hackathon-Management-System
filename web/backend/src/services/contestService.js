@@ -120,6 +120,9 @@ export const updateContest = async (contestId, updateData) => {
             existing.is_active = newRound.is_active !== undefined ? newRound.is_active : existing.is_active;
             existing.scoring_locked = newRound.scoring_locked !== undefined ? newRound.scoring_locked : existing.scoring_locked;
             existing.force_lock_reason = newRound.force_lock_reason !== undefined ? newRound.force_lock_reason : existing.force_lock_reason;
+            existing.coding_duration_hours = newRound.coding_duration_hours !== undefined ? newRound.coding_duration_hours : existing.coding_duration_hours;
+            existing.top_n_advance = newRound.top_n_advance !== undefined ? newRound.top_n_advance : existing.top_n_advance;
+            existing.wildcard_enabled = newRound.wildcard_enabled !== undefined ? newRound.wildcard_enabled : existing.wildcard_enabled;
 
             // In-place update score criteria
             if (Array.isArray(newRound.score_criteria)) {

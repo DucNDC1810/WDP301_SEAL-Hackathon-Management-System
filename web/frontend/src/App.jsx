@@ -119,6 +119,7 @@ function App() {
                 <Route path="team/:contestId"               element={<TeamRegistrationPage />} />
                 <Route path="ai-assistant"                  element={<AIAssistantPage />} />
                 <Route path="results"                       element={<ResultsPage />} />
+                <Route path="results/:contestId"            element={<ResultsPage />} />
                 <Route path="hackathons"                    element={<HackathonListPage />} />
                 <Route path="hackathons/:id"                element={<HackathonDetailPage />} />
                 <Route path="submission-review"                element={<HackathonFeaturePage feature="submission-review" />} />

@@ -16,11 +16,15 @@ const judgeAssignmentSchema = new mongoose.Schema(
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );
 
-// Unique pool-judge constraint only when pool_id is set (not null)
-judgeAssignmentSchema.index({ pool_id: 1, round_id: 1 }, { 
-  unique: true, 
-  partialFilterExpression: { pool_id: { $exists: true, $ne: null } } 
-});
+// 1 pool có thể có nhiều judge, nhưng 1 judge chỉ chấm 1 pool trong cùng round
+judgeAssignmentSchema.index(
+  { pool_id: 1, round_id: 1, judge_id: 1 },
+  { unique: true, partialFilterExpression: { judge_id: { $type: "objectId" } } }
+);
+judgeAssignmentSchema.index(
+  { pool_id: 1, round_id: 1, external_email: 1 },
+  { unique: true, partialFilterExpression: { external_email: { $type: "string" } } }
+);
 judgeAssignmentSchema.index({ contest_id: 1, round_id: 1 });
 judgeAssignmentSchema.index({ judge_id: 1, round_id: 1 }, { unique: true });
 

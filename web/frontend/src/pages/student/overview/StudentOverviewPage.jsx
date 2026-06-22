@@ -212,7 +212,7 @@ export const StudentOverviewPage = () => {
   const contestId = contest?._id;
 
   // Contest timeline rounds
-  const timelineRounds = contest?.rounds?.length ? contest.rounds : MOCK_ROUNDS;
+  const timelineRounds = (contest?.rounds?.length ? contest.rounds : MOCK_ROUNDS).filter(r => r.is_active);
   const activeIdx      = timelineRounds.findIndex((r) => r.is_active);
 
   // Mock member contributions (seeded from member index for determinism)

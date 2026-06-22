@@ -26,153 +26,179 @@ const MEDAL = ['M6 9m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0', 'M12 15H6a6 6 0 0 0-6 6v
 export default function ResultsPage() {
   const { contestId } = useParams();
   const navigate = useNavigate();
+
+  const [contests, setContests] = useState([]);
+  const [selectedRoundId, setSelectedRoundId] = useState('');
+  const [rounds, setRounds] = useState([]);
+
   const [data, setData] = useState({
     metrics: {
-      totalTeams: 96,
-      avgScore: 78.4,
-      completionRate: 94,
-      judgeReviews: 384,
+      totalTeams: 0,
+      avgScore: 0,
+      completionRate: 0,
+      judgeReviews: 0,
     },
     leaderboard: [],
     scoreDistribution: [],
     submissionStats: {},
     judgeCompletionRate: [],
     submissionTrend: [],
-    topCategory: { name: 'AI/ML', submissions: 32, avgScore: 82.4 },
+    topCategory: { name: 'AI/ML', submissions: 12, avgScore: 8.5 },
     fastestSubmission: '2.5h',
     avgTeamSize: 3.8,
   });
+
+  const [loadingList, setLoadingList] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [roundId, setRoundId] = useState(null);
 
+  // 1. Tải danh sách cuộc thi
   useEffect(() => {
-    fetchResultsData();
-  }, [contestId]);
-
-  const fetchResultsData = async () => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      // Resolve contestId: dùng param nếu có, không thì lấy contest mới nhất
-      let resolvedContestId = contestId;
-      if (!resolvedContestId) {
-        try {
-          const cRes = await fetch(`${API_URL}/api/contests`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (cRes.ok) {
-            const cData = await cRes.json();
-            const list = Array.isArray(cData) ? cData : cData.data || [];
-            // Ưu tiên contest đang open, rồi đến closed
-            const picked =
-              list.find((c) => c.status === 'open') ??
-              list.find((c) => c.status === 'closed') ??
-              list[0];
-            if (picked) resolvedContestId = picked._id;
+    const fetchContests = async () => {
+      setLoadingList(true);
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (!token) return;
+        const res = await fetch(`${API_URL}/api/contests`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const d = await res.json();
+        if (d.success) {
+          const list = d.data || [];
+          setContests(list);
+          if (!contestId && list.length > 0) {
+            navigate(`/admin/results/${list[0]._id}`, { replace: true });
           }
-        } catch (_) {}
+        }
+      } catch (e) {
+        console.error('Error fetching contests:', e);
+      } finally {
+        setLoadingList(false);
       }
+    };
+    fetchContests();
+  }, [contestId, navigate]);
 
-      if (!resolvedContestId) {
-        setLoading(false);
-        return;
-      }
-
-      // Fetch rounds để lấy round_id cho nút BXH Team
-      if (!roundId) {
-        try {
-          const roundsRes = await fetch(
-            `${API_URL}/api/leaderboard/contests/${resolvedContestId}/rounds`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (roundsRes.ok) {
-            const roundsData = await roundsRes.json();
-            const rounds = roundsData.data || roundsData || [];
-            if (rounds.length > 0) {
-              const active = rounds.find((r) => r.is_active) ?? rounds[rounds.length - 1];
-              setRoundId(active._id);
+  // 2. Tải chi tiết cuộc thi khi contestId thay đổi để có danh sách các vòng đấu
+  useEffect(() => {
+    if (!contestId) return;
+    const fetchContestDetails = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const res = await fetch(`${API_URL}/api/contests/${contestId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const contestObj = json.data;
+          if (contestObj && contestObj.rounds) {
+            setRounds(contestObj.rounds);
+            // Ưu tiên chọn vòng đang active, nếu không thì lấy vòng cuối, hoặc vòng đầu
+            const activeRound = contestObj.rounds.find(r => r.is_active) || contestObj.rounds[contestObj.rounds.length - 1] || contestObj.rounds[0];
+            if (activeRound) {
+              setSelectedRoundId(activeRound._id);
             }
           }
-        } catch (_) {}
+        }
+      } catch (e) {
+        console.error('Error fetching contest details:', e);
       }
+    };
+    fetchContestDetails();
+  }, [contestId]);
 
-      // Fetch rankings/leaderboard
+  // 3. Tải kết quả khi cả contestId và selectedRoundId sẵn sàng
+  useEffect(() => {
+    if (contestId && selectedRoundId) {
+      fetchResultsData(contestId, selectedRoundId);
+    }
+  }, [contestId, selectedRoundId]);
+
+  const fetchResultsData = async (cid, rid) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+
+      // Tải bảng xếp hạng: GET /api/contests/:contestId/rounds/:roundId/rankings
       const rankRes = await fetch(
-        `${API_URL}/api/rankings/contests/${resolvedContestId}/rounds/${roundId || 'latest'}`,
+        `${API_URL}/api/contests/${cid}/rounds/${rid}/rankings`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      let leaderboard = [];
+      let totalTeams = 0;
+      let avgScore = 0;
+      let distribution = [];
 
       if (rankRes.ok) {
         const rankings = await rankRes.json();
-        const leaderboard = (Array.isArray(rankings) ? rankings : rankings.data || [])
-          .slice(0, 5)
-          .map((r, i) => ({
-            rank: i + 1,
-            name: r.team_name,
-            score: r.final_score || 0,
-            category: r.category || 'General',
-          }));
+        const allRankings = Array.isArray(rankings) ? rankings : rankings.data || [];
+        totalTeams = allRankings.length;
 
-        setData(prev => ({ ...prev, leaderboard }));
+        leaderboard = allRankings.slice(0, 5).map((r, i) => ({
+          rank: i + 1,
+          name: r.team_name,
+          score: r.final_score || 0,
+          category: r.category || 'General',
+        }));
 
-        // Calculate metrics from rankings
-        if (Array.isArray(rankings) || rankings.data) {
-          const allRankings = Array.isArray(rankings) ? rankings : rankings.data || [];
-          const scores = allRankings.map(r => r.final_score || 0);
-          const avgScore = scores.length > 0
-            ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
-            : 78.4;
+        const scores = allRankings.map(r => r.final_score || 0);
+        if (scores.length > 0) {
+          avgScore = parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1));
+        }
 
-          setData(prev => ({
-            ...prev,
-            metrics: {
-              ...prev.metrics,
-              totalTeams: allRankings.length,
-              avgScore: parseFloat(avgScore),
-            }
-          }));
+        distribution = [
+          { range: '9.0-10', count: scores.filter(s => s >= 9.0).length },
+          { range: '8.0-8.9', count: scores.filter(s => s >= 8.0 && s < 9.0).length },
+          { range: '7.0-7.9', count: scores.filter(s => s >= 7.0 && s < 8.0).length },
+          { range: '6.0-6.9', count: scores.filter(s => s >= 6.0 && s < 7.0).length },
+          { range: '<6.0', count: scores.filter(s => s < 6.0).length },
+        ];
+      }
 
-          // Generate score distribution
-          const distribution = [
-            { range: '90-100', count: scores.filter(s => s >= 90).length },
-            { range: '80-89', count: scores.filter(s => s >= 80 && s < 90).length },
-            { range: '70-79', count: scores.filter(s => s >= 70 && s < 80).length },
-            { range: '60-69', count: scores.filter(s => s >= 60 && s < 70).length },
-            { range: '<60', count: scores.filter(s => s < 60).length },
-          ];
-          setData(prev => ({ ...prev, scoreDistribution: distribution }));
+      // Tải tiến độ chấm điểm: GET /api/scores/contests/:contestId/rounds/:roundId/progress
+      const progressRes = await fetch(
+        `${API_URL}/api/scores/contests/${cid}/rounds/${rid}/progress`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      let completionRate = 0;
+      let judgeReviews = 0;
+
+      if (progressRes.ok) {
+        const progress = await progressRes.json();
+        if (progress) {
+          completionRate = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+          judgeReviews = progress.done || 0;
         }
       }
 
-      // Fetch scores for additional metrics
-      const scoresRes = await fetch(
-        `${API_URL}/api/scores/contests/${resolvedContestId}/progress/${roundId || 'latest'}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (scoresRes.ok) {
-        const scores = await scoresRes.json();
-        // Calculate completion rate
-        const submitted = scores.filter(s => s.status === 'submitted').length;
-        const completionRate = Math.round((submitted / scores.length) * 100);
-        setData(prev => ({
-          ...prev,
-          metrics: {
-            ...prev.metrics,
-            completionRate,
-            judgeReviews: submitted,
-          }
-        }));
-      }
+      setData(prev => ({
+        ...prev,
+        leaderboard,
+        scoreDistribution: distribution,
+        metrics: {
+          totalTeams,
+          avgScore,
+          completionRate,
+          judgeReviews
+        }
+      }));
     } catch (err) {
       console.error('Error fetching results:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleContestChange = (e) => {
+    const cid = e.target.value;
+    setSelectedRoundId(''); // reset round
+    navigate(`/admin/results/${cid}`);
+  };
+
+  const handleRoundChange = (e) => {
+    setSelectedRoundId(e.target.value);
   };
 
   const getMedalColor = (rank) => {
@@ -191,30 +217,29 @@ export default function ResultsPage() {
 
   // Sample data for charts
   const submissionTrendData = [
-    { day: 'Day 1', submissions: 12 },
-    { day: 'Day 2', submissions: 28 },
-    { day: 'Day 3', submissions: 45 },
-    { day: 'Day 4', submissions: 38 },
-    { day: 'Day 5', submissions: 78 },
-    { day: 'Day 6', submissions: 95 },
+    { day: 'Day 1', submissions: 2 },
+    { day: 'Day 2', submissions: 5 },
+    { day: 'Day 3', submissions: 12 },
+    { day: 'Day 4', submissions: 8 },
+    { day: 'Day 5', submissions: 15 },
+    { day: 'Day 6', submissions: 24 },
   ];
 
   const judgeCompletionData = [
-    { name: 'Dr. Chen', value: 24, total: 24 },
-    { name: 'Prof. Kumar', value: 22, total: 24 },
-    { name: 'Dr. Williams', value: 24, total: 24 },
-    { name: 'Prof. Garcia', value: 20, total: 24 },
+    { name: 'Dr. Chen', value: 8, total: 10 },
+    { name: 'Prof. Kumar', value: 10, total: 10 },
+    { name: 'Dr. Williams', value: 9, total: 10 },
   ];
 
   const submissionCategoryData = [
-    { name: 'Source Code', value: 96, total: 100 },
-    { name: 'Presentation', value: 94, total: 100 },
-    { name: 'Demo Video', value: 89, total: 100 },
+    { name: 'Source Code', value: data.metrics.totalTeams, total: data.metrics.totalTeams },
+    { name: 'Presentation', value: data.metrics.judgeReviews, total: data.metrics.totalTeams },
+    { name: 'Demo Video', value: Math.max(0, data.metrics.totalTeams - 1), total: data.metrics.totalTeams },
   ];
 
   const pieData = [
-    { name: 'Submitted', value: 94, fill: '#00d4ff' },
-    { name: 'Pending', value: 6, fill: '#4b5563' },
+    { name: 'Submitted', value: data.metrics.completionRate, fill: '#00d4ff' },
+    { name: 'Pending', value: 100 - data.metrics.completionRate, fill: '#4b5563' },
   ];
 
   return (
@@ -222,12 +247,12 @@ export default function ResultsPage() {
       {/* Header */}
       <div className="results-header">
         <div>
-          <h1 className="results-title">Results & Analytics</h1>
-          <p className="results-subtitle">SEAL Hackathon 2026 - Final Rankings & Insights</p>
+          <h1 className="results-title">Kết Quả & Thống Kê</h1>
+          <p className="results-subtitle">SEAL Hackathon - Bảng Xếp Hạng Vòng Đấu & Số Liệu Phân Tích</p>
         </div>
-        {roundId && (
+        {selectedRoundId && (
           <button
-            onClick={() => navigate(`/admin/ranking${roundId ? `?round=${roundId}` : ''}`)}
+            onClick={() => navigate(`/admin/ranking${selectedRoundId ? `?round=${selectedRoundId}` : ''}`)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -257,213 +282,185 @@ export default function ResultsPage() {
         )}
       </div>
 
-      {/* Metrics Cards */}
-      <div className="results-metrics">
-        <div className="metric-card">
-          <div className="metric-icon"><Ico d={USERS} size={24} color="#00d4ff" /></div>
-          <div className="metric-content">
-            <p className="metric-label">Total Teams</p>
-            <p className="metric-value">{data.metrics.totalTeams}</p>
+        {/* Dropdown selectors */}
+        <div className="results-selector-container">
+          <div className="results-select-group">
+            <span className="results-select-label">Cuộc thi:</span>
+            <select
+              className="results-select"
+              value={contestId || ''}
+              onChange={handleContestChange}
+              disabled={loadingList}
+            >
+              {loadingList && <option>Đang tải...</option>}
+              {contests.map(c => (
+                <option key={c._id} value={c._id}>{c.title}</option>
+              ))}
+            </select>
           </div>
-        </div>
 
-        <div className="metric-card">
-          <div className="metric-icon"><Ico d={TRENDING} size={24} color="#00d4ff" /></div>
-          <div className="metric-content">
-            <p className="metric-label">Avg Score</p>
-            <p className="metric-value">{data.metrics.avgScore}</p>
-            <p className="metric-change">↑ 5%</p>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="metric-icon"><Ico d={CHECKMARK} size={24} color="#00d4ff" /></div>
-          <div className="metric-content">
-            <p className="metric-label">Completion Rate</p>
-            <p className="metric-value">{data.metrics.completionRate}%</p>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="metric-icon"><Ico d={AWARD} size={24} color="#00d4ff" /></div>
-          <div className="metric-content">
-            <p className="metric-label">Judge Reviews</p>
-            <p className="metric-value">{data.metrics.judgeReviews}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Leaderboard */}
-      <div className="results-panel">
-        <h2 className="panel-title">Final Leaderboard</h2>
-        <div className="leaderboard">
-          {data.leaderboard.length > 0 ? (
-            data.leaderboard.map((team, idx) => (
-              <div key={idx} className="leaderboard-item">
-                <div className="leaderboard-rank">
-                  <span className="rank-badge" style={{ backgroundColor: getMedalColor(team.rank) }}>
-                    {team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : team.rank}
-                  </span>
-                </div>
-                <div className="leaderboard-info">
-                  <p className="team-name">{team.name}</p>
-                  <p className="team-category">{team.category}</p>
-                </div>
-                <div className="leaderboard-score">
-                  <p className="score-value">{team.score}</p>
-                  <p className="score-label">Total Score</p>
-                </div>
-                <div className="leaderboard-medal">
-                  <span className={`medal-badge medal-${team.rank.toString().toLowerCase()}`}>
-                    {getMedalLabel(team.rank)}
-                  </span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="empty-state">No leaderboard data available</div>
+          {rounds.length > 0 && (
+            <div className="results-select-group">
+              <span className="results-select-label">Vòng thi:</span>
+              <select
+                className="results-select"
+                value={selectedRoundId}
+                onChange={handleRoundChange}
+              >
+                {rounds.map(r => (
+                  <option key={r._id} value={r._id}>
+                    {r.name} {r.is_active ? '(Đang mở)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Charts Grid */}
-      <div className="results-grid">
-        {/* Score Distribution */}
-        <div className="results-panel chart-panel">
-          <h2 className="panel-title">Score Distribution</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={data.scoreDistribution.length > 0 ? data.scoreDistribution : [
-              { range: '90-100', count: 8 },
-              { range: '80-89', count: 22 },
-              { range: '70-79', count: 38 },
-              { range: '60-69', count: 18 },
-              { range: '<60', count: 5 },
-            ]}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#162036" />
-              <XAxis dataKey="range" stroke="#7f9bb3" />
-              <YAxis stroke="#7f9bb3" />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#081223', border: '1px solid #162036', borderRadius: '8px' }}
-                labelStyle={{ color: '#00d4ff' }}
-              />
-              <Bar dataKey="count" fill="#00d4ff" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '100px 0', color: '#7f9bb3' }}>
+          <p>Đang tải dữ liệu kết quả phân tích...</p>
         </div>
-
-        {/* Submission Statistics */}
-        <div className="results-panel chart-panel">
-          <h2 className="panel-title">Submission Statistics</h2>
-          <div className="submission-stats">
-            <div className="stats-list">
-              {submissionCategoryData.map((item, idx) => (
-                <div key={idx} className="stat-item">
-                  <p className="stat-name">{item.name}</p>
-                  <div className="stat-bar">
-                    <div className="stat-progress" style={{ width: `${(item.value / item.total) * 100}%` }}></div>
-                  </div>
-                  <p className="stat-value">{item.value} / {item.total}</p>
-                </div>
-              ))}
+      ) : (
+        <>
+          {/* Metrics Cards */}
+          <div className="results-metrics">
+            <div className="metric-card">
+              <div className="metric-icon"><Ico d={USERS} size={24} color="#00d4ff" /></div>
+              <div className="metric-content">
+                <p className="metric-label">Tổng Số Đội</p>
+                <p className="metric-value">{data.metrics.totalTeams}</p>
+              </div>
             </div>
-            <div className="stat-pie">
-              <ResponsiveContainer width="100%" height={120}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={55}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
+
+            <div className="metric-card">
+              <div className="metric-icon"><Ico d={TRENDING} size={24} color="#00d4ff" /></div>
+              <div className="metric-content">
+                <p className="metric-label">Điểm Trung Bình</p>
+                <p className="metric-value">{data.metrics.avgScore}</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon"><Ico d={CHECKMARK} size={24} color="#00d4ff" /></div>
+              <div className="metric-content">
+                <p className="metric-label">Tiến Độ Chấm</p>
+                <p className="metric-value">{data.metrics.completionRate}%</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon"><Ico d={AWARD} size={24} color="#00d4ff" /></div>
+              <div className="metric-content">
+                <p className="metric-label">Số Lượt Chấm</p>
+                <p className="metric-value">{data.metrics.judgeReviews}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Leaderboard */}
+          <div className="results-panel">
+            <h2 className="panel-title">BẢNG XẾP HẠNG VÒNG ĐẤU (LEADERBOARD)</h2>
+            <div className="leaderboard">
+              {data.leaderboard.length > 0 ? (
+                data.leaderboard.map((team, idx) => (
+                  <div key={idx} className="leaderboard-item">
+                    <div className="leaderboard-rank">
+                      <span className="rank-badge" style={{ backgroundColor: getMedalColor(team.rank) }}>
+                        {team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : team.rank}
+                      </span>
+                    </div>
+                    <div className="leaderboard-info">
+                      <p className="team-name">{team.name}</p>
+                      <p className="team-category">{team.category}</p>
+                    </div>
+                    <div className="leaderboard-score">
+                      <p className="score-value">{team.score.toFixed(2)}</p>
+                      <p className="score-label">Điểm trung bình</p>
+                    </div>
+                    <div className="leaderboard-medal">
+                      <span className={`medal-badge medal-${team.rank.toString().toLowerCase()}`}>
+                        {getMedalLabel(team.rank)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state">Chưa có dữ liệu xếp hạng. Vui lòng chấm điểm và tính xếp hạng.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Charts Grid */}
+          <div className="results-grid">
+            {/* Score Distribution */}
+            <div className="results-panel chart-panel">
+              <h2 className="panel-title">Phân Bố Điểm Số</h2>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={data.scoreDistribution.length > 0 ? data.scoreDistribution : [
+                  { range: '9.0-10', count: 0 },
+                  { range: '8.0-8.9', count: 0 },
+                  { range: '7.0-7.9', count: 0 },
+                  { range: '6.0-6.9', count: 0 },
+                  { range: '<6.0', count: 0 },
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#162036" />
+                  <XAxis dataKey="range" stroke="#7f9bb3" />
+                  <YAxis stroke="#7f9bb3" />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#081223', border: '1px solid #162036', borderRadius: '8px' }}
                     labelStyle={{ color: '#00d4ff' }}
                   />
-                </PieChart>
+                  <Bar dataKey="count" fill="#00d4ff" radius={[8, 8, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Second Row Charts */}
-      <div className="results-grid">
-        {/* Judge Completion Rate */}
-        <div className="results-panel chart-panel">
-          <h2 className="panel-title">Judge Completion Rate</h2>
-          <div className="judge-completion">
-            {judgeCompletionData.map((judge, idx) => (
-              <div key={idx} className="judge-item">
-                <p className="judge-name">{judge.name}</p>
-                <div className="judge-bar-container">
-                  <div className="judge-bar">
-                    <div
-                      className="judge-progress"
-                      style={{ width: `${(judge.value / judge.total) * 100}%` }}
-                    ></div>
-                  </div>
-                  <p className="judge-percentage">
-                    {judge.value} / {judge.total} {Math.round((judge.value / judge.total) * 100)}%
-                  </p>
+            {/* Submission Statistics */}
+            <div className="results-panel chart-panel">
+              <h2 className="panel-title">Thống Kê Bài Nộp & Chấm Thi</h2>
+              <div className="submission-stats">
+                <div className="stats-list">
+                  {submissionCategoryData.map((item, idx) => (
+                    <div key={idx} className="stat-item">
+                      <p className="stat-name">{item.name}</p>
+                      <div className="stat-bar">
+                        <div className="stat-progress" style={{ width: `${item.total > 0 ? (item.value / item.total) * 100 : 0}%` }}></div>
+                      </div>
+                      <p className="stat-value">{item.value} / {item.total}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="stat-pie">
+                  <ResponsiveContainer width="100%" height={120}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={55}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#081223', border: '1px solid #162036', borderRadius: '8px' }}
+                        labelStyle={{ color: '#00d4ff' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
-        </div>
-
-        {/* Submission Trend */}
-        <div className="results-panel chart-panel">
-          <h2 className="panel-title">Submission Trend</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={submissionTrendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#162036" />
-              <XAxis dataKey="day" stroke="#7f9bb3" />
-              <YAxis stroke="#7f9bb3" />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#081223', border: '1px solid #162036', borderRadius: '8px' }}
-                labelStyle={{ color: '#00d4ff' }}
-              />
-              <Line
-                type="monotone"
-                dataKey="submissions"
-                stroke="#00d4ff"
-                dot={{ fill: '#00d4ff', r: 4 }}
-                strokeWidth={2}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Info Cards */}
-      <div className="results-info-grid">
-        <div className="info-card">
-          <div className="info-label">Top Category</div>
-          <div className="info-value">{data.topCategory.name}</div>
-          <div className="info-detail">
-            {data.topCategory.submissions} submissions • Avg {data.topCategory.avgScore}
-          </div>
-        </div>
-
-        <div className="info-card">
-          <div className="info-label">Fastest Submission</div>
-          <div className="info-value">{data.fastestSubmission}</div>
-          <div className="info-detail">After registration opened</div>
-        </div>
-
-        <div className="info-card">
-          <div className="info-label">Avg Team Size</div>
-          <div className="info-value">{data.avgTeamSize}</div>
-          <div className="info-detail">Members per team</div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
+

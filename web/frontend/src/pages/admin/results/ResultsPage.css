@@ -602,3 +602,46 @@
 .recharts-cartesian-axis-tick {
     color: #7f9bb3 !important;
 }
+
+/* Select fields */
+.results-selector-container {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.results-select-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.results-select-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #7f9bb3;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.results-select {
+    background: #111827;
+    border: 1px solid #1f2937;
+    color: #f9fafb;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    outline: none;
+    cursor: pointer;
+    min-width: 180px;
+    transition: border-color 0.15s;
+}
+
+.results-select:hover {
+    border-color: #00d4ff44;
+}
+
+.results-select:focus {
+    border-color: #00d4ff;
+}

@@ -6,6 +6,7 @@ import {
   handleCreateEmptyPools,
   handleAssignTeams,
   handleAddSinglePool,
+  handleUpdatePool,
 } from "../controllers/poolController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
@@ -35,6 +36,13 @@ router.post(
   handleAddSinglePool
 );
 
+// PUT /api/pools/:poolId - Cập nhật bảng đấu (Chỉ Admin)
+router.put(
+  "/:poolId",
+  authenticate,
+  authorize("admin"),
+  handleUpdatePool
+);
 
 // POST /api/pools/contests/:contestId/assign-teams - Xếp các đội vào bảng đấu ngẫu nhiên (Chỉ Admin)
 router.post(

@@ -316,8 +316,6 @@ export default function ResultsPage() {
             </div>
           )}
         </div>
-      </div>
-
       {loading ? (
         <div style={{ textAlign: 'center', padding: '100px 0', color: '#7f9bb3' }}>
           <p>Đang tải dữ liệu kết quả phân tích...</p>

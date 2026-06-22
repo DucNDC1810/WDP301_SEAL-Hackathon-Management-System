@@ -18,3 +18,6 @@ export const getRankingContests = () =>
 
 export const getTeamRanking = (round_id) =>
   api.get(`/api/ranking/${round_id}/teams`);
+
+export const getChapterRanking = (round_id) =>
+  api.get(`/api/ranking/${round_id}/chapters`);

@@ -493,12 +493,9 @@ export default function HackathonDetailPage({ defaultTab }) {
 
   useEffect(() => {
     if (contest && contest.rounds && contest.rounds.length > 0 && !selectedPoolRoundId) {
-      const active = contest.rounds.find(r => r.is_active);
-      if (active) {
-        setSelectedPoolRoundId(active._id);
-      } else {
-        const sorted = [...contest.rounds].sort((a, b) => a.sequence_order - b.sequence_order);
-        setSelectedPoolRoundId(sorted[0]._id);
+      const activeRounds = contest.rounds.filter(r => r.is_active);
+      if (activeRounds.length > 0) {
+        setSelectedPoolRoundId(activeRounds[0]._id);
       }
     }
   }, [contest, selectedPoolRoundId]);
@@ -1706,7 +1703,7 @@ export default function HackathonDetailPage({ defaultTab }) {
               value={selectedPoolRoundId}
               onChange={setSelectedPoolRoundId}
               style={{ width: 220 }}
-              options={contest.rounds.map(r => ({
+              options={contest.rounds.filter(r => r.is_active).map(r => ({
                 value: r._id,
                 label: r.name
               }))}

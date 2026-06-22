@@ -51,8 +51,8 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
   const [messageApi, contextHolder] = message.useMessage();
 
   const rounds = contest?.rounds
-    ? contest.rounds.map(r => ({ id: r._id, name: r.name, problem_released_at: r.problem_released_at }))
-    : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name })));
+    ? contest.rounds.filter(r => r.is_active).map(r => ({ id: r._id, name: r.name, problem_released_at: r.problem_released_at }))
+    : (config?.tracks || []).flatMap(t => (t.rounds || []).filter(r => r.is_active).map(r => ({ ...r, trackName: t.name })));
 
   const [selectedRound, setSelectedRound] = useState(rounds[0]?.id || null);
   const [pools, setPools] = useState([]);

@@ -348,7 +348,7 @@ export const StudentSubmitPage = () => {
               cursor: 'pointer',
             }}
           >
-            {rounds.map((r) => (
+            {rounds.filter(r => r.is_active).map((r) => (
               <option key={r._id} value={r._id}>
                 {r.name}{r.is_active ? ' (đang diễn ra)' : ''}
               </option>

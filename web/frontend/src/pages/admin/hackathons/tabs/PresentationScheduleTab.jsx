@@ -57,7 +57,7 @@ export default function PresentationScheduleTab({ contestId, contest }) {
   const { request } = useApi();
   const [messageApi, ctx] = message.useMessage();
 
-  const rounds = contest?.rounds ?? [];
+  const rounds = (contest?.rounds || []).filter(r => r.is_active);
   const [selectedRound, setSelectedRound] = useState(rounds[0]?._id ?? null);
   const [pools, setPools]     = useState([]);
   const [selectedPool, setSelectedPool] = useState(null);

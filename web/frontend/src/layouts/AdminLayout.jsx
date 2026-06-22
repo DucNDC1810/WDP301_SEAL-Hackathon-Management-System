@@ -136,12 +136,13 @@ export default function AdminLayout() {
 
         <div className="al-sidebar-foot">
           <button
-            className="al-theme-toggle"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+            className="al-nav-item"
+            style={{ color: '#ef4444' }}
+            onClick={handleLogout}
+            title="Đăng xuất"
           >
-            <Ico d={theme === 'dark' ? SUN : MOON} size={16} />
-            {!collapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+            <span className="al-nav-icon"><Ico d={LOGOUT} size={16} /></span>
+            {!collapsed && <span className="al-nav-label">Đăng xuất</span>}
           </button>
         </div>
       </aside>
@@ -150,6 +151,14 @@ export default function AdminLayout() {
       <div className="al-main">
         <header className="al-topbar">
           <div className="al-topbar-right">
+            <button
+              className="al-theme-toggle"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+              style={{ background: 'transparent', border: 'none', color: 'var(--al-text-muted)', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}
+            >
+              <Ico d={theme === 'dark' ? SUN : MOON} size={20} />
+            </button>
             <div className="al-profile-chip">
               <div className="al-profile-av">{initials(user?.full_name)}</div>
               <div className="al-profile-info">
@@ -157,10 +166,6 @@ export default function AdminLayout() {
                 <span className="al-profile-role">👥 Admin</span>
               </div>
             </div>
-            <button className="al-topbar-logout" onClick={handleLogout} title="Đăng xuất">
-              <Ico d={LOGOUT} size={16} sw={1.8} />
-              <span>Đăng xuất</span>
-            </button>
           </div>
         </header>
 

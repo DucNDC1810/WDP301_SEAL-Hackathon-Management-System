@@ -117,7 +117,7 @@ const NAV_GROUPS = [
   ]},
 ];
 
-function Sidebar({ active, onChange }) {
+function Sidebar({ active, onChange, onLogout }) {
   const { theme, toggleTheme } = useTheme();
   return (
     <aside className="md-sidebar">
@@ -144,19 +144,20 @@ function Sidebar({ active, onChange }) {
       </div>
       <div className="md-sidebar-foot">
         <button
-          className="md-theme-toggle"
-          onClick={toggleTheme}
-          title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+          className="md-nav-item"
+          style={{ color: '#ef4444', border: 'none', background: 'transparent', width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+          onClick={onLogout}
+          title="Đăng xuất"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-            strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-            {theme === 'dark' ? (
-              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z" />
-            ) : (
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            )}
-          </svg>
-          <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          <span className="md-nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5" />
+              <path d="M21 12H9" />
+            </svg>
+          </span>
+          <span>Đăng xuất</span>
         </button>
       </div>
     </aside>
@@ -756,6 +757,7 @@ export default function JudgeDashboard() {
   const [messageApi, contextHolder] = message.useMessage();
 
   const [activeView, setActiveView] = useState('dashboard');
+  const { theme, toggleTheme } = useTheme();
   const [loading, setLoading]       = useState(true);
   const [enriched, setEnriched]     = useState([]);
 
@@ -834,6 +836,21 @@ export default function JudgeDashboard() {
           </span>
         </div>
         <div className="md-topbar-right">
+          <button
+            className="md-theme-toggle"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+              {theme === 'dark' ? (
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z" />
+              ) : (
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              )}
+            </svg>
+          </button>
           <div className="md-notif-btn">🔔<div className="md-notif-dot" /></div>
           <div className="md-profile-chip">
             <div className="md-avatar">
@@ -844,20 +861,11 @@ export default function JudgeDashboard() {
               <span className="jd-judge-badge">{user?.roles?.some(r => r.role_name === 'mentor') ? '👥 Mentor' : '👥 Giám khảo'}</span>
             </div>
           </div>
-          <button className="md-logout-btn" onClick={logout}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-              strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <path d="M16 17l5-5-5-5" />
-              <path d="M21 12H9" />
-            </svg>
-            <span>Đăng xuất</span>
-          </button>
         </div>
       </header>
 
       {/* Sidebar */}
-      <Sidebar active={activeView} onChange={setActiveView} />
+      <Sidebar active={activeView} onChange={setActiveView} onLogout={logout} />
 
       {/* Main */}
       <main className="md-main">

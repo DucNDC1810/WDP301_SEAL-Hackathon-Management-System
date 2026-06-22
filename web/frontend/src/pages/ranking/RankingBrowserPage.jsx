@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getRankingContests, getTeamRanking, getChapterRanking } from '../../api/ranking';
+import { getRankingContests, getTeamRanking, getChapterRanking, getIndividualRanking } from '../../api/ranking';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const MEDAL_COLOR = {
@@ -18,8 +18,9 @@ export default function RankingBrowserPage() {
   const [contests, setContests]     = useState([]);
   const [selectedContest, setSelectedContest] = useState(null);
   const [selectedRound,   setSelectedRound]   = useState(null);
-  const [activeTab,       setActiveTab]       = useState('team'); // 'team' | 'chapter'
+  const [activeTab,       setActiveTab]       = useState('team'); // 'team' | 'chapter' | 'individual'
   const [ranking,         setRanking]         = useState(null);
+  const [individualEnabled, setIndividualEnabled] = useState(false);
   const [loadingContests, setLoadingContests] = useState(true);
   const [loadingRanking,  setLoadingRanking]  = useState(false);
   const [rankingError,    setRankingError]    = useState(null);
@@ -62,15 +63,24 @@ export default function RankingBrowserPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Probe individual_ranking_enabled khi đổi vòng
+  useEffect(() => {
+    if (!selectedRound) { setIndividualEnabled(false); return; }
+    getIndividualRanking(selectedRound._id)
+      .then((res) => setIndividualEnabled(res.data?.enabled === true))
+      .catch(() => setIndividualEnabled(false));
+  }, [selectedRound]);
+
   // Fetch ranking when round or tab changes
   useEffect(() => {
     if (!selectedRound) { setRanking(null); setRankingError(null); return; }
     setLoadingRanking(true);
     setRanking(null);
     setRankingError(null);
-    const fetcher = activeTab === 'chapter'
-      ? getChapterRanking(selectedRound._id)
-      : getTeamRanking(selectedRound._id);
+    const fetcher =
+      activeTab === 'chapter'    ? getChapterRanking(selectedRound._id) :
+      activeTab === 'individual' ? getIndividualRanking(selectedRound._id) :
+                                   getTeamRanking(selectedRound._id);
     fetcher
       .then((res) => setRanking(res.data))
       .catch((err) => {
@@ -192,9 +202,13 @@ export default function RankingBrowserPage() {
 
           {/* ── RIGHT: Ranking table ── */}
           <main style={s.main}>
-            {/* Tab switcher — luôn hiển thị */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-              {[{ key: 'team', label: '👥 Team' }, { key: 'chapter', label: '🏫 Chapter' }].map((tab) => (
+            {/* Tab switcher — luôn hiển thị; tab Cá nhân ẩn khi feature disabled */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+              {[
+                { key: 'team',       label: '👥 Team' },
+                { key: 'chapter',    label: '🏫 Chapter' },
+                ...(individualEnabled ? [{ key: 'individual', label: '👤 Cá nhân' }] : []),
+              ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
@@ -213,12 +227,19 @@ export default function RankingBrowserPage() {
             </div>
 
             {!selectedContest && (
-              <EmptyHint icon={activeTab === 'chapter' ? '🏫' : '🏆'} text="Chọn một cuộc thi để xem bảng xếp hạng" />
+              <EmptyHint
+                icon={activeTab === 'chapter' ? '🏫' : activeTab === 'individual' ? '👤' : '🏆'}
+                text="Chọn một cuộc thi để xem bảng xếp hạng"
+              />
             )}
             {selectedContest && !selectedRound && (
               <EmptyHint
                 icon="📋"
-                text={activeTab === 'chapter' ? 'Chọn vòng thi để xem bảng xếp hạng chapter' : 'Chọn vòng thi để xem kết quả'}
+                text={
+                  activeTab === 'chapter'    ? 'Chọn vòng thi để xem bảng xếp hạng chapter' :
+                  activeTab === 'individual' ? 'Chọn vòng thi để xem bảng xếp hạng cá nhân' :
+                                              'Chọn vòng thi để xem kết quả'
+                }
               />
             )}
             {selectedRound && loadingRanking && <Spinner />}
@@ -257,6 +278,9 @@ export default function RankingBrowserPage() {
             )}
             {selectedRound && !loadingRanking && !rankingError && ranking && activeTab === 'chapter' && (
               <ChapterTable data={ranking} />
+            )}
+            {selectedRound && !loadingRanking && !rankingError && ranking && activeTab === 'individual' && (
+              <IndividualTable data={ranking} />
             )}
           </main>
         </div>
@@ -436,6 +460,89 @@ function ChapterTable({ data }) {
       )}
       <p style={{ marginTop: 14, textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
         * Điểm tốt nhất kỳ này = max(điểm TB) của tất cả team thuộc chapter trong vòng này
+      </p>
+    </div>
+  );
+}
+
+function IndividualTable({ data }) {
+  const individuals = data?.individuals || [];
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          {data?.round_name} — Cá nhân
+        </h2>
+        {data?.season_name && (
+          <p style={{ margin: '3px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+            Xếp hạng cá nhân — {data.season_name}
+          </p>
+        )}
+      </div>
+
+      {individuals.length === 0 ? (
+        <EmptyHint icon="👤" text="Chưa có điểm cá nhân nào được ghi nhận trong vòng này" />
+      ) : (
+        <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid rgba(0,240,255,.12)', boxShadow: 'var(--shadow-cyan)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'rgba(17,24,39,.7)' }}>
+            <thead>
+              <tr>
+                {['Hạng', 'Họ tên', 'Chapter', 'Điểm kỳ này', 'Điểm tích lũy'].map((h, i) => (
+                  <th key={h} style={{
+                    padding: '13px 18px',
+                    textAlign: i === 0 || i >= 3 ? 'center' : 'left',
+                    fontFamily: 'var(--font-display)', fontSize: '0.75rem',
+                    letterSpacing: '1px', textTransform: 'uppercase',
+                    color: 'var(--cyan)', borderBottom: '1px solid rgba(0,240,255,.15)',
+                    background: 'rgba(0,240,255,.04)', whiteSpace: 'nowrap',
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {individuals.map((person) => {
+                const medal = MEDAL[person.rank];
+                const mc    = MEDAL_COLOR[person.rank];
+                return (
+                  <tr key={person.user_id} style={{ background: mc?.bg || 'transparent', borderBottom: '1px solid rgba(0,240,255,.06)' }}>
+                    <td style={{ padding: '13px 18px', textAlign: 'center', width: 80 }}>
+                      {medal ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, border: `1px solid ${mc.border}`, color: mc.text, fontWeight: 700, fontSize: '0.9rem' }}>
+                          {medal} {person.rank}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>#{person.rank}</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '13px 18px', fontWeight: mc ? 700 : 500, color: mc?.text || 'var(--text-primary)', fontSize: '0.93rem' }}>
+                      {person.full_name}
+                    </td>
+                    <td style={{ padding: '13px 18px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                      {person.chapter || '—'}
+                    </td>
+                    <td style={{ padding: '13px 18px', textAlign: 'center', fontWeight: 700, color: mc?.text || 'var(--cyan)', fontSize: '1rem' }}>
+                      {person.score_this_hackathon.toFixed(2)}
+                    </td>
+                    <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                      {person.cumulative_score > 0 ? (
+                        <span style={{ fontWeight: 700, color: mc?.text || 'var(--text-primary)', fontSize: '1rem' }}>
+                          {person.cumulative_score.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: '#f59e0b', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.25)', padding: '2px 8px', borderRadius: 4 }}>
+                          Pending
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p style={{ marginTop: 14, textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+        * Điểm kỳ này do ban tổ chức nhập. Điểm tích lũy cộng dồn qua các mùa.
       </p>
     </div>
   );

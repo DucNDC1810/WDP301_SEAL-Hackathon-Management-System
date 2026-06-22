@@ -56,6 +56,7 @@ import TeamRankingPage from './pages/ranking/TeamRankingPage';
 import RankingBrowserPage from './pages/ranking/RankingBrowserPage';
 import ChapterRankingPage from './pages/ranking/ChapterRankingPage';
 import IndividualRankingPage from './pages/ranking/IndividualRankingPage';
+import AdminRankingManagerPage from './pages/admin/ranking/AdminRankingManagerPage';
 
 // Student
 import TeamChatPage from './pages/student/chat/TeamChatPage';
@@ -132,6 +133,7 @@ function App() {
                 <Route path="presentation/:contestId"          element={<HackathonFeaturePage feature="presentation" />} />
                 <Route path="users"                         element={<UserManagementPage />} />
                 <Route path="ranking"                       element={<RankingBrowserPage />} />
+                <Route path="ranking-manager"              element={<AdminRankingManagerPage />} />
               </Route>
 
               {/* Mentor — coaching + scoring (không được chấm team mình mentor) */}

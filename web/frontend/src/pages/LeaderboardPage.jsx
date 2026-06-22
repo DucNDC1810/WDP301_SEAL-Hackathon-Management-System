@@ -217,8 +217,8 @@ export default function LeaderboardPage() {
             Vòng thi: {data?.round_name || "Sơ loại"}
           </div>
 
-          {wildcardEligible && (
-            <div style={{ marginTop: '16px' }}>
+          <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            {wildcardEligible && (
               <button
                 onClick={() => navigate(`/wildcard/${round_id}`)}
                 style={{
@@ -247,8 +247,36 @@ export default function LeaderboardPage() {
               >
                 🔮 Xem Danh Sách Vé Vớt (Wild Card)
               </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => navigate(`/ranking?round=${round_id}`)}
+              style={{
+                background: 'rgba(250, 204, 21, 0.1)',
+                color: '#facc15',
+                border: '1px solid rgba(250, 204, 21, 0.3)',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 0 12px rgba(250, 204, 21, 0.08)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(250, 204, 21, 0.18)';
+                e.currentTarget.style.borderColor = '#facc15';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(250, 204, 21, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(250, 204, 21, 0.3)';
+              }}
+            >
+              🏆 Bảng Xếp Hạng Team
+            </button>
+          </div>
         </header>
 
         <TiebreakAlert tiebreakGroups={tiebreakGroups} onApplyRule={handleApplyRule} />

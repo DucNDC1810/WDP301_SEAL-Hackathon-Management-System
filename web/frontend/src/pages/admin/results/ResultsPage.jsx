@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -25,6 +25,7 @@ const MEDAL = ['M6 9m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0', 'M12 15H6a6 6 0 0 0-6 6v
 
 export default function ResultsPage() {
   const { contestId } = useParams();
+  const navigate = useNavigate();
   const [data, setData] = useState({
     metrics: {
       totalTeams: 96,
@@ -51,14 +52,57 @@ export default function ResultsPage() {
   const fetchResultsData = async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      if (!token || !contestId) {
+      if (!token) {
         setLoading(false);
         return;
       }
 
+      // Resolve contestId: dùng param nếu có, không thì lấy contest mới nhất
+      let resolvedContestId = contestId;
+      if (!resolvedContestId) {
+        try {
+          const cRes = await fetch(`${API_URL}/api/contests`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (cRes.ok) {
+            const cData = await cRes.json();
+            const list = Array.isArray(cData) ? cData : cData.data || [];
+            // Ưu tiên contest đang open, rồi đến closed
+            const picked =
+              list.find((c) => c.status === 'open') ??
+              list.find((c) => c.status === 'closed') ??
+              list[0];
+            if (picked) resolvedContestId = picked._id;
+          }
+        } catch (_) {}
+      }
+
+      if (!resolvedContestId) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch rounds để lấy round_id cho nút BXH Team
+      if (!roundId) {
+        try {
+          const roundsRes = await fetch(
+            `${API_URL}/api/leaderboard/contests/${resolvedContestId}/rounds`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (roundsRes.ok) {
+            const roundsData = await roundsRes.json();
+            const rounds = roundsData.data || roundsData || [];
+            if (rounds.length > 0) {
+              const active = rounds.find((r) => r.is_active) ?? rounds[rounds.length - 1];
+              setRoundId(active._id);
+            }
+          }
+        } catch (_) {}
+      }
+
       // Fetch rankings/leaderboard
       const rankRes = await fetch(
-        `${API_URL}/api/rankings/contests/${contestId}/rounds/${roundId || 'latest'}`,
+        `${API_URL}/api/rankings/contests/${resolvedContestId}/rounds/${roundId || 'latest'}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -106,7 +150,7 @@ export default function ResultsPage() {
 
       // Fetch scores for additional metrics
       const scoresRes = await fetch(
-        `${API_URL}/api/scores/contests/${contestId}/progress/${roundId || 'latest'}`,
+        `${API_URL}/api/scores/contests/${resolvedContestId}/progress/${roundId || 'latest'}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -181,6 +225,36 @@ export default function ResultsPage() {
           <h1 className="results-title">Results & Analytics</h1>
           <p className="results-subtitle">SEAL Hackathon 2026 - Final Rankings & Insights</p>
         </div>
+        {roundId && (
+          <button
+            onClick={() => navigate(`/admin/ranking${roundId ? `?round=${roundId}` : ''}`)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'rgba(250, 204, 21, 0.1)',
+              color: '#facc15',
+              border: '1px solid rgba(250, 204, 21, 0.3)',
+              padding: '10px 20px',
+              borderRadius: '10px',
+              fontSize: '0.88rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(250, 204, 21, 0.18)';
+              e.currentTarget.style.borderColor = '#facc15';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(250, 204, 21, 0.1)';
+              e.currentTarget.style.borderColor = 'rgba(250, 204, 21, 0.3)';
+            }}
+          >
+            🏆 Bảng XH Team
+          </button>
+        )}
       </div>
 
       {/* Metrics Cards */}

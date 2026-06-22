@@ -38,6 +38,7 @@ import JudgeHomePage from './pages/judge/JudgeDashboard';
 import JudgeScoringPage from './pages/judge/JudgeScoringPage';
 import JudgeAcceptInvitePage from './pages/judge/JudgeAcceptInvitePage';
 import LeaderboardPage from './pages/leaderboard/LeaderboardPage';
+import FinishRoundPage from './pages/FinishRoundPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 
@@ -81,6 +82,10 @@ function App() {
               <Route path="/verify-invitation" element={<InvitationVerifyPage />} />
               <Route path="/team-verify" element={<TeamVerifyPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+              {/* Finish round */}
+              <Route path="/round/:round_id/finish" element={<FinishRoundPage />} />
+
 
               {/* Admin */}
               <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>

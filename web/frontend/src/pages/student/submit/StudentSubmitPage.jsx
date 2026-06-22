@@ -72,16 +72,17 @@ export const StudentSubmitPage = () => {
   const { request } = useApi();
   const [messageApi, ctx] = message.useMessage();
 
-  const [loading, setLoading]         = useState(true);
-  const [team, setTeam]               = useState(null);
-  const [contestId, setContestId]     = useState(null);
-  const [activeRound, setActiveRound] = useState(null);
-  const [submission, setSubmission]   = useState(null);
-  const [subLoading, setSubLoading]   = useState(false);
+  const [loading, setLoading]           = useState(true);
+  const [team, setTeam]                 = useState(null);
+  const [contestId, setContestId]       = useState(null);
+  const [rounds, setRounds]             = useState([]);
+  const [selectedRound, setSelectedRound] = useState(null);
+  const [submission, setSubmission]     = useState(null);
+  const [subLoading, setSubLoading]     = useState(false);
 
-  const [form, setForm]             = useState(EMPTY_FORM);
-  const [errors, setErrors]         = useState({});
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm]               = useState(EMPTY_FORM);
+  const [errors, setErrors]           = useState({});
+  const [submitting, setSubmitting]   = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   // Schedule state
@@ -93,7 +94,7 @@ export const StudentSubmitPage = () => {
   const [cancelling, setCancelling]     = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  // Load team + active round
+  // Load team + all rounds
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -108,9 +109,13 @@ export const StudentSubmitPage = () => {
         if (!cid) { setLoading(false); return; }
         const contest = await request(`/api/contests/${cid}`);
         const contestData = contest?.data ?? contest;
-        const rounds = contestData?.rounds ?? [];
-        const active = rounds.find((r) => r.is_active);
-        setActiveRound(active ?? null);
+        const allRounds = contestData?.rounds ?? [];
+        setRounds(allRounds);
+        // Default: active round, fallback to latest round
+        const active = allRounds.find((r) => r.is_active)
+          ?? allRounds[allRounds.length - 1]
+          ?? null;
+        setSelectedRound(active);
       } catch {
         // ignore
       } finally {
@@ -147,15 +152,17 @@ export const StudentSubmitPage = () => {
   }, [request]);
 
   useEffect(() => {
-    if (!activeRound || !team) return;
-    (async () => { await loadSubmission(activeRound._id, team._id); })();
-  }, [activeRound, team, loadSubmission]);
+    if (!selectedRound || !team) return;
+    setSubmission(null);
+    setForm(EMPTY_FORM);
+    (async () => { await loadSubmission(selectedRound._id, team._id); })();
+  }, [selectedRound, team, loadSubmission]);
 
   // Load slots after deadline
   useEffect(() => {
-    if (!activeRound || !contestId) return;
-    const passed = activeRound.submission_deadline
-      ? new Date() > new Date(activeRound.submission_deadline)
+    if (!selectedRound || !contestId) return;
+    const passed = selectedRound.submission_deadline
+      ? new Date() > new Date(selectedRound.submission_deadline)
       : false;
 
     const load = async () => {
@@ -164,14 +171,14 @@ export const StudentSubmitPage = () => {
         if (passed) {
           // Past deadline: only fetch existing booking, no available slots
           const data = await request(
-            `/api/presentation-slots/my-booking?contest_id=${contestId}&round_id=${activeRound._id}`
+            `/api/presentation-slots/my-booking?contest_id=${contestId}&round_id=${selectedRound._id}`
           );
           setMyBooking(data.booking ?? null);
           setSlots([]);
         } else if (submission) {
           // Has submission + before deadline: fetch available slots + booking
           const data = await request(
-            `/api/presentation-slots/my-pool?contest_id=${contestId}&round_id=${activeRound._id}`
+            `/api/presentation-slots/my-pool?contest_id=${contestId}&round_id=${selectedRound._id}`
           );
           setSlots(data.slots ?? []);
           setMyBooking(data.myBooking ?? null);
@@ -184,7 +191,7 @@ export const StudentSubmitPage = () => {
       }
     };
     load();
-  }, [activeRound, contestId, submission, request]);
+  }, [selectedRound, contestId, submission, request]);
 
   const validate = () => {
     const e = {};
@@ -209,7 +216,7 @@ export const StudentSubmitPage = () => {
         method: 'POST',
         body: {
           team_id: team._id,
-          round_id: activeRound._id,
+          round_id: selectedRound._id,
           repo_url: form.repo_url.trim(),
           slide_url: form.slide_url.trim(),
           demo_url: form.demo_url.trim() || undefined,
@@ -218,7 +225,7 @@ export const StudentSubmitPage = () => {
       });
       messageApi.success(submission ? 'Cập nhật bài nộp thành công!' : 'Nộp bài thành công!');
       setShowConfirm(false);
-      await loadSubmission(activeRound._id, team._id);
+      await loadSubmission(selectedRound._id, team._id);
     } catch (err) {
       messageApi.error(err.message || 'Lỗi khi nộp bài');
     } finally {
@@ -252,7 +259,7 @@ export const StudentSubmitPage = () => {
       setShowCancelConfirm(false);
       // reload slots
       const data = await request(
-        `/api/presentation-slots/my-pool?contest_id=${contestId}&round_id=${activeRound._id}`
+        `/api/presentation-slots/my-pool?contest_id=${contestId}&round_id=${selectedRound._id}`
       );
       setSlots(data.slots ?? []);
     } catch (err) {
@@ -262,8 +269,8 @@ export const StudentSubmitPage = () => {
     }
   };
 
-  const isPastDeadline = activeRound?.submission_deadline
-    ? new Date() > new Date(activeRound.submission_deadline)
+  const isPastDeadline = selectedRound?.submission_deadline
+    ? new Date() > new Date(selectedRound.submission_deadline)
     : false;
 
   if (loading) {
@@ -285,15 +292,15 @@ export const StudentSubmitPage = () => {
     );
   }
 
-  if (!activeRound) {
+  if (!selectedRound) {
     return (
       <div className="sp-page">
         <h2 className="sp-page-title">Nộp bài</h2>
         <div className="sp-alert sp-alert--info">
           <span className="sp-alert-icon"><Ico d={CLOCK} size={15} /></span>
           <div className="sp-alert-body">
-            <span className="sp-alert-title">Hiện chưa có vòng thi nào đang diễn ra</span>
-            <span className="sp-alert-desc">Bài nộp chỉ được nhận khi có vòng thi active.</span>
+            <span className="sp-alert-title">Hiện chưa có vòng thi nào</span>
+            <span className="sp-alert-desc">Liên hệ ban tổ chức để biết thêm thông tin.</span>
           </div>
         </div>
       </div>
@@ -307,11 +314,52 @@ export const StudentSubmitPage = () => {
       {ctx}
 
       {/* Header */}
-      <div className="sp-flex--between" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <h2 className="sp-page-title">Nộp bài</h2>
-        {activeRound.submission_deadline && (
-          <Countdown deadline={activeRound.submission_deadline} />
+      <div className="sp-flex--between" style={{ flexWrap: 'wrap', gap: 12, marginBottom: 4 }}>
+        <h2 className="sp-page-title" style={{ margin: 0 }}>Nộp bài</h2>
+        {selectedRound.submission_deadline && (
+          <Countdown deadline={selectedRound.submission_deadline} />
         )}
+      </div>
+
+      {/* Round selector */}
+      <div style={{ marginBottom: 18 }}>
+        <label style={{ fontSize: 11, color: 'var(--pg-muted)', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 6, display: 'block' }}>
+          Chọn vòng thi
+        </label>
+        <div style={{ position: 'relative', display: 'inline-block', minWidth: 260 }}>
+          <select
+            id="round-selector"
+            value={selectedRound._id}
+            onChange={(e) => {
+              const r = rounds.find(r => r._id === e.target.value);
+              if (r) setSelectedRound(r);
+            }}
+            style={{
+              width: '100%',
+              padding: '8px 36px 8px 14px',
+              borderRadius: 8,
+              border: '1px solid var(--pg-border)',
+              background: 'var(--pg-input-bg, #080e1a)',
+              color: 'var(--pg-text2)',
+              fontSize: 13,
+              fontFamily: 'inherit',
+              appearance: 'none',
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {rounds.map((r) => (
+              <option key={r._id} value={r._id}>
+                {r.name}{r.is_active ? ' (đang diễn ra)' : ''}
+              </option>
+            ))}
+          </select>
+          {/* Chevron icon */}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+            style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--pg-muted)', pointerEvents: 'none' }}>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </div>
       </div>
 
       {/* Two-column layout */}
@@ -321,16 +369,21 @@ export const StudentSubmitPage = () => {
       <div style={{ width: '60%', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Round info */}
-      <div className="sp-card" style={{ borderTopWidth: 2, borderTopColor: 'var(--pg-accent)' }}>
+      <div className="sp-card" style={{ borderTopWidth: 2, borderTopColor: selectedRound.is_active ? 'var(--pg-accent)' : 'var(--pg-border)' }}>
         <div className="sp-flex sp-gap-3" style={{ flexWrap: 'wrap', justifyContent: 'space-between' }}>
           <div>
-            <span className="sp-label">VÒNG ĐANG DIỄN RA</span>
-            <div className="sp-strong" style={{ fontSize: '1rem', marginTop: 4 }}>{activeRound.name}</div>
+            <span className="sp-label">VÒNG THI</span>
+            <div className="sp-strong" style={{ fontSize: '1rem', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {selectedRound.name}
+              {selectedRound.is_active && (
+                <span className="sp-badge sp-badge--cyan" style={{ fontSize: 10 }}>Đang diễn ra</span>
+              )}
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <span className="sp-label">HẠN NỘP BÀI</span>
             <div className="sp-strong" style={{ marginTop: 4, color: isPastDeadline ? 'var(--pg-red)' : 'var(--pg-text2)' }}>
-              {fmtDate(activeRound.submission_deadline)}
+              {fmtDate(selectedRound.submission_deadline)}
             </div>
           </div>
         </div>
@@ -616,7 +669,7 @@ export const StudentSubmitPage = () => {
               <span className="sp-alert-title">Đã hết hạn đăng ký</span>
               <span className="sp-alert-desc">
                 Hạn nộp bài đã qua lúc{' '}
-                <strong style={{ color: 'var(--pg-amber)' }}>{fmtDate(activeRound.submission_deadline)}</strong>.
+                <strong style={{ color: 'var(--pg-amber)' }}>{fmtDate(selectedRound.submission_deadline)}</strong>.
                 Liên hệ admin nếu cần hỗ trợ.
               </span>
             </div>
@@ -627,7 +680,7 @@ export const StudentSubmitPage = () => {
         {submission && !isPastDeadline && !myBooking && (
           <div className="sp-table-wrap">
             <div className="sp-card-head">
-              <span className="sp-strong">Slot trống — {activeRound.name}</span>
+              <span className="sp-strong">Slot trống — {selectedRound.name}</span>
               <span className="sp-muted" style={{ fontSize: 12 }}>
                 {slotsLoading ? 'Đang tải...' : `${slots.length} slot khả dụng`}
               </span>

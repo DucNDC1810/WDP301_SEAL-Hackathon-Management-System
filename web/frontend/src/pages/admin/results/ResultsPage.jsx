@@ -253,31 +253,11 @@ export default function ResultsPage() {
         {selectedRoundId && (
           <button
             onClick={() => navigate(`/admin/ranking${selectedRoundId ? `?round=${selectedRoundId}` : ''}`)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'rgba(250, 204, 21, 0.1)',
-              color: '#facc15',
-              border: '1px solid rgba(250, 204, 21, 0.3)',
-              padding: '10px 20px',
-              borderRadius: '10px',
-              fontSize: '0.88rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(250, 204, 21, 0.18)';
-              e.currentTarget.style.borderColor = '#facc15';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(250, 204, 21, 0.1)';
-              e.currentTarget.style.borderColor = 'rgba(250, 204, 21, 0.3)';
-            }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(250,204,21,0.1)', color: '#facc15', border: '1px solid rgba(250,204,21,0.3)', padding: '10px 20px', borderRadius: '10px', fontSize: '0.88rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(250,204,21,0.18)'; e.currentTarget.style.borderColor = '#facc15'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(250,204,21,0.1)'; e.currentTarget.style.borderColor = 'rgba(250,204,21,0.3)'; }}
           >
-            🏆 Bảng XH Team
+            🏆 BXH & Giải thưởng
           </button>
         )}
       </div>

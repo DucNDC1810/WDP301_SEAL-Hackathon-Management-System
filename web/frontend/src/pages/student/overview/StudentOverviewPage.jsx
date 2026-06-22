@@ -255,7 +255,7 @@ export const StudentOverviewPage = () => {
               onClick={() => navigate(`/ranking?round=${activeRound._id}`)}
               style={{ color: '#facc15', borderColor: 'rgba(250,204,21,0.35)', background: 'rgba(250,204,21,0.07)' }}
             >
-              🏆 BXH Team
+              🏆 BXH & Giải thưởng
             </button>
           </div>
         )}

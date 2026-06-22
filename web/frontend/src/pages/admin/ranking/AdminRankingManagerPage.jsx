@@ -22,6 +22,7 @@ export default function AdminRankingManagerPage() {
   const [contests,  setContests]  = useState([]);
   const [selectedContest, setSelectedContest] = useState(null);
   const [loadingContests, setLoadingContests] = useState(true);
+  const [contestsError, setContestsError] = useState(null);
 
   useEffect(() => {
     adminGetContests()
@@ -30,7 +31,11 @@ export default function AdminRankingManagerPage() {
         setContests(list);
         if (list.length > 0) setSelectedContest(list[0]);
       })
-      .catch(() => {})
+      .catch((err) => {
+        const msg = err.response?.data?.message || err.message || 'Lỗi tải danh sách cuộc thi';
+        const status = err.response?.status;
+        setContestsError(`${status ? `[${status}] ` : ''}${msg}`);
+      })
       .finally(() => setLoadingContests(false));
   }, []);
 
@@ -66,6 +71,12 @@ export default function AdminRankingManagerPage() {
           <label style={s.label}>Cuộc thi</label>
           {loadingContests ? (
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Đang tải...</p>
+          ) : contestsError ? (
+            <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 8, padding: '10px 14px', color: '#ef4444', fontSize: '0.85rem' }}>
+              ✗ {contestsError}
+            </div>
+          ) : contests.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Không có cuộc thi nào.</p>
           ) : (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {contests.map((c) => {
@@ -92,6 +103,7 @@ export default function AdminRankingManagerPage() {
       )}
 
       {/* Tab content */}
+
       {activeTab === 'individual' && selectedContest && (
         <IndividualTab contestId={selectedContest._id} contestTitle={selectedContest.title} />
       )}

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getRankingContests, getTeamRanking, getChapterRanking, getIndividualRanking } from '../../api/ranking';
+import { getPrizes } from '../../api/prize';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const MEDAL_COLOR = {
@@ -18,12 +19,15 @@ export default function RankingBrowserPage() {
   const [contests, setContests]     = useState([]);
   const [selectedContest, setSelectedContest] = useState(null);
   const [selectedRound,   setSelectedRound]   = useState(null);
-  const [activeTab,       setActiveTab]       = useState('team'); // 'team' | 'chapter' | 'individual'
+  const [activeTab,       setActiveTab]       = useState('team'); // 'team' | 'chapter' | 'individual' | 'prize'
   const [ranking,         setRanking]         = useState(null);
   const [individualEnabled, setIndividualEnabled] = useState(false);
+  const [prizes,          setPrizes]          = useState([]);
+  const [loadingPrizes,   setLoadingPrizes]   = useState(false);
   const [loadingContests, setLoadingContests] = useState(true);
   const [loadingRanking,  setLoadingRanking]  = useState(false);
   const [rankingError,    setRankingError]    = useState(null);
+  const myTeamId = localStorage.getItem('teamId') || null;
 
   // Load contests on mount
   useEffect(() => {
@@ -90,6 +94,16 @@ export default function RankingBrowserPage() {
       .finally(() => setLoadingRanking(false));
   }, [selectedRound, activeTab]);
 
+  // Fetch prizes khi chọn contest và tab prize active
+  useEffect(() => {
+    if (!selectedContest || activeTab !== 'prize') { return; }
+    setLoadingPrizes(true);
+    getPrizes(selectedContest._id)
+      .then((res) => setPrizes(res.data?.prizes || []))
+      .catch(() => setPrizes([]))
+      .finally(() => setLoadingPrizes(false));
+  }, [selectedContest, activeTab]);
+
   const pickContest = useCallback((c) => {
     setSelectedContest(c);
     setSelectedRound(null);
@@ -109,9 +123,9 @@ export default function RankingBrowserPage() {
 
         {/* ── Page title ── */}
         <header style={{ marginBottom: 32 }}>
-          <h1 className="gradient-text glow-text" style={s.title}>BẢNG XẾP HẠNG</h1>
+          <h1 className="gradient-text glow-text" style={s.title}>BẢNG XẾP HẠNG & GIẢI THƯỞNG</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: 6, fontSize: '0.95rem' }}>
-            Xem kết quả xếp hạng team theo từng vòng của các cuộc thi
+            Xem kết quả xếp hạng và giải thưởng theo từng vòng của các cuộc thi
           </p>
         </header>
 
@@ -120,44 +134,43 @@ export default function RankingBrowserPage() {
           {/* ── LEFT: Contest + Round picker ── */}
           <aside style={s.sidebar}>
 
-            {/* Contest list */}
-            <div style={s.sideSection}>
-              <p style={s.sideLabel}>Cuộc thi</p>
-              {loadingContests ? (
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '12px 0' }}>Đang tải...</div>
-              ) : contests.length === 0 ? (
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '12px 0', lineHeight: 1.6 }}>
+            {/* Contest list — chia 2 nhóm */}
+            {loadingContests ? (
+              <div style={s.sideSection}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '4px 0' }}>Đang tải...</div>
+              </div>
+            ) : contests.filter((c) => c.status !== 'draft').length === 0 ? (
+              <div style={s.sideSection}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.6 }}>
                   Bạn chưa tham gia cuộc thi nào có kết quả được công bố.
                 </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {contests.map((c) => {
-                    const st = STATUS_LABEL[c.status] || STATUS_LABEL.draft;
-                    const isActive = selectedContest?._id === c._id;
-                    return (
-                      <button
-                        key={c._id}
-                        onClick={() => pickContest(c)}
-                        style={{
-                          ...s.contestBtn,
-                          background: isActive ? 'rgba(0,240,255,.08)' : 'rgba(17,24,39,.5)',
-                          border: `1px solid ${isActive ? 'rgba(0,240,255,.35)' : 'var(--border)'}`,
-                          color: isActive ? 'var(--cyan)' : 'var(--text-primary)',
-                        }}
-                      >
-                        <span style={{ fontWeight: 600, fontSize: '0.88rem', textAlign: 'left', lineHeight: 1.3 }}>{c.title}</span>
-                        <span style={{
-                          fontSize: '0.68rem', fontWeight: 700,
-                          color: st.color, background: st.bg,
-                          border: `1px solid ${st.border}`,
-                          padding: '2px 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0,
-                        }}>{st.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                {/* Đang diễn ra */}
+                {contests.filter((c) => c.status === 'open').length > 0 && (
+                  <div style={s.sideSection}>
+                    <p style={s.sideLabel}>🟢 Đang diễn ra</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {contests.filter((c) => c.status === 'open').map((c) => (
+                        <ContestBtn key={c._id} c={c} isActive={selectedContest?._id === c._id} onClick={() => pickContest(c)} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Đã kết thúc */}
+                {contests.filter((c) => c.status === 'closed').length > 0 && (
+                  <div style={s.sideSectionScroll}>
+                    <p style={s.sideLabel}>⚫ Đã kết thúc</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {contests.filter((c) => c.status === 'closed').map((c) => (
+                        <ContestBtn key={c._id} c={c} isActive={selectedContest?._id === c._id} onClick={() => pickContest(c)} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Round list */}
             {selectedContest && (
@@ -202,12 +215,13 @@ export default function RankingBrowserPage() {
 
           {/* ── RIGHT: Ranking table ── */}
           <main style={s.main}>
-            {/* Tab switcher — luôn hiển thị; tab Cá nhân ẩn khi feature disabled */}
+            {/* Tab switcher */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
               {[
                 { key: 'team',       label: '👥 Team' },
                 { key: 'chapter',    label: '🏫 Chapter' },
                 ...(individualEnabled ? [{ key: 'individual', label: '👤 Cá nhân' }] : []),
+                { key: 'prize',      label: '🎁 Giải thưởng' },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -215,10 +229,14 @@ export default function RankingBrowserPage() {
                   style={{
                     padding: '7px 18px', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600,
                     cursor: 'pointer', transition: 'all .15s',
-                    background: activeTab === tab.key ? 'var(--gradient-primary)' : 'rgba(17,24,39,.5)',
+                    background: activeTab === tab.key
+                      ? tab.key === 'prize' ? 'linear-gradient(135deg,#a78bfa,#7c3aed)' : 'var(--gradient-primary)'
+                      : 'rgba(17,24,39,.5)',
                     color: activeTab === tab.key ? 'white' : 'var(--text-secondary)',
                     border: activeTab === tab.key ? '1px solid transparent' : '1px solid var(--border)',
-                    boxShadow: activeTab === tab.key ? 'var(--shadow-cyan)' : 'none',
+                    boxShadow: activeTab === tab.key
+                      ? tab.key === 'prize' ? '0 0 12px rgba(167,139,250,.4)' : 'var(--shadow-cyan)'
+                      : 'none',
                   }}
                 >
                   {tab.label}
@@ -228,11 +246,20 @@ export default function RankingBrowserPage() {
 
             {!selectedContest && (
               <EmptyHint
-                icon={activeTab === 'chapter' ? '🏫' : activeTab === 'individual' ? '👤' : '🏆'}
-                text="Chọn một cuộc thi để xem bảng xếp hạng"
+                icon={activeTab === 'chapter' ? '🏫' : activeTab === 'individual' ? '👤' : activeTab === 'prize' ? '🎁' : '🏆'}
+                text="Chọn một cuộc thi để xem"
               />
             )}
-            {selectedContest && !selectedRound && (
+            {/* Tab prize chỉ cần contest, không cần round */}
+            {selectedContest && activeTab === 'prize' && (
+              <PrizePanel
+                prizes={prizes}
+                loading={loadingPrizes}
+                myTeamId={myTeamId}
+                navigate={navigate}
+              />
+            )}
+            {selectedContest && !selectedRound && activeTab !== 'prize' && (
               <EmptyHint
                 icon="📋"
                 text={
@@ -242,8 +269,8 @@ export default function RankingBrowserPage() {
                 }
               />
             )}
-            {selectedRound && loadingRanking && <Spinner />}
-            {selectedRound && !loadingRanking && rankingError === 'unpublished' && (
+            {selectedRound && activeTab !== 'prize' && loadingRanking && <Spinner />}
+            {selectedRound && activeTab !== 'prize' && !loadingRanking && rankingError === 'unpublished' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 280, gap: 12, textAlign: 'center' }}>
                 <span style={{ fontSize: '2.5rem' }}>🔒</span>
                 <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
@@ -266,7 +293,7 @@ export default function RankingBrowserPage() {
                 </div>
               </div>
             )}
-            {selectedRound && !loadingRanking && rankingError && rankingError !== 'unpublished' && (
+            {selectedRound && activeTab !== 'prize' && !loadingRanking && rankingError && rankingError !== 'unpublished' && (
               <EmptyHint icon="⚠️" text={rankingError} />
             )}
             {selectedRound && !loadingRanking && !rankingError && ranking && activeTab === 'team' && (
@@ -286,6 +313,26 @@ export default function RankingBrowserPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ContestBtn({ c, isActive, onClick }) {
+  const st = STATUS_LABEL[c.status] || STATUS_LABEL.draft;
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        ...s.contestBtn,
+        background: isActive ? 'rgba(0,240,255,.08)' : 'rgba(17,24,39,.5)',
+        border: `1px solid ${isActive ? 'rgba(0,240,255,.35)' : 'var(--border)'}`,
+        color: isActive ? 'var(--cyan)' : 'var(--text-primary)',
+      }}
+    >
+      <span style={{ fontWeight: 600, fontSize: '0.88rem', textAlign: 'left', lineHeight: 1.3 }}>{c.title}</span>
+      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: st.color, background: st.bg, border: `1px solid ${st.border}`, padding: '2px 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+        {st.label}
+      </span>
+    </button>
   );
 }
 
@@ -465,6 +512,86 @@ function ChapterTable({ data }) {
   );
 }
 
+const PRIZE_RANK_COLOR = {
+  1: { glow: '#facc15', border: 'rgba(250,204,21,.35)', bg: 'rgba(250,204,21,.07)', text: '#facc15' },
+  2: { glow: '#94a3b8', border: 'rgba(148,163,184,.35)', bg: 'rgba(148,163,184,.07)', text: '#94a3b8' },
+  3: { glow: '#cd7f32', border: 'rgba(205,127,50,.35)',  bg: 'rgba(205,127,50,.07)',  text: '#cd7f32' },
+};
+const PRIZE_MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+function PrizePanel({ prizes, loading, myTeamId, navigate }) {
+  if (loading) return <Spinner />;
+  if (prizes.length === 0) return (
+    <EmptyHint icon="🎁" text="Chưa có giải thưởng nào được công bố cho cuộc thi này" />
+  );
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>Giải thưởng</h2>
+        <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+          Danh sách giải thưởng và đội nhận giải
+        </p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+        {prizes.map((prize) => {
+          const rc = PRIZE_RANK_COLOR[prize.rank_required] || { glow: 'var(--cyan)', border: 'rgba(0,240,255,.25)', bg: 'rgba(0,240,255,.04)', text: 'var(--cyan)' };
+          const medal = PRIZE_MEDAL[prize.rank_required] || '🏅';
+          const isMyTeam = myTeamId && prize.awarded_team?.team_id?.toString() === myTeamId;
+          return (
+            <div key={prize.prize_id} style={{ border: `1px solid ${rc.border}`, background: rc.bg, borderRadius: 14, padding: '20px 18px', boxShadow: `0 0 18px ${rc.glow}18`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Rank + medal */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.6rem' }}>{medal}</span>
+                {prize.rank_required && (
+                  <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: rc.text, background: `${rc.glow}18`, border: `1px solid ${rc.border}`, padding: '2px 8px', borderRadius: 4 }}>
+                    Hạng {prize.rank_required}
+                  </span>
+                )}
+              </div>
+              {/* Name */}
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: rc.text, fontFamily: 'var(--font-display)' }}>
+                {prize.name}
+              </h3>
+              {/* Description */}
+              {prize.description && (
+                <p style={{ margin: 0, fontSize: '0.83rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{prize.description}</p>
+              )}
+              {/* Value */}
+              {prize.value && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(0,240,255,.05)', border: '1px solid rgba(0,240,255,.15)', borderRadius: 6, padding: '5px 12px', alignSelf: 'flex-start' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Giá trị:</span>
+                  <span style={{ fontWeight: 700, color: 'var(--cyan)', fontSize: '0.88rem' }}>{prize.value}</span>
+                </div>
+              )}
+              {/* Awarded team */}
+              <div style={{ borderTop: `1px solid ${rc.border}`, paddingTop: 12, marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                {prize.awarded_team ? (
+                  <>
+                    <div>
+                      <p style={{ margin: '0 0 2px', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)' }}>Đội nhận giải</p>
+                      <p style={{ margin: 0, fontWeight: 700, color: rc.text, fontSize: '0.92rem' }}>{prize.awarded_team.team_name}</p>
+                    </div>
+                    {isMyTeam && (
+                      <button
+                        onClick={() => navigate(`/prize/${prize.prize_id}/claim/${myTeamId}`)}
+                        style={{ padding: '6px 13px', borderRadius: 7, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', background: 'linear-gradient(135deg,#a78bfa,#7c3aed)', color: 'white', border: 'none', whiteSpace: 'nowrap' }}
+                      >
+                        📋 Nhận thưởng
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Chưa công bố đội nhận giải</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function IndividualTable({ data }) {
   const individuals = data?.individuals || [];
   return (
@@ -569,12 +696,13 @@ function Spinner() {
 }
 
 const s = {
-  page: { background: 'var(--bg-primary)', minHeight: '100vh', padding: '40px 24px', color: 'var(--text-primary)' },
-  container: { maxWidth: 1100, margin: '0 auto' },
+  page: { background: 'var(--bg-primary)', minHeight: '100vh', padding: '28px 24px', color: 'var(--text-primary)' },
+  container: { maxWidth: 1200, margin: '0 auto' },
   title: { fontSize: '2rem', fontWeight: 800, letterSpacing: 2, fontFamily: 'var(--font-display)', textTransform: 'uppercase', margin: 0 },
   layout: { display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24, alignItems: 'start' },
-  sidebar: { display: 'flex', flexDirection: 'column', gap: 20 },
-  sideSection: { background: 'rgba(17,24,39,.6)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 14px', backdropFilter: 'blur(10px)' },
+  sidebar: { display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 24, maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' },
+  sideSection: { background: 'rgba(17,24,39,.6)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 12px', backdropFilter: 'blur(10px)', flexShrink: 0 },
+  sideSectionScroll: { background: 'rgba(17,24,39,.6)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 12px', backdropFilter: 'blur(10px)', flexShrink: 0 },
   sideLabel: { margin: '0 0 10px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--cyan)' },
   contestBtn: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', transition: 'all .15s', width: '100%', textAlign: 'left' },
   roundBtn: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', transition: 'all .15s', width: '100%' },

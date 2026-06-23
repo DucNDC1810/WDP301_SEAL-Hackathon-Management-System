@@ -64,6 +64,7 @@ function enrichJudgeAssignment(a, idx, scoreMap) {
     roundId:       round._id?.toString() || a.round_id?.toString() || '',
     roundName:     round.name || '—',
     roundIsActive: !!round.is_active,
+    scoringLocked: !!round.scoring_locked,
     poolId:        pool._id?.toString() || '',
     poolName:      pool.pool_name || '—',
     teams:         enrichedTeams,
@@ -328,7 +329,7 @@ function SectionDashboard({ enriched, loading, navigate, onNav }) {
 // ─── Teams Table (shared) ─────────────────────────────────────────────────────
 function TeamsTable({ enriched, navigate, limit }) {
   const allTeams = enriched.flatMap(a =>
-    a.teams.map(t => ({ ...t, poolName: a.poolName, roundName: a.roundName, contestName: a.contestName, contestId: a.contestId, roundId: a.roundId, poolId: a.poolId, accentColor: a.accentColor, roundIsActive: a.roundIsActive }))
+    a.teams.map(t => ({ ...t, poolName: a.poolName, roundName: a.roundName, contestName: a.contestName, contestId: a.contestId, roundId: a.roundId, poolId: a.poolId, accentColor: a.accentColor, roundIsActive: a.roundIsActive, scoringLocked: a.scoringLocked }))
   );
   const rows = limit ? allTeams.slice(0, limit) : allTeams;
 
@@ -358,7 +359,7 @@ function TeamsTable({ enriched, navigate, limit }) {
           {rows.map((t, i) => {
             const statusCls  = t.scoreStatus === 'submitted' ? 'completed' : t.scoreStatus === 'draft' ? 'reviewing' : 'pending';
             const statusText = { submitted:'✓ Đã chấm', draft:'● Đang chấm', none:'Chờ chấm' }[t.scoreStatus] || 'Chờ chấm';
-            const canScore   = !t.roundIsActive;
+            const canScore   = t.roundIsActive && !t.scoringLocked;
 
             return (
               <tr key={t.id || i}>
@@ -375,7 +376,7 @@ function TeamsTable({ enriched, navigate, limit }) {
                   {t.totalScore != null ? t.totalScore.toFixed(1) : '—'}
                 </td>
                 <td>
-                  <Tooltip title={!canScore ? 'Vòng thi đang mở — chưa thể chấm' : ''}>
+                  <Tooltip title={!canScore ? (t.scoringLocked ? 'Chấm điểm đã bị khóa' : 'Vòng thi đã đóng — không thể chấm') : ''}>
                     <button
                       className={`jd-review-btn ${t.scoreStatus === 'submitted' ? 'done' : ''}`}
                       disabled={!canScore}
@@ -440,11 +441,11 @@ function SectionCompetitions({ enriched, navigate }) {
                   </span>
                   <button
                     className="jd-round-btn"
-                    style={{ border:`1px solid ${pool.roundIsActive ? 'rgba(255,255,255,0.1)' : 'rgba(0,212,255,0.3)'}`, background: pool.roundIsActive ? 'transparent' : 'rgba(0,212,255,0.08)', color: pool.roundIsActive ? 'rgba(255,255,255,0.25)' : '#00d4ff', opacity: pool.roundIsActive ? 0.5 : 1, cursor: pool.roundIsActive ? 'not-allowed' : 'pointer' }}
-                    disabled={pool.roundIsActive}
+                    style={{ border:`1px solid ${(!pool.roundIsActive || pool.scoringLocked) ? 'rgba(255,255,255,0.1)' : 'rgba(0,212,255,0.3)'}`, background: (!pool.roundIsActive || pool.scoringLocked) ? 'transparent' : 'rgba(0,212,255,0.08)', color: (!pool.roundIsActive || pool.scoringLocked) ? 'rgba(255,255,255,0.25)' : '#00d4ff', opacity: (!pool.roundIsActive || pool.scoringLocked) ? 0.5 : 1, cursor: (!pool.roundIsActive || pool.scoringLocked) ? 'not-allowed' : 'pointer' }}
+                    disabled={!pool.roundIsActive || pool.scoringLocked}
                     onClick={() => navigate(`/judge/scoring/${pool.contestId}/rounds/${pool.roundId}/pools/${pool.poolId}`)}
                   >
-                    {pool.roundIsActive ? '🔒' : '⚖ Chấm'}
+                    {(!pool.roundIsActive || pool.scoringLocked) ? '🔒' : '⚖ Chấm'}
                   </button>
                 </div>
               ))}

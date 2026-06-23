@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRoundSetup, assignJudges, activateRound } from '../api/round';
+import { removeJudge } from '../api/judgeAssignment.js';
 
 export default function RoundActivatePage() {
   const { round_id } = useParams();
@@ -16,6 +17,7 @@ export default function RoundActivatePage() {
   const [selectedJudgeIds, setSelectedJudgeIds] = useState([]);
   const [savingJudges, setSavingJudges] = useState(false);
   const [activating, setActivating] = useState(false);
+  const [deletingJudgeId, setDeletingJudgeId] = useState(null);
 
   const loadSetup = async () => {
     try {
@@ -64,6 +66,20 @@ export default function RoundActivatePage() {
       alert(err.response?.data?.message || err.message || "Không thể lưu danh sách Ban giám khảo.");
     } finally {
       setSavingJudges(false);
+    }
+  };
+
+  const handleRemoveJudge = async (judge) => {
+    if (!window.confirm(`Xóa "${judge.full_name}" khỏi Ban giám khảo?`)) return;
+    setDeletingJudgeId(String(judge._id));
+    try {
+      await removeJudge(round_id, judge._id);
+      setAssignedJudges(prev => prev.filter(j => String(j._id) !== String(judge._id)));
+      setSelectedJudgeIds(prev => prev.filter(id => String(id) !== String(judge._id)));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Xóa thất bại');
+    } finally {
+      setDeletingJudgeId(null);
     }
   };
 
@@ -353,6 +369,62 @@ export default function RoundActivatePage() {
                 <span>Đã chọn: <strong style={{ color: 'var(--cyan)' }}>{selectedJudgeIds.length}</strong> giám khảo</span>
                 <span>Hiện tại đang gán: <strong style={{ color: '#fff' }}>{assignedJudges.length}</strong></span>
               </div>
+
+              {/* Assigned judges list with delete buttons */}
+              {assignedJudges.length > 0 && (
+                <div style={{
+                  marginBottom: '14px',
+                  border: '1px solid rgba(0,240,255,0.12)',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                }}>
+                  {assignedJudges.map((judge) => {
+                    const jid = String(judge._id);
+                    const isDeleting = deletingJudgeId === jid;
+                    return (
+                      <div
+                        key={jid}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '9px 12px',
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          background: isDeleting ? 'rgba(239,68,68,0.06)' : 'rgba(0,240,255,0.03)',
+                          opacity: isDeleting ? 0.5 : 1,
+                          transition: 'opacity 0.2s',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#fff' }}>
+                            {judge.full_name}
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                            {judge.email}
+                          </div>
+                        </div>
+                        <button
+                          disabled={isDeleting || !!isActivated}
+                          onClick={() => handleRemoveJudge(judge)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 5,
+                            border: '1px solid rgba(239,68,68,0.35)',
+                            background: 'rgba(239,68,68,0.08)',
+                            color: isActivated ? 'rgba(239,68,68,0.3)' : '#f87171',
+                            fontSize: '0.76rem',
+                            fontWeight: 600,
+                            cursor: (isDeleting || isActivated) ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.18s',
+                          }}
+                        >
+                          {isDeleting ? '...' : '🗑️ Xóa'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <button
                 onClick={handleSaveJudges}

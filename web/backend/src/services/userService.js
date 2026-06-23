@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import User from "../models/User.js";
 
-const VALID_ROLES = ["admin", "mentor", "contestant"];
+const VALID_ROLES = ["admin", "mentor", "contestant", "judge"];
 const FPT_EMAIL_DOMAINS = ["@fpt.edu.vn", "@fe.edu.vn", "@fpt.com.vn"];
 
 // ─── getUserById ────────────────────────────────────────────────────────────

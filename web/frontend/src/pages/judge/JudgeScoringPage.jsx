@@ -152,11 +152,21 @@ export const JudgeScoringPage = () => {
       {/* Topbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: '1px solid #1f2937', background: '#111827', flexShrink: 0 }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/judge/dashboard')} style={{ color: '#9ca3af' }} />
-        <div style={{ flex: 1 }}>
-          <span style={{ color: '#f9fafb', fontWeight: 700 }}>⚖ Chấm điểm live</span>
-          {schedule.pool_name && (
-            <span style={{ color: '#6b7280', marginLeft: 8, fontSize: 13 }}>— {schedule.pool_name}</span>
-          )}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div>
+            <span style={{ color: '#f9fafb', fontWeight: 700 }}>⚖ Chấm điểm live</span>
+            {schedule.pool_name && (
+              <span style={{ color: '#6b7280', marginLeft: 8, fontSize: 13 }}>— {schedule.pool_name}</span>
+            )}
+          </div>
+          <Button 
+            type="primary" 
+            size="small" 
+            onClick={() => navigate(`/calibration/${roundId}?contestId=${contestId}&poolId=${schedule.pool_id || ''}`)}
+            style={{ backgroundColor: '#f59e0b', borderColor: '#f59e0b', color: '#111827', fontWeight: 600, fontSize: '11px', display: 'flex', alignItems: 'center', height: '24px' }}
+          >
+            ⚖ Thử nghiệm chấm thử (Calibration)
+          </Button>
         </div>
         <Tag color={submittedCount === schedule.slots.length && schedule.slots.length > 0 ? 'green' : 'default'}>
           {submittedCount} / {schedule.slots.length} đã nộp

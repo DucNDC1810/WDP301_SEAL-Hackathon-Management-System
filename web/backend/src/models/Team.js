@@ -113,6 +113,10 @@ const teamSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    is_calibration_sample: {
+      type: Boolean,
+      default: false
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

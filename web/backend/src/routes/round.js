@@ -157,4 +157,93 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
   }
 });
 
+// GET /api/round/:round_id/judges
+// Danh sách judges đã assign cho round này
+router.get("/:round_id/judges", authenticate, async (req, res, next) => {
+  try {
+    const { round_id } = req.params;
+
+    const round = await Round.findById(round_id);
+    if (!round) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+    }
+
+    const assignments = await JudgeAssignment.find({ round_id })
+      .populate("judge_id", "full_name email")
+      .lean();
+
+    const judges = assignments
+      .filter((a) => a.judge_id)
+      .map((a) => ({
+        assignment_id: a._id,
+        judge_id: a.judge_id._id,
+        full_name: a.judge_id.full_name,
+        email: a.judge_id.email,
+        assigned_at: a.assigned_at || a.created_at,
+      }));
+
+    return res.status(200).json({ success: true, judges });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/round/:round_id/available-judges
+// Tất cả user có role=judge, loại trừ những judge đã assign vào round PRELIMINARY cùng contest
+router.get("/:round_id/available-judges", authenticate, async (req, res, next) => {
+  try {
+    const { round_id } = req.params;
+
+    const round = await Round.findById(round_id);
+    if (!round) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+    }
+
+    // Tìm tất cả round PRELIMINARY trong cùng contest
+    const preliminaryRounds = await Round.find({
+      contest_id: round.contest_id,
+      type: "PRELIMINARY",
+    }).select("_id");
+    const prelimRoundIds = preliminaryRounds.map((r) => r._id);
+
+    // Tìm judge_ids đã assign vào vòng Sơ loại cùng contest
+    const prelimAssignments = await JudgeAssignment.find({
+      round_id: { $in: prelimRoundIds },
+      judge_id: { $ne: null },
+    }).select("judge_id");
+    const excludedJudgeIds = prelimAssignments.map((a) => a.judge_id.toString());
+
+    // Lấy tất cả user role=judge, loại trừ những người đã ở Sơ loại
+    const allJudges = await User.find(
+      { "roles.role_name": "judge" },
+      "full_name email roles"
+    ).lean();
+
+    const available = allJudges.filter(
+      (u) => !excludedJudgeIds.includes(u._id.toString())
+    );
+
+    return res.status(200).json({ success: true, judges: available });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/round/:round_id/judges/:judge_id
+// Xóa phân công judge khỏi round
+router.delete("/:round_id/judges/:judge_id", authenticate, authorize("admin"), async (req, res, next) => {
+  try {
+    const { round_id, judge_id } = req.params;
+
+    const result = await JudgeAssignment.findOneAndDelete({ round_id, judge_id });
+    if (!result) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy phân công này" });
+    }
+
+    return res.status(200).json({ success: true, message: "Đã xóa phân công judge" });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

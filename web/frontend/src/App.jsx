@@ -45,6 +45,7 @@ import FinalistConfirmPage from './pages/FinalistConfirmPage';
 import RoundActivatePage from './pages/RoundActivatePage';
 import SubmissionPage from './pages/SubmissionPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
+import CalibrationPage from './pages/CalibrationPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 
 // Student
@@ -95,6 +96,7 @@ function App() {
               <Route path="/finalist/:round_id/confirm" element={<FinalistConfirmPage />} />
               <Route path="/round/:round_id/activate" element={<RoundActivatePage />} />
               <Route path="/submission/:round_id/:team_id" element={<SubmissionPage />} />
+              <Route path="/calibration/:round_id" element={<CalibrationPage />} />
 
               {/* Admin */}
               <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>

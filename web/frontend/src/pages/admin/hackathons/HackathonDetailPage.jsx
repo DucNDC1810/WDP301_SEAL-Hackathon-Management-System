@@ -2141,36 +2141,46 @@ export default function HackathonDetailPage({ defaultTab }) {
                   🔮 Xem đề cử Wild Card
                 </button>
               )}
-              {selectedLeaderboardRoundId && (
-                <button
-                  onClick={() => navigate(`/finalist/${selectedLeaderboardRoundId}/confirm`)}
-                  style={{
-                    background: 'var(--gradient-primary)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: 'var(--shadow-cyan)',
-                    transition: 'all 0.2s',
-                    whiteSpace: 'nowrap',
-                    marginLeft: '10px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.02)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'none';
-                  }}
-                >
-                  🏆 Xác nhận & Kích hoạt Chung kết
-                </button>
-              )}
+              {selectedLeaderboardRoundId && (() => {
+                // Tìm round FINAL trong contest — không dùng round đang xem (có thể là Sơ Loại)
+                const finalRound = leaderboardRounds.find(
+                  r => r.type === 'FINAL' || /chu[nê]g\s*k[eê]t/i.test(r.name)
+                );
+                return (
+                  <button
+                    onClick={() => {
+                      if (!finalRound) {
+                        alert('Không tìm thấy vòng Chung kết trong contest này.');
+                        return;
+                      }
+                      navigate(`/finalist/${finalRound._id}/confirm`);
+                    }}
+                    style={{
+                      background: 'var(--gradient-primary)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: 'var(--shadow-cyan)',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap',
+                      marginLeft: '10px',
+                      opacity: finalRound ? 1 : 0.4,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
+                    title={finalRound ? `Chuyển đến vòng: ${finalRound.name}` : 'Không tìm thấy vòng Chung kết'}
+                  >
+                    🏆 Xác nhận & Kích hoạt Chung kết
+                  </button>
+                );
+              })()}
             </div>
           </div>
 

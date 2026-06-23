@@ -30,8 +30,8 @@ const scoreSchema = new mongoose.Schema(
 scoreSchema.index({ judge_id: 1, contest_id: 1, round_id: 1 });
 scoreSchema.index({ mentor_id: 1, contest_id: 1, round_id: 1 });
 scoreSchema.index({ team_id: 1, contest_id: 1, round_id: 1 });
-// Unique: 1 judge chỉ có 1 score record per (team, round)
-scoreSchema.index({ judge_id: 1, team_id: 1, round_id: 1 }, { unique: true });
+// Unique: 1 judge chỉ có 1 score record per (team, round, score_type)
+scoreSchema.index({ judge_id: 1, team_id: 1, round_id: 1, score_type: 1 }, { unique: true });
 
 const Score = mongoose.model("Score", scoreSchema);
 export default Score;

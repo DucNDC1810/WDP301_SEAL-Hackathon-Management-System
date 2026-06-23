@@ -38,7 +38,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     if (!contestId) return;
     setLoadingUsers(true);
     Promise.all([
-      request('/api/users'),
+      request('/api/users?limit=1000'),
       request(`/api/pools/contests/${contestId}/pools`),
     ]).then(([usersData, poolsData]) => {
       setAllUsers(Array.isArray(usersData) ? usersData : (usersData?.data ?? []));

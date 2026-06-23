@@ -88,7 +88,7 @@ export const createScore = async ({
   }
 
   // Không cho nhập lại nếu đã submitted
-  const existing = await Score.findOne({ judge_id: actorId, contest_id, round_id, team_id, status: "submitted" });
+  const existing = await Score.findOne({ judge_id: actorId, contest_id, round_id, team_id, status: "submitted", score_type: "NORMAL" });
   if (existing) {
     const err = new Error("Bạn đã nộp điểm cho đội này"); err.statusCode = 400; throw err;
   }
@@ -166,7 +166,7 @@ export const getScoringProgress = async (contestId, roundId) => {
 // ─── getMyScores ──────────────────────────────────────────────────────────────
 
 export const getMyScores = async (contestId, roundId, judgeId) => {
-  const scores = await Score.find({ contest_id: contestId, round_id: roundId, judge_id: judgeId });
+  const scores = await Score.find({ contest_id: contestId, round_id: roundId, judge_id: judgeId, score_type: "NORMAL" });
   const scoreIds = scores.map(s => s._id);
   const details = await ScoreDetail.find({ score_id: { $in: scoreIds } });
   return scores.map(s => ({
@@ -202,7 +202,7 @@ export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
   const teamIds = slots.map((s) => s.booked_team_id?._id).filter(Boolean);
 
   const [scores, submissions] = await Promise.all([
-    Score.find({ judge_id: judgeId, round_id: roundId, team_id: { $in: teamIds } }).lean(),
+    Score.find({ judge_id: judgeId, round_id: roundId, team_id: { $in: teamIds }, score_type: "NORMAL" }).lean(),
     Submission.find({ round_id: roundId, team_id: { $in: teamIds } }).select("team_id repo_url slide_url").lean(),
   ]);
 

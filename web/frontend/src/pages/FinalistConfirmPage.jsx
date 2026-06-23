@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getFinalists, updateTeamStatus, getAuditLog } from '../api/finalist';
 import { getRoundSetup, assignJudges, activateRound } from '../api/round';
+import { getAvailableJudges } from '../api/judgeAssignment.js';
 
 export default function FinalistConfirmPage() {
   const { round_id } = useParams();
@@ -28,10 +29,11 @@ export default function FinalistConfirmPage() {
 
   const loadData = async () => {
     try {
-      const [finalistsRes, logsRes, setupRes] = await Promise.all([
+      const [finalistsRes, logsRes, setupRes, availableJudgesRes] = await Promise.all([
         getFinalists(round_id),
         getAuditLog(round_id),
-        getRoundSetup(round_id)
+        getRoundSetup(round_id),
+        getAvailableJudges(round_id),  // Lọc sẵn: loại trừ judge Sơ Loại
       ]);
       setFinalists(finalistsRes.data || []);
       setAuditLogs(logsRes.data || []);
@@ -40,10 +42,13 @@ export default function FinalistConfirmPage() {
       setRound(setupData.round);
       setCriteria(setupData.criteria || []);
       setAssignedJudges(setupData.judges || []);
-      setAllAvailableJudges(setupData.all_available_judges || []);
       setTotalWeight(setupData.total_weight || 0);
       setWeightValid(setupData.weight_valid || false);
-      
+
+      // Dùng available-judges (đã lọc Sơ Loại)
+      const available = availableJudgesRes.data?.judges ?? [];
+      setAllAvailableJudges(available);
+
       const ids = (setupData.judges || []).map(j => j._id);
       setSelectedJudgeIds(ids);
     } catch (err) {

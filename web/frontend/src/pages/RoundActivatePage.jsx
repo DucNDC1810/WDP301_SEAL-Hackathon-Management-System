@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRoundSetup, assignJudges, activateRound } from '../api/round';
+import { useRoundStatus } from '../hooks/useRoundStatus';
+import { FrozenOverlay } from '../components/FrozenOverlay';
 
 export default function RoundActivatePage() {
   const { round_id } = useParams();
   const navigate = useNavigate();
+  const { isFrozen } = useRoundStatus(round_id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [round, setRound] = useState(null);
@@ -196,6 +199,7 @@ export default function RoundActivatePage() {
   const isActivated = round?.is_active;
 
   return (
+    <FrozenOverlay isActive={isFrozen}>
     <div style={{
       background: "var(--bg-primary)",
       minHeight: "100vh",
@@ -553,5 +557,6 @@ export default function RoundActivatePage() {
 
       </div>
     </div>
+    </FrozenOverlay>
   );
 }

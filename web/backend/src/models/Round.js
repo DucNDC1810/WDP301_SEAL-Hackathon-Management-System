@@ -41,6 +41,15 @@ const roundSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    status: {
+      type: String,
+      enum: ["DRAFT", "ACTIVE", "SCORING", "PENDING_CONFIRM", "FINISHED"],
+      default: "DRAFT",
+    },
+    scoring_locked: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

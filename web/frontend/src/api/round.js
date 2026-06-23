@@ -28,3 +28,6 @@ export const assignJudges = (round_id, judge_ids) =>
 
 export const activateRound = (round_id) =>
   api.patch(`/api/round/${round_id}/activate`);
+
+export const finishRound = (round_id) =>
+  api.patch(`/api/round/${round_id}/finish`);

@@ -4,6 +4,9 @@ import Criteria from "../models/Criteria.js";
 import JudgeAssignment from "../models/JudgeAssignment.js";
 import User from "../models/User.js";
 import AuditLog from "../models/AuditLog.js";
+import Score from "../models/Score.js";
+import Team from "../models/Team.js";
+import Notification from "../models/Notification.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
 const router = Router();
@@ -156,5 +159,79 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
     next(error);
   }
 });
+
+// PATCH /api/round/:round_id/finish
+router.patch("/:round_id/finish", authenticate, authorize("admin"), async (req, res, next) => {
+  try {
+    const { round_id } = req.params;
+
+    const round = await Round.findById(round_id);
+    if (!round) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+    }
+
+    if (round.status !== "PENDING_CONFIRM") {
+      return res.status(400).json({
+        success: false,
+        error: "INVALID_STATUS",
+        message: "Chỉ có thể xác nhận FINISHED từ trạng thái PENDING_CONFIRM"
+      });
+    }
+
+    // Set round status to FINISHED
+    const oldStatus = round.status;
+    round.status = "FINISHED";
+    await round.save();
+
+    // Mark all NORMAL scores in this round as final
+    await Score.updateMany(
+      { round_id, score_type: "NORMAL" },
+      { is_final: true }
+    );
+
+    // Write audit log
+    await AuditLog.create({
+      entity_type: "Round",
+      entity_id: round._id,
+      action: "ROUND_FINISHED",
+      old_value: { status: oldStatus },
+      new_value: { status: "FINISHED" },
+      performed_by: req.user?._id || null,
+      performed_at: new Date(),
+      resource: "ROUND",
+      resource_id: round._id,
+      actor_id: req.user?._id || null,
+      actor_email: req.user?.email || "system",
+      before: { status: oldStatus },
+      after: { status: "FINISHED" },
+    });
+
+    // Send RESULT_PUBLISHED notification to all members of ACTIVE teams in this round
+    const activeTeams = await Team.find({ contest_id: round.contest_id, status: "ACTIVE" });
+    const notifications = [];
+    for (const team of activeTeams) {
+      for (const member of team.members) {
+        if (member.user_id) {
+          notifications.push({
+            user_id: member.user_id,
+            type: "RESULT_PUBLISHED",
+            title: "Kết quả đã được công bố",
+            message: `Kết quả vòng thi "${round.name}" đã được công bố.`,
+            ref_id: round._id,
+            ref_type: null,
+          });
+        }
+      }
+    }
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+    }
+
+    return res.status(200).json({ success: true, status: "FINISHED" });
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 export default router;

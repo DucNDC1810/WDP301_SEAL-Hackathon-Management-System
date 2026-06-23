@@ -212,7 +212,7 @@ export const StudentOverviewPage = () => {
   const contestId = contest?._id;
 
   // Contest timeline rounds
-  const timelineRounds = contest?.rounds?.length ? contest.rounds : MOCK_ROUNDS;
+  const timelineRounds = (contest?.rounds?.length ? contest.rounds : MOCK_ROUNDS).filter(r => r.is_active);
   const activeIdx      = timelineRounds.findIndex((r) => r.is_active);
 
   // Mock member contributions (seeded from member index for determinism)
@@ -242,13 +242,22 @@ export const StudentOverviewPage = () => {
       <div className="sp-flex--between">
         <h2 className="sp-page-title" style={{ margin: 0 }}>Tổng quan</h2>
         {activeRound && contestId && (
-          <button
-            className="sp-btn sp-btn--sm"
-            onClick={() => navigate(`/leaderboard/${contestId}/${activeRound._id}`)}
-          >
-            <OrderedListOutlined />
-            Leaderboard
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="sp-btn sp-btn--sm"
+              onClick={() => navigate(`/leaderboard/${contestId}/${activeRound._id}`)}
+            >
+              <OrderedListOutlined />
+              Leaderboard
+            </button>
+            <button
+              className="sp-btn sp-btn--sm"
+              onClick={() => navigate(`/ranking?round=${activeRound._id}`)}
+              style={{ color: '#facc15', borderColor: 'rgba(250,204,21,0.35)', background: 'rgba(250,204,21,0.07)' }}
+            >
+              🏆 BXH & Giải thưởng
+            </button>
+          </div>
         )}
       </div>
 

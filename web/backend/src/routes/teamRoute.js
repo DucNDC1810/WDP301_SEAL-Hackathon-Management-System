@@ -19,6 +19,8 @@ import {
   handleEliminateTeam,
   handleRegisterContest,
   handleUpdateTeamContributions,
+  handleLeaveTeam,
+  handleTransferLeader,
 } from "../controllers/teamController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import { audit } from "../middlewares/auditMiddleware.js";
@@ -62,6 +64,12 @@ router.put("/:id/contributions", authenticate, audit("TEAM", "UPDATE"), handleUp
 
 // DELETE /api/teams/:id                       — leader/admin xóa đội (pending only)
 router.delete("/:id", authenticate, audit("TEAM", "DELETE"), handleDeleteTeam);
+
+// POST /api/teams/:id/leave                   — thành viên rời đội
+router.post("/:id/leave", authenticate, handleLeaveTeam);
+
+// PATCH /api/teams/:id/transfer-leader        — leader chuyển quyền cho thành viên khác
+router.patch("/:id/transfer-leader", authenticate, handleTransferLeader);
 
 // POST /api/teams/:id/resend-verification     — leader gửi lại email cho thành viên
 router.post("/:id/resend-verification", authenticate, handleResendMemberVerification);

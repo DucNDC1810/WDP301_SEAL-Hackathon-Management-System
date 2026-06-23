@@ -85,24 +85,7 @@ export const StudentLayout = () => {
         </nav>
 
         <div className="sl-sidebar-foot">
-          {!collapsed && user && (
-            <div className="sl-user">
-              <div className="sl-user-av">{(user.full_name?.[0] || 'U').toUpperCase()}</div>
-              <div className="sl-user-info">
-                <span className="sl-user-name">{user.full_name}</span>
-                <span className="sl-user-role">Thí sinh</span>
-              </div>
-            </div>
-          )}
-          <button
-            className="sl-theme-toggle"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
-          >
-            <Ico d={theme === 'dark' ? SUN : MOON} size={16} />
-            {!collapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
-          </button>
-          <button className="sl-logout" onClick={handleLogout} title="Đăng xuất">
+          <button className="sl-logout" onClick={handleLogout} title="Đăng xuất" style={{ color: '#ef4444' }}>
             <Ico d={LOGOUT} size={16} sw={1.8} />
             {!collapsed && <span>Đăng xuất</span>}
           </button>
@@ -110,8 +93,30 @@ export const StudentLayout = () => {
       </aside>
 
       {/* ── Content ── */}
-      <div className="sl-content">
-        <Outlet />
+      <div className="sl-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <header style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 20px', borderBottom: '1px solid var(--sl-border)', background: 'var(--sl-bg)', flexShrink: 0, gap: 16 }}>
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+            style={{ background: 'transparent', border: 'none', color: 'var(--sl-text-muted)', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ico d={theme === 'dark' ? SUN : MOON} size={20} />
+          </button>
+          {user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, var(--sl-accent-bg), rgba(124, 58, 237, 0.2))', border: '1.5px solid var(--sl-accent-border)', color: 'var(--sl-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' }}>
+                {(user.full_name?.[0] || 'U').toUpperCase()}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--sl-text)' }}>{user.full_name}</span>
+                <span style={{ fontSize: '0.68rem', color: 'var(--sl-accent)', background: 'var(--sl-accent-bg)', padding: '1px 6px', borderRadius: 10, width: 'fit-content', border: '1px solid var(--sl-accent-border)' }}>👥 Thí sinh</span>
+              </div>
+            </div>
+          )}
+        </header>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <Outlet />
+        </div>
       </div>
     </div>
   );

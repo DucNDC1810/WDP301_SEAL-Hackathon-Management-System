@@ -6,7 +6,7 @@
   min-height: 100vh;
   background: var(--bg-primary, #0a0e17);
   padding: 20px;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
 }
 
 .verify-card {

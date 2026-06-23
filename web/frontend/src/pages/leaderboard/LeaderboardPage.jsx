@@ -41,10 +41,15 @@ export default function LeaderboardPage() {
       render: (v) => <strong style={{ color: '#1890ff' }}>{v?.toFixed(2)}</strong>,
     },
     {
-      title: 'Vào chung kết',
+      title: 'Kết quả',
       dataIndex: 'qualified',
       key: 'qualified',
-      render: (v) => <Tag color={v ? 'green' : 'default'}>{v ? 'Vào chung kết' : '-'}</Tag>,
+      render: (v, record) => {
+        if (record.is_final_round) {
+          return <Tag color={v ? 'gold' : 'default'}>{v ? 'Đạt giải' : '-'}</Tag>;
+        }
+        return <Tag color={v ? 'green' : 'default'}>{v ? 'Vào chung kết' : '-'}</Tag>;
+      },
     },
   ];
 

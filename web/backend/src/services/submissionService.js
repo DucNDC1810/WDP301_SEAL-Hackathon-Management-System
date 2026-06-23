@@ -86,6 +86,25 @@ export const createSubmission = async ({ repo_url, demo_url, slide_url, team_id,
     throw err;
   }
 
+  // Nếu vòng thi hiện tại không phải vòng đầu tiên, kiểm tra xem đội có lọt vào vòng này không (qualified ở vòng trước)
+  const sortedRounds = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
+  const currentRoundIndex = sortedRounds.findIndex((r) => r._id.toString() === round_id.toString());
+  if (currentRoundIndex > 0) {
+    const prevRound = sortedRounds[currentRoundIndex - 1];
+    const Ranking = (await import("mongoose")).default.model("Ranking");
+    const isQualified = await Ranking.exists({
+      contest_id: contest._id,
+      round_id: prevRound._id,
+      team_id: team._id,
+      qualified: true,
+    });
+    if (!isQualified) {
+      const err = new Error("Đội thi của bạn không lọt vào vòng tiếp theo nên không thể nộp bài");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
   const finalIsAccessible = is_accessible === true || is_accessible === 'true' || is_accessible === undefined;
 
   const now = new Date();

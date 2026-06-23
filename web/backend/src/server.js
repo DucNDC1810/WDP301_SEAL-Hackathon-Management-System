@@ -24,6 +24,14 @@ import auditLogRoute from "./routes/auditLogRoute.js";
 import submissionRoute from "./routes/submissionRoute.js";
 import be2RoundRoute from "./routes/be2RoundRoute.js";
 import presentationSlotRoute from "./routes/presentationSlotRoute.js";
+import leaderboardRoute from "./routes/leaderboard.js";
+import wildcardRoute from "./routes/wildcard.js";
+import finalistRoute from "./routes/finalist.js";
+import finalRoundRoute from "./routes/round.js";
+import finalSubmissionRoute from "./routes/finalSubmissionRoute.js";
+import teamRankingRoute from "./routes/teamRanking.js";
+import adminRankingRoute from "./routes/adminRankingRoute.js";
+import prizeRoute from "./routes/prize.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -74,12 +82,29 @@ app.use("/api/audit-logs", auditLogRoute);
 app.use("/api/submissions", submissionRoute);
 app.use("/api/rounds", be2RoundRoute);
 app.use("/api/presentation-slots", presentationSlotRoute);
+app.use("/api/leaderboard", leaderboardRoute);
+app.use("/api/wildcard", wildcardRoute);
+app.use("/api/finalist", finalistRoute);
+app.use("/api/round", finalRoundRoute);
+app.use("/api/submission", finalSubmissionRoute);
+app.use("/api/ranking", teamRankingRoute);
+app.use("/api/admin/ranking", adminRankingRoute);
+app.use("/api/prize", prizeRoute);
 
 initSocket(httpServer);
 
 connectDB().then(() => {
   httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+  });
+
+  httpServer.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`[server] Port ${PORT} is already in use. Kill the process holding it and restart.`);
+    } else {
+      console.error("[server] HTTP server error:", err);
+    }
+    process.exit(1);
   });
 
   // Migration: Normalize legacy lowercase team status values in the database to uppercase to match Mongoose schema enums

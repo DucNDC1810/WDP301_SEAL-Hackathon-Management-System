@@ -46,7 +46,7 @@
   min-height: 100vh;
   background: var(--al-bg);
   color: var(--al-text);
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* ── Sidebar ── */
@@ -195,24 +195,25 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px 6px 6px;
+  padding: 5px 12px 5px 5px;
   background: var(--al-user-bg);
   border: 1px solid var(--al-border);
-  border-radius: 10px;
+  border-radius: 40px;
 }
 
 .al-profile-av {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--al-accent), #7c3aed);
-  color: #fff;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--al-accent-bg), rgba(124, 58, 237, 0.2));
+  color: var(--al-accent);
   font-weight: 700;
   font-size: 0.82rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1.5px solid var(--al-accent-border);
 }
 
 .al-profile-info {
@@ -229,10 +230,18 @@
 }
 
 .al-profile-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.62rem;
-  color: var(--al-accent);
   font-weight: 700;
-  letter-spacing: 0.5px;
+  color: var(--al-accent);
+  background: var(--al-accent-bg);
+  border: 1px solid var(--al-accent-border);
+  padding: 1px 7px;
+  border-radius: 20px;
+  margin-top: 3px;
+  width: fit-content;
 }
 
 .al-topbar-logout {
@@ -253,7 +262,7 @@
 .al-topbar-logout:hover {
   background: var(--al-logout-hover-bg);
   color: var(--al-logout-hover-text);
-  border-color: rgba(239, 68, 68, 0.3);
+  border-color: var(--al-logout-hover-text);
 }
 
 /* ── Content area ── */

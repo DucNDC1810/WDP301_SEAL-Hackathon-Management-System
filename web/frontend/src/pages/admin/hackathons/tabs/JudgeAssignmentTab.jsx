@@ -7,8 +7,8 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   const [messageApi, contextHolder] = message.useMessage();
 
   const rounds = contest?.rounds
-    ? contest.rounds.map(r => ({ id: r._id, name: r.name }))
-    : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name })));
+    ? contest.rounds.filter(r => r.is_active).map(r => ({ id: r._id, name: r.name }))
+    : (config?.tracks || []).flatMap(t => (t.rounds || []).filter(r => r.is_active).map(r => ({ ...r, trackName: t.name })));
 
   const [selectedRound, setSelectedRound] = useState(rounds[0]?.id || null);
   const [pools, setPools] = useState([]);
@@ -199,12 +199,8 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     }
   };
 
-  // Pool options cho judge — disable nếu đã có judge
-  const judgePoolOptions = poolOptions.map(p => ({
-    ...p,
-    disabled: assignedPoolIds.has(p.value?.toString()),
-    label: assignedPoolIds.has(p.value?.toString()) ? `${p.label} (đã có giám khảo)` : p.label,
-  }));
+  // Pool options cho judge — không disable nữa để hỗ trợ phân công nhiều giám khảo
+  const judgePoolOptions = poolOptions;
 
   return (
     <div className="p-6 space-y-8">

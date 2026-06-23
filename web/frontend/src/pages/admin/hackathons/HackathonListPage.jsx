@@ -143,12 +143,12 @@ export default function HackathonListPage() {
 
                   <div className="hl-card-dates">
                     <div className="hl-card-date-item">
-                      <span className="hl-date-label">Hạn đăng ký:</span>
-                      <span className="hl-date-val"><Ico d={CAL} size={11} /> {fmt(c.registration_deadline)}</span>
+                      <span className="hl-date-label">Ngày mở đăng ký:</span>
+                      <span className="hl-date-val"><Ico d={CAL} size={11} /> {fmt(c.registration_open_date || c.created_at)}</span>
                     </div>
                     <div className="hl-card-date-item">
-                      <span className="hl-date-label">Thi đấu chính thức:</span>
-                      <span className="hl-date-val"><Ico d={CAL} size={11} /> {fmt(c.start_date)}</span>
+                      <span className="hl-date-label">Hạn đăng ký:</span>
+                      <span className="hl-date-val"><Ico d={CAL} size={11} /> {fmt(c.registration_deadline)}</span>
                     </div>
                   </div>
                 </div>

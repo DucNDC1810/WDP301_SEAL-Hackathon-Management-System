@@ -50,8 +50,8 @@
   --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 
   /* Typography */
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'Orbitron', monospace;
+  --font-body: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Orbitron', 'Be Vietnam Pro', monospace;
 
   /* Spacing */
   --section-padding: 100px 0;

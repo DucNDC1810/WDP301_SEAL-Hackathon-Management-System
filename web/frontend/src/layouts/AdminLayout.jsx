@@ -28,6 +28,20 @@ const MOON = 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z';
 
 const USERS_D = ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M23 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'];
 
+const CLIPBOARD = ['M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2', 'M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z', 'M9 12l2 2 4-4'];
+const LOCK = ['M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z', 'M7 11V7a5 5 0 0 1 10 0v4'];
+const SHIELD_ALERT = ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'M12 8v4', 'M12 16h.01'];
+const TIMELINE = ['M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z', 'M16 2v4', 'M8 2v4', 'M3 10h18'];
+const CALENDAR = ['M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z', 'M12 6v6l4 2']; // clock
+
+const HACKATHON_SUB_NAV = [
+  { key: 'sub-review', label: 'Duyệt Bài Nộp', subPath: '/submission-review', d: CLIPBOARD },
+  { key: 'score-lock', label: 'Khóa Chấm Điểm', subPath: '/scoring-lock', d: LOCK },
+  { key: 'elimination', label: 'Loại Đội Vi Phạm', subPath: '/elimination', d: SHIELD_ALERT },
+  { key: 'timeline', label: 'Lịch trình', subPath: '/timeline', d: TIMELINE },
+  { key: 'presentation', label: 'Đặt lịch trình bày', subPath: '/presentation', d: CALENDAR },
+];
+
 const NAV = [
   { key: 'dashboard', label: 'Dashboard', path: '/admin/dashboard', d: GRID },
   { key: 'hackathons', label: 'Hackathons', path: '/admin/hackathons', d: TROPHY },
@@ -35,6 +49,8 @@ const NAV = [
   { key: 'team', label: 'Team Registration', path: '/admin/team', d: USER },
   { key: 'users', label: 'Users', path: '/admin/users', d: USERS_D },
   { key: 'results', label: 'Results', path: '/admin/results', d: BAR },
+  { key: 'ranking',         label: 'Bảng XH Team',      path: '/admin/ranking',         d: TROPHY },
+  { key: 'ranking-manager', label: 'Quản lý Ranking',   path: '/admin/ranking-manager', d: BAR },
 ];
 
 export default function AdminLayout() {
@@ -94,16 +110,39 @@ export default function AdminLayout() {
               {!collapsed && <span className="al-nav-label">{label}</span>}
             </button>
           ))}
+
+          <div className="al-nav-divider" style={{ height: '1px', background: 'var(--al-border)', margin: '10px 4px' }} />
+          {!collapsed && (
+            <div className="al-nav-section-title" style={{ padding: '4px 11px 8px 11px', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--al-accent)', opacity: 0.8 }}>
+              Quản lý giải đấu
+            </div>
+          )}
+          {HACKATHON_SUB_NAV.map(({ key, label, subPath, d }) => {
+            const fullPath = `/admin${subPath}`;
+            const isActive = location.pathname.startsWith(fullPath);
+            return (
+              <button
+                key={key}
+                className={`al-nav-item${isActive ? ' active' : ''}`}
+                onClick={() => navigate(fullPath)}
+                title={collapsed ? label : undefined}
+              >
+                <span className="al-nav-icon"><Ico d={d} size={16} /></span>
+                {!collapsed && <span className="al-nav-label">{label}</span>}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="al-sidebar-foot">
           <button
-            className="al-theme-toggle"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+            className="al-nav-item"
+            style={{ color: '#ef4444' }}
+            onClick={handleLogout}
+            title="Đăng xuất"
           >
-            <Ico d={theme === 'dark' ? SUN : MOON} size={16} />
-            {!collapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+            <span className="al-nav-icon"><Ico d={LOGOUT} size={16} /></span>
+            {!collapsed && <span className="al-nav-label">Đăng xuất</span>}
           </button>
         </div>
       </aside>
@@ -112,17 +151,21 @@ export default function AdminLayout() {
       <div className="al-main">
         <header className="al-topbar">
           <div className="al-topbar-right">
+            <button
+              className="al-theme-toggle"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+              style={{ background: 'transparent', border: 'none', color: 'var(--al-text-muted)', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}
+            >
+              <Ico d={theme === 'dark' ? SUN : MOON} size={20} />
+            </button>
             <div className="al-profile-chip">
               <div className="al-profile-av">{initials(user?.full_name)}</div>
               <div className="al-profile-info">
                 <div className="al-profile-name">{user?.full_name || 'Admin'}</div>
-                <span className="al-profile-role">ADMIN</span>
+                <span className="al-profile-role">👥 Admin</span>
               </div>
             </div>
-            <button className="al-topbar-logout" onClick={handleLogout} title="Logout">
-              <Ico d={LOGOUT} size={16} sw={1.8} />
-              <span>Logout</span>
-            </button>
           </div>
         </header>
 

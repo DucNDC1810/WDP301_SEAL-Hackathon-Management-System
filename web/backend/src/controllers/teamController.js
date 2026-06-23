@@ -18,6 +18,8 @@ import {
   eliminateTeam,
   registerContest,
   updateTeamContributions,
+  leaveTeam,
+  transferLeader,
 } from "../services/teamService.js";
 
 /**
@@ -318,6 +320,31 @@ export const handleUpdateTeamContributions = async (req, res) => {
     res.status(200).json({ success: true, message: "Cập nhật đánh giá đóng góp thành công", data: team });
   } catch (error) {
     console.error("[handleUpdateTeamContributions]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleLeaveTeam = async (req, res) => {
+  try {
+    const result = await leaveTeam(req.params.id, req.user._id);
+    const msg = result.deleted ? "Đã giải tán đội (chỉ còn mình bạn)" : "Đã rời đội thành công";
+    res.status(200).json({ success: true, message: msg, deleted: result.deleted });
+  } catch (error) {
+    console.error("[handleLeaveTeam]", error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleTransferLeader = async (req, res) => {
+  try {
+    const { new_leader_email } = req.body;
+    if (!new_leader_email) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp email của Leader mới" });
+    }
+    const team = await transferLeader(req.params.id, req.user._id, new_leader_email);
+    res.status(200).json({ success: true, message: "Chuyển quyền Leader thành công", data: team });
+  } catch (error) {
+    console.error("[handleTransferLeader]", error);
     res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };

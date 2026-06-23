@@ -9,26 +9,16 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: [
-        "finalist_announcement",   // vào vòng chung kết
-        "deadline_reminder",       // reminder deadline
-        "missing_submission",      // thiếu submission
-        "mentor_assigned",         // được phân công mentor
-        "invitation",              // lời mời mentor
-        "team_member_verified",    // thành viên đã xác nhận
-        "score_published",         // điểm đã được công bố
-        "general",                 // thông báo chung
-      ],
       required: true,
     },
     title: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     message: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     // Tham chiếu đến entity liên quan (contest, team, v.v.)
@@ -47,6 +37,15 @@ const notificationSchema = new mongoose.Schema(
     },
     read_at: {
       type: Date,
+      default: null,
+    },
+    recipient_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    payload: {
+      type: mongoose.Schema.Types.Mixed,
       default: null,
     },
   },

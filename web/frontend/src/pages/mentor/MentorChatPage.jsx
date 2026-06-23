@@ -1,114 +1,97 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Layout, List, Avatar, Badge, Typography, Input, Button, Spin,
-  Empty, Tag, Tooltip, Upload, message as antMessage, Divider,
-} from "antd";
-import {
-  SendOutlined, MessageOutlined, LockOutlined,
-  TeamOutlined, ArrowLeftOutlined, LoadingOutlined, PaperClipOutlined,
-} from "@ant-design/icons";
+import { io } from "socket.io-client";
+import { Spin, message as antMessage, Upload } from "antd";
 import { useAuth } from "../../context/AuthContext";
 import { useApi } from "../../hooks/useApi";
 import { useChatSocket } from "../../hooks/useChatSocket";
 import AttachmentBubble from "../../components/chat/AttachmentBubble";
+import "./MentorChatPage.css";
 
-const { Sider, Content } = Layout;
-const { Text, Title } = Typography;
+const SOCKET_URL = import.meta.env.VITE_API_URL || "";
 
 function fmtTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   const now = new Date();
-  const isToday = d.toDateString() === now.toDateString();
-  if (isToday) return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
-  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }) + " " +
-    d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === now.toDateString())
+    return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  return (
+    d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }) +
+    " " +
+    d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+  );
 }
 
-function ConversationItem({ conv, selected, onClick }) {
-  const hasUnread = conv.unreadCount > 0;
+// ─── Conversation item in sidebar ────────────────────────────────────────────
+function ConvItem({ conv, selected, onClick }) {
+  const isOpen = conv.chatOpen;
+  const hasUnread = (conv.unreadCount || 0) > 0;
+  const badgeCount = conv.unreadCount > 99 ? "99+" : conv.unreadCount;
 
   return (
     <div
+      className={`mc-conv-item${selected ? " mc-conv-item--selected" : ""}`}
       onClick={onClick}
-      className={`cursor-pointer px-4 py-3 border-b border-white/5 transition-all hover:bg-white/5 ${selected ? "bg-white/10 border-l-2 border-l-cyan-400" : ""}`}
     >
-      <div className="flex items-center gap-3">
-        <Badge count={conv.unreadCount} size="small" color="#00d4ff">
-          <Avatar
-            size={40}
-            style={{ background: conv.chatOpen ? "linear-gradient(135deg,#00d4ff,#a855f7)" : "#374151" }}
-            icon={<TeamOutlined />}
-          />
-        </Badge>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-1">
-            <Text strong className={`truncate text-sm ${hasUnread ? "text-white" : "text-gray-300"}`}>
-              {conv.teamName}
-            </Text>
-            {!conv.chatOpen && (
-              <Tooltip title="Kỳ thi đã kết thúc, chat đã đóng">
-                <LockOutlined className="text-gray-500 text-xs flex-shrink-0" />
-              </Tooltip>
-            )}
-          </div>
-          <Text className="text-xs text-gray-500 truncate block">{conv.contestTitle} · {conv.roundName}</Text>
-          {conv.lastMessage && (
-            <Text className={`text-xs truncate block mt-0.5 ${hasUnread ? "text-cyan-300" : "text-gray-500"}`}>
-              {conv.lastMessage.content}
-            </Text>
-          )}
+      <div className="mc-conv-avatar-wrap">
+        <div className={`mc-conv-avatar${isOpen ? " mc-conv-avatar--open" : ""}`}>
+          {isOpen ? "💬" : "🔒"}
+        </div>
+        {hasUnread && (
+          <span className="mc-conv-badge">{badgeCount}</span>
+        )}
+      </div>
+
+      <div className="mc-conv-info">
+        <div className="mc-conv-row1">
+          <span className={`mc-conv-name${hasUnread ? " mc-conv-name--unread" : ""}`}>
+            {conv.teamName}
+          </span>
+          {!isOpen && <span className="mc-conv-lock">🔒</span>}
+        </div>
+        <div className="mc-conv-sub">
+          {conv.contestTitle} · {conv.roundName}
         </div>
         {conv.lastMessage && (
-          <Text className="text-gray-600 text-xs flex-shrink-0">{fmtTime(conv.lastMessage.created_at)}</Text>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MessageBubble({ msg, isMe }) {
-  const hasText = !!msg.content;
-  const hasAttachments = msg.attachments?.length > 0;
-  return (
-    <div className={`flex mb-3 ${isMe ? "justify-end" : "justify-start"}`}>
-      {!isMe && (
-        <Avatar size={28} className="mr-2 flex-shrink-0 mt-1"
-          style={{ background: "linear-gradient(135deg,#a855f7,#6366f1)", fontSize: 12 }}>
-          {(msg.sender_id?.full_name || "?")[0].toUpperCase()}
-        </Avatar>
-      )}
-      <div className={`max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col`}>
-        {!isMe && (
-          <Text className="text-xs text-gray-400 mb-1 px-1">{msg.sender_id?.full_name || "Ẩn danh"}</Text>
-        )}
-        {hasText && (
-          <div
-            className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words
-              ${isMe
-                ? "bg-gradient-to-br from-cyan-500 to-blue-600 text-white rounded-tr-sm"
-                : "bg-white/10 text-gray-100 rounded-tl-sm"
-              }`}
-          >
-            {msg.content}
+          <div className={`mc-conv-last${hasUnread ? " mc-conv-last--unread" : ""}`}>
+            {conv.lastMessage.content || "📎 Tệp đính kèm"}
           </div>
         )}
-        {hasAttachments && (
-          <AttachmentBubble attachments={msg.attachments} isMe={isMe} />
-        )}
-        <Text className="text-gray-600 text-xs mt-1 px-1">{fmtTime(msg.created_at)}</Text>
       </div>
-      {isMe && (
-        <Avatar size={28} className="ml-2 flex-shrink-0 mt-1"
-          style={{ background: "linear-gradient(135deg,#00d4ff,#0ea5e9)", fontSize: 12 }}>
-          {(msg.sender_id?.full_name || "M")[0].toUpperCase()}
-        </Avatar>
+
+      {conv.lastMessage && (
+        <span className="mc-conv-time">{fmtTime(conv.lastMessage.created_at)}</span>
       )}
     </div>
   );
 }
 
+// ─── Message bubble ───────────────────────────────────────────────────────────
+function MsgBubble({ msg, isMe }) {
+  const initials = (msg.sender_id?.full_name || "?")[0].toUpperCase();
+  return (
+    <div className={`mc-msg${isMe ? " mc-msg--me" : " mc-msg--other"}`}>
+      <div className={`mc-msg-avatar${isMe ? " mc-msg-avatar--me" : " mc-msg-avatar--other"}`}>
+        {initials}
+      </div>
+      <div className="mc-msg-content">
+        {!isMe && (
+          <span className="mc-msg-sender">{msg.sender_id?.full_name || "Ẩn danh"}</span>
+        )}
+        {msg.content && (
+          <div className="mc-msg-bubble">{msg.content}</div>
+        )}
+        {msg.attachments?.length > 0 && (
+          <AttachmentBubble attachments={msg.attachments} isMe={isMe} />
+        )}
+        <span className="mc-msg-time">{fmtTime(msg.created_at)}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Chat window ──────────────────────────────────────────────────────────────
 function ChatWindow({ conv, userId, request }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,19 +103,13 @@ function ChatWindow({ conv, userId, request }) {
   const [hasMore, setHasMore] = useState(false);
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef({});
+  const textareaRef = useRef(null);
 
-  const chatParams = {
-    contestId: conv.contestId,
-    roundId: conv.roundId,
-    teamId: conv.teamId,
-    mentorId: conv.mentorId,
-  };
   const msgPath = `/api/chat/${conv.contestId}/${conv.roundId}/${conv.teamId}/${conv.mentorId}/messages`;
 
   const handleNewMessage = useCallback((msg) => {
     setMessages((prev) => {
-      const exists = prev.some((m) => m._id === msg._id);
-      if (exists) return prev;
+      if (prev.some((m) => m._id === msg._id)) return prev;
       return [...prev, msg];
     });
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -150,7 +127,10 @@ function ChatWindow({ conv, userId, request }) {
   }, [userId]);
 
   const { emitTyping } = useChatSocket({
-    ...chatParams,
+    contestId: conv.contestId,
+    roundId: conv.roundId,
+    teamId: conv.teamId,
+    mentorId: conv.mentorId,
     onMessage: handleNewMessage,
     onTyping: handleTyping,
   });
@@ -168,7 +148,7 @@ function ChatWindow({ conv, userId, request }) {
       const res = await request(`${msgPath}?page=${p}&limit=50`);
       const msgs = res?.data?.messages || [];
       const total = res?.data?.total || 0;
-      setMessages((prev) => p === 1 ? msgs : [...msgs, ...prev]);
+      setMessages((prev) => (p === 1 ? msgs : [...msgs, ...prev]));
       setHasMore(p * 50 < total);
       setPage(p);
       if (p === 1) setTimeout(() => bottomRef.current?.scrollIntoView(), 100);
@@ -189,11 +169,14 @@ function ChatWindow({ conv, userId, request }) {
     try {
       const formData = new FormData();
       if (content) formData.append("content", content);
-      fileList.forEach((f) => formData.append("files", f.originFileObj));
+      fileList.forEach((f) => {
+        const file = f.originFileObj ?? f;
+        if (file instanceof File) formData.append("files", file);
+      });
       await request(msgPath, { method: "POST", formData });
       setFileList([]);
     } catch (e) {
-      antMessage.error(e.message || "Gửi thất bại");
+      antMessage.error(`[${e.status}] ${e.message || "Gửi thất bại"}`);
       setInputVal(content);
     } finally {
       setSending(false);
@@ -209,6 +192,10 @@ function ChatWindow({ conv, userId, request }) {
 
   const handleInputChange = (e) => {
     setInputVal(e.target.value);
+    // auto-resize textarea
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
     emitTyping(true);
     clearTimeout(typingTimeoutRef.current["self"]);
     typingTimeoutRef.current["self"] = setTimeout(() => emitTyping(false), 2000);
@@ -217,57 +204,53 @@ function ChatWindow({ conv, userId, request }) {
   const someoneTyping = Object.values(typingUsers).some(Boolean);
 
   return (
-    <div className="flex flex-col h-full">
+    <>
       {/* Header */}
-      <div className="px-5 py-3 border-b border-white/10 flex items-center gap-3 flex-shrink-0"
-        style={{ background: "rgba(17,24,39,0.8)" }}>
-        <Avatar size={36} icon={<TeamOutlined />}
-          style={{ background: conv.chatOpen ? "linear-gradient(135deg,#00d4ff,#a855f7)" : "#374151" }} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <Text strong className="text-white text-base">{conv.teamName}</Text>
+      <div className="mc-chat-header">
+        <div className={`mc-chat-header-avatar${!conv.chatOpen ? " mc-chat-header-avatar--closed" : ""}`}>
+          {conv.chatOpen ? "💬" : "🔒"}
+        </div>
+        <div className="mc-chat-header-info">
+          <div className="mc-chat-header-name">
+            {conv.teamName}
             {conv.chatOpen
-              ? <Tag color="green" className="text-xs">Đang mở</Tag>
-              : <Tag icon={<LockOutlined />} color="default" className="text-xs">Đã đóng</Tag>
+              ? <span className="mc-status-open">Đang mở</span>
+              : <span className="mc-status-closed">Đã đóng</span>
             }
           </div>
-          <Text className="text-xs text-gray-400">{conv.contestTitle} · {conv.roundName}</Text>
+          <div className="mc-chat-header-sub">
+            {conv.contestTitle} · {conv.roundName}
+          </div>
         </div>
       </div>
 
       {/* Closed banner */}
       {!conv.chatOpen && (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-yellow-500/10 border-b border-yellow-500/20">
-          <LockOutlined className="text-yellow-400" />
-          <Text className="text-yellow-300 text-sm">
-            Kỳ thi đã kết thúc — cuộc trò chuyện đã đóng. Bạn chỉ có thể xem lại lịch sử.
-          </Text>
+        <div className="mc-closed-banner">
+          🔒 Kỳ thi đã kết thúc — cuộc trò chuyện đã đóng. Bạn chỉ có thể xem lại lịch sử.
         </div>
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-4" style={{ background: "rgba(10,15,25,0.5)" }}>
+      <div className="mc-messages">
         {hasMore && (
-          <div className="text-center mb-4">
-            <Button size="small" type="text" className="text-gray-400"
-              onClick={() => loadMessages(page + 1)}>
-              Tải thêm tin nhắn cũ
-            </Button>
-          </div>
+          <button className="mc-load-more-btn" onClick={() => loadMessages(page + 1)}>
+            Tải thêm tin nhắn cũ
+          </button>
         )}
 
         {loading ? (
-          <div className="flex justify-center items-center h-32">
-            <Spin indicator={<LoadingOutlined style={{ fontSize: 28, color: "#00d4ff" }} spin />} />
+          <div className="mc-msg-loading">
+            <Spin />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-gray-500">
-            <MessageOutlined style={{ fontSize: 40, marginBottom: 12 }} />
-            <Text className="text-gray-500">Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện!</Text>
+          <div className="mc-empty-chat">
+            <span className="mc-empty-chat-icon">💬</span>
+            <span className="mc-empty-chat-text">Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện!</span>
           </div>
         ) : (
           messages.map((msg) => (
-            <MessageBubble
+            <MsgBubble
               key={msg._id}
               msg={msg}
               isMe={msg.sender_id?._id === userId || msg.sender_id === userId}
@@ -276,13 +259,13 @@ function ChatWindow({ conv, userId, request }) {
         )}
 
         {someoneTyping && (
-          <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-            <div className="flex gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+          <div className="mc-typing">
+            <div className="mc-typing-dots">
+              <span className="mc-typing-dot" />
+              <span className="mc-typing-dot" />
+              <span className="mc-typing-dot" />
             </div>
-            <span>Đang nhập...</span>
+            Đang nhập...
           </div>
         )}
         <div ref={bottomRef} />
@@ -290,27 +273,21 @@ function ChatWindow({ conv, userId, request }) {
 
       {/* Input */}
       {conv.chatOpen && (
-        <div className="px-4 py-3 border-t border-white/10 flex-shrink-0"
-          style={{ background: "rgba(17,24,39,0.9)" }}>
+        <div className="mc-input-area">
           {fileList.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
+            <div className="mc-file-previews">
               {fileList.map((f) => (
-                <span
-                  key={f.uid}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs text-gray-300"
-                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
-                >
-                  <PaperClipOutlined />
-                  <span className="max-w-[120px] truncate">{f.name}</span>
+                <span key={f.uid} className="mc-file-chip">
+                  📎 <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
                   <button
-                    className="text-gray-500 hover:text-red-400 ml-1"
+                    className="mc-file-chip-remove"
                     onClick={() => setFileList((prev) => prev.filter((x) => x.uid !== f.uid))}
                   >×</button>
                 </span>
               ))}
             </div>
           )}
-          <div className="flex gap-2 items-end">
+          <div className="mc-input-row">
             <Upload
               multiple
               maxCount={5}
@@ -322,38 +299,33 @@ function ChatWindow({ conv, userId, request }) {
                 return false;
               }}
             >
-              <Button
-                icon={<PaperClipOutlined />}
-                type="text"
-                style={{ color: "rgba(255,255,255,0.4)", height: 40, width: 40 }}
-                className="flex-shrink-0 rounded-xl hover:text-cyan-400"
-              />
+              <button className="mc-attach-btn" type="button">📎</button>
             </Upload>
-            <Input.TextArea
+            <textarea
+              ref={textareaRef}
+              className="mc-text-input"
               value={inputVal}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng)"
-              autoSize={{ minRows: 1, maxRows: 4 }}
-              className="flex-1 rounded-xl"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", resize: "none" }}
+              placeholder="Nhập tin nhắn… (Enter gửi, Shift+Enter xuống dòng)"
+              disabled={sending}
+              rows={1}
             />
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
+            <button
+              className="mc-send-btn"
               onClick={handleSend}
-              loading={sending}
-              disabled={!inputVal.trim() && fileList.length === 0}
-              style={{ background: "linear-gradient(135deg,#00d4ff,#0ea5e9)", border: "none", height: 40, width: 44 }}
-              className="flex-shrink-0 rounded-xl"
-            />
+              disabled={sending || (!inputVal.trim() && fileList.length === 0)}
+            >
+              {sending ? "⏳" : "➤"}
+            </button>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function MentorChatPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -362,13 +334,15 @@ export default function MentorChatPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
+  const selectedRef = useRef(null);
+
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await request("/api/chat/conversations");
         const convs = res?.data || [];
-        // Sort: open first, then by unread desc, then by last message desc
         convs.sort((a, b) => {
           if (a.chatOpen !== b.chatOpen) return b.chatOpen - a.chatOpen;
           if (b.unreadCount !== a.unreadCount) return b.unreadCount - a.unreadCount;
@@ -387,7 +361,49 @@ export default function MentorChatPage() {
     load();
   }, []);
 
-  // Group conversations by contest
+  // Global socket — track unread badges across all rooms
+  useEffect(() => {
+    if (conversations.length === 0) return;
+    const token = localStorage.getItem("accessToken") || "";
+    const socket = io(SOCKET_URL, { withCredentials: true, auth: { token } });
+
+    conversations.forEach(({ contestId, roundId, teamId, mentorId }) => {
+      socket.emit("join_chat_room", { contestId, roundId, teamId, mentorId });
+    });
+
+    socket.on("chat:message", (msg) => {
+      const cur = selectedRef.current;
+      const isActive =
+        cur &&
+        String(cur.contestId) === String(msg.contestId) &&
+        String(cur.roundId)   === String(msg.roundId) &&
+        String(cur.teamId)    === String(msg.teamId);
+
+      setConversations((prev) =>
+        prev.map((c) => {
+          const matches =
+            String(c.contestId) === String(msg.contestId) &&
+            String(c.roundId)   === String(msg.roundId) &&
+            String(c.teamId)    === String(msg.teamId);
+          if (!matches) return c;
+          return {
+            ...c,
+            lastMessage: { content: msg.content, created_at: msg.created_at },
+            unreadCount: isActive ? 0 : (c.unreadCount || 0) + 1,
+          };
+        })
+      );
+    });
+
+    return () => {
+      conversations.forEach(({ contestId, roundId, teamId, mentorId }) => {
+        socket.emit("leave_chat_room", { contestId, roundId, teamId, mentorId });
+      });
+      socket.disconnect();
+    };
+  }, [conversations.length]);
+
+  // Grouped by contest
   const grouped = conversations
     .filter((c) =>
       search
@@ -396,101 +412,108 @@ export default function MentorChatPage() {
         : true
     )
     .reduce((acc, c) => {
-      const key = `${c.contestId}`;
+      const key = c.contestId;
       if (!acc[key]) acc[key] = { title: c.contestTitle, status: c.contestStatus, items: [] };
       acc[key].items.push(c);
       return acc;
     }, {});
 
   return (
-    <div
-      className="h-screen flex flex-col"
-      style={{ background: "linear-gradient(135deg,#0a0f19,#111827,#0d1b2a)" }}
-    >
+    <div className="mc-page">
       {/* Topbar */}
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10 flex-shrink-0"
-        style={{ background: "rgba(17,24,39,0.95)" }}>
-        <Button
-          icon={<ArrowLeftOutlined />}
-          type="text"
-          className="text-gray-400 hover:text-white"
-          onClick={() => navigate("/mentor/dashboard")}
-        />
-        <div className="w-0.5 h-5 bg-white/20" />
-        <span className="font-bold text-cyan-400 text-lg tracking-wide">SEAL</span>
-        <span className="text-gray-500 text-sm">/ Mentor Chat</span>
-        <div className="ml-auto flex items-center gap-2">
-          <Avatar size={32} style={{ background: "linear-gradient(135deg,#a855f7,#6366f1)", fontSize: 13 }}>
-            {(user?.full_name || "M")[0].toUpperCase()}
-          </Avatar>
-          <Text className="text-gray-300 text-sm hidden sm:block">{user?.full_name}</Text>
+      <div className="mc-topbar">
+        <button className="mc-topbar-back" onClick={() => navigate("/mentor/dashboard")}>
+          ←
+        </button>
+        <div className="mc-topbar-divider" />
+        <span className="mc-topbar-logo">SEAL</span>
+        <span className="mc-topbar-sep">/</span>
+        <span className="mc-topbar-title">Mentor Chat</span>
+        <div className="mc-topbar-user">
+          <div className="mc-topbar-avatar">{(user?.full_name || "M")[0].toUpperCase()}</div>
+          <span className="mc-topbar-username">{user?.full_name}</span>
         </div>
       </div>
 
       {/* Body */}
-      <Layout className="flex-1 overflow-hidden" style={{ background: "transparent" }}>
+      <div className="mc-body">
         {/* Sidebar */}
-        <Sider
-          width={300}
-          className="overflow-hidden flex flex-col"
-          style={{ background: "rgba(17,24,39,0.7)", borderRight: "1px solid rgba(255,255,255,0.07)" }}
-        >
-          <div className="p-3 flex-shrink-0">
-            <Input
-              prefix={<MessageOutlined className="text-gray-500" />}
-              placeholder="Tìm team hoặc hackathon..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="rounded-lg"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
-            />
+        <div className="mc-sidebar">
+          <div className="mc-sidebar-search">
+            <div className="mc-search-input-wrap">
+              <span className="mc-search-icon">🔍</span>
+              <input
+                className="mc-search-input"
+                placeholder="Tìm team hoặc hackathon..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="mc-sidebar-list">
             {loading ? (
-              <div className="flex justify-center py-10">
-                <Spin indicator={<LoadingOutlined style={{ fontSize: 24, color: "#00d4ff" }} spin />} />
+              <div className="mc-sidebar-empty">
+                <Spin />
               </div>
             ) : Object.keys(grouped).length === 0 ? (
-              <Empty
-                description={<Text className="text-gray-500">Không tìm thấy cuộc trò chuyện</Text>}
-                className="py-10"
-              />
+              <div className="mc-sidebar-empty">
+                <span className="mc-sidebar-empty-icon">💬</span>
+                Không tìm thấy cuộc trò chuyện
+              </div>
             ) : (
               Object.values(grouped).map((group) => (
                 <div key={group.title}>
-                  <div className="px-4 pt-3 pb-1">
-                    <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {group.title}
-                      <Tag
-                        color={group.status === "open" ? "green" : "default"}
-                        className="ml-2 text-xs"
-                        style={{ fontSize: "10px" }}
-                      >
-                        {group.status === "open" ? "Đang mở" : group.status === "closed" ? "Đã đóng" : group.status}
-                      </Tag>
-                    </Text>
+                  <div className="mc-group-header">
+                    <span className="mc-group-title">{group.title}</span>
+                    <span
+                      style={{
+                        fontSize: "0.65rem",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: 4,
+                        background: group.status === "open" ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.04)",
+                        color: group.status === "open" ? "#34d399" : "rgba(255,255,255,0.25)",
+                        border: `1px solid ${group.status === "open" ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.07)"}`,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {group.status === "open" ? "Đang mở" : group.status === "closed" ? "Đã đóng" : group.status}
+                    </span>
                   </div>
-                  {group.items.map((conv) => (
-                    <ConversationItem
-                      key={`${conv.contestId}-${conv.roundId}-${conv.teamId}`}
-                      conv={conv}
-                      selected={
-                        `${selected?.contestId}` === `${conv.contestId}` &&
-                        `${selected?.roundId}` === `${conv.roundId}` &&
-                        `${selected?.teamId}` === `${conv.teamId}`
-                      }
-                      onClick={() => setSelected(conv)}
-                    />
-                  ))}
+                  {group.items.map((conv) => {
+                    const isSelected =
+                      String(selected?.contestId) === String(conv.contestId) &&
+                      String(selected?.roundId) === String(conv.roundId) &&
+                      String(selected?.teamId) === String(conv.teamId);
+                    return (
+                      <ConvItem
+                        key={`${conv.contestId}-${conv.roundId}-${conv.teamId}`}
+                        conv={conv}
+                        selected={isSelected}
+                        onClick={() => {
+                          setSelected(conv);
+                          setConversations((prev) =>
+                            prev.map((c) =>
+                              String(c.contestId) === String(conv.contestId) &&
+                              String(c.roundId)   === String(conv.roundId) &&
+                              String(c.teamId)    === String(conv.teamId)
+                                ? { ...c, unreadCount: 0 }
+                                : c
+                            )
+                          );
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               ))
             )}
           </div>
-        </Sider>
+        </div>
 
         {/* Chat area */}
-        <Content className="overflow-hidden" style={{ background: "transparent" }}>
+        <div className="mc-chat-area">
           {selected ? (
             <ChatWindow
               key={`${selected.contestId}-${selected.roundId}-${selected.teamId}`}
@@ -499,13 +522,13 @@ export default function MentorChatPage() {
               request={request}
             />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-4">
-              <MessageOutlined style={{ fontSize: 56, color: "#374151" }} />
-              <Text className="text-gray-500 text-base">Chọn một cuộc trò chuyện để bắt đầu</Text>
+            <div className="mc-no-conv">
+              <span className="mc-no-conv-icon">💬</span>
+              <span className="mc-no-conv-text">Chọn một cuộc trò chuyện để bắt đầu</span>
             </div>
           )}
-        </Content>
-      </Layout>
+        </div>
+      </div>
     </div>
   );
 }

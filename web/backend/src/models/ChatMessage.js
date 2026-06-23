@@ -21,11 +21,10 @@ const chatMessageSchema = new mongoose.Schema(
 
 chatMessageSchema.index({ contest_id: 1, round_id: 1, team_id: 1, mentor_id: 1, created_at: 1 });
 
-chatMessageSchema.pre("validate", function (next) {
+chatMessageSchema.pre("validate", function () {
   if (!this.content && (!this.attachments || this.attachments.length === 0)) {
-    return next(new Error("Tin nhắn phải có nội dung hoặc file đính kèm"));
+    throw new Error("Tin nhắn phải có nội dung hoặc file đính kèm");
   }
-  next();
 });
 
 const ChatMessage = mongoose.model("ChatMessage", chatMessageSchema);

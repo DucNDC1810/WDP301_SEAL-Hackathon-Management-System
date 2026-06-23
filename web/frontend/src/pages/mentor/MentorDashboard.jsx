@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { Progress, Spin, Tooltip, message, Tag } from 'antd';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useApi } from '../../hooks/useApi';
 import './MentorDashboard.css';
+
+const SOCKET_URL = import.meta.env.VITE_API_URL || '';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso) {
@@ -36,7 +40,7 @@ function buildScheduleEvents(contests) {
   const events = [];
   contests.forEach((c, ci) => {
     const color = ACCENT_COLORS[ci % ACCENT_COLORS.length];
-    (c.rounds || []).forEach(r => {
+    (c.rounds || []).filter(r => r.is_active).forEach(r => {
       const dateStr = r.start_date || r.end_date;
       if (dateStr) {
         events.push({
@@ -61,7 +65,7 @@ function buildScheduleEvents(contests) {
 // ─── Enrich raw assignments from /api/mentor-assignments/me ──────────────────
 function enrichAssignment(a, idx) {
   const contest = a.contest_id || {};
-  const rounds  = contest.rounds || [];
+  const rounds  = (contest.rounds || []).filter(r => r.is_active);
   const round   = rounds.find(r => r._id?.toString() === a.round_id?.toString()) || {};
   const pool    = a.board_id || {};
   const team    = a.team_id  || {};
@@ -105,7 +109,7 @@ const NAV_GROUPS = [
   ]},
   { items: [
     { id: 'scoring',  icon: '⚖',  label: 'Đội cần chấm' },
-    { id: 'chat',     icon: '💬', label: 'Nhóm chat',  badge: 3 },
+    { id: 'chat',     icon: '💬', label: 'Nhóm chat' },
     { id: 'schedule', icon: '📅', label: 'Lịch trình' },
     { id: 'eval',     icon: '📊',  label: 'Đánh giá' },
   ]},
@@ -114,25 +118,49 @@ const NAV_GROUPS = [
   ]},
 ];
 
-function Sidebar({ active, onChange, onNavigate }) {
+function Sidebar({ active, onChange, onNavigate, chatUnread, onLogout }) {
+  const { theme, toggleTheme } = useTheme();
   return (
-    <aside className="md-sidebar" style={{ padding: '8px 12px' }}>
-      {NAV_GROUPS.map((g, gi) => (
-        <div key={g.section}>
-          {gi > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
-          {g.items.map(item => (
-            <div
-              key={item.id}
-              className={`md-nav-item ${active === item.id ? 'active' : ''}`}
-              onClick={() => item.id === 'chat' ? onNavigate('/mentor/chat') : onChange(item.id)}
-            >
-              <span className="md-nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-              {item.badge ? <span className="md-nav-badge">{item.badge}</span> : null}
-            </div>
-          ))}
-        </div>
-      ))}
+    <aside className="md-sidebar">
+      <div className="md-sidebar-nav" style={{ padding: '8px 12px' }}>
+        {NAV_GROUPS.map((g, gi) => (
+          <div key={gi}>
+            {gi > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
+            {g.items.map(item => {
+              const badge = item.id === 'chat' ? chatUnread : 0;
+              return (
+                <div
+                  key={item.id}
+                  className={`md-nav-item ${active === item.id ? 'active' : ''}`}
+                  onClick={() => item.id === 'chat' ? onNavigate('/mentor/chat') : onChange(item.id)}
+                >
+                  <span className="md-nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                  {badge > 0 ? <span className="md-nav-badge">{badge > 99 ? '99+' : badge}</span> : null}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="md-sidebar-foot">
+        <button
+          className="md-nav-item"
+          style={{ color: '#ef4444', border: 'none', background: 'transparent', width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+          onClick={onLogout}
+          title="Đăng xuất"
+        >
+          <span className="md-nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5" />
+              <path d="M21 12H9" />
+            </svg>
+          </span>
+          <span>Đăng xuất</span>
+        </button>
+      </div>
     </aside>
   );
 }
@@ -285,10 +313,12 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
             <div className="md-stat-icon-wrap" style={{ background: s.iconBg, border: `1px solid ${s.iconBorder}` }}>
               {s.icon}
             </div>
-            <div className="md-stat-num" style={{ color: s.color }}>
-              {loading ? <Spin size="small" /> : s.value}
+            <div className="md-stat-body">
+              <div className="md-stat-num" style={{ color: s.color }}>
+                {loading ? <Spin size="small" /> : s.value}
+              </div>
+              <div className="md-stat-label">{s.label}</div>
             </div>
-            <div className="md-stat-label">{s.label}</div>
             <div className="md-stat-glow" style={{ background: s.glow }} />
           </div>
         ))}
@@ -319,18 +349,19 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
           return (
             <div key={h.id} style={{
               borderRadius:16, overflow:'hidden',
-              background:'rgba(255,255,255,0.025)',
-              border:'1px solid rgba(255,255,255,0.07)',
+              background:'rgba(255,255,255,0.03)',
+              border:`1px solid rgba(255,255,255,0.09)`,
+              borderLeft:`3px solid ${h.accentColor}`,
             }}>
               <div style={{
                 padding:'16px 20px',
-                background:`linear-gradient(135deg,${h.accentColor}08,${h.accentColor}03)`,
-                borderBottom:'1px solid rgba(255,255,255,0.06)',
+                background:`linear-gradient(135deg,${h.accentColor}12,${h.accentColor}05)`,
+                borderBottom:'1px solid rgba(255,255,255,0.07)',
                 display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12,
               }}>
                 <div>
                   <div style={{ fontWeight:800, fontSize:'1rem', color:'#fff', marginBottom:4 }}>{h.name}</div>
-                  <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.4)' }}>
+                  <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)' }}>
                     {fmtDate(h.startDate)} → {fmtDate(h.endDate)}
                   </div>
                   <div style={{ marginTop:6, fontSize:'0.72rem', color:'rgba(255,255,255,0.35)' }}>
@@ -963,12 +994,58 @@ export default function MentorDashboard() {
   const [messageApi, contextHolder] = message.useMessage();
 
   const [activeView, setActiveView] = useState('dashboard');
+
+  const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [contests, setContests]     = useState([]);
   const [enriched, setEnriched]     = useState([]); // processed mentor assignments
   const [judgeMap, setJudgeMap]     = useState({}); // "contestId___roundId" → poolId
   const [scores, setScores]         = useState({});  // { "contestId___roundId": [score,...] }
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatSocketRef = useRef(null);
+  const chatConvsRef  = useRef([]);
+
+  // Fetch unread count and set up global socket for realtime badge
+  useEffect(() => {
+    let cancelled = false;
+    const init = async () => {
+      try {
+        const res = await request('/api/chat/conversations');
+        const convs = res?.data || [];
+        if (cancelled) return;
+        chatConvsRef.current = convs;
+        const total = convs.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        setChatUnread(total);
+
+        // Connect socket and join all rooms
+        const token = localStorage.getItem('accessToken') || '';
+        const socket = io(SOCKET_URL, { withCredentials: true, auth: { token } });
+        chatSocketRef.current = socket;
+
+        convs.forEach(({ contestId, roundId, teamId, mentorId }) => {
+          socket.emit('join_chat_room', { contestId, roundId, teamId, mentorId });
+        });
+
+        socket.on('chat:message', () => {
+          // Increment badge — will reset to 0 when user navigates to /mentor/chat
+          setChatUnread((prev) => prev + 1);
+        });
+      } catch {
+        // non-critical, ignore
+      }
+    };
+    init();
+    return () => {
+      cancelled = true;
+      if (chatSocketRef.current) {
+        chatConvsRef.current.forEach(({ contestId, roundId, teamId, mentorId }) => {
+          chatSocketRef.current.emit('leave_chat_room', { contestId, roundId, teamId, mentorId });
+        });
+        chatSocketRef.current.disconnect();
+      }
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -994,7 +1071,7 @@ export default function MentorDashboard() {
       setJudgeMap(jMap);
 
       // 2. Enrich each mentor assignment with flat data
-      const enrichedList = rawAssignments.map((a, idx) => enrichAssignment(a, idx));
+      const enrichedList = rawAssignments.map((a, idx) => enrichAssignment(a, idx)).filter(a => a.roundIsActive);
       setContests(allContests);
       setEnriched(enrichedList);
 
@@ -1067,20 +1144,43 @@ export default function MentorDashboard() {
           </span>
         </div>
         <div className="md-topbar-right">
+          <button
+            className="md-theme-toggle"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+              {theme === 'dark' ? (
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z" />
+              ) : (
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              )}
+            </svg>
+          </button>
           <div className="md-notif-btn">🔔<div className="md-notif-dot" /></div>
           <div className="md-profile-chip">
             <div className="md-avatar">{userInitials}</div>
             <div>
               <div className="md-profile-name">{user?.full_name || 'Mentor'}</div>
-              <span className="md-role-badge">🎯 Mentor</span>
+              <span className="md-role-badge">👥 Mentor</span>
             </div>
           </div>
-          <button className="md-logout-btn" onClick={logout}>Đăng xuất</button>
         </div>
       </header>
 
       {/* Sidebar */}
-      <Sidebar active={activeView} onChange={setActiveView} onNavigate={navigate} />
+      <Sidebar
+        active={activeView}
+        onChange={setActiveView}
+        onNavigate={(path) => {
+          if (path === '/mentor/chat') setChatUnread(0);
+          navigate(path);
+        }}
+        chatUnread={chatUnread}
+        onLogout={logout}
+      />
 
       {/* Main content */}
       <main className="md-main">

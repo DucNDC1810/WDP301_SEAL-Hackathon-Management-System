@@ -51,8 +51,8 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
   const [messageApi, contextHolder] = message.useMessage();
 
   const rounds = contest?.rounds
-    ? contest.rounds.map(r => ({ id: r._id, name: r.name, problem_released_at: r.problem_released_at }))
-    : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name })));
+    ? contest.rounds.filter(r => r.is_active).map(r => ({ id: r._id, name: r.name, problem_released_at: r.problem_released_at }))
+    : (config?.tracks || []).flatMap(t => (t.rounds || []).filter(r => r.is_active).map(r => ({ ...r, trackName: t.name })));
 
   const [selectedRound, setSelectedRound] = useState(rounds[0]?.id || null);
   const [pools, setPools] = useState([]);
@@ -145,6 +145,18 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
           message={`✓ Đã phát đề lúc: ${new Date(releasedAt).toLocaleString('vi-VN')}`}
           description={<CountdownTimer releasedAt={releasedAt} />}
         />
+      ) : contest?.status !== 'open' ? (
+        <div className="flex flex-col gap-3">
+          <Alert
+            type="warning"
+            showIcon
+            message="Không thể phát đề bài lúc này"
+            description="Giải đấu chưa được kích hoạt diễn ra (Trạng thái hiện tại không phải ONGOING). Hãy thay đổi trạng thái giải đấu sang ONGOING trong mục cấu hình trước khi thực hiện phát đề bài."
+          />
+          <div className="flex justify-end">
+            <Button type="primary" disabled title="Giải đấu chưa diễn ra">📤 Phát đề ngay</Button>
+          </div>
+        </div>
       ) : (
         <div className="flex items-center gap-3">
           <Alert type="info" showIcon message="Đề chưa được phát cho vòng này." style={{ flex: 1 }} />
@@ -162,50 +174,101 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
               Chưa có bảng đấu nào
             </div>
           )}
-          {pools.map(pool => {
-            const released = !!releasedAt;
-            const teams = pool.teams || [];
-            return (
-              <div key={pool._id} className="rounded-xl border overflow-hidden"
-                style={{ background: 'var(--bg-card)', borderColor: released ? 'rgba(16,185,129,0.3)' : 'var(--border)' }}>
-                {/* Pool header */}
-                <div className="flex items-center justify-between px-5 py-4 gap-3 flex-wrap"
-                  style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>{pool.pool_name}</h3>
-                    {released
-                      ? <Tag color="green" style={{ fontSize: '0.7rem' }}>✓ Đã phát đề</Tag>
-                      : <Tag color="default" style={{ fontSize: '0.7rem' }}>Chưa phát đề</Tag>
-                    }
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {released && <CountdownTimer releasedAt={releasedAt} />}
-                  </div>
-                </div>
+          {(() => {
+            const isFinalRound = currentRound?.name?.toLowerCase().includes('chung kết') ||
+                                 currentRound?.name?.toLowerCase().includes('final') ||
+                                 currentRound?.name?.toLowerCase().includes('chung cuộc');
 
-                {/* Team list */}
-                <div>
-                  {teams.length === 0 && (
-                    <div className="px-5 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>Chưa có đội trong bảng</div>
-                  )}
-                  {teams.map((team, idx) => {
-                    const tid = (team._id || team)?.toString();
-                    const status = teamSubmissions[tid] || 'pending';
-                    const sc = TEAM_STATUS_CFG[status];
-                    return (
-                      <div key={tid} className="flex items-center justify-between px-5 py-2.5"
-                        style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
-                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
-                          {team.team_name || tid}
-                        </span>
-                        <Tag color={sc.color} style={{ fontSize: '0.65rem' }}>{sc.label}</Tag>
-                      </div>
-                    );
-                  })}
+            if (isFinalRound && pools.length > 0) {
+              const released = !!releasedAt;
+              const allTeams = pools.flatMap(p => p.teams || []);
+              return (
+                <div className="rounded-xl border overflow-hidden"
+                  style={{ background: 'var(--bg-card)', borderColor: released ? 'rgba(16,185,129,0.3)' : 'var(--border)' }}>
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-5 py-4 gap-3 flex-wrap"
+                    style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>Danh sách Đội thi đấu Chung kết</h3>
+                      {released
+                        ? <Tag color="green" style={{ fontSize: '0.7rem' }}>✓ Đã phát đề</Tag>
+                        : <Tag color="default" style={{ fontSize: '0.7rem' }}>Chưa phát đề</Tag>
+                      }
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {released && <CountdownTimer releasedAt={releasedAt} />}
+                    </div>
+                  </div>
+
+                  {/* Team list */}
+                  <div>
+                    {allTeams.length === 0 && (
+                      <div className="px-5 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>Chưa có đội thi đấu</div>
+                    )}
+                    {allTeams.map((team, idx) => {
+                      const tid = (team._id || team)?.toString();
+                      const status = teamSubmissions[tid] || 'pending';
+                      const sc = TEAM_STATUS_CFG[status];
+                      return (
+                        <div key={tid} className="flex items-center justify-between px-5 py-2.5"
+                          style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
+                          <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                            {team.team_name || tid}
+                          </span>
+                          <Tag color={sc.color} style={{ fontSize: '0.65rem' }}>{sc.label}</Tag>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            }
+
+            return pools.map(pool => {
+              const released = !!releasedAt;
+              const teams = pool.teams || [];
+              return (
+                <div key={pool._id} className="rounded-xl border overflow-hidden"
+                  style={{ background: 'var(--bg-card)', borderColor: released ? 'rgba(16,185,129,0.3)' : 'var(--border)' }}>
+                  {/* Pool header */}
+                  <div className="flex items-center justify-between px-5 py-4 gap-3 flex-wrap"
+                    style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>{pool.pool_name}</h3>
+                      {released
+                        ? <Tag color="green" style={{ fontSize: '0.7rem' }}>✓ Đã phát đề</Tag>
+                        : <Tag color="default" style={{ fontSize: '0.7rem' }}>Chưa phát đề</Tag>
+                      }
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {released && <CountdownTimer releasedAt={releasedAt} />}
+                    </div>
+                  </div>
+
+                  {/* Team list */}
+                  <div>
+                    {teams.length === 0 && (
+                      <div className="px-5 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>Chưa có đội trong bảng</div>
+                    )}
+                    {teams.map((team, idx) => {
+                      const tid = (team._id || team)?.toString();
+                      const status = teamSubmissions[tid] || 'pending';
+                      const sc = TEAM_STATUS_CFG[status];
+                      return (
+                        <div key={tid} className="flex items-center justify-between px-5 py-2.5"
+                          style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
+                          <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                            {team.team_name || tid}
+                          </span>
+                          <Tag color={sc.color} style={{ fontSize: '0.65rem' }}>{sc.label}</Tag>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </div>
       )}
 

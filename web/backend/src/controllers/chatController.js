@@ -88,6 +88,7 @@ export const sendMessage = async (req, res) => {
     }
 
     // Upload files to Cloudinary
+    console.log("[sendMessage] files:", req.files?.map(f => ({ name: f.originalname, size: f.size, mime: f.mimetype, bufLen: f.buffer?.length })));
     const attachments = hasFiles
       ? await Promise.all(req.files.map((f) => uploadToCloudinary(f)))
       : [];
@@ -100,15 +101,19 @@ export const sendMessage = async (req, res) => {
     });
 
     // Emit socket event tới phòng chat
-    const { getIO } = await import("../socket/index.js");
-    const io = getIO();
-    const room = `chat:${contestId}:${roundId}:${teamId}:${mentorId}`;
-    io.to(room).emit("chat:message", msg);
+    try {
+      const { getIO } = await import("../socket/index.js");
+      const io = getIO();
+      const room = `chat:${contestId}:${roundId}:${teamId}:${mentorId}`;
+      io.to(room).emit("chat:message", msg);
+    } catch (socketErr) {
+      console.warn("[sendMessage] socket emit failed (non-fatal):", socketErr.message);
+    }
 
     res.status(201).json({ success: true, data: msg });
   } catch (err) {
     console.error("[sendMessage]", err);
-    res.status(500).json({ success: false, message: "Lỗi máy chủ" });
+    res.status(500).json({ success: false, message: err?.message || "Lỗi máy chủ" });
   }
 };
 

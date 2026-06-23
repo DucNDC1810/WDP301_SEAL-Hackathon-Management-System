@@ -4,6 +4,7 @@
   flex-direction: column;
   gap: 24px;
   min-height: 100%;
+  font-family: var(--font-body);
 }
 
 .str-header {

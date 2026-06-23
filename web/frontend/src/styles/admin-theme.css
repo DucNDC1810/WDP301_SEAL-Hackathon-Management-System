@@ -27,6 +27,7 @@
   --pg-input-bg:  #080e1a;
   --pg-row-hover: #0f1e30;
   --pg-thead:     #0a1220;
+  font-family: var(--font-body);
 }
 
 .al-root[data-theme="light"] .al-content {

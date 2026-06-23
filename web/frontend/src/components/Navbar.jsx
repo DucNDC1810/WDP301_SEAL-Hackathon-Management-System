@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Navbar.css';
 
+
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 function Navbar() {
@@ -70,6 +71,13 @@ function Navbar() {
         </ul>
 
         <div className="navbar__actions">
+          <button
+            className="navbar__btn navbar__btn--ghost"
+            onClick={() => navigate('/ranking')}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            🏆 Xếp hạng
+          </button>
           {user ? (
             <>
               <button

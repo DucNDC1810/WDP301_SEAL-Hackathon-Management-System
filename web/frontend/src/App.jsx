@@ -50,6 +50,7 @@ import WildCardPage from './pages/WildCardPage';
 import FinalistConfirmPage from './pages/FinalistConfirmPage';
 import RoundActivatePage from './pages/RoundActivatePage';
 import SubmissionPage from './pages/SubmissionPage';
+import FinishRoundPage from './pages/FinishRoundPage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 import TeamRankingPage from './pages/ranking/TeamRankingPage';
@@ -107,6 +108,7 @@ function App() {
               <Route path="/wildcard/:round_id" element={<WildCardPage />} />
               <Route path="/finalist/:round_id/confirm" element={<FinalistConfirmPage />} />
               <Route path="/round/:round_id/activate" element={<RoundActivatePage />} />
+              <Route path="/round/:round_id/finish" element={<FinishRoundPage />} />
               <Route path="/submission/:round_id/:team_id" element={<SubmissionPage />} />
 
               {/* Admin */}

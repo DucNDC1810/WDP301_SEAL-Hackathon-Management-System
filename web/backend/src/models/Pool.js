@@ -31,10 +31,10 @@ const poolSchema = new mongoose.Schema(
       ],
       default: [],
     },
-    topic_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Topic",
-      default: null,
+    drive_link: {
+      type: String,
+      trim: true,
+      default: "",
     },
   },
   {

@@ -301,6 +301,7 @@ export const StudentOverviewPage = () => {
   const [submission, setSubmission] = useState(null);
   const [rank, setRank] = useState(null);
   const [poolName, setPoolName] = useState(null);
+  const [poolDriveLink, setPoolDriveLink] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // New data sources — mock fallback until APIs are wired
@@ -387,9 +388,12 @@ export const StudentOverviewPage = () => {
           team.pool_id &&
             request(`/api/pools/contests/${contestId}/pools`).then((res) => {
               const list = Array.isArray(res) ? res : (res?.data ?? []);
-              const pid = team.pool_id?._id ?? team.pool_id;
-              const pool = list.find((p) => (p._id ?? p) === pid);
-              if (pool) setPoolName(pool.pool_name);
+              const pid = (team.pool_id?._id ?? team.pool_id)?.toString();
+              const pool = list.find((p) => (p._id ?? p)?.toString() === pid);
+              if (pool) {
+                setPoolName(pool.pool_name);
+                setPoolDriveLink(pool.drive_link || null);
+              }
             }),
 
           // Upcoming events — falls back to mock on failure
@@ -528,6 +532,7 @@ export const StudentOverviewPage = () => {
 
   const submitted = !!submission;
   const pool = poolName ?? myTeam.pool_id?.pool_name ?? "Pool A";
+  const problemReleased = !!activeRound?.problem_released_at;
 
   // Score delta from history
   const scoreNow =
@@ -892,6 +897,40 @@ export const StudentOverviewPage = () => {
           >
             {pool}
           </span>
+          {/* Drive link — chỉ hiện sau khi admin phát đề */}
+          {problemReleased && poolDriveLink ? (
+            <a
+              href={poolDriveLink}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                marginTop: 10,
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: C.cyan,
+                background: "rgba(0,212,255,.08)",
+                border: "1px solid rgba(0,212,255,.35)",
+                padding: "6px 14px",
+                borderRadius: 8,
+                textDecoration: "none",
+                width: "100%",
+                justifyContent: "center",
+              }}
+            >
+              📂 Xem đề bài (Google Drive)
+            </a>
+          ) : problemReleased && !poolDriveLink ? (
+            <div style={{ marginTop: 10, fontSize: 12, color: C.muted, fontStyle: "italic" }}>
+              Đề bài đã phát — chờ admin cập nhật link Drive
+            </div>
+          ) : (
+            <div style={{ marginTop: 10, fontSize: 12, color: C.dim, fontStyle: "italic" }}>
+              🔒 Đề bài chưa được phát
+            </div>
+          )}
         </div>
 
         {/* Rank */}

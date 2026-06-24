@@ -148,7 +148,7 @@ router.get("/:round_id/teams", async (req, res, next) => {
     // 3. Lấy tất cả team ACTIVE trong contest này
     const teams = await Team.find({
       contest_id: contestId,
-      status: "ACTIVE",
+      status: { $in: ["ACTIVE", "CONFIRMED"] },
     });
 
     if (teams.length === 0) {
@@ -254,7 +254,7 @@ router.get("/:round_id/chapters", async (req, res, next) => {
     const seasonName = season?.name || contest?.title || roundName || "";
 
     // 4. Lấy teams ACTIVE + điểm final của round
-    const teams = await Team.find({ contest_id: contestId, status: "ACTIVE" }).lean();
+    const teams = await Team.find({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } }).lean();
 
     const scores = await Score.find({
       round_id,

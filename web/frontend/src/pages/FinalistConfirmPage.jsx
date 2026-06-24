@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getFinalists, updateTeamStatus, getAuditLog } from '../api/finalist';
-import { getRoundSetup, assignJudges, activateRound } from '../api/round';
+import { getRoundSetup, assignJudges, activateRound, createCriteria, updateCriteria, deleteCriteria } from '../api/round';
 import { useRoundStatus } from '../hooks/useRoundStatus';
 import { FrozenOverlay } from '../components/FrozenOverlay';
 
 export default function FinalistConfirmPage() {
   const { round_id } = useParams();
   const navigate = useNavigate();
-  const { isFrozen } = useRoundStatus(round_id);
+  const [nextRoundId, setNextRoundId] = useState(null);
+  const { isFrozen } = useRoundStatus(nextRoundId || round_id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -26,19 +27,29 @@ export default function FinalistConfirmPage() {
   const [savingJudges, setSavingJudges] = useState(false);
   const [activating, setActivating] = useState(false);
 
+  // Criteria inline management
+  const EMPTY_CRIT = { name: '', weight: '', description: '' };
+  const [showCritForm, setShowCritForm] = useState(false);
+  const [critForm, setCritForm] = useState(EMPTY_CRIT);
+  const [editingCritId, setEditingCritId] = useState(null);
+  const [critSaving, setCritSaving] = useState(false);
+
   // Active step state: 'teams' | 'judges' | 'criteria'
   const [activeTab, setActiveTab] = useState('teams');
 
   const loadData = async () => {
     try {
-      const [finalistsRes, logsRes, setupRes] = await Promise.all([
-        getFinalists(round_id),
-        getAuditLog(round_id),
-        getRoundSetup(round_id)
-      ]);
-      setFinalists(finalistsRes.data || []);
+      const finalistsRes = await getFinalists(round_id);
+      const logsRes = await getAuditLog(round_id);
+      
+      const finalistsData = finalistsRes.data?.finalists || [];
+      const nextId = finalistsRes.data?.next_round_id || round_id;
+      
+      setFinalists(finalistsData);
       setAuditLogs(logsRes.data || []);
+      setNextRoundId(nextId);
 
+      const setupRes = await getRoundSetup(nextId);
       const setupData = setupRes.data;
       setRound(setupData.round);
       setCriteria(setupData.criteria || []);
@@ -60,6 +71,51 @@ export default function FinalistConfirmPage() {
   useEffect(() => {
     loadData();
   }, [round_id]);
+
+  // ── Criteria handlers ─────────────────────────────────────────────────────
+  const handleOpenCritForm = (crit = null) => {
+    if (crit) {
+      setEditingCritId(crit._id);
+      setCritForm({ name: crit.name, weight: String(crit.weight), description: crit.description || '' });
+    } else {
+      setEditingCritId(null);
+      setCritForm(EMPTY_CRIT);
+    }
+    setShowCritForm(true);
+  };
+
+  const handleSaveCrit = async (e) => {
+    e.preventDefault();
+    const targetId = nextRoundId || round_id;
+    const payload = { name: critForm.name, weight: parseFloat(critForm.weight), description: critForm.description };
+    setCritSaving(true);
+    try {
+      if (editingCritId) {
+        await updateCriteria(targetId, editingCritId, payload);
+      } else {
+        await createCriteria(targetId, payload);
+      }
+      setShowCritForm(false);
+      setEditingCritId(null);
+      setCritForm(EMPTY_CRIT);
+      await loadData();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || "Lỗi khi lưu tiêu chí.");
+    } finally {
+      setCritSaving(false);
+    }
+  };
+
+  const handleDeleteCrit = async (critId, critName) => {
+    if (!window.confirm(`Xóa tiêu chí "${critName}"?`)) return;
+    const targetId = nextRoundId || round_id;
+    try {
+      await deleteCriteria(targetId, critId);
+      await loadData();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || "Lỗi khi xóa tiêu chí.");
+    }
+  };
 
   const handleStatusChange = async (teamId, teamName, newStatus) => {
     const actionText = newStatus === 'ACTIVE' ? 'XÁC NHẬN' : 'LOẠI';
@@ -94,7 +150,7 @@ export default function FinalistConfirmPage() {
   const handleSaveJudges = async () => {
     setSavingJudges(true);
     try {
-      const res = await assignJudges(round_id, selectedJudgeIds);
+      const res = await assignJudges(nextRoundId || round_id, selectedJudgeIds);
       setAssignedJudges(res.data || []);
       alert("Lưu phân công Hội đồng Ban giám khảo thành công!");
       await loadData();
@@ -122,7 +178,7 @@ export default function FinalistConfirmPage() {
 
     setActivating(true);
     try {
-      const res = await activateRound(round_id);
+      const res = await activateRound(nextRoundId || round_id);
       if (res.data.success) {
         setRound(prev => ({ ...prev, is_active: true }));
         alert("🎉 Vòng thi đã được kích hoạt thành công!");
@@ -764,19 +820,165 @@ export default function FinalistConfirmPage() {
             {activeTab === 'criteria' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 style={{
-                    fontSize: '1.15rem',
-                    color: '#fff',
-                    marginBottom: '20px',
-                    fontFamily: 'var(--font-display)',
-                    textTransform: 'uppercase',
-                    borderLeft: '4px solid var(--cyan)',
-                    paddingLeft: '10px'
-                  }}>
-                    Bước 3: Thiết lập Tiêu chí & Kích hoạt vòng thi
-                  </h3>
+                  {/* Header row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                    <h3 style={{
+                      fontSize: '1.15rem',
+                      color: '#fff',
+                      margin: 0,
+                      fontFamily: 'var(--font-display)',
+                      textTransform: 'uppercase',
+                      borderLeft: '4px solid var(--cyan)',
+                      paddingLeft: '10px'
+                    }}>
+                      Bước 3: Thiết lập Tiêu chí & Kích hoạt vòng thi
+                    </h3>
+                    {!isActivated && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCritForm(null)}
+                        style={{
+                          background: 'rgba(0, 240, 255, 0.08)',
+                          color: 'var(--cyan)',
+                          border: '1px solid rgba(0, 240, 255, 0.25)',
+                          padding: '7px 16px',
+                          borderRadius: '7px',
+                          fontWeight: '700',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        ＋ Thêm tiêu chí
+                      </button>
+                    )}
+                  </div>
 
-                  {/* List of Criteria */}
+                  {/* Inline add/edit form */}
+                  {showCritForm && (
+                    <form onSubmit={handleSaveCrit} style={{
+                      background: 'rgba(0, 240, 255, 0.03)',
+                      border: '1px solid rgba(0, 240, 255, 0.15)',
+                      borderRadius: '10px',
+                      padding: '18px',
+                      marginBottom: '20px',
+                      display: 'grid',
+                      gridTemplateColumns: '2fr 1fr',
+                      gap: '12px',
+                      alignItems: 'end'
+                    }}>
+                      {/* Name */}
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '5px' }}>
+                          Tên tiêu chí *
+                        </label>
+                        <input
+                          required
+                          value={critForm.name}
+                          onChange={e => setCritForm(f => ({ ...f, name: e.target.value }))}
+                          placeholder="vd: Tính đổi mới sáng tạo"
+                          style={{
+                            width: '100%',
+                            background: 'rgba(0,0,0,0.3)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            color: '#fff',
+                            padding: '8px 12px',
+                            fontSize: '0.85rem',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                      {/* Weight */}
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '5px' }}>
+                          Trọng số (0 – 1) *
+                        </label>
+                        <input
+                          required
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="1"
+                          value={critForm.weight}
+                          onChange={e => setCritForm(f => ({ ...f, weight: e.target.value }))}
+                          placeholder="0.25"
+                          style={{
+                            width: '100%',
+                            background: 'rgba(0,0,0,0.3)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            color: '#fff',
+                            padding: '8px 12px',
+                            fontSize: '0.85rem',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                      {/* Description */}
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '5px' }}>
+                          Mô tả
+                        </label>
+                        <input
+                          value={critForm.description}
+                          onChange={e => setCritForm(f => ({ ...f, description: e.target.value }))}
+                          placeholder="Mô tả ngắn về tiêu chí này..."
+                          style={{
+                            width: '100%',
+                            background: 'rgba(0,0,0,0.3)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            color: '#fff',
+                            padding: '8px 12px',
+                            fontSize: '0.85rem',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                      {/* Buttons */}
+                      <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          onClick={() => { setShowCritForm(false); setEditingCritId(null); setCritForm(EMPTY_CRIT); }}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-secondary)',
+                            padding: '7px 16px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: '600'
+                          }}
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={critSaving}
+                          style={{
+                            background: 'var(--gradient-primary)',
+                            border: 'none',
+                            color: '#fff',
+                            padding: '7px 20px',
+                            borderRadius: '6px',
+                            cursor: critSaving ? 'not-allowed' : 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: '700',
+                            boxShadow: 'var(--shadow-cyan)'
+                          }}
+                        >
+                          {critSaving ? 'Đang lưu...' : editingCritId ? 'Cập nhật' : 'Thêm tiêu chí'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Criteria table */}
                   <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                       <thead>
@@ -784,6 +986,9 @@ export default function FinalistConfirmPage() {
                           <th style={{ padding: '12px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Tên tiêu chí</th>
                           <th style={{ padding: '12px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Mô tả</th>
                           <th style={{ padding: '12px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', textAlign: 'right' }}>Trọng số</th>
+                          {!isActivated && (
+                            <th style={{ padding: '12px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', textAlign: 'right' }}>Thao tác</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -793,18 +998,62 @@ export default function FinalistConfirmPage() {
                               <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#fff', fontWeight: '600' }}>
                                 {crit.name}
                               </td>
-                              <td style={{ padding: '14px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '280px' }}>
-                                {crit.description || 'N/A'}
+                              <td style={{ padding: '14px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '240px' }}>
+                                {crit.description || <em style={{ opacity: 0.4 }}>N/A</em>}
                               </td>
                               <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--cyan)', textAlign: 'right', fontWeight: 'bold' }}>
-                                {crit.weight.toFixed(2)}
+                                {Number(crit.weight).toFixed(2)}
                               </td>
+                              {!isActivated && (
+                                <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenCritForm(crit)}
+                                      style={{
+                                        background: 'rgba(255,255,255,0.04)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        color: '#aaa',
+                                        padding: '4px 10px',
+                                        borderRadius: '5px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600',
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onMouseEnter={e => { e.currentTarget.style.color = 'var(--cyan)'; e.currentTarget.style.borderColor = 'var(--cyan)'; }}
+                                      onMouseLeave={e => { e.currentTarget.style.color = '#aaa'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                                    >
+                                      Sửa
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteCrit(crit._id, crit.name)}
+                                      style={{
+                                        background: 'rgba(239,68,68,0.06)',
+                                        border: '1px solid rgba(239,68,68,0.2)',
+                                        color: '#ef4444',
+                                        padding: '4px 10px',
+                                        borderRadius: '5px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600',
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}
+                                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; }}
+                                    >
+                                      Xóa
+                                    </button>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="3" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                              Chưa cấu hình tiêu chí chấm điểm nào cho vòng thi này.
+                            <td colSpan={isActivated ? 3 : 4} style={{ padding: '28px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                              Chưa có tiêu chí nào. Nhấn <strong style={{ color: 'var(--cyan)' }}>＋ Thêm tiêu chí</strong> để bắt đầu.
                             </td>
                           </tr>
                         )}
@@ -812,7 +1061,7 @@ export default function FinalistConfirmPage() {
                     </table>
                   </div>
 
-                  {/* Status checklist checkmarks */}
+                  {/* Status checklist */}
                   <div style={{
                     background: 'rgba(255,255,255,0.01)',
                     border: '1px solid var(--border)',

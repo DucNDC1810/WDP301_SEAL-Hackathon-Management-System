@@ -41,6 +41,7 @@ const MAIN_TABS = [
   { id: 3, label: 'Bảng đấu' },
   { id: 4, label: 'Phân công Judge & Mentor' },
   { id: 5, label: 'Phát đề bài' },
+  { id: 11, label: 'Lịch thuyết trình' },
   { id: 12, label: 'Bảng xếp hạng' },
   { id: 9, label: 'Review & ONGOING' },
 ];
@@ -666,6 +667,29 @@ export default function HackathonDetailPage({ defaultTab }) {
       const d = await r.json();
       if (d.success) {
         setContest(d.data);
+
+        // ── Sync criteria to standalone Criteria collection for each round with a DB _id ──
+        const freshRounds = d.data?.rounds || [];
+        for (const freshRound of freshRounds) {
+          if (!freshRound._id) continue;
+          const localRound = (newConfig.tracks?.[0]?.rounds || []).find(
+            lr => Number(lr.sequence_order) === freshRound.round_number
+          );
+          if (!localRound || !localRound.criteria || localRound.criteria.length === 0) continue;
+
+          // Push a sync request — backend will upsert the criteria
+          fetch(`${API_URL}/api/round/${freshRound._id}/criteria/sync`, {
+            method: 'POST',
+            headers: hdrs(),
+            body: JSON.stringify({
+              criteria: localRound.criteria.map(c => ({
+                name: c.name,
+                weight: Number(c.weight) || 0,
+                description: c.description || ''
+              }))
+            })
+          }).catch(() => {}); // fire-and-forget, non-blocking
+        }
       }
     } catch (e) {
       console.error('Lỗi tự động đồng bộ vòng thi tới máy chủ:', e);

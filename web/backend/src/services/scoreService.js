@@ -103,6 +103,7 @@ export const createScore = async ({
     contest_id,
     round_id,
     total_score,
+    weighted_avg_score: total_score,
     comment,
     score_type,
     status: submit ? "submitted" : "draft",
@@ -149,7 +150,9 @@ export const updateScore = async (scoreId, judgeId, { comment, score_details, su
     const err = new Error("Không thể chỉnh sửa điểm đã nộp"); err.statusCode = 400; throw err;
   }
 
-  score.total_score = calcWeightedTotal(score_details);
+  const total = calcWeightedTotal(score_details);
+  score.total_score = total;
+  score.weighted_avg_score = total;
   score.comment = comment;
   if (submit) { score.status = "submitted"; score.submitted_at = new Date(); }
   await score.save();

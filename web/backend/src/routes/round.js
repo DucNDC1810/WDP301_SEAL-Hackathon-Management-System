@@ -21,8 +21,9 @@ router.get("/:round_id/setup", authenticate, async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
     }
 
-    // Fetch criteria
+    // Fetch criteria from standalone Criteria collection
     const criteriaList = await Criteria.find({ round_id });
+
     const total_weight = criteriaList.reduce((sum, item) => sum + (item.weight || 0), 0);
     const weight_valid = Math.abs(total_weight - 1.0) <= 0.001;
 
@@ -49,6 +50,42 @@ router.get("/:round_id/setup", authenticate, async (req, res, next) => {
       weight_valid,
       all_available_judges: allAvailableJudges
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/round/:round_id/criteria/sync – Full replace criteria list from Contest config
+router.post("/:round_id/criteria/sync", authenticate, authorize("admin"), async (req, res, next) => {
+  try {
+    const { round_id } = req.params;
+    const { criteria } = req.body; // Array of { name, weight, description }
+
+    if (!Array.isArray(criteria)) {
+      return res.status(400).json({ success: false, message: "criteria phải là mảng." });
+    }
+
+    const round = await Round.findById(round_id);
+    if (!round) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi." });
+    }
+
+    // Delete existing and re-insert (full replace)
+    await Criteria.deleteMany({ round_id });
+
+    let inserted = [];
+    if (criteria.length > 0) {
+      inserted = await Criteria.insertMany(
+        criteria.map(c => ({
+          round_id,
+          name: (c.name || "").trim(),
+          weight: Number(c.weight) || 0,
+          description: (c.description || "").trim(),
+        }))
+      );
+    }
+
+    return res.status(200).json({ success: true, count: inserted.length });
   } catch (error) {
     next(error);
   }
@@ -97,6 +134,82 @@ router.post("/:round_id/judges", authenticate, authorize("admin"), async (req, r
       }));
 
     return res.status(200).json(assignedJudges);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/round/:round_id/criteria – Create a new criterion
+router.post("/:round_id/criteria", authenticate, authorize("admin"), async (req, res, next) => {
+  try {
+    const { round_id } = req.params;
+    const { name, weight, description } = req.body;
+
+    if (!name || name.trim() === "") {
+      return res.status(400).json({ success: false, message: "Tên tiêu chí không được để trống." });
+    }
+    const w = parseFloat(weight);
+    if (isNaN(w) || w < 0 || w > 1) {
+      return res.status(400).json({ success: false, message: "Trọng số phải nằm trong khoảng 0 – 1." });
+    }
+
+    const round = await Round.findById(round_id);
+    if (!round) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi." });
+    }
+
+    const crit = await Criteria.create({
+      round_id,
+      name: name.trim(),
+      weight: w,
+      description: description?.trim() || "",
+    });
+
+    return res.status(201).json({ success: true, criteria: crit });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/round/:round_id/criteria/:criteria_id – Update a criterion
+router.patch("/:round_id/criteria/:criteria_id", authenticate, authorize("admin"), async (req, res, next) => {
+  try {
+    const { round_id, criteria_id } = req.params;
+    const { name, weight, description } = req.body;
+
+    const crit = await Criteria.findOne({ _id: criteria_id, round_id });
+    if (!crit) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy tiêu chí." });
+    }
+
+    if (name !== undefined) crit.name = name.trim();
+    if (weight !== undefined) {
+      const w = parseFloat(weight);
+      if (isNaN(w) || w < 0 || w > 1) {
+        return res.status(400).json({ success: false, message: "Trọng số phải nằm trong khoảng 0 – 1." });
+      }
+      crit.weight = w;
+    }
+    if (description !== undefined) crit.description = description.trim();
+    await crit.save();
+
+    return res.status(200).json({ success: true, criteria: crit });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/round/:round_id/criteria/:criteria_id – Delete a criterion
+router.delete("/:round_id/criteria/:criteria_id", authenticate, authorize("admin"), async (req, res, next) => {
+  try {
+    const { round_id, criteria_id } = req.params;
+
+    const crit = await Criteria.findOneAndDelete({ _id: criteria_id, round_id });
+    if (!crit) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy tiêu chí." });
+    }
+
+    return res.status(200).json({ success: true, deleted_id: criteria_id });
   } catch (error) {
     next(error);
   }
@@ -207,7 +320,7 @@ router.patch("/:round_id/finish", authenticate, authorize("admin"), async (req, 
     });
 
     // Send RESULT_PUBLISHED notification to all members of ACTIVE teams in this round
-    const activeTeams = await Team.find({ contest_id: round.contest_id, status: "ACTIVE" });
+    const activeTeams = await Team.find({ contest_id: round.contest_id, status: { $in: ["ACTIVE", "CONFIRMED"] } });
     const notifications = [];
     for (const team of activeTeams) {
       for (const member of team.members) {

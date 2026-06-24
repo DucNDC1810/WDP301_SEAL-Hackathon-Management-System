@@ -120,6 +120,10 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
 
   const releasedAt = releasedRounds[selectedRound] || currentRound?.problem_released_at;
 
+  // Kiểm tra pool nào chưa có drive_link
+  const poolsMissingLink = pools.filter(p => !p.drive_link || !p.drive_link.trim());
+  const canRelease = pools.length > 0 && poolsMissingLink.length === 0;
+
   return (
     <div className="p-6 space-y-6">
       {contextHolder}
@@ -158,9 +162,30 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
-          <Alert type="info" showIcon message="Đề chưa được phát cho vòng này." style={{ flex: 1 }} />
-          <Button type="primary" onClick={() => setConfirmPool(true)}>📤 Phát đề ngay</Button>
+        <div className="flex flex-col gap-3">
+          {!canRelease && pools.length > 0 && (
+            <Alert type="warning" showIcon
+              message="Chưa thể phát đề"
+              description={`Các bảng đấu sau chưa có link Google Drive: ${poolsMissingLink.map(p => p.pool_name).join(', ')}. Vui lòng vào tab "Bảng đấu" để nhập link trước.`}
+            />
+          )}
+          {pools.length === 0 && (
+            <Alert type="warning" showIcon
+              message="Chưa có bảng đấu nào"
+              description="Vui lòng tạo bảng đấu và nhập link Google Drive đề bài trước khi phát đề."
+            />
+          )}
+          <div className="flex items-center gap-3">
+            <Alert type="info" showIcon message="Đề chưa được phát cho vòng này." style={{ flex: 1 }} />
+            <Button
+              type="primary"
+              onClick={() => setConfirmPool(true)}
+              disabled={!canRelease}
+              title={!canRelease ? 'Cần nhập link Google Drive cho tất cả bảng đấu trước khi phát đề' : ''}
+            >
+              📤 Phát đề ngay
+            </Button>
+          </div>
         </div>
       )}
 
@@ -242,11 +267,13 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
                     </div>
                     <div className="flex items-center gap-3">
                       {released && <CountdownTimer releasedAt={releasedAt} />}
-                      {released && pool.drive_link && (
+                      {pool.drive_link ? (
                         <a href={pool.drive_link} target="_blank" rel="noreferrer"
-                          style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                          📂 Link Drive đề bài
+                          style={{ fontSize: '0.75rem', color: released ? '#10b981' : '#60a5fa', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          📂 {released ? 'Link Drive đề bài' : 'Xem link Drive'}
                         </a>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: '#f87171', fontWeight: 600 }}>⚠ Chưa có link Drive</span>
                       )}
                     </div>
                   </div>

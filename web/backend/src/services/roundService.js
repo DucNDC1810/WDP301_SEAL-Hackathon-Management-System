@@ -1,4 +1,5 @@
 import Contest from "../models/Contest.js";
+import Pool from "../models/Pool.js";
 import Score from "../models/Score.js";
 import JudgeAssignment from "../models/JudgeAssignment.js";
 import MentorAssignment from "../models/MentorAssignment.js";
@@ -227,6 +228,21 @@ export const releaseProblem = async (roundId, actorId) => {
   if (!round) {
     const err = new Error("Không tìm thấy vòng thi");
     err.statusCode = 404;
+    throw err;
+  }
+
+  // Kiểm tra tất cả pool trong vòng này đã có drive_link chưa
+  const pools = await Pool.find({ contest_id: contest._id, round_id: roundId });
+  if (pools.length === 0) {
+    const err = new Error("Vòng thi chưa có bảng đấu nào. Vui lòng tạo bảng đấu và nhập link Google Drive trước khi phát đề.");
+    err.statusCode = 400;
+    throw err;
+  }
+  const missingLink = pools.filter(p => !p.drive_link || !p.drive_link.trim());
+  if (missingLink.length > 0) {
+    const names = missingLink.map(p => p.pool_name).join(", ");
+    const err = new Error(`Các bảng đấu sau chưa có link Google Drive đề bài: ${names}. Vui lòng nhập link trước khi phát đề.`);
+    err.statusCode = 400;
     throw err;
   }
 

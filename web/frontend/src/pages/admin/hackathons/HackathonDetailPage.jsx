@@ -1403,6 +1403,9 @@ export default function HackathonDetailPage({ defaultTab }) {
                   const tip = isOfficialActive ? 'Vòng thi đang kích hoạt chấm điểm chính thức'
                     : !valid ? `Tổng trọng số = ${ws.toFixed(2)} ≠ 1.0 (Hoặc chưa có tiêu chí) — thêm/sửa tiêu chí để kích hoạt`
                     : 'Kích hoạt làm Vòng thi chính thức';
+                  // Match config round → MongoDB round để lấy _id và status
+                  const dbRound = contest?.rounds?.find(r => r.name === round.name);
+                  const isFinished = dbRound?.status === 'FINISHED';
 
                   return (
                     <div key={round.id} className={`hd-round-card-modern ${!round.active ? 'hd-round-card-modern--inactive' : ''}`}>
@@ -1500,6 +1503,21 @@ export default function HackathonDetailPage({ defaultTab }) {
                               <span className="hd-switch-slider"></span>
                             </label>
                           </Tooltip>
+
+                          {/* RBL Dashboard button — chỉ hiện khi round FINISHED */}
+                          {isFinished && dbRound?._id && (
+                            <Tooltip title="Xem Dashboard Độ tin cậy chấm điểm (RBL)">
+                              <button
+                                type="button"
+                                className="hd-btn-icon"
+                                style={{ color: '#00d4ff', borderColor: 'rgba(0,212,255,0.3)', background: 'rgba(0,212,255,0.07)' }}
+                                onClick={() => navigate(`/admin/rbl/${dbRound._id}/dashboard`)}
+                                title="RBL Dashboard"
+                              >
+                                📐
+                              </button>
+                            </Tooltip>
+                          )}
 
                           {/* Edit / Delete buttons */}
                           <button type="button" className="hd-btn-icon" onClick={() => handleEditRound(round)} title="Chỉnh sửa">

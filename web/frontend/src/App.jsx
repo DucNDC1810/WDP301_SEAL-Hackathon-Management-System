@@ -60,6 +60,8 @@ import IndividualRankingPage from './pages/ranking/IndividualRankingPage';
 import AdminRankingManagerPage from './pages/admin/ranking/AdminRankingManagerPage';
 import PrizePage from './pages/prize/PrizePage';
 import PrizeClaimPage from './pages/prize/PrizeClaimPage';
+import RBLDashboardPage from './pages/RBLDashboardPage';
+import AdminRBLPage from './pages/admin/rbl/AdminRBLPage';
 
 // Student
 import TeamChatPage from './pages/student/chat/TeamChatPage';
@@ -139,6 +141,8 @@ function App() {
                 <Route path="users"                         element={<UserManagementPage />} />
                 <Route path="ranking"                       element={<RankingBrowserPage />} />
                 <Route path="ranking-manager"              element={<AdminRankingManagerPage />} />
+                <Route path="rbl"                          element={<AdminRBLPage />} />
+                <Route path="rbl/:round_id/dashboard"      element={<RBLDashboardPage />} />
               </Route>
 
               {/* Mentor — coaching + scoring (không được chấm team mình mentor) */}

@@ -32,6 +32,7 @@ import finalSubmissionRoute from "./routes/finalSubmissionRoute.js";
 import teamRankingRoute from "./routes/teamRanking.js";
 import adminRankingRoute from "./routes/adminRankingRoute.js";
 import prizeRoute from "./routes/prize.js";
+import rblRoute from "./routes/rbl.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -90,6 +91,7 @@ app.use("/api/submission", finalSubmissionRoute);
 app.use("/api/ranking", teamRankingRoute);
 app.use("/api/admin/ranking", adminRankingRoute);
 app.use("/api/prize", prizeRoute);
+app.use("/api/rbl", rblRoute);
 
 initSocket(httpServer);
 

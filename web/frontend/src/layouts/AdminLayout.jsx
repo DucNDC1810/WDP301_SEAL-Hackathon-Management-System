@@ -34,12 +34,15 @@ const SHIELD_ALERT = ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'M12 8v4', 
 const TIMELINE = ['M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z', 'M16 2v4', 'M8 2v4', 'M3 10h18'];
 const CALENDAR = ['M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z', 'M12 6v6l4 2']; // clock
 
+const RBL_ICON = ['M2 20h20', 'M7 4v16', 'M17 4v16', 'M12 9h5', 'M12 14h5', 'M7 9h0', 'M7 14h0'];
+
 const HACKATHON_SUB_NAV = [
   { key: 'sub-review', label: 'Duyệt Bài Nộp', subPath: '/submission-review', d: CLIPBOARD },
   { key: 'score-lock', label: 'Khóa Chấm Điểm', subPath: '/scoring-lock', d: LOCK },
   { key: 'elimination', label: 'Loại Đội Vi Phạm', subPath: '/elimination', d: SHIELD_ALERT },
   { key: 'timeline', label: 'Lịch trình', subPath: '/timeline', d: TIMELINE },
   { key: 'presentation', label: 'Đặt lịch trình bày', subPath: '/presentation', d: CALENDAR },
+  { key: 'rbl', label: 'RBL Dashboard', subPath: '/rbl', d: RBL_ICON },
 ];
 
 const NAV = [

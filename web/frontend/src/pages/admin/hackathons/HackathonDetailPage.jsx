@@ -77,7 +77,7 @@ export default function HackathonDetailPage({ defaultTab }) {
 
   // Single Pool Add Modal States
   const [showSinglePoolModal, setShowSinglePoolModal] = useState(false);
-  const [singlePoolForm, setSinglePoolForm] = useState({ pool_name: '', description: '' });
+  const [singlePoolForm, setSinglePoolForm] = useState({ pool_name: '', description: '', drive_link: '' });
   const [isAddingSinglePool, setIsAddingSinglePool] = useState(false);
 
   // Custom persistent mock configuration state
@@ -201,7 +201,7 @@ export default function HackathonDetailPage({ defaultTab }) {
       const d = await res.json();
       if (d.success) {
         setPoolSuccess('Thêm bảng đấu thành công!');
-        setSinglePoolForm({ pool_name: '', description: '' });
+        setSinglePoolForm({ pool_name: '', description: '', drive_link: '' });
         setShowSinglePoolModal(false);
         fetchPools();
       } else {
@@ -267,7 +267,6 @@ export default function HackathonDetailPage({ defaultTab }) {
         method: 'POST',
         headers: hdrs(),
         body: JSON.stringify({
-          assign_topics: assignTopics,
           round_id: selectedPoolRoundId,
         }),
       });
@@ -276,16 +275,31 @@ export default function HackathonDetailPage({ defaultTab }) {
       if (!data.success) throw new Error(data.message);
 
       setPools(data.data || []);
-      if (data.warning) {
-        setPoolWarning(data.warning);
-      } else {
-        setPoolSuccess('Đã thực hiện xếp các đội vào các bảng đấu thành công!');
-      }
+      setPoolSuccess('Đã thực hiện xếp các đội vào các bảng đấu thành công!');
       fetchTeams();
     } catch (err) {
       setPoolError(err.message || 'Lỗi khi xếp đội thi vào bảng đấu.');
     } finally {
       setIsAssigning(false);
+    }
+  };
+
+  const handleUpdateDriveLink = async (poolId, driveLink) => {
+    try {
+      const res = await fetch(`${API_URL}/api/pools/${poolId}`, {
+        method: 'PUT',
+        headers: hdrs(),
+        body: JSON.stringify({ drive_link: driveLink || '' }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setPoolSuccess('Đã lưu link Drive!');
+        setTimeout(() => setPoolSuccess(''), 2000);
+      } else {
+        setPoolError(d.message || 'Lỗi khi lưu link Drive');
+      }
+    } catch {
+      setPoolError('Lỗi kết nối máy chủ');
     }
   };
 
@@ -1773,20 +1787,6 @@ export default function HackathonDetailPage({ defaultTab }) {
                     Hệ thống sẽ trộn ngẫu nhiên tất cả các đội thi này và chia đều vào <strong>{pools.length}</strong> bảng đấu trống ở dưới.
                   </p>
                   
-                  <div className="hd-form-grid" style={{ gridTemplateColumns: '1fr', gap: '16px' }}>
-                    <div className="hd-field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
-                      <label className="hd-switch">
-                        <input
-                          type="checkbox"
-                          checked={assignTopics}
-                          onChange={(e) => setAssignTopics(e.target.checked)}
-                        />
-                        <span className="hd-switch-slider"></span>
-                      </label>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>Tự động gán đề tài đấu (Lựa chọn ngẫu nhiên các đề tài trống chưa được giao để gán cho từng bảng đấu)</span>
-                    </div>
-                  </div>
-
                   <div className="hd-form-actions" style={{ justifyContent: 'flex-start' }}>
                     <button
                       type="button"
@@ -1812,11 +1812,33 @@ export default function HackathonDetailPage({ defaultTab }) {
                       <span className="hd-pool-name">{p.pool_name}</span>
                       <span className="hd-pool-count">{(p.teams || []).length} đội</span>
                     </div>
-                    {p.topic_id ? (
-                      <div className="hd-pool-topic">📌 Đề tài: {p.topic_id.title}</div>
-                    ) : (
-                      <div className="hd-pool-topic" style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontWeight: 'normal' }}>Không gán đề tài đấu</div>
-                    )}
+                    {/* Drive link input */}
+                    <div style={{ margin: '10px 0' }}>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Link Google Drive đề bài</label>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <input
+                          type="url"
+                          placeholder="https://drive.google.com/..."
+                          value={p.drive_link || ''}
+                          onChange={(e) => {
+                            setPools(prev => prev.map(pool => pool._id === p._id ? { ...pool, drive_link: e.target.value } : pool));
+                          }}
+                          style={{ flex: 1, padding: '6px 8px', fontSize: '0.8rem', borderRadius: '6px', background: 'var(--bg-nest)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateDriveLink(p._id, p.drive_link)}
+                          style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', background: 'var(--cyan)', color: '#000', border: 'none', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                        >
+                          Lưu
+                        </button>
+                      </div>
+                      {p.drive_link && (
+                        <a href={p.drive_link} target="_blank" rel="noreferrer" style={{ fontSize: '0.72rem', color: 'var(--cyan)', display: 'block', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          🔗 {p.drive_link}
+                        </a>
+                      )}
+                    </div>
                     {p.description && (
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.03)', padding: '6px 8px', borderRadius: '4px' }}>
                         📝 {p.description}
@@ -1883,13 +1905,13 @@ export default function HackathonDetailPage({ defaultTab }) {
               <div className="hd-form" style={{ maxWidth: '800px', margin: '0 auto' }}>
                 <h3 className="hd-rules-title" style={{ margin: '0 0 12px 0', fontSize: '1.1rem', color: 'var(--cyan)' }}>Cấu Hình Danh Sách Bảng Đấu</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.5' }}>
-                  Nhập thông tin chi tiết cho từng bảng đấu trống. Sau khi khởi tạo xong, bạn có thể thực hiện xếp các đội thi và gán đề tài vào các bảng đấu này.
+                  Nhập thông tin chi tiết cho từng bảng đấu trống. Bạn có thể setup sẵn link Google Drive đề bài cho từng bảng — link chỉ hiện với thí sinh sau khi bạn bấm Phát đề.
                 </p>
 
                 <form onSubmit={handleCreateEmptyPools}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
                     {customPools.map((pool, idx) => (
-                      <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: '12px', alignItems: 'end', background: 'var(--bg-nest)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr auto', gap: '12px', alignItems: 'end', background: 'var(--bg-nest)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                         <div className="hd-field">
                           <label>Tên bảng đấu *</label>
                           <input
@@ -1904,9 +1926,18 @@ export default function HackathonDetailPage({ defaultTab }) {
                           <label>Mô tả bảng đấu</label>
                           <input
                             type="text"
-                            placeholder="Ví dụ: Bảng đấu nâng cao, yêu cầu kinh nghiệm..."
+                            placeholder="Ví dụ: Bảng đấu nâng cao..."
                             value={pool.description || ''}
                             onChange={(e) => handleUpdatePoolRow(idx, 'description', e.target.value)}
+                          />
+                        </div>
+                        <div className="hd-field">
+                          <label>Link Google Drive đề bài</label>
+                          <input
+                            type="url"
+                            placeholder="https://drive.google.com/..."
+                            value={pool.drive_link || ''}
+                            onChange={(e) => handleUpdatePoolRow(idx, 'drive_link', e.target.value)}
                           />
                         </div>
                         {customPools.length > 2 && (
@@ -1975,13 +2006,23 @@ export default function HackathonDetailPage({ defaultTab }) {
                   style={{ background: '#080d1a', color: '#fff', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px' }}
                 />
               </div>
-              <div className="hd-field" style={{ marginBottom: '24px' }}>
+              <div className="hd-field" style={{ marginBottom: '16px' }}>
                 <label style={{ color: 'var(--text-secondary)' }}>Mô tả bảng đấu</label>
                 <input
                   type="text"
                   placeholder="Mô tả cho bảng đấu mới này..."
                   value={singlePoolForm.description || ''}
                   onChange={(e) => setSinglePoolForm(f => ({ ...f, description: e.target.value }))}
+                  style={{ background: '#080d1a', color: '#fff', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px' }}
+                />
+              </div>
+              <div className="hd-field" style={{ marginBottom: '24px' }}>
+                <label style={{ color: 'var(--text-secondary)' }}>Link Google Drive đề bài</label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/..."
+                  value={singlePoolForm.drive_link || ''}
+                  onChange={(e) => setSinglePoolForm(f => ({ ...f, drive_link: e.target.value }))}
                   style={{ background: '#080d1a', color: '#fff', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px' }}
                 />
               </div>

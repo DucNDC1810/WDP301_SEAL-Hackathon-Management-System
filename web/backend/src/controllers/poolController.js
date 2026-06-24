@@ -15,7 +15,7 @@ import {
 export const handleDrawPools = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const { pool_count, assign_topics, round_id } = req.body;
+    const { pool_count, round_id } = req.body;
 
     // Validate required fields
     if (pool_count === undefined || Number(pool_count) <= 0) {
@@ -25,16 +25,14 @@ export const handleDrawPools = async (req, res) => {
       });
     }
 
-    const { pools, warning } = await drawPools(contestId, {
+    const { pools } = await drawPools(contestId, {
       pool_count: Number(pool_count),
-      assign_topics: !!assign_topics,
       round_id,
     });
 
     res.status(201).json({
       success: true,
       message: "Chia bảng đấu thành công",
-      warning,
       data: pools,
     });
   } catch (error) {
@@ -138,17 +136,13 @@ export const handleCreateEmptyPools = async (req, res) => {
 export const handleAssignTeams = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const { assign_topics, round_id } = req.body;
+    const { round_id } = req.body;
 
-    const { pools, warning } = await assignTeamsToExistingPools(contestId, {
-      assign_topics: !!assign_topics,
-      round_id,
-    });
+    const { pools } = await assignTeamsToExistingPools(contestId, { round_id });
 
     res.status(200).json({
       success: true,
       message: "Xếp các đội vào bảng đấu thành công",
-      warning,
       data: pools,
     });
   } catch (error) {
@@ -167,9 +161,9 @@ export const handleAssignTeams = async (req, res) => {
 export const handleAddSinglePool = async (req, res) => {
   try {
     const { contestId } = req.params;
-    const { pool_name, description, round_id } = req.body;
+    const { pool_name, description, drive_link, round_id } = req.body;
 
-    const newPool = await addSinglePool(contestId, { pool_name, description, round_id });
+    const newPool = await addSinglePool(contestId, { pool_name, description, drive_link, round_id });
 
     res.status(201).json({
       success: true,
@@ -192,9 +186,9 @@ export const handleAddSinglePool = async (req, res) => {
 export const handleUpdatePool = async (req, res) => {
   try {
     const { poolId } = req.params;
-    const { pool_name, description, teams, topic_id } = req.body;
+    const { pool_name, description, drive_link, teams } = req.body;
 
-    const updated = await updatePool(poolId, { pool_name, description, teams, topic_id });
+    const updated = await updatePool(poolId, { pool_name, description, drive_link, teams });
 
     res.status(200).json({
       success: true,

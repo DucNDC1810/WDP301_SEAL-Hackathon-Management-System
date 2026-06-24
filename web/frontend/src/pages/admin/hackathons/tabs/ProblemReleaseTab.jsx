@@ -242,6 +242,12 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
                     </div>
                     <div className="flex items-center gap-3">
                       {released && <CountdownTimer releasedAt={releasedAt} />}
+                      {released && pool.drive_link && (
+                        <a href={pool.drive_link} target="_blank" rel="noreferrer"
+                          style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          📂 Link Drive đề bài
+                        </a>
+                      )}
                     </div>
                   </div>
 

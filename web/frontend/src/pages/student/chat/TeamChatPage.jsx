@@ -7,71 +7,168 @@ import { useChatSocket } from "../../../hooks/useChatSocket";
 import AttachmentBubble from "../../../components/chat/AttachmentBubble";
 import "./TeamChatPage.css";
 
+// Deterministic color from name string
+const AVATAR_COLORS = [
+  ["#7c3aed", "#4f46e5"], ["#0ea5e9", "#0284c7"], ["#10b981", "#059669"],
+  ["#f59e0b", "#d97706"], ["#ef4444", "#dc2626"], ["#ec4899", "#db2777"],
+  ["#8b5cf6", "#7c3aed"], ["#06b6d4", "#0891b2"],
+];
+function avatarGradient(name = "") {
+  const i = [...name].reduce((s, c) => s + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
+  return `linear-gradient(135deg, ${AVATAR_COLORS[i][0]}, ${AVATAR_COLORS[i][1]})`;
+}
+function initials(name = "") {
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase() || "?";
+}
+
 function fmtTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   const now = new Date();
   if (d.toDateString() === now.toDateString())
     return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return "Hôm qua";
+  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+}
+
+function fmtDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return "Hôm nay";
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return "Hôm qua";
+  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+// ─── Avatar component ─────────────────────────────────────────────────────────
+function Avatar({ name = "", size = 40, closed = false, className = "" }) {
+  const style = closed
+    ? { width: size, height: size, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.25)" }
+    : { width: size, height: size, background: avatarGradient(name), border: "none", color: "#fff" };
   return (
-    d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }) +
-    " " +
-    d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+    <div className={`tc-avatar ${className}`} style={{ ...style, fontSize: size * 0.36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, flexShrink: 0, letterSpacing: "-0.5px" }}>
+      {closed ? "🔒" : initials(name)}
+    </div>
   );
 }
 
 // ─── Mentor item in sidebar ───────────────────────────────────────────────────
 function MentorItem({ conv, selected, onClick }) {
-  const initials = (conv.mentorName || "M")[0].toUpperCase();
   return (
     <div
       className={`tc-mentor-item${selected ? " tc-mentor-item--selected" : ""}`}
       onClick={onClick}
     >
-      <div className={`tc-mentor-avatar${!conv.chatOpen ? " tc-mentor-avatar--closed" : ""}`}>
-        {initials}
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <Avatar name={conv.mentorName} size={42} closed={!conv.chatOpen} />
+        {conv.chatOpen && <span className="tc-online-dot" />}
       </div>
       <div className="tc-mentor-info">
         <div className="tc-mentor-row1">
           <span className={`tc-mentor-name${selected ? " tc-mentor-name--selected" : ""}`}>
             {conv.mentorName}
           </span>
-          {!conv.chatOpen && <span className="tc-mentor-lock">🔒</span>}
+          {conv.lastMessage && (
+            <span className="tc-mentor-time">{fmtTime(conv.lastMessage.created_at)}</span>
+          )}
         </div>
-        <div className="tc-mentor-sub">{conv.contestTitle} · {conv.roundName}</div>
+        <div className="tc-mentor-sub">{conv.roundName}</div>
         {conv.lastMessage && (
           <div className="tc-mentor-last">
             {conv.lastMessage.content || "📎 Tệp đính kèm"}
           </div>
         )}
       </div>
-      {conv.lastMessage && (
-        <span className="tc-mentor-time">{fmtTime(conv.lastMessage.created_at)}</span>
-      )}
+    </div>
+  );
+}
+
+// ─── Day separator ────────────────────────────────────────────────────────────
+function DaySeparator({ label }) {
+  return (
+    <div className="tc-day-sep">
+      <div className="tc-day-sep-line" />
+      <span className="tc-day-sep-label">{label}</span>
+      <div className="tc-day-sep-line" />
     </div>
   );
 }
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
-function MsgBubble({ msg, isMe }) {
-  const initials = (msg.sender_id?.full_name || "?")[0].toUpperCase();
+function MsgBubble({ msg, isMe, showAvatar, showName }) {
+  const senderName = msg.sender_id?.full_name || (isMe ? "Bạn" : "Mentor");
   return (
     <div className={`tc-msg${isMe ? " tc-msg--me" : " tc-msg--other"}`}>
-      <div className={`tc-msg-avatar${isMe ? " tc-msg-avatar--me" : " tc-msg-avatar--other"}`}>
-        {initials}
-      </div>
+      {!isMe && (
+        <div style={{ width: 32, flexShrink: 0, alignSelf: "flex-end" }}>
+          {showAvatar && <Avatar name={senderName} size={32} />}
+        </div>
+      )}
       <div className="tc-msg-content">
-        {!isMe && (
-          <span className="tc-msg-sender">{msg.sender_id?.full_name || "Mentor"}</span>
+        {!isMe && showName && (
+          <span className="tc-msg-sender">{senderName}</span>
         )}
-        {msg.content && <div className="tc-msg-bubble">{msg.content}</div>}
+        {msg.content && (
+          <div className={`tc-msg-bubble${isMe ? " tc-msg-bubble--me" : " tc-msg-bubble--other"}`}>
+            {msg.content}
+          </div>
+        )}
         {msg.attachments?.length > 0 && (
           <AttachmentBubble attachments={msg.attachments} isMe={isMe} />
         )}
-        <span className="tc-msg-time">{fmtTime(msg.created_at)}</span>
+        <span className={`tc-msg-time${isMe ? " tc-msg-time--me" : ""}`}>
+          {new Date(msg.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+        </span>
       </div>
+      {isMe && (
+        <div style={{ width: 32, flexShrink: 0, alignSelf: "flex-end" }}>
+          {showAvatar && <Avatar name={senderName} size={32} />}
+        </div>
+      )}
     </div>
   );
+}
+
+// ─── Grouped messages with day separators ─────────────────────────────────────
+function MessageList({ messages, userId }) {
+  const rendered = [];
+  let lastDate = null;
+  let lastSenderId = null;
+
+  messages.forEach((msg, idx) => {
+    const dateLabel = fmtDate(msg.created_at);
+    if (dateLabel !== lastDate) {
+      rendered.push(<DaySeparator key={`d-${msg._id}`} label={dateLabel} />);
+      lastDate = dateLabel;
+      lastSenderId = null;
+    }
+
+    const isMe = msg.sender_id?._id === userId || msg.sender_id === userId;
+    const senderId = msg.sender_id?._id || msg.sender_id;
+    const nextMsg = messages[idx + 1];
+    const nextSenderId = nextMsg?.sender_id?._id || nextMsg?.sender_id;
+    const showAvatar = nextSenderId !== senderId;
+    const showName = senderId !== lastSenderId;
+    lastSenderId = senderId;
+
+    rendered.push(
+      <MsgBubble
+        key={msg._id}
+        msg={msg}
+        isMe={isMe}
+        showAvatar={showAvatar}
+        showName={showName}
+      />
+    );
+  });
+
+  return <>{rendered}</>;
 }
 
 // ─── Chat window ──────────────────────────────────────────────────────────────
@@ -85,6 +182,7 @@ function ChatWindow({ conv, userId, request }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const bottomRef = useRef(null);
+  const textareaRef = useRef(null);
   const typingTimeoutRef = useRef({});
 
   const msgPath = `/api/chat/${conv.contestId}/${conv.roundId}/${conv.teamId}/${conv.mentorId}/messages`;
@@ -94,7 +192,7 @@ function ChatWindow({ conv, userId, request }) {
       if (prev.some((m) => m._id === msg._id)) return prev;
       return [...prev, msg];
     });
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }, []);
 
   const handleTyping = useCallback((uid, isTyping) => {
@@ -148,6 +246,7 @@ function ChatWindow({ conv, userId, request }) {
     if (sending) return;
     setSending(true);
     setInputVal("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     emitTyping(false);
     try {
       const formData = new FormData();
@@ -177,37 +276,46 @@ function ChatWindow({ conv, userId, request }) {
     setInputVal(e.target.value);
     const el = e.target;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    el.style.height = Math.min(el.scrollHeight, 140) + "px";
     emitTyping(true);
     clearTimeout(typingTimeoutRef.current["self"]);
     typingTimeoutRef.current["self"] = setTimeout(() => emitTyping(false), 2000);
   };
 
   const someoneTyping = Object.values(typingUsers).some(Boolean);
+  const typingName = conv.mentorName;
 
   return (
     <>
       {/* Header */}
       <div className="tc-chat-header">
-        <div className={`tc-chat-avatar${!conv.chatOpen ? " tc-chat-avatar--closed" : ""}`}>
-          {(conv.mentorName || "M")[0].toUpperCase()}
+        <div style={{ position: "relative" }}>
+          <Avatar name={conv.mentorName} size={40} closed={!conv.chatOpen} />
+          {conv.chatOpen && <span className="tc-online-dot" />}
         </div>
-        <div className="tc-chat-info">
-          <div className="tc-chat-name">
-            Mentor: {conv.mentorName}
+        <div className="tc-chat-header-info">
+          <div className="tc-chat-header-name">
+            {conv.mentorName}
+            <span className="tc-role-badge">Mentor</span>
             {conv.chatOpen
-              ? <span className="tc-status-open">Đang mở</span>
+              ? <span className="tc-status-open"><i />Đang hoạt động</span>
               : <span className="tc-status-closed">Đã đóng</span>
             }
           </div>
-          <div className="tc-chat-sub">{conv.contestTitle} · {conv.roundName}</div>
+          <div className="tc-chat-header-sub">{conv.contestTitle} · {conv.roundName}</div>
+        </div>
+        <div className="tc-chat-header-actions">
+          {conv.chatOpen && (
+            <span className="tc-header-hint">Enter để gửi · Shift+Enter xuống dòng</span>
+          )}
         </div>
       </div>
 
       {/* Closed banner */}
       {!conv.chatOpen && (
         <div className="tc-closed-banner">
-          🔒 Kỳ thi đã kết thúc — cuộc trò chuyện đã đóng. Bạn chỉ có thể xem lại lịch sử.
+          <span className="tc-closed-icon">🔒</span>
+          <span>Kỳ thi đã kết thúc — cuộc trò chuyện đã đóng. Bạn chỉ có thể xem lại lịch sử.</span>
         </div>
       )}
 
@@ -215,46 +323,49 @@ function ChatWindow({ conv, userId, request }) {
       <div className="tc-messages">
         {hasMore && (
           <button className="tc-load-more-btn" onClick={() => loadMessages(page + 1)}>
-            Tải thêm tin nhắn cũ
+            ↑ Tải thêm tin nhắn cũ
           </button>
         )}
         {loading ? (
-          <div className="tc-msg-loading"><Spin /></div>
+          <div className="tc-msg-loading"><Spin size="large" /></div>
         ) : messages.length === 0 ? (
           <div className="tc-empty-chat">
-            <span className="tc-empty-chat-icon">💬</span>
-            <span className="tc-empty-chat-text">Chưa có tin nhắn. Hãy đặt câu hỏi cho mentor!</span>
+            <div className="tc-empty-chat-icon-wrap">
+              <Avatar name={conv.mentorName} size={64} />
+            </div>
+            <div className="tc-empty-chat-title">Bắt đầu cuộc trò chuyện</div>
+            <div className="tc-empty-chat-sub">
+              Đây là kênh chat riêng với <strong>{conv.mentorName}</strong>.<br />
+              Hãy đặt câu hỏi, chia sẻ tiến độ hoặc xin lời khuyên!
+            </div>
           </div>
         ) : (
-          messages.map((msg) => (
-            <MsgBubble
-              key={msg._id}
-              msg={msg}
-              isMe={msg.sender_id?._id === userId || msg.sender_id === userId}
-            />
-          ))
+          <MessageList messages={messages} userId={userId} />
         )}
+
         {someoneTyping && (
           <div className="tc-typing">
-            <div className="tc-typing-dots">
+            <Avatar name={typingName} size={24} />
+            <div className="tc-typing-bubble">
               <span className="tc-typing-dot" />
               <span className="tc-typing-dot" />
               <span className="tc-typing-dot" />
             </div>
-            Mentor đang nhập...
+            <span className="tc-typing-label">{typingName} đang nhập...</span>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      {conv.chatOpen && (
+      {conv.chatOpen ? (
         <div className="tc-input-area">
           {fileList.length > 0 && (
             <div className="tc-file-previews">
               {fileList.map((f) => (
                 <span key={f.uid} className="tc-file-chip">
-                  📎 <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                  📎
+                  <span className="tc-file-chip-name">{f.name}</span>
                   <button
                     className="tc-file-chip-remove"
                     onClick={() => setFileList((prev) => prev.filter((x) => x.uid !== f.uid))}
@@ -263,35 +374,53 @@ function ChatWindow({ conv, userId, request }) {
               ))}
             </div>
           )}
-          <div className="tc-input-row">
+          <div className="tc-input-box">
             <Upload
               multiple maxCount={5} showUploadList={false}
               beforeUpload={(file) => {
-                const MAX = 10 * 1024 * 1024;
-                if (file.size > MAX) { antMessage.error(`${file.name} vượt quá 10MB`); return Upload.LIST_IGNORE; }
+                if (file.size > 10 * 1024 * 1024) {
+                  antMessage.error(`${file.name} vượt quá 10MB`);
+                  return Upload.LIST_IGNORE;
+                }
                 setFileList((prev) => [...prev, { uid: file.uid, name: file.name, originFileObj: file }]);
                 return false;
               }}
             >
-              <button className="tc-attach-btn" type="button">📎</button>
+              <button className="tc-attach-btn" type="button" title="Đính kèm tệp">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                </svg>
+              </button>
             </Upload>
             <textarea
+              ref={textareaRef}
               className="tc-text-input"
               value={inputVal}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Nhập câu hỏi cho mentor… (Enter gửi, Shift+Enter xuống dòng)"
+              placeholder={`Nhắn tin cho ${conv.mentorName}...`}
               disabled={sending}
               rows={1}
             />
             <button
-              className="tc-send-btn"
+              className={`tc-send-btn${(inputVal.trim() || fileList.length > 0) && !sending ? " tc-send-btn--active" : ""}`}
               onClick={handleSend}
               disabled={sending || (!inputVal.trim() && fileList.length === 0)}
+              title="Gửi (Enter)"
             >
-              {sending ? "⏳" : "➤"}
+              {sending ? (
+                <Spin size="small" />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+              )}
             </button>
           </div>
+        </div>
+      ) : (
+        <div className="tc-closed-input-hint">
+          <span>🔒 Chat đã đóng — bạn không thể gửi tin nhắn mới</span>
         </div>
       )}
     </>
@@ -307,6 +436,7 @@ export default function TeamChatPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [teamId, setTeamId] = useState(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -336,24 +466,44 @@ export default function TeamChatPage() {
     load();
   }, []);
 
-  const grouped = mentors.reduce((acc, m) => {
+  const filtered = mentors.filter((m) =>
+    search
+      ? (m.mentorName || "").toLowerCase().includes(search.toLowerCase()) ||
+        (m.contestTitle || "").toLowerCase().includes(search.toLowerCase())
+      : true
+  );
+
+  const grouped = filtered.reduce((acc, m) => {
     const key = m.contestId;
     if (!acc[key]) acc[key] = { title: m.contestTitle, status: m.contestStatus, items: [] };
     acc[key].items.push(m);
     return acc;
   }, {});
 
+  const openCount = mentors.filter((m) => m.chatOpen).length;
+
   return (
     <div className="tc-page">
       {/* Topbar */}
       <div className="tc-topbar">
-        <button className="tc-topbar-back" onClick={() => navigate("/dashboard")}>←</button>
-        <div className="tc-topbar-divider" />
-        <span className="tc-topbar-logo">SEAL</span>
-        <span className="tc-topbar-sep">/</span>
-        <span className="tc-topbar-title">Chat với Mentor</span>
+        <button className="tc-topbar-back" onClick={() => navigate("/dashboard")}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div className="tc-topbar-brand">
+          <span className="tc-topbar-logo">SEAL</span>
+          <span className="tc-topbar-sep">/</span>
+          <span className="tc-topbar-title">Chat với Mentor</span>
+        </div>
+        {openCount > 0 && (
+          <span className="tc-topbar-live-badge">
+            <span className="tc-live-dot" />
+            {openCount} phiên đang mở
+          </span>
+        )}
         <div className="tc-topbar-user">
-          <div className="tc-topbar-avatar">{(user?.full_name || "T")[0].toUpperCase()}</div>
+          <Avatar name={user?.full_name} size={32} />
           <span className="tc-topbar-username">{user?.full_name}</span>
         </div>
       </div>
@@ -362,33 +512,49 @@ export default function TeamChatPage() {
       <div className="tc-body">
         {/* Sidebar */}
         <div className="tc-sidebar">
-          <div className="tc-sidebar-hdr">
-            <span className="tc-sidebar-hdr-label">Mentor của tôi</span>
+          <div className="tc-sidebar-search-wrap">
+            <div className="tc-search-box">
+              <svg className="tc-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                className="tc-search-input"
+                placeholder="Tìm mentor hoặc hackathon..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="tc-search-clear" onClick={() => setSearch("")}>×</button>
+              )}
+            </div>
           </div>
+
           <div className="tc-sidebar-list">
             {loading ? (
               <div className="tc-sidebar-empty"><Spin /></div>
             ) : !teamId ? (
               <div className="tc-sidebar-empty">
-                <span className="tc-sidebar-empty-icon">👥</span>
-                Bạn chưa thuộc nhóm nào. Hãy tham gia hoặc tạo nhóm trước.
+                <div className="tc-sidebar-empty-icon">👥</div>
+                <div className="tc-sidebar-empty-title">Chưa có nhóm</div>
+                <div className="tc-sidebar-empty-sub">Hãy tham gia hoặc tạo nhóm để chat với mentor</div>
               </div>
             ) : mentors.length === 0 ? (
               <div className="tc-sidebar-empty">
-                <span className="tc-sidebar-empty-icon">💬</span>
-                Chưa có mentor được phân công
+                <div className="tc-sidebar-empty-icon">💬</div>
+                <div className="tc-sidebar-empty-title">Chưa có mentor</div>
+                <div className="tc-sidebar-empty-sub">Ban tổ chức chưa phân công mentor cho nhóm bạn</div>
+              </div>
+            ) : Object.keys(grouped).length === 0 ? (
+              <div className="tc-sidebar-empty">
+                <div className="tc-sidebar-empty-icon">🔍</div>
+                <div className="tc-sidebar-empty-sub">Không tìm thấy kết quả</div>
               </div>
             ) : (
               Object.values(grouped).map((group) => (
-                <div key={group.title}>
+                <div key={group.title} className="tc-group">
                   <div className="tc-group-header">
                     <span className="tc-group-title">{group.title}</span>
-                    <span style={{
-                      fontSize: "0.65rem", fontWeight: 700, padding: "1px 6px", borderRadius: 4, flexShrink: 0,
-                      background: group.status === "open" ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.04)",
-                      color: group.status === "open" ? "#34d399" : "rgba(255,255,255,0.25)",
-                      border: `1px solid ${group.status === "open" ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.07)"}`,
-                    }}>
+                    <span className={`tc-group-badge${group.status === "open" ? " tc-group-badge--open" : ""}`}>
                       {group.status === "open" ? "Đang mở" : "Đã đóng"}
                     </span>
                   </div>
@@ -421,10 +587,17 @@ export default function TeamChatPage() {
             />
           ) : (
             <div className="tc-no-conv">
-              <span className="tc-no-conv-icon">💬</span>
-              <span className="tc-no-conv-text">
-                {loading ? "Đang tải..." : "Chọn mentor để bắt đầu chat"}
-              </span>
+              <div className="tc-no-conv-illustration">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+              <div className="tc-no-conv-title">
+                {loading ? "Đang tải..." : "Chọn mentor để bắt đầu"}
+              </div>
+              <div className="tc-no-conv-sub">
+                Nhấn vào một mentor bên trái để mở cuộc trò chuyện
+              </div>
             </div>
           )}
         </div>

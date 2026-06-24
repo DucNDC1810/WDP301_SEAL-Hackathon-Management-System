@@ -6,6 +6,7 @@ import Score from "../models/Score.js";
 import AuditLog from "../models/AuditLog.js";
 import Notification from "../models/Notification.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
+import Pool from "../models/Pool.js";
 
 const router = Router();
 
@@ -30,6 +31,16 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
 
     // Find all teams in the contest
     const teams = await Team.find({ contest_id: round.contest_id });
+
+    const pools = await Pool.find({ round_id }).lean();
+    const teamPoolMap = {};
+    for (const pool of pools) {
+      if (pool.teams) {
+        for (const tId of pool.teams) {
+          teamPoolMap[tId.toString()] = pool.pool_name;
+        }
+      }
+    }
 
     // Find all final normal scores for this round
     const scores = await Score.find({
@@ -57,7 +68,7 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
       teamList.push({
         team_id: team._id,
         team_name: team.name || team.team_name || "Unknown Team",
-        assigned_group: team.assigned_group || "Chưa phân bảng",
+        assigned_group: teamPoolMap[team._id.toString()] || team.assigned_group || "Chưa phân bảng",
         status: team.status || "ACTIVE",
         weighted_avg_score: Math.round(avgScore * 100) / 100,
       });
@@ -116,7 +127,34 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
 
     const finalists = [...automaticFinalists, ...wildcardFinalists];
 
-    return res.status(200).json(finalists);
+    // Find next round
+    let next_round_id = null;
+    if (contest.rounds && contest.rounds.length > 0) {
+      const currentIdx = contest.rounds.findIndex(r => r._id.toString() === round_id);
+      if (currentIdx !== -1 && currentIdx < contest.rounds.length - 1) {
+        const nextSubRound = contest.rounds[currentIdx + 1];
+        next_round_id = nextSubRound._id.toString();
+
+        // Ensure standalone Round document exists
+        let existingRound = await Round.findById(next_round_id);
+        if (!existingRound) {
+          await Round.create({
+            _id: nextSubRound._id,
+            contest_id: round.contest_id,
+            name: nextSubRound.name,
+            type: nextSubRound.round_number === 2 || nextSubRound.name.toLowerCase().includes("chung kết") || nextSubRound.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
+            is_active: nextSubRound.is_active || false,
+            round_start: nextSubRound.start_time || new Date(),
+            round_end: nextSubRound.end_time || nextSubRound.submission_deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          });
+        }
+      }
+    }
+
+    return res.status(200).json({
+      finalists,
+      next_round_id
+    });
   } catch (error) {
     next(error);
   }

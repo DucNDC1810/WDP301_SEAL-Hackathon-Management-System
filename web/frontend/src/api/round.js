@@ -31,3 +31,13 @@ export const activateRound = (round_id) =>
 
 export const finishRound = (round_id) =>
   api.patch(`/api/round/${round_id}/finish`);
+
+// ── Criteria CRUD ────────────────────────────────────────────────────────────
+export const createCriteria = (round_id, data) =>
+  api.post(`/api/round/${round_id}/criteria`, data);
+
+export const updateCriteria = (round_id, criteria_id, data) =>
+  api.patch(`/api/round/${round_id}/criteria/${criteria_id}`, data);
+
+export const deleteCriteria = (round_id, criteria_id) =>
+  api.delete(`/api/round/${round_id}/criteria/${criteria_id}`);

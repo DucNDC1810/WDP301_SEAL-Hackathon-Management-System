@@ -693,40 +693,56 @@ export const StudentSubmitPage = () => {
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có slot trống. Liên hệ admin để tạo thêm." />
               </div>
             ) : (
-              <table className="sp-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Thời gian</th>
-                    <th>Thời lượng</th>
-                    <th>Phòng</th>
-                    <th>Ghi chú</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {slots.map((s, i) => (
-                    <tr key={s._id}>
-                      <td style={{ color: 'var(--pg-muted)' }}>{i + 1}</td>
-                      <td>
-                        <div>{fmtDate(s.start_time)}</div>
-                        <div style={{ fontSize: 11, color: 'var(--pg-muted)', marginTop: 2 }}>→ {fmtDate(s.end_time)}</div>
-                      </td>
-                      <td>
-                        <span className="sp-badge sp-badge--cyan">{fmtDuration(s.start_time, s.end_time)}</span>
-                      </td>
-                      <td>{s.room || <span style={{ color: 'var(--pg-muted)' }}>—</span>}</td>
-                      <td style={{ color: 'var(--pg-muted)', fontSize: 12 }}>{s.note || '—'}</td>
-                      <td>
-                        <button className="sp-btn sp-btn--sm sp-btn--primary"
-                          onClick={() => setConfirmSlot(s)}>
-                          Đặt lịch
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {slots.map((s, i) => (
+                  <div key={s._id} style={{
+                    background: 'var(--pg-card, #0c1524)',
+                    border: '1px solid var(--pg-border, #162036)',
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    transition: 'all .2s',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--pg-accent, #00d4ff)';
+                    e.currentTarget.style.background = 'var(--pg-row-hover, #0f1e30)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--pg-border, #162036)';
+                    e.currentTarget.style.background = 'var(--pg-card, #0c1524)';
+                  }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: 'var(--pg-muted2, #3a5068)', fontWeight: 700 }}>#{i + 1}</span>
+                        <span className="sp-badge sp-badge--cyan" style={{ fontSize: 10, padding: '1px 6px' }}>
+                          {fmtDuration(s.start_time, s.end_time)}
+                        </span>
+                        {s.room && (
+                          <span style={{ fontSize: 11, color: 'var(--pg-accent, #00d4ff)', fontWeight: 600 }}>
+                            📍 {s.room}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--pg-text2, #c9d6e8)', fontWeight: 600, marginTop: 2 }}>
+                        {fmtDate(s.start_time)}
+                      </div>
+                      {s.note && (
+                        <div style={{ fontSize: 11, color: 'var(--pg-muted, #4a6080)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          📝 {s.note}
+                        </div>
+                      )}
+                    </div>
+                    <button className="sp-btn sp-btn--sm sp-btn--primary" style={{ flexShrink: 0 }}
+                      onClick={() => setConfirmSlot(s)}>
+                      Đặt lịch
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

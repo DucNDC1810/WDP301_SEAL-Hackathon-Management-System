@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+// useNavigate removed — page renders inside StudentLayout (no standalone nav)
 import { Spin, Upload, message as antMessage } from "antd";
 import { useAuth } from "../../../context/AuthContext";
 import { useApi } from "../../../hooks/useApi";
@@ -428,9 +428,8 @@ function ChatWindow({ conv, userId, request }) {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function TeamChatPage() {
+export function TeamChatPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { request } = useApi();
   const [mentors, setMentors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -483,18 +482,16 @@ export default function TeamChatPage() {
   const openCount = mentors.filter((m) => m.chatOpen).length;
 
   return (
-    <div className="tc-page">
-      {/* Topbar */}
-      <div className="tc-topbar">
-        <button className="tc-topbar-back" onClick={() => navigate("/dashboard")}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </button>
-        <div className="tc-topbar-brand">
-          <span className="tc-topbar-logo">SEAL</span>
-          <span className="tc-topbar-sep">/</span>
-          <span className="tc-topbar-title">Chat với Mentor</span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: "'Manrope', sans-serif", color: "#c9d6e8" }}>
+      {/* Page header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1.4px", color: "#5a708f", textTransform: "uppercase", marginBottom: 7 }}>
+            Kênh hỗ trợ
+          </div>
+          <h1 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: "-.5px", color: "#e6eef9" }}>
+            Chat với Mentor
+          </h1>
         </div>
         {openCount > 0 && (
           <span className="tc-topbar-live-badge">
@@ -502,14 +499,10 @@ export default function TeamChatPage() {
             {openCount} phiên đang mở
           </span>
         )}
-        <div className="tc-topbar-user">
-          <Avatar name={user?.full_name} size={32} />
-          <span className="tc-topbar-username">{user?.full_name}</span>
-        </div>
       </div>
 
-      {/* Body */}
-      <div className="tc-body">
+      {/* Chat area */}
+      <div style={{ display: "flex", height: "calc(100vh - 220px)", minHeight: 480, border: "1px solid rgba(255,255,255,0.065)", borderRadius: 14, overflow: "hidden" }}>
         {/* Sidebar */}
         <div className="tc-sidebar">
           <div className="tc-sidebar-search-wrap">
@@ -576,7 +569,7 @@ export default function TeamChatPage() {
           </div>
         </div>
 
-        {/* Chat area */}
+        {/* Chat panel */}
         <div className="tc-chat-area">
           {selected ? (
             <ChatWindow
@@ -605,3 +598,5 @@ export default function TeamChatPage() {
     </div>
   );
 }
+
+export default TeamChatPage;

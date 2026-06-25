@@ -71,7 +71,6 @@ import VerifyEmailPage from './pages/verify-email/VerifyEmailPage';
 import { StudentLayout }       from './layouts/StudentLayout';
 import { StudentOverviewPage } from './pages/student/overview/StudentOverviewPage';
 import { StudentTeamPage }     from './pages/student/team/StudentTeamPage';
-import { StudentConnectPage }  from './pages/student/connect/StudentConnectPage';
 import { StudentSubmitPage }   from './pages/student/submit/StudentSubmitPage';
 
 import './App.css';
@@ -158,9 +157,10 @@ function App() {
               <Route path="/dashboard" element={<AuthRoute><StudentLayout /></AuthRoute>}>
                 <Route index            element={<StudentOverviewPage />} />
                 <Route path="team"      element={<StudentTeamPage />} />
-                <Route path="connect"   element={<StudentConnectPage />} />
                 <Route path="submit"    element={<StudentSubmitPage />} />
                 <Route path="profile"   element={<ProfilePage />} />
+
+                <Route path="chat"      element={<TeamChatPage />} />
               </Route>
 
               {/* All public pages with Navbar/Footer */}
@@ -177,7 +177,7 @@ function App() {
                         <Route path="/team"        element={<Navigate to="/dashboard/team"    replace />} />
                         <Route path="/profile"     element={<Navigate to="/dashboard/profile" replace />} />
                         <Route path="/invitations" element={<Navigate to="/dashboard/team"    replace />} />
-                        <Route path="/chat/mentor" element={<AuthRoute><TeamChatPage /></AuthRoute>} />
+                        <Route path="/chat/mentor" element={<Navigate to="/dashboard/chat" replace />} />
 
                         {/* Public */}
                         <Route path="/leaderboard/:contestId/:roundId" element={<LegacyLeaderboardPage />} />

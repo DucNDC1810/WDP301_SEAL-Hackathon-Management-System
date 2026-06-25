@@ -7,6 +7,11 @@ import {
   getInvitationByToken,
   completeJudgeRegistration,
 } from "../services/invitationService.js";
+import {
+  getMyTeamInvitations,
+  acceptTeamInvitation,
+  rejectTeamInvitation,
+} from "../services/teamService.js";
 
 // ─── handleSendInvitation ─────────────────────────────────────────────────────
 
@@ -162,5 +167,49 @@ export const handleCompleteJudgeRegistration = async (req, res) => {
   } catch (error) {
     console.error("[handleCompleteJudgeRegistration]", error);
     res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── Student: Team invitation handlers ───────────────────────────────────────
+
+/**
+ * GET /api/invitations/me
+ * Student xem danh sách lời mời vào đội của bản thân.
+ */
+export const handleGetMyTeamInvitations = async (req, res) => {
+  try {
+    const invitations = await getMyTeamInvitations(req.user._id, req.user.email);
+    res.status(200).json({ success: true, data: invitations });
+  } catch (err) {
+    console.error('[handleGetMyTeamInvitations]', err);
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * POST /api/invitations/:id/accept
+ * Student chấp nhận lời mời vào đội.
+ */
+export const handleAcceptTeamInvitation = async (req, res) => {
+  try {
+    const team = await acceptTeamInvitation(req.params.id, req.user._id);
+    res.status(200).json({ success: true, message: 'Đã chấp nhận lời mời vào đội', data: team });
+  } catch (err) {
+    console.error('[handleAcceptTeamInvitation]', err);
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * POST /api/invitations/:id/reject
+ * Student từ chối lời mời vào đội.
+ */
+export const handleRejectTeamInvitation = async (req, res) => {
+  try {
+    await rejectTeamInvitation(req.params.id, req.user._id);
+    res.status(200).json({ success: true, message: 'Đã từ chối lời mời' });
+  } catch (err) {
+    console.error('[handleRejectTeamInvitation]', err);
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 };

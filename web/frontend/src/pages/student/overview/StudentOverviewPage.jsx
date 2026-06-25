@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Empty } from "antd";
-import { OrderedListOutlined, TeamOutlined } from "@ant-design/icons";
+import { OrderedListOutlined } from "@ant-design/icons";
 import { useAuth } from "../../../context/AuthContext";
 import { useApi } from "../../../hooks/useApi";
 import "../student.css";
@@ -300,13 +299,15 @@ export const StudentOverviewPage = () => {
   const [contest, setContest] = useState(null);
   const [submission, setSubmission] = useState(null);
   const [rank, setRank] = useState(null);
+  const [rankingList, setRankingList] = useState([]);
   const [poolName, setPoolName] = useState(null);
   const [poolDriveLink, setPoolDriveLink] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // New data sources — mock fallback until APIs are wired
   const [events, setEvents] = useState(MOCK_EVENTS);
-  const [scoreHistory, setScoreHistory] = useState(MOCK_SCORE_HISTORY);
+  const [scoreHistory, setScoreHistory] = useState([]);
+
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   // Live clock (1-second tick for countdown)
   const [now, setNow] = useState(() => Date.now());
@@ -379,9 +380,9 @@ export const StudentOverviewPage = () => {
             `/api/contests/${contestId}/rounds/${activeRound._id}/rankings`,
           ).then((res) => {
             const list = Array.isArray(res) ? res : (res?.data ?? []);
+            setRankingList(list);
             setRank(
-              list.find((r) => (r.team_id?._id ?? r.team_id) === team._id) ??
-                null,
+              list.find((r) => (r.team_id?._id ?? r.team_id)?.toString() === team._id?.toString()) ?? null,
             );
           }),
 
@@ -430,51 +431,94 @@ export const StudentOverviewPage = () => {
     );
   }
 
-  /* ── No team ──────────────────────────────────────────────────────────────── */
-  if (!myTeam) {
+  /* ── Chưa tham gia cuộc thi (no team, or team not linked to active contest) ── */
+  if (!myTeam || !contest) {
     return (
-      <div className="sp-page">
-        <h2 className="sp-page-title">Các cuộc thi đang mở</h2>
-        {contests.length === 0 ? (
-          <Empty description="Hiện chưa có cuộc thi nào đang mở đăng ký." />
-        ) : (
-          <div className="sp-contest-grid">
-            {contests.map((c) => {
-              const reg = c.registration_deadline
-                ? new Date(c.registration_deadline)
-                : null;
-              const days = reg
-                ? Math.max(0, Math.ceil((reg - now) / 86_400_000))
-                : null;
-              return (
-                <div className="sp-card sp-card--hover" key={c._id}>
-                  <span
-                    className="sp-strong"
-                    style={{ display: "block", fontSize: 15, marginBottom: 6 }}
-                  >
-                    {c.title}
-                  </span>
-                  {days !== null && (
-                    <span
-                      className={days <= 3 ? "sp-warning" : "sp-accent"}
-                      style={{
-                        fontSize: 12,
-                        display: "block",
-                        marginBottom: 10,
-                      }}
-                    >
-                      Đăng ký còn {days} ngày
-                    </span>
-                  )}
-                  <button
-                    className="sp-btn sp-btn--sm"
-                    onClick={() => navigate("/dashboard/team")}
-                  >
-                    <TeamOutlined /> Tham gia
-                  </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22, fontFamily: "'Manrope', sans-serif", color: '#c9d6e8', padding: '28px 32px 48px', maxWidth: 1240, margin: '0 auto' }}>
+        {/* Welcome hero */}
+        <div style={{ position: 'relative', border: '1px solid #1b2740', borderRadius: 18, background: 'linear-gradient(135deg,#0d1524 0%,#0a0f1b 55%,#0c0d18 100%)', padding: '32px 34px', overflow: 'hidden' }}>
+          {/* Glow orb */}
+          <div style={{ position: 'absolute', top: -90, right: '4%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle,rgba(0,212,255,.15),transparent 70%)', pointerEvents: 'none' }} />
+          {/* Content */}
+          <div style={{ position: 'relative' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 700, letterSpacing: '1.4px', color: '#00d4ff', textTransform: 'uppercase', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.25)', padding: '5px 13px', borderRadius: 20, marginBottom: 16 }}>⚡ Bắt đầu hành trình</span>
+            <h1 style={{ margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, letterSpacing: -.6, color: '#e6eef9' }}>Chào mừng, {user?.full_name?.split(' ').pop() || 'bạn'} 👋</h1>
+            <p style={{ margin: 0, fontSize: 14.5, color: '#9fb2cc', lineHeight: 1.6, maxWidth: 560 }}>Bạn chưa tham gia cuộc thi nào. Hãy <strong style={{ color: '#c9d6e8' }}>chọn một cuộc thi và tạo đội</strong> để bắt đầu — hoặc tham gia một đội đã có lời mời cho bạn.</p>
+            {/* 3 steps */}
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 24 }}>
+              {[
+                ['1', 'Chọn cuộc thi & tạo đội', '#00d4ff', 'rgba(0,212,255,.1)', 'rgba(0,212,255,.3)'],
+                ['2', 'Mời đủ 4 thành viên & xác thực', '#a855f7', 'rgba(168,85,247,.1)', 'rgba(168,85,247,.3)'],
+                ['3', 'Nộp bài & thi đấu', '#22c55e', 'rgba(34,197,94,.1)', 'rgba(34,197,94,.3)'],
+              ].map(([num, label, color, bg, border], i, arr) => (
+                <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 11, flex: 1, minWidth: 200 }}>
+                  <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 10, background: bg, border: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 15, color }}>{num}</div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#c9d6e8', lineHeight: 1.35 }}>{label}</span>
+                  {i < arr.length - 1 && <div style={{ color: '#2a3a55', flexShrink: 0 }}>→</div>}
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Action cards — context-aware */}
+        {myTeam ? (
+          /* Has team but no active contest — guide to team page to register */
+          <div onClick={() => navigate('/dashboard/team')} style={{ border: '1px dashed rgba(250,204,21,.35)', borderRadius: 16, background: '#0c1524', padding: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 22 }}>
+            <div style={{ width: 54, height: 54, flexShrink: 0, borderRadius: 15, background: 'rgba(250,204,21,.1)', border: '1px solid rgba(250,204,21,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#facc15' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: '#e6eef9', marginBottom: 5 }}>Đội <span style={{ color: '#facc15' }}>{myTeam.team_name}</span> chưa đăng ký cuộc thi nào</div>
+              <p style={{ margin: 0, fontSize: 13, color: '#7e90ab', lineHeight: 1.5 }}>Vào trang Đội thi để chọn cuộc thi và đăng ký tham gia.</p>
+            </div>
+            <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: 13.5, fontWeight: 700, color: '#facc15' }}>Đến Đội thi →</span>
+          </div>
+        ) : (
+          /* No team — show create / join options */
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div onClick={() => navigate('/dashboard/team')} style={{ border: '1px dashed rgba(0,212,255,.35)', borderRadius: 16, background: '#0c1524', padding: 26, cursor: 'pointer' }}>
+              <div style={{ width: 54, height: 54, borderRadius: 15, background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00d4ff', marginBottom: 16 }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+              </div>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: '#e6eef9', marginBottom: 6 }}>Tạo đội mới</div>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#7e90ab', lineHeight: 1.5 }}>Chọn cuộc thi và đặt tên đội, sau đó mời thành viên qua email.</p>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#00d4ff' }}>Tạo đội ngay →</span>
+            </div>
+            <div onClick={() => navigate('/dashboard/invites')} style={{ border: '1px dashed rgba(168,85,247,.35)', borderRadius: 16, background: '#0c1524', padding: 26, cursor: 'pointer' }}>
+              <div style={{ width: 54, height: 54, borderRadius: 15, background: 'rgba(168,85,247,.1)', border: '1px solid rgba(168,85,247,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7', marginBottom: 16 }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              </div>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: '#e6eef9', marginBottom: 6 }}>Tham gia đội</div>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#7e90ab', lineHeight: 1.5 }}>Đã được mời? Nhập mã đội hoặc chấp nhận lời mời để tham gia.</p>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#a855f7' }}>Xem lời mời →</span>
+            </div>
+          </div>
+        )}
+
+        {/* Open contests grid */}
+        {contests.length > 0 && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#e6eef9' }}>Cuộc thi đang mở đăng ký</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 16 }}>
+              {contests.map((c) => {
+                const reg = c.registration_deadline ? new Date(c.registration_deadline) : null;
+                const days = reg ? Math.max(0, Math.ceil((reg - now) / 86_400_000)) : null;
+                return (
+                  <div key={c._id} style={{ border: '1px solid #1b2740', borderTop: '2px solid #00d4ff', borderRadius: 14, background: '#0c1524', padding: '20px 22px', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: .4, textTransform: 'uppercase', color: '#00d4ff', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.3)', padding: '3px 10px', borderRadius: 6 }}>Web · AI</span>
+                      {days !== null && <span style={{ fontSize: 11.5, fontWeight: 700, color: days <= 5 ? '#f59e0b' : '#7e90ab' }}>Còn {days} ngày</span>}
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#e6eef9', lineHeight: 1.35, marginBottom: 14, minHeight: 44 }}>{c.title}</div>
+                    <button onClick={() => navigate('/dashboard/team')} style={{ width: '100%', marginTop: 'auto', padding: 10, borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#00d4ff,#0099cc)', color: '#070b14', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Tạo đội tham gia</button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -498,15 +542,25 @@ export const StudentOverviewPage = () => {
 
   /* ── Confirmed — redesign ─────────────────────────────────────────────────── */
   const activeRound = contest?.rounds?.find((r) => r.is_active);
+
+  // If no active round, find the nearest upcoming one
+  const nextRound = !activeRound
+    ? (contest?.rounds ?? [])
+        .filter((r) => r.start_time && new Date(r.start_time).getTime() > now)
+        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] ?? null
+    : null;
+
   const deadlineMs = activeRound?.submission_deadline
     ? new Date(activeRound.submission_deadline).getTime()
     : null;
   const roundStart = activeRound?.start_time
     ? new Date(activeRound.start_time).getTime()
     : null;
+  const nextRoundMs = nextRound?.start_time ? new Date(nextRound.start_time).getTime() : null;
 
-  // Countdown
-  const ms = deadlineMs ? Math.max(0, deadlineMs - now) : 0;
+  // Countdown: to deadline when active, to next round start when waiting
+  const countdownTarget = deadlineMs ?? nextRoundMs;
+  const ms = countdownTarget ? Math.max(0, countdownTarget - now) : 0;
   const cd = {
     d: pad2(Math.floor(ms / 86400000)),
     h: pad2(Math.floor((ms % 86400000) / 3600000)),
@@ -526,19 +580,20 @@ export const StudentOverviewPage = () => {
         )
       : null;
 
-  const deadlineStr = deadlineMs
-    ? `${pad2(new Date(deadlineMs).getHours())}:${pad2(new Date(deadlineMs).getMinutes())} · ${pad2(new Date(deadlineMs).getDate())}/${pad2(new Date(deadlineMs).getMonth() + 1)}/${new Date(deadlineMs).getFullYear()}`
-    : "—";
+  const fmtTs = (ms) => {
+    const d = new Date(ms);
+    return `${pad2(d.getHours())}:${pad2(d.getMinutes())} · ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+  };
+  const deadlineStr = deadlineMs ? fmtTs(deadlineMs) : nextRoundMs ? fmtTs(nextRoundMs) : "—";
 
   const submitted = !!submission;
   const pool = poolName ?? myTeam.pool_id?.pool_name ?? "Pool A";
   const problemReleased = !!activeRound?.problem_released_at;
 
-  // Score delta from history
-  const scoreNow =
-    rank?.score ?? scoreHistory[scoreHistory.length - 1]?.score ?? 0;
-  const prevScore = scoreHistory[scoreHistory.length - 2]?.score ?? scoreNow;
-  const scoreDelta = scoreNow - prevScore;
+  // Score from ranking API; delta only when history has 2+ points
+  const scoreNow = rank?.score ?? scoreHistory[scoreHistory.length - 1]?.score ?? 0;
+  const prevScore = scoreHistory.length >= 2 ? scoreHistory[scoreHistory.length - 2].score : null;
+  const scoreDelta = prevScore !== null ? scoreNow - prevScore : null;
 
   // Events with relative-time chips
   const evRows = events.map((e) => {
@@ -568,27 +623,23 @@ export const StudentOverviewPage = () => {
     return { ...e, when, chip, chipColor, chipBg };
   });
 
-  // Ranking rows — inject real team position if available
-  const ranking = (
-    rank
-      ? MOCK_RANKING.map((r) =>
-          r.rank === rank.rank
-            ? {
-                ...r,
-                team: myTeam.team_name,
-                score: rank.score ?? r.score,
-                isMine: true,
-              }
-            : r,
-        )
-      : MOCK_RANKING.map((r, i) =>
-          i === 2 ? { ...r, team: myTeam.team_name, isMine: true } : r,
-        )
-  ).map((r) => ({
+  // Ranking rows — use real API list when available
+  const rankingRows = rankingList.length
+    ? rankingList.slice(0, 5).map((r, i) => ({
+        rank: r.rank ?? i + 1,
+        team: r.team_id?.team_name ?? `Đội ${i + 1}`,
+        score: r.score ?? 0,
+        change: r.change ?? 0,
+        isMine: (r.team_id?._id ?? r.team_id)?.toString() === myTeam._id?.toString(),
+      }))
+    : null;
+
+  const ranking = (rankingRows ?? MOCK_RANKING.map((r, i) =>
+    i === 2 ? { ...r, team: myTeam.team_name, isMine: true } : r,
+  )).map((r) => ({
     ...r,
     rankColor: RANK_COLOR[r.rank] || "#56688a",
-    changeStr:
-      r.change > 0 ? `+${r.change}` : r.change === 0 ? "—" : String(r.change),
+    changeStr: r.change > 0 ? `+${r.change}` : r.change === 0 ? "—" : String(r.change),
     changeColor: r.change > 0 ? C.green : r.change < 0 ? C.red : "#56688a",
   }));
 
@@ -729,8 +780,8 @@ export const StudentOverviewPage = () => {
                   width: 7,
                   height: 7,
                   borderRadius: "50%",
-                  background: C.amber,
-                  boxShadow: `0 0 8px ${C.amber}`,
+                  background: activeRound ? C.amber : C.cyan,
+                  boxShadow: `0 0 8px ${activeRound ? C.amber : C.cyan}`,
                 }}
               />
               <span
@@ -738,11 +789,15 @@ export const StudentOverviewPage = () => {
                   fontSize: 11.5,
                   fontWeight: 700,
                   letterSpacing: "1.4px",
-                  color: C.amber,
+                  color: activeRound ? C.amber : C.cyan,
                   textTransform: "uppercase",
                 }}
               >
-                Hạn nộp bài · {activeRound?.name ?? "Vòng hiện tại"}
+                {activeRound
+                  ? `Hạn nộp bài · ${activeRound.name}`
+                  : nextRound
+                  ? `Vòng tiếp theo · ${nextRound.name}`
+                  : "Chưa có vòng thi"}
               </span>
             </div>
             <div style={{ display: "flex", gap: 12 }}>
@@ -752,7 +807,7 @@ export const StudentOverviewPage = () => {
               <CdTile val={cd.s} label="Giây" accent />
             </div>
             <div style={{ marginTop: 13, fontSize: 12.5, color: C.muted }}>
-              Hạn chót:{" "}
+              {activeRound ? "Hạn chót" : nextRound ? "Bắt đầu lúc" : "Thời gian"}:{" "}
               <span style={{ color: C.text2, fontWeight: 600 }}>
                 {deadlineStr}
               </span>
@@ -836,6 +891,113 @@ export const StudentOverviewPage = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Contest Roadmap Stepper ─────────────────────────────────────────── */}
+      {(() => {
+        const rounds = contest?.rounds ?? [];
+
+        if (!rounds.length) {
+          return (
+            <div style={{ border: '1px solid #1b2740', borderRadius: 14, background: '#0c1524', padding: '20px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#c9d6e8' }}>Lộ trình cuộc thi</span>
+              </div>
+              <div style={{ fontSize: 13, color: '#5a708f' }}>Chưa có thông tin vòng thi.</div>
+            </div>
+          );
+        }
+
+        const activeIndex = rounds.findIndex((r) => r.is_active);
+        const safeActiveIndex = activeIndex === -1 ? 0 : activeIndex;
+
+        const getRoundStatus = (r) => {
+          if (r.is_active) return 'active';
+          if (r.submission_deadline && new Date(r.submission_deadline) < new Date() && !r.is_active) return 'done';
+          return 'upcoming';
+        };
+
+        const fmtDate = (iso) => {
+          if (!iso) return '—';
+          const d = new Date(iso);
+          return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
+        };
+
+        const progressWidth = rounds.length > 1
+          ? `${(safeActiveIndex / (rounds.length - 1)) * 80 + 10}%`
+          : '10%';
+
+        const dotStyle = (status) => {
+          if (status === 'done') return { background: '#00d4ff', border: '2px solid #00d4ff', boxShadow: '0 0 8px rgba(0,212,255,.6)', color: '#070b14' };
+          if (status === 'active') return { background: '#0a1322', border: '2px solid #00d4ff', boxShadow: '0 0 0 4px rgba(0,212,255,.15)', color: '#00d4ff' };
+          return { background: '#0a1322', border: '2px solid #2a3a55', boxShadow: 'none', color: '#7e90ab' };
+        };
+        const nameStyle = (status) => {
+          if (status === 'done') return '#c9d6e8';
+          if (status === 'active') return '#00d4ff';
+          return '#7e90ab';
+        };
+        const chipStyle = (status) => {
+          if (status === 'done') return { color: '#22c55e', background: 'rgba(34,197,94,.12)', border: '1px solid rgba(34,197,94,.3)', label: 'Hoàn thành' };
+          if (status === 'active') return { color: '#00d4ff', background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.3)', label: 'Đang diễn ra' };
+          return { color: '#7e90ab', background: 'rgba(126,144,171,.1)', border: '1px solid rgba(126,144,171,.25)', label: 'Sắp tới' };
+        };
+        const dotIcon = (status) => {
+          if (status === 'done') return '✓';
+          if (status === 'active') return '●';
+          return '·';
+        };
+
+        return (
+          <div style={{ border: '1px solid #1b2740', borderRadius: 14, background: '#0c1524', padding: '20px 24px' }}>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#c9d6e8' }}>Lộ trình cuộc thi</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#a855f7', background: 'rgba(168,85,247,.12)', border: '1px solid rgba(168,85,247,.3)', padding: '2px 9px', borderRadius: 20 }}>{rounds.length} giai đoạn</span>
+              </div>
+              <button
+                onClick={() => setScheduleOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: '#c9d6e8', background: 'transparent', border: '1px solid #1b2740', borderRadius: 8, padding: '6px 13px', cursor: 'pointer' }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Lịch trình chi tiết
+              </button>
+            </div>
+
+            {/* Stepper */}
+            <div style={{ position: 'relative', marginTop: 20 }}>
+              {/* Background track */}
+              <div style={{ position: 'absolute', left: '10%', right: '10%', top: 11, height: 2, background: '#1b2740' }} />
+              {/* Progress track */}
+              <div style={{ position: 'absolute', left: '10%', width: progressWidth, top: 11, height: 2, background: 'linear-gradient(90deg,#00d4ff,#7c3aed)', boxShadow: '0 0 8px rgba(0,212,255,.5)', transition: 'width .4s' }} />
+              {/* Items */}
+              <div style={{ display: 'flex', position: 'relative' }}>
+                {rounds.map((r, i) => {
+                  const st = getRoundStatus(r);
+                  const ds = dotStyle(st);
+                  const cs = chipStyle(st);
+                  return (
+                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '0 4px' }}>
+                      {/* Dot */}
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, ...ds, zIndex: 1, position: 'relative' }}>
+                        {dotIcon(st)}
+                      </div>
+                      {/* Name */}
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: nameStyle(st), lineHeight: 1.25, marginTop: 8 }}>{r.name}</div>
+                      {/* Date range */}
+                      <div style={{ fontSize: 10.5, color: '#5a708f', fontFamily: "'JetBrains Mono', monospace", marginTop: 3 }}>{fmtDate(r.start_time)} – {fmtDate(r.submission_deadline)}</div>
+                      {/* Chip */}
+                      <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', padding: '2px 9px', borderRadius: 20, marginTop: 6, ...cs }}>{cs.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── 3 stat cards ────────────────────────────────────────────────────── */}
       <div
@@ -992,22 +1154,34 @@ export const StudentOverviewPage = () => {
               >
                 {scoreNow}
               </div>
-              <div
-                style={{
-                  marginTop: 7,
-                  fontSize: 12,
-                  color: scoreDelta >= 0 ? C.green : C.red,
-                  fontWeight: 600,
-                }}
-              >
-                {scoreDelta >= 0 ? `+${scoreDelta}` : scoreDelta}{" "}
-                <span style={{ color: C.dim, fontWeight: 400 }}>
-                  so với vòng trước
-                </span>
-              </div>
+              {scoreDelta !== null ? (
+                <div
+                  style={{
+                    marginTop: 7,
+                    fontSize: 12,
+                    color: scoreDelta >= 0 ? C.green : C.red,
+                    fontWeight: 600,
+                  }}
+                >
+                  {scoreDelta >= 0 ? `+${scoreDelta}` : scoreDelta}{" "}
+                  <span style={{ color: C.dim, fontWeight: 400 }}>
+                    so với vòng trước
+                  </span>
+                </div>
+              ) : (
+                <div style={{ marginTop: 7, fontSize: 12, color: C.dim }}>
+                  Vòng đầu tiên
+                </div>
+              )}
             </div>
             <div style={{ width: 150, flexShrink: 0 }}>
-              <ScoreLineChart hist={scoreHistory} w={150} h={46} id="spark" />
+              {scoreHistory.length >= 2 ? (
+                <ScoreLineChart hist={scoreHistory} w={150} h={46} id="spark" />
+              ) : (
+                <div style={{ width: 150, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.dim }}>
+                  Chưa có lịch sử
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1033,7 +1207,16 @@ export const StudentOverviewPage = () => {
               </span>
             }
           />
-          <ScoreLineChart hist={scoreHistory} id="lg" />
+          {scoreHistory.length >= 2 ? (
+            <ScoreLineChart hist={scoreHistory} id="lg" />
+          ) : (
+            <div style={{ height: 210, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <span style={{ fontSize: 28, opacity: .3 }}>📊</span>
+              <span style={{ fontSize: 13, color: C.dim }}>
+                {scoreNow > 0 ? `Điểm hiện tại: ${scoreNow} — lịch sử sẽ cập nhật sau mỗi vòng` : 'Chưa có điểm số'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Upcoming events */}
@@ -1475,6 +1658,105 @@ export const StudentOverviewPage = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Schedule Modal ───────────────────────────────────────────────────── */}
+      {scheduleOpen && (() => {
+        const modalRounds = contest?.rounds ?? [];
+
+        const getRoundStatus = (r) => {
+          if (r.is_active) return 'active';
+          if (r.submission_deadline && new Date(r.submission_deadline) < new Date() && !r.is_active) return 'done';
+          return 'upcoming';
+        };
+        const dotBg = (st) => {
+          if (st === 'done') return '#00d4ff';
+          if (st === 'active') return '#7c3aed';
+          return '#2a3a55';
+        };
+        const chipStyle = (st) => {
+          if (st === 'done') return { color: '#22c55e', background: 'rgba(34,197,94,.12)', border: '1px solid rgba(34,197,94,.3)', label: 'Hoàn thành' };
+          if (st === 'active') return { color: '#00d4ff', background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.3)', label: 'Đang diễn ra' };
+          return { color: '#7e90ab', background: 'rgba(126,144,171,.1)', border: '1px solid rgba(126,144,171,.25)', label: 'Sắp tới' };
+        };
+        const fmtDateTime = (iso) => {
+          if (!iso) return '—';
+          const d = new Date(iso);
+          return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)} · ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+        };
+        const fmtDateShort = (iso) => {
+          if (!iso) return '—';
+          const d = new Date(iso);
+          return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
+        };
+        const firstStart = modalRounds[0]?.start_time;
+        const lastEnd = modalRounds[modalRounds.length - 1]?.submission_deadline;
+        const dateRange = firstStart && lastEnd ? `${fmtDateShort(firstStart)} – ${fmtDateShort(lastEnd)}` : '';
+
+        return (
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(4,8,15,.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => setScheduleOpen(false)}
+          >
+            <div
+              style={{ width: '100%', maxWidth: 620, maxHeight: '84vh', background: '#0c1524', border: '1px solid #1e3a5f', borderRadius: 18, boxShadow: '0 20px 60px rgba(0,0,0,.5)', display: 'flex', flexDirection: 'column' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '22px 26px', borderBottom: '1px solid #131d31' }}>
+                <div>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, color: '#e6eef9', marginBottom: 4 }}>Lịch trình cuộc thi</div>
+                  <div style={{ fontSize: 12.5, color: '#7e90ab' }}>
+                    {contest?.title ?? 'Hackathon SEAL'} · {modalRounds.length} vòng thi{dateRange ? ` · ${dateRange}` : ''}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setScheduleOpen(false)}
+                  style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #1b2740', background: 'transparent', color: '#7e90ab', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = 'rgba(248,113,113,.4)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#7e90ab'; e.currentTarget.style.borderColor = '#1b2740'; }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div style={{ overflowY: 'auto', padding: '24px 26px' }}>
+                {modalRounds.map((r, i) => {
+                  const st = getRoundStatus(r);
+                  const cs = chipStyle(st);
+                  const isLast = i === modalRounds.length - 1;
+                  return (
+                    <div key={i} style={{ position: 'relative', paddingLeft: 30, paddingBottom: isLast ? 0 : 24 }}>
+                      {/* Dot */}
+                      <div style={{ position: 'absolute', left: 0, top: 3, width: 15, height: 15, borderRadius: '50%', background: dotBg(st) }} />
+                      {/* Connector line */}
+                      {!isLast && (
+                        <div style={{ position: 'absolute', left: 7, top: 20, bottom: 0, width: 2, background: st === 'done' ? 'rgba(0,212,255,.35)' : '#1b2740' }} />
+                      )}
+                      {/* Round name + chip */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: '#e6eef9' }}>{r.name}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 20, ...cs }}>{cs.label}</span>
+                      </div>
+                      {/* Sub-events */}
+                      <div style={{ borderLeft: '1px solid #131d31', paddingLeft: 14, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 12, color: '#c9d6e8', fontWeight: 600 }}>Phát đề bài cho các đội</span>
+                          <span style={{ fontSize: 12, color: '#7e90ab', fontFamily: "'JetBrains Mono', monospace" }}>→ {fmtDateTime(r.start_time)}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 12, color: '#f87171', fontWeight: 600 }}>Hạn nộp bài</span>
+                          <span style={{ fontSize: 12, color: '#7e90ab', fontFamily: "'JetBrains Mono', monospace" }}>→ {fmtDateTime(r.submission_deadline)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

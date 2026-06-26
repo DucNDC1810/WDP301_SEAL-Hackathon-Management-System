@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import './StudentLayout.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -37,6 +38,8 @@ const MAIL   = ['M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-
 const CHAT   = ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'];
 const BELL   = ['M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9', 'M13.73 21a2 2 0 0 1-3.46 0'];
 const LOGOUT = ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'M16 17l5-5-5-5', 'M21 12H9'];
+const SUN    = 'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z';
+const MOON   = 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z';
 
 
 // ── Navigation groups ────────────────────────────────────────────────────────
@@ -81,6 +84,7 @@ const NavItem = ({ item, active, onClick }) => (
 // ── Main layout ──────────────────────────────────────────────────────────────
 export const StudentLayout = () => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [now, setNow] = useState(() => new Date());
@@ -153,6 +157,13 @@ export const StudentLayout = () => {
               <span className="sl-user-name">{user?.full_name || 'Người dùng'}</span>
               <span className="sl-user-role">👥 Thí sinh</span>
             </div>
+            <button
+              className="sl-logout-icon"
+              onClick={(e) => { e.stopPropagation(); toggleTheme(); }}
+              title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+            >
+              <Ico d={theme === 'dark' ? SUN : MOON} size={16} sw={1.8} />
+            </button>
             <button
               className="sl-logout-icon"
               onClick={(e) => { e.stopPropagation(); handleLogout(); }}

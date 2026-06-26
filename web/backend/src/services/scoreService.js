@@ -46,6 +46,12 @@ export const createScore = async ({
 
   const round = await getRound(contest_id, round_id);
 
+  // Block scoring after admin locks the round
+  if (round.scoring_locked) {
+    const err = new Error("Vòng thi đã khóa chấm điểm");
+    err.statusCode = 403; throw err;
+  }
+
   // Conflict of interest: mentor không được chấm team mình đang hướng dẫn
   const isMentorOfThisTeam = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id });
   if (isMentorOfThisTeam) {
@@ -102,6 +108,11 @@ export const createScore = async ({
     mentor_id: actorId,
     contest_id,
     round_id,
+    criteria_scores: score_details.map(d => ({
+      criteria_name: d.criteria_name,
+      weight: d.weight,
+      score: d.score_value,
+    })),
     total_score,
     weighted_avg_score: total_score,
     comment,
@@ -150,10 +161,21 @@ export const updateScore = async (scoreId, judgeId, { comment, score_details, su
     const err = new Error("Không thể chỉnh sửa điểm đã nộp"); err.statusCode = 400; throw err;
   }
 
+  const round = await getRound(score.contest_id.toString(), score.round_id.toString());
+  if (round.scoring_locked) {
+    const err = new Error("Vòng thi đã khóa chấm điểm");
+    err.statusCode = 403; throw err;
+  }
+
   const total = calcWeightedTotal(score_details);
   score.total_score = total;
   score.weighted_avg_score = total;
   score.comment = comment;
+  score.criteria_scores = score_details.map(d => ({
+    criteria_name: d.criteria_name,
+    weight: d.weight,
+    score: d.score_value,
+  }));
   if (submit) { score.status = "submitted"; score.submitted_at = new Date(); }
   await score.save();
 
@@ -194,12 +216,18 @@ export const getScoringProgress = async (contestId, roundId) => {
   // Tìm tất cả các phân công mentor cho vòng thi này
   const mentorAssignments = await MentorAssignment.find({ contest_id: contestId, round_id: roundId }).lean();
   const totalTeams = await Team.countDocuments({ contest_id: contestId, status: { $in: ["CONFIRMED", "confirmed"] } });
-  
+
+  // Group by mentor — each mentor scores (totalTeams - their mentee count) teams
   let mentorExpectedScores = 0;
-  for (const ma of mentorAssignments) {
-    // Mentor chấm tất cả các đội trừ đội họ hướng dẫn
-    const teamCountForMentor = Math.max(0, totalTeams - 1);
-    mentorExpectedScores += teamCountForMentor;
+  if (totalTeams > 0 && mentorAssignments.length > 0) {
+    const menteesByMentor = new Map();
+    for (const ma of mentorAssignments) {
+      const mid = ma.mentor_id.toString();
+      menteesByMentor.set(mid, (menteesByMentor.get(mid) ?? 0) + 1);
+    }
+    for (const menteesCount of menteesByMentor.values()) {
+      mentorExpectedScores += Math.max(0, totalTeams - menteesCount);
+    }
   }
 
   const total = judgeExpectedScores + mentorExpectedScores;

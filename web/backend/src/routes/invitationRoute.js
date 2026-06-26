@@ -7,6 +7,9 @@ import {
   handleCancelInvitation,
   handleGetInvitationsByContest,
   handleCompleteJudgeRegistration,
+  handleGetMyTeamInvitations,
+  handleAcceptTeamInvitation,
+  handleRejectTeamInvitation,
 } from "../controllers/invitationController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import { audit } from "../middlewares/auditMiddleware.js";
@@ -26,6 +29,16 @@ router.post("/decline", handleDeclineInvitation);
 
 // POST /api/invitations/judge/complete        — external judge kích hoạt tài khoản
 router.post("/judge/complete", handleCompleteJudgeRegistration);
+
+// ─── Student: team member invitations ─────────────────────────────────────────
+// GET  /api/invitations/me              — lấy danh sách lời mời đội của bản thân
+router.get('/me', authenticate, handleGetMyTeamInvitations);
+
+// POST /api/invitations/:id/accept      — chấp nhận lời mời vào đội
+router.post('/:id/accept', authenticate, handleAcceptTeamInvitation);
+
+// POST /api/invitations/:id/reject      — từ chối lời mời vào đội
+router.post('/:id/reject', authenticate, handleRejectTeamInvitation);
 
 // ─── Admin only ───────────────────────────────────────────────────────────────
 

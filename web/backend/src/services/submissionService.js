@@ -72,6 +72,12 @@ export const createSubmission = async ({ repo_url, demo_url, slide_url, team_id,
     throw err;
   }
 
+  if (team.status !== 'CONFIRMED') {
+    const err = new Error("Đội thi của bạn chưa được admin phê duyệt, không thể nộp bài");
+    err.statusCode = 403;
+    throw err;
+  }
+
   const contest = await Contest.findOne({ "rounds._id": round_id });
   if (!contest) {
     const err = new Error("Không tìm thấy vòng thi");
@@ -83,6 +89,12 @@ export const createSubmission = async ({ repo_url, demo_url, slide_url, team_id,
   if (!round) {
     const err = new Error("Không tìm thấy vòng thi");
     err.statusCode = 404;
+    throw err;
+  }
+
+  if (!round.is_active) {
+    const err = new Error("Vòng thi này hiện không hoạt động, không thể nộp bài");
+    err.statusCode = 400;
     throw err;
   }
 

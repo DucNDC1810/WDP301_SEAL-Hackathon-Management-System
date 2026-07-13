@@ -154,29 +154,37 @@ export default function HackathonFeaturePage({ feature }) {
       <div className="hfp-header">
         <div>
           <h1 className="hfp-title">{FEATURE_TITLES[feature] || 'Thao tác giải đấu'}</h1>
-          <p className="hfp-subtitle">Lựa chọn giải đấu đang diễn ra để thực hiện điều chỉnh cấu hình và nghiệp vụ trực tiếp</p>
+          <p className="hfp-subtitle">
+            {contest ? (
+              <span>Đang cấu hình: <strong style={{ color: 'var(--cyan)' }}>{contest.title}</strong></span>
+            ) : (
+              'Lựa chọn giải đấu đang diễn ra để thực hiện điều chỉnh cấu hình và nghiệp vụ trực tiếp'
+            )}
+          </p>
         </div>
 
         {/* Dropdown Selector */}
-        <div className="hfp-selector-wrap">
-          <label className="hfp-select-label">Chọn cuộc thi:</label>
-          {loadingList ? (
-            <div className="hfp-select-loader">Đang tải cuộc thi...</div>
-          ) : (
-            <select
-              className="hfp-select"
-              value={selectedContestId}
-              onChange={handleContestChange}
-            >
-              <option value="">-- Vui lòng chọn cuộc thi --</option>
-              {contests.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.title} {c.status === 'open' ? '🟢 (ONGOING)' : c.status === 'closed' ? '🔴 (Closed)' : '⚪ (Draft)'}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+        {!contestId && (
+          <div className="hfp-selector-wrap">
+            <label className="hfp-select-label">Chọn cuộc thi:</label>
+            {loadingList ? (
+              <div className="hfp-select-loader">Đang tải cuộc thi...</div>
+            ) : (
+              <select
+                className="hfp-select"
+                value={selectedContestId}
+                onChange={handleContestChange}
+              >
+                <option value="">-- Vui lòng chọn cuộc thi --</option>
+                {contests.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.title} {c.status === 'open' ? '🟢 (ONGOING)' : c.status === 'closed' ? '🔴 (Closed)' : '⚪ (Draft)'}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="hfp-content">

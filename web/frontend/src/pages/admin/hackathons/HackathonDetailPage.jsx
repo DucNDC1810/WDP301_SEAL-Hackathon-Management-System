@@ -41,7 +41,6 @@ const MAIN_TABS = [
   { id: 3, label: 'Bảng đấu' },
   { id: 4, label: 'Phân công Judge & Mentor' },
   { id: 5, label: 'Phát đề bài' },
-  { id: 11, label: 'Lịch thuyết trình' },
   { id: 12, label: 'Bảng xếp hạng' },
   { id: 9, label: 'Review & ONGOING' },
 ];
@@ -2263,14 +2262,6 @@ export default function HackathonDetailPage({ defaultTab }) {
               </p>
             )}
           </div>
-        </div>
-      )}
-
-      {/* ─── TAB 11: ĐẶT LỊCH TRÌNH BÀY ─── */}
-      {tab === 11 && (
-        <div className="hd-section">
-          <h2 className="hd-section-title">Đặt lịch trình bày</h2>
-          <PresentationScheduleTab contestId={id} contest={contest} />
         </div>
       )}
 

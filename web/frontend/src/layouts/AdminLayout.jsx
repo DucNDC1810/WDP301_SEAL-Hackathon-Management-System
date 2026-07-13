@@ -35,6 +35,7 @@ const TIMELINE = ['M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2
 const CALENDAR = ['M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z', 'M12 6v6l4 2']; // clock
 
 const HACKATHON_SUB_NAV = [
+  { key: 'detail', label: 'Cấu hình chi tiết', subPath: '/hackathons', d: GEAR },
   { key: 'sub-review', label: 'Duyệt Bài Nộp', subPath: '/submission-review', d: CLIPBOARD },
   { key: 'score-lock', label: 'Khóa Chấm Điểm', subPath: '/scoring-lock', d: LOCK },
   { key: 'elimination', label: 'Loại Đội Vi Phạm', subPath: '/elimination', d: SHIELD_ALERT },
@@ -65,6 +66,26 @@ export default function AdminLayout() {
     logout();
     navigate('/login');
   };
+
+  const getActiveContestId = () => {
+    const paths = [
+      /^\/admin\/hackathons\/([^/]+)/,
+      /^\/admin\/submission-review\/([^/]+)/,
+      /^\/admin\/scoring-lock\/([^/]+)/,
+      /^\/admin\/elimination\/([^/]+)/,
+      /^\/admin\/timeline\/([^/]+)/,
+      /^\/admin\/presentation\/([^/]+)/
+    ];
+    for (const regex of paths) {
+      const match = location.pathname.match(regex);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    return null;
+  };
+
+  const activeContestId = getActiveContestId();
 
   const activeKey = NAV.find(n => n.path && location.pathname.startsWith(n.path))?.key || 'dashboard';
 
@@ -111,27 +132,33 @@ export default function AdminLayout() {
             </button>
           ))}
 
-          <div className="al-nav-divider" style={{ height: '1px', background: 'var(--al-border)', margin: '10px 4px' }} />
-          {!collapsed && (
-            <div className="al-nav-section-title" style={{ padding: '4px 11px 8px 11px', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--al-accent)', opacity: 0.8 }}>
-              Quản lý giải đấu
-            </div>
+          {activeContestId && (
+            <>
+              <div className="al-nav-divider" style={{ height: '1px', background: 'var(--al-border)', margin: '10px 4px' }} />
+              {!collapsed && (
+                <div className="al-nav-section-title" style={{ padding: '4px 11px 8px 11px', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--al-accent)', opacity: 0.8 }}>
+                  Quản lý giải đấu
+                </div>
+              )}
+              {HACKATHON_SUB_NAV.map(({ key, label, subPath, d }) => {
+                const fullPath = `/admin${subPath}/${activeContestId}`;
+                const isActive = key === 'detail'
+                  ? location.pathname === `/admin/hackathons/${activeContestId}`
+                  : location.pathname.startsWith(`/admin${subPath}`);
+                return (
+                  <button
+                    key={key}
+                    className={`al-nav-item${isActive ? ' active' : ''}`}
+                    onClick={() => navigate(fullPath)}
+                    title={collapsed ? label : undefined}
+                  >
+                    <span className="al-nav-icon"><Ico d={d} size={16} /></span>
+                    {!collapsed && <span className="al-nav-label">{label}</span>}
+                  </button>
+                );
+              })}
+            </>
           )}
-          {HACKATHON_SUB_NAV.map(({ key, label, subPath, d }) => {
-            const fullPath = `/admin${subPath}`;
-            const isActive = location.pathname.startsWith(fullPath);
-            return (
-              <button
-                key={key}
-                className={`al-nav-item${isActive ? ' active' : ''}`}
-                onClick={() => navigate(fullPath)}
-                title={collapsed ? label : undefined}
-              >
-                <span className="al-nav-icon"><Ico d={d} size={16} /></span>
-                {!collapsed && <span className="al-nav-label">{label}</span>}
-              </button>
-            );
-          })}
         </nav>
 
         <div className="al-sidebar-foot">

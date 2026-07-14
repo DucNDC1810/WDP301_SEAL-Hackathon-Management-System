@@ -276,3 +276,25 @@
   min-height: 100vh;
   background: var(--al-bg);
 }
+
+/* Red dot indicator for items requiring approval */
+.al-nav-item {
+  position: relative;
+}
+
+.al-dot {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  box-shadow: 0 0 0 2px var(--al-sidebar-bg), 0 0 6px #ef4444;
+  transition: all 0.2s ease;
+}
+
+.al-sm .al-dot {
+  top: 10px;
+  right: 10px;
+}

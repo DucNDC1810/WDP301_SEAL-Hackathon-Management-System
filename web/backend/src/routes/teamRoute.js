@@ -35,6 +35,17 @@ router.get("/verify", handleVerifyMemberEmail);
 // GET /api/teams/me — lấy tất cả đội của user hiện tại
 router.get("/me", authenticate, handleGetMyTeams);
 
+// GET /api/teams/all-pending — lấy tất cả các đội đang chờ duyệt trên hệ thống (admin only)
+router.get("/all-pending", authenticate, authorize("admin"), async (req, res, next) => {
+  try {
+    const TeamModel = (await import("../models/Team.js")).default;
+    const pendingTeams = await TeamModel.find({ status: "WAITING_APPROVAL" });
+    res.status(200).json({ success: true, count: pendingTeams.length, data: pendingTeams });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/teams/join — tham gia đội bằng mã đội (team_code = _id)
 router.post("/join", authenticate, handleJoinTeam);
 

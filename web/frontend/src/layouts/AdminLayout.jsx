@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -61,6 +61,39 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [pendingTeamsCount, setPendingTeamsCount] = useState(0);
+  const [pendingSubmissions, setPendingSubmissions] = useState([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    const fetchData = async () => {
+      try {
+        const resTeams = await fetch(`${API_URL}/api/teams/all-pending`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const dataTeams = await resTeams.json();
+        if (dataTeams.success) {
+          setPendingTeamsCount(dataTeams.count || 0);
+        }
+
+        const resSubs = await fetch(`${API_URL}/api/submissions?status=LATE_PENDING`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const dataSubs = await resSubs.json();
+        if (dataSubs.success) {
+          setPendingSubmissions(dataSubs.data || []);
+        }
+      } catch (err) {
+        console.error("Error fetching approval counts:", err);
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // Poll every 10s
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = async () => {
     await fetch(`${API_URL}/api/auth/signout`, { method: 'POST', credentials: 'include' }).catch(() => { });
@@ -121,17 +154,21 @@ export default function AdminLayout() {
         </button>
 
         <nav className="al-nav">
-          {NAV.map(({ key, label, path, d }) => (
-            <button
-              key={key}
-              className={`al-nav-item${activeKey === key ? ' active' : ''}`}
-              onClick={() => path && navigate(path)}
-              title={collapsed ? label : undefined}
-            >
-              <span className="al-nav-icon"><Ico d={d} size={16} /></span>
-              {!collapsed && <span className="al-nav-label">{label}</span>}
-            </button>
-          ))}
+          {NAV.map(({ key, label, path, d }) => {
+            const hasPending = key === 'team' && pendingTeamsCount > 0;
+            return (
+              <button
+                key={key}
+                className={`al-nav-item${activeKey === key ? ' active' : ''}`}
+                onClick={() => path && navigate(path)}
+                title={collapsed ? label : undefined}
+              >
+                <span className="al-nav-icon"><Ico d={d} size={16} /></span>
+                {!collapsed && <span className="al-nav-label">{label}</span>}
+                {hasPending && <span className="al-dot" />}
+              </button>
+            );
+          })}
 
           {activeContestId && (
             <>
@@ -146,6 +183,7 @@ export default function AdminLayout() {
                 const isActive = key === 'detail'
                   ? location.pathname === `/admin/hackathons/${activeContestId}`
                   : location.pathname.startsWith(`/admin${subPath}`);
+                const hasPending = key === 'sub-review' && pendingSubmissions.some(sub => sub.contest_id === activeContestId);
                 return (
                   <button
                     key={key}
@@ -155,6 +193,7 @@ export default function AdminLayout() {
                   >
                     <span className="al-nav-icon"><Ico d={d} size={16} /></span>
                     {!collapsed && <span className="al-nav-label">{label}</span>}
+                    {hasPending && <span className="al-dot" />}
                   </button>
                 );
               })}

@@ -114,7 +114,7 @@ export const drawPools = async (contestId, { pool_count, round_id }) => {
     }
 
     const populatedPools = await Pool.find({ contest_id: contestId, round_id: targetRoundId })
-      .populate("teams", "team_name status pool_id")
+      .populate("teams", "team_name status pool_id members")
       .session(session);
 
     await session.commitTransaction();
@@ -133,7 +133,7 @@ export const drawPools = async (contestId, { pool_count, round_id }) => {
 export const getPoolsByContest = async (contestId, roundId = null) => {
   const targetRoundId = roundId || await getDefaultRoundId(contestId);
   const pools = await Pool.find({ contest_id: contestId, round_id: targetRoundId })
-    .populate("teams", "team_name status pool_id");
+    .populate("teams", "team_name status pool_id members");
 
   return pools;
 };
@@ -310,7 +310,7 @@ export const assignTeamsToExistingPools = async (contestId, { round_id }) => {
     }
 
     const populatedPools = await Pool.find({ contest_id: contestId, round_id: targetRoundId })
-      .populate("teams", "team_name status pool_id")
+      .populate("teams", "team_name status pool_id members")
       .session(session);
 
     await session.commitTransaction();
@@ -354,7 +354,7 @@ export const addSinglePool = async (contestId, { pool_name, description, drive_l
   await newPool.save();
 
   const populated = await Pool.findById(newPool._id)
-    .populate("teams", "team_name status pool_id");
+    .populate("teams", "team_name status pool_id members");
 
   return populated;
 };
@@ -433,7 +433,7 @@ export const updatePool = async (poolId, { pool_name, description, drive_link, t
     await session.commitTransaction();
 
     const populated = await Pool.findById(poolId)
-      .populate("teams", "team_name status pool_id");
+      .populate("teams", "team_name status pool_id members");
 
     return populated;
   } catch (err) {

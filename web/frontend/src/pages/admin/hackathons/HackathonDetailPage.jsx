@@ -2108,7 +2108,12 @@ export default function HackathonDetailPage({ defaultTab }) {
                       {p.teams && p.teams.length > 0 ? (
                         p.teams.map(t => (
                           <li key={t._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'rgba(255,255,255,0.02)', marginBottom: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                            <span style={{ fontWeight: 500, color: '#c9d6e8', fontSize: '0.85rem' }}>{t.team_name}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 500, color: '#c9d6e8', fontSize: '0.85rem' }}>{t.team_name}</span>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--cyan)', background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 10, padding: '1px 8px' }}>
+                                {(t.members || []).length} người
+                              </span>
+                            </span>
                             <button
                               type="button"
                               onClick={() => handleRemoveTeamFromPool(p._id, t._id)}

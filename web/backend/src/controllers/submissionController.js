@@ -3,6 +3,7 @@ import {
   getSubmissions,
   reviewLateSubmission,
 } from "../services/submissionService.js";
+import { sendNotification } from "../services/notification.js";
 
 /**
  * Handle POST /api/submissions
@@ -23,6 +24,29 @@ export const handleSubmit = async (req, res, next) => {
       { repo_url, demo_url, slide_url, team_id, round_id, is_accessible },
       req.user._id
     );
+
+    // Send notification to Admins
+    try {
+      const Team = (await import("../models/Team.js")).default;
+      const team = await Team.findById(team_id);
+      const User = (await import("../models/User.js")).default;
+      const admins = await User.find({ "roles.role_name": "admin" });
+      const adminIds = admins.map(a => a._id.toString());
+      if (adminIds.length > 0) {
+        await sendNotification({
+          recipientIds: adminIds,
+          type: "SUBMISSION_CREATED",
+          payload: {
+            title: "Bài nộp mới từ đội thi",
+            message: `Đội "${team ? team.team_name : 'N/A'}" đã nộp bài dự thi của họ.`,
+            ref_id: submission._id,
+            ref_type: "Submission"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending submission notification to admins:", err);
+    }
 
     return res.status(201).json({
       success: true,
@@ -97,6 +121,38 @@ export const handleReviewSubmission = async (req, res, next) => {
       { decision, reason },
       req.user._id
     );
+
+    // Notify team members
+    try {
+      const Team = (await import("../models/Team.js")).default;
+      const team = await Team.findById(submission.team_id);
+      if (team) {
+        const recipientIds = [];
+        if (team.leader_id) recipientIds.push(team.leader_id.toString());
+        if (Array.isArray(team.members)) {
+          for (const member of team.members) {
+            if (member.user_id) recipientIds.push(member.user_id.toString());
+          }
+        }
+        if (recipientIds.length > 0) {
+          const isApprove = decision === "APPROVE" || decision === "approve";
+          await sendNotification({
+            recipientIds,
+            type: "SUBMISSION_REVIEWED",
+            payload: {
+              title: isApprove ? "Bài nộp muộn được chấp nhận" : "Bài nộp muộn bị từ chối",
+              message: isApprove 
+                ? `Bài nộp muộn của đội "${team.team_name}" đã được Admin phê duyệt.`
+                : `Bài nộp muộn của đội "${team.team_name}" bị từ chối. Lý do: ${reason || "Không có"}`,
+              ref_id: submission._id,
+              ref_type: "Submission"
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error sending submission review notification:", err);
+    }
 
     return res.status(200).json({
       success: true,

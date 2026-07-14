@@ -6,7 +6,7 @@ import User from "../models/User.js";
 import AuditLog from "../models/AuditLog.js";
 import Score from "../models/Score.js";
 import Team from "../models/Team.js";
-import Notification from "../models/Notification.js";
+import { sendNotification } from "../services/notification.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
 const router = Router();
@@ -321,23 +321,25 @@ router.patch("/:round_id/finish", authenticate, authorize("admin"), async (req, 
 
     // Send RESULT_PUBLISHED notification to all members of ACTIVE teams in this round
     const activeTeams = await Team.find({ contest_id: round.contest_id, status: { $in: ["ACTIVE", "CONFIRMED"] } });
-    const notifications = [];
+    const recipientIds = [];
     for (const team of activeTeams) {
       for (const member of team.members) {
         if (member.user_id) {
-          notifications.push({
-            user_id: member.user_id,
-            type: "RESULT_PUBLISHED",
-            title: "Kết quả đã được công bố",
-            message: `Kết quả vòng thi "${round.name}" đã được công bố.`,
-            ref_id: round._id,
-            ref_type: null,
-          });
+          recipientIds.push(member.user_id.toString());
         }
       }
     }
-    if (notifications.length > 0) {
-      await Notification.insertMany(notifications);
+    if (recipientIds.length > 0) {
+      await sendNotification({
+        recipientIds,
+        type: "RESULT_PUBLISHED",
+        payload: {
+          title: "Kết quả đã được công bố",
+          message: `Kết quả vòng thi "${round.name}" đã được công bố.`,
+          ref_id: round._id,
+          ref_type: null
+        }
+      });
     }
 
     return res.status(200).json({ success: true, status: "FINISHED" });

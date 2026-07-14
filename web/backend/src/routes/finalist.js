@@ -4,7 +4,7 @@ import Contest from "../models/Contest.js";
 import Team from "../models/Team.js";
 import Score from "../models/Score.js";
 import AuditLog from "../models/AuditLog.js";
-import Notification from "../models/Notification.js";
+import { sendNotification } from "../services/notification.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import Pool from "../models/Pool.js";
 
@@ -205,22 +205,18 @@ router.patch("/:round_id/team/:team_id", authenticate, authorize("admin"), async
         ? `Đội ${team.name} của bạn đã được xác nhận vào vòng chung kết!`
         : `Đội ${team.name} của bạn đã bị loại khỏi danh sách chung kết.`;
 
-      for (const member of team.members) {
-        if (member.user_id) {
-          await Notification.create({
-            recipient_id: member.user_id,
-            user_id: member.user_id, // Compatibility
-            type,
-            payload: {
-              team_id: team._id,
-              team_name: team.name,
-              status,
-              round_id,
-            },
+      const recipientIds = team.members.map(m => m.user_id).filter(id => id);
+      if (recipientIds.length > 0) {
+        await sendNotification({
+          recipientIds,
+          type,
+          payload: {
             title,
             message,
-          });
-        }
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
       }
     }
 

@@ -21,6 +21,7 @@ import {
   leaveTeam,
   transferLeader,
 } from "../services/teamService.js";
+import { sendNotification } from "../services/notification.js";
 
 /**
  * GET /me
@@ -69,6 +70,27 @@ export const handleCreateTeam = async (req, res) => {
       leader_id: req.user._id,
       members,
     });
+
+    // Send notification to Admins
+    try {
+      const User = (await import("../models/User.js")).default;
+      const admins = await User.find({ "roles.role_name": "admin" });
+      const adminIds = admins.map(a => a._id.toString());
+      if (adminIds.length > 0) {
+        await sendNotification({
+          recipientIds: adminIds,
+          type: "TEAM_REGISTERED",
+          payload: {
+            title: "Đội thi mới đăng ký",
+            message: `Đội "${team.team_name}" đã được tạo/đăng ký tham gia hệ thống.`,
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending notification to admins:", err);
+    }
 
     res.status(201).json({
       success: true,
@@ -174,6 +196,32 @@ export const handleDeleteTeam = async (req, res) => {
 export const handleApproveTeam = async (req, res) => {
   try {
     const team = await approveTeam(req.params.id);
+
+    // Send notification to team members
+    try {
+      const recipientIds = [];
+      if (team.leader_id) recipientIds.push(team.leader_id.toString());
+      if (Array.isArray(team.members)) {
+        for (const member of team.members) {
+          if (member.user_id) recipientIds.push(member.user_id.toString());
+        }
+      }
+      if (recipientIds.length > 0) {
+        await sendNotification({
+          recipientIds,
+          type: "TEAM_APPROVED",
+          payload: {
+            title: "Đội thi đã được duyệt",
+            message: `Đội thi "${team.team_name}" của bạn đã được duyệt đăng ký thành công!`,
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending approval notification to team:", err);
+    }
+
     res.status(200).json({ success: true, message: "Duyệt đội thi thành công", data: team });
   } catch (err) {
     res.status(err.statusCode || 500).json({ success: false, message: err.message });
@@ -184,6 +232,32 @@ export const handleRejectTeam = async (req, res) => {
   try {
     const { reason } = req.body;
     const team = await rejectTeam(req.params.id, reason);
+
+    // Send notification to team members
+    try {
+      const recipientIds = [];
+      if (team.leader_id) recipientIds.push(team.leader_id.toString());
+      if (Array.isArray(team.members)) {
+        for (const member of team.members) {
+          if (member.user_id) recipientIds.push(member.user_id.toString());
+        }
+      }
+      if (recipientIds.length > 0) {
+        await sendNotification({
+          recipientIds,
+          type: "TEAM_REJECTED",
+          payload: {
+            title: "Đội thi bị từ chối duyệt",
+            message: `Đội thi "${team.team_name}" của bạn bị từ chối duyệt. Lý do: ${reason || "Không có lý do chi tiết."}`,
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending rejection notification to team:", err);
+    }
+
     res.status(200).json({ success: true, message: "Từ chối duyệt đội thi thành công. Đã gửi thông báo đến đội.", data: team });
   } catch (err) {
     res.status(err.statusCode || 500).json({ success: false, message: err.message });
@@ -193,6 +267,32 @@ export const handleRejectTeam = async (req, res) => {
 export const handleDisqualifyTeam = async (req, res) => {
   try {
     const team = await disqualifyTeam(req.params.id);
+
+    // Send notification to team members
+    try {
+      const recipientIds = [];
+      if (team.leader_id) recipientIds.push(team.leader_id.toString());
+      if (Array.isArray(team.members)) {
+        for (const member of team.members) {
+          if (member.user_id) recipientIds.push(member.user_id.toString());
+        }
+      }
+      if (recipientIds.length > 0) {
+        await sendNotification({
+          recipientIds,
+          type: "TEAM_DISQUALIFIED",
+          payload: {
+            title: "Đội thi bị loại",
+            message: `Đội thi "${team.team_name}" của bạn đã bị loại khỏi cuộc thi.`,
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending disqualify notification to team:", err);
+    }
+
     res.status(200).json({ success: true, message: "Loại đội thi thành công", data: team });
   } catch (error) {
     console.error("[handleDisqualifyTeam]", error);
@@ -269,6 +369,32 @@ export const handleEliminateTeam = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Lý do loại đội thi là bắt buộc" });
     }
     const team = await eliminateTeam(req.params.id, { reason }, req.user._id);
+
+    // Send notification to team members
+    try {
+      const recipientIds = [];
+      if (team.leader_id) recipientIds.push(team.leader_id.toString());
+      if (Array.isArray(team.members)) {
+        for (const member of team.members) {
+          if (member.user_id) recipientIds.push(member.user_id.toString());
+        }
+      }
+      if (recipientIds.length > 0) {
+        await sendNotification({
+          recipientIds,
+          type: "TEAM_ELIMINATED",
+          payload: {
+            title: "Đội thi bị loại và cập nhật lại thứ hạng",
+            message: `Đội thi "${team.team_name}" của bạn bị loại khỏi cuộc thi. Lý do: ${reason}`,
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending eliminate notification to team:", err);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Loại đội thi thành công",
@@ -295,6 +421,27 @@ export const handleRegisterContest = async (req, res) => {
     }
 
     const team = await registerContest(id, contest_id, req.user._id);
+
+    // Send notification to Admins
+    try {
+      const User = (await import("../models/User.js")).default;
+      const admins = await User.find({ "roles.role_name": "admin" });
+      const adminIds = admins.map(a => a._id.toString());
+      if (adminIds.length > 0) {
+        await sendNotification({
+          recipientIds: adminIds,
+          type: "TEAM_REGISTERED",
+          payload: {
+            title: "Đội thi đăng ký cuộc thi",
+            message: `Đội "${team.team_name}" đã đăng ký tham gia cuộc thi mới.`,
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending notification to admins:", err);
+    }
 
     res.status(200).json({
       success: true,

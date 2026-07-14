@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import NotificationBell from '../components/NotificationBell';
 import './AdminLayout.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -177,7 +178,8 @@ export default function AdminLayout() {
       {/* ── Right side: topbar + content ── */}
       <div className="al-main">
         <header className="al-topbar">
-          <div className="al-topbar-right">
+          <div className="al-topbar-right" style={{ gap: '12px', alignItems: 'center' }}>
+            <NotificationBell />
             <button
               className="al-theme-toggle"
               onClick={toggleTheme}

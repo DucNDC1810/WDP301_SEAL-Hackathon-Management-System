@@ -17,31 +17,48 @@ const mapSubStatus = (s) => {
   return m[s] || 'pending';
 };
 
-function CountdownTimer({ releasedAt }) {
-  const [elapsed, setElapsed] = useState(0);
+function CountdownTimer({ deadline, allSubmitted }) {
+  const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
-    if (!releasedAt) return;
-    const tick = () => setElapsed(Math.floor((Date.now() - new Date(releasedAt)) / 1000));
+    if (!deadline || allSubmitted) return;
+    const tick = () => {
+      const diff = Math.floor((new Date(deadline) - Date.now()) / 1000);
+      setTimeLeft(diff);
+    };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [releasedAt]);
+  }, [deadline, allSubmitted]);
 
-  if (!releasedAt) return null;
+  if (!deadline) return null;
 
-  const h = Math.floor(elapsed / 3600);
-  const m = Math.floor((elapsed % 3600) / 60);
-  const s = elapsed % 60;
+  if (allSubmitted) {
+    return (
+      <div className="flex items-center gap-2">
+        <Tag color="green" style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>✓ ĐÃ HOÀN THÀNH NỘP BÀI</Tag>
+      </div>
+    );
+  }
+
+  const isOverdue = timeLeft <= 0;
+  const absoluteTime = Math.abs(timeLeft);
+
+  const h = Math.floor(absoluteTime / 3600);
+  const m = Math.floor((absoluteTime % 3600) / 60);
+  const s = absoluteTime % 60;
   const pad = n => String(n).padStart(2, '0');
-  const isLate = elapsed > 3600;
 
   return (
     <div className="flex items-center gap-2">
-      <span className="font-mono text-sm font-bold" style={{ color: isLate ? '#f87171' : '#10b981' }}>
-        {pad(h)}:{pad(m)}:{pad(s)}
+      <span className="font-mono text-sm font-bold animate-pulse" style={{ color: isOverdue ? '#ef4444' : '#10b981' }}>
+        {isOverdue ? '-' : ''}{pad(h)}:{pad(m)}:{pad(s)}
       </span>
-      {isLate && <Tag color="red" style={{ fontSize: '0.65rem' }}>⚠ TRỄ GIỜ</Tag>}
+      {isOverdue ? (
+        <Tag color="red" style={{ fontSize: '0.65rem' }}>⚠ QUÁ HẠN</Tag>
+      ) : (
+        <Tag color="green" style={{ fontSize: '0.65rem' }}>⏳ CÒN LẠI</Tag>
+      )}
     </div>
   );
 }
@@ -51,10 +68,29 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
   const [messageApi, contextHolder] = message.useMessage();
 
   const rounds = contest?.rounds
-    ? contest.rounds.filter(r => r.is_active).map(r => ({ id: r._id, name: r.name, problem_released_at: r.problem_released_at }))
-    : (config?.tracks || []).flatMap(t => (t.rounds || []).filter(r => r.is_active).map(r => ({ ...r, trackName: t.name })));
+    ? contest.rounds.map(r => ({
+        id: r._id,
+        name: r.name,
+        is_active: r.is_active,
+        problem_released_at: r.problem_released_at,
+        submission_deadline: r.submission_deadline
+      }))
+    : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name, is_active: r.is_active || r.active })));
 
-  const [selectedRound, setSelectedRound] = useState(rounds[0]?.id || null);
+  const [selectedRound, setSelectedRound] = useState(null);
+
+  useEffect(() => {
+    if (rounds.length) {
+      const activeRounds = contest?.rounds ? contest.rounds.filter(r => r.is_active) : [];
+      const defaultId = activeRounds[0]?._id || rounds[0]?.id || rounds[0]?._id;
+      if (!selectedRound || !rounds.some(r => (r.id || r._id) === selectedRound)) {
+        setSelectedRound(defaultId);
+      }
+    } else {
+      setSelectedRound(null);
+    }
+  }, [rounds, selectedRound, contest]);
+
   const [pools, setPools] = useState([]);
   const [teamSubmissions, setTeamSubmissions] = useState({});
   const [loading, setLoading] = useState(false);
@@ -90,7 +126,8 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
         if (tid) subMap[tid] = mapSubStatus(sub.status);
       });
       setTeamSubmissions(subMap);
-      setPools(poolList);
+      const filteredPools = poolList.filter(p => p.round_id?.toString() === rid?.toString());
+      setPools(filteredPools);
     } catch {
       messageApi.error('Không thể tải dữ liệu bảng đấu');
     } finally {
@@ -118,11 +155,31 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
     }
   };
 
+  const handleUpdateDriveLink = async (poolId, driveLink) => {
+    try {
+      await request(`/api/pools/${poolId}/drive-link`, {
+        method: 'PATCH',
+        body: { drive_link: driveLink }
+      });
+      messageApi.success('Cập nhật link Drive thành công!');
+      if (selectedRound) fetchData(selectedRound);
+    } catch (err) {
+      messageApi.error(err.message || 'Lỗi khi cập nhật link Drive');
+    }
+  };
+
   const releasedAt = releasedRounds[selectedRound] || currentRound?.problem_released_at;
 
   // Kiểm tra pool nào chưa có drive_link
   const poolsMissingLink = pools.filter(p => !p.drive_link || !p.drive_link.trim());
   const canRelease = pools.length > 0 && poolsMissingLink.length === 0;
+
+  const allTeamsInRound = pools.flatMap(p => p.teams || []);
+  const allSubmittedInRound = allTeamsInRound.length > 0 && allTeamsInRound.every(team => {
+    const tid = (team._id || team)?.toString();
+    const status = teamSubmissions[tid] || 'pending';
+    return status !== 'pending';
+  });
 
   return (
     <div className="p-6 space-y-6">
@@ -131,7 +188,7 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
       <div>
         <h2 className="text-lg font-bold m-0" style={{ color: 'var(--text-primary)' }}>Phát Đề Bài</h2>
         <p className="text-sm mt-1 m-0" style={{ color: 'var(--text-secondary)' }}>
-          Khi phát đề, hệ thống ghi nhận <code>problem_released_at</code>. Bài nộp sau 60 phút sẽ bị đánh dấu TRỄGIỜ.
+          Khi phát đề, hệ thống sẽ mở quyền xem đề bài cho thí sinh. Các bài nộp sau hạn nộp bài sẽ bị đánh dấu Nộp trễ (LATE_PENDING).
         </p>
       </div>
 
@@ -147,18 +204,33 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
       {releasedAt ? (
         <Alert type="success" showIcon
           message={`✓ Đã phát đề lúc: ${new Date(releasedAt).toLocaleString('vi-VN')}`}
-          description={<CountdownTimer releasedAt={releasedAt} />}
+          description={
+            <div className="flex flex-col gap-1 mt-1">
+              {currentRound?.submission_deadline && (
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>
+                  Hạn nộp bài của vòng: <strong style={{ color: 'var(--cyan)' }}>{new Date(currentRound.submission_deadline).toLocaleString('vi-VN')}</strong>
+                </div>
+              )}
+              <CountdownTimer deadline={currentRound?.submission_deadline} allSubmitted={allSubmittedInRound} />
+            </div>
+          }
         />
-      ) : contest?.status !== 'open' ? (
+      ) : !currentRound?.is_active ? (
         <div className="flex flex-col gap-3">
           <Alert
             type="warning"
             showIcon
-            message="Không thể phát đề bài lúc này"
-            description="Giải đấu chưa được kích hoạt diễn ra (Trạng thái hiện tại không phải ONGOING). Hãy thay đổi trạng thái giải đấu sang ONGOING trong mục cấu hình trước khi thực hiện phát đề bài."
+            message="Vòng thi chưa được kích hoạt"
+            description="Vòng thi này chưa được kích hoạt chính thức. Bạn cần phân công Giám khảo và xác nhận kích hoạt vòng thi trước khi phát đề bài."
           />
-          <div className="flex justify-end">
-            <Button type="primary" disabled title="Giải đấu chưa diễn ra">📤 Phát đề ngay</Button>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="primary"
+              onClick={() => window.open(`/round/${selectedRound}/activate`, '_blank')}
+            >
+              ⚡ Kích hoạt Vòng thi ngay
+            </Button>
+            <Button type="primary" disabled title="Vòng thi chưa được kích hoạt">📤 Phát đề ngay</Button>
           </div>
         </div>
       ) : (
@@ -207,6 +279,11 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
             if (isFinalRound && pools.length > 0) {
               const released = !!releasedAt;
               const allTeams = pools.flatMap(p => p.teams || []);
+              const allSubmittedInRoundFinal = allTeams.length > 0 && allTeams.every(team => {
+                const tid = (team._id || team)?.toString();
+                const status = teamSubmissions[tid] || 'pending';
+                return status !== 'pending';
+              });
               return (
                 <div className="rounded-xl border overflow-hidden"
                   style={{ background: 'var(--bg-card)', borderColor: released ? 'rgba(16,185,129,0.3)' : 'var(--border)' }}>
@@ -221,7 +298,7 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
                       }
                     </div>
                     <div className="flex items-center gap-3">
-                      {released && <CountdownTimer releasedAt={releasedAt} />}
+                      {released && <CountdownTimer deadline={currentRound?.submission_deadline} allSubmitted={allSubmittedInRoundFinal} />}
                     </div>
                   </div>
 
@@ -252,28 +329,73 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
             return pools.map(pool => {
               const released = !!releasedAt;
               const teams = pool.teams || [];
+              const poolSubmitted = teams.length > 0 && teams.every(team => {
+                const tid = (team._id || team)?.toString();
+                const status = teamSubmissions[tid] || 'pending';
+                return status !== 'pending';
+              });
               return (
                 <div key={pool._id} className="rounded-xl border overflow-hidden"
                   style={{ background: 'var(--bg-card)', borderColor: released ? 'rgba(16,185,129,0.3)' : 'var(--border)' }}>
                   {/* Pool header */}
-                  <div className="flex items-center justify-between px-5 py-4 gap-3 flex-wrap"
+                  <div className="flex items-center justify-between px-5 py-4 gap-4 flex-wrap"
                     style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3" style={{ minWidth: '150px' }}>
                       <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>{pool.pool_name}</h3>
                       {released
                         ? <Tag color="green" style={{ fontSize: '0.7rem' }}>✓ Đã phát đề</Tag>
                         : <Tag color="default" style={{ fontSize: '0.7rem' }}>Chưa phát đề</Tag>
                       }
                     </div>
-                    <div className="flex items-center gap-3">
-                      {released && <CountdownTimer releasedAt={releasedAt} />}
-                      {pool.drive_link ? (
+
+                    <div className="flex items-center gap-3 flex-1 justify-end flex-wrap">
+                      {released && <CountdownTimer deadline={currentRound?.submission_deadline} allSubmitted={poolSubmitted} />}
+                      
+                      {/* Inline Drive link editor */}
+                      <div className="flex items-center gap-2" style={{ minWidth: '260px', maxWidth: '350px', flex: 1 }}>
+                        <input
+                          type="url"
+                          placeholder="Nhập Link Google Drive đề bài..."
+                          value={pool.drive_link || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPools(prev => prev.map(p => p._id === pool._id ? { ...p, drive_link: val } : p));
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: '0.8rem',
+                            borderRadius: '6px',
+                            background: 'var(--bg-nest)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border)',
+                            flex: 1,
+                            outline: 'none'
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateDriveLink(pool._id, pool.drive_link)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '0.75rem',
+                            borderRadius: '6px',
+                            background: 'var(--cyan)',
+                            color: '#000',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          Lưu
+                        </button>
+                      </div>
+                      
+                      {pool.drive_link && (
                         <a href={pool.drive_link} target="_blank" rel="noreferrer"
                           style={{ fontSize: '0.75rem', color: released ? '#10b981' : '#60a5fa', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                          📂 {released ? 'Link Drive đề bài' : 'Xem link Drive'}
+                          📂 Mở Link
                         </a>
-                      ) : (
-                        <span style={{ fontSize: '0.72rem', color: '#f87171', fontWeight: 600 }}>⚠ Chưa có link Drive</span>
                       )}
                     </div>
                   </div>
@@ -312,7 +434,7 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
         <div className="py-2">
           <Alert type="warning" showIcon
             message={`Phát đề cho vòng "${currentRound?.name}"`}
-            description="Sau khi phát, hệ thống ghi nhận problem_released_at. Bài nộp sau 60 phút sẽ bị đánh dấu TRỄGIỜ. Hành động không thể hoàn tác."
+            description="Sau khi phát, hệ thống sẽ ghi nhận problem_released_at và mở hiển thị đề bài cho thí sinh. Các bài nộp sau hạn nộp bài sẽ bị đánh dấu Nộp trễ (LATE_PENDING). Hành động không thể hoàn tác."
           />
         </div>
       </Modal>

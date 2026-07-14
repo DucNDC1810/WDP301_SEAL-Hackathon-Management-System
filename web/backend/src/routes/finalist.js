@@ -4,9 +4,10 @@ import Contest from "../models/Contest.js";
 import Team from "../models/Team.js";
 import Score from "../models/Score.js";
 import AuditLog from "../models/AuditLog.js";
-import Notification from "../models/Notification.js";
+import { sendNotification } from "../services/notification.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import Pool from "../models/Pool.js";
+import Criteria from "../models/Criteria.js";
 
 const router = Router();
 
@@ -143,10 +144,21 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
             contest_id: round.contest_id,
             name: nextSubRound.name,
             type: nextSubRound.round_number === 2 || nextSubRound.name.toLowerCase().includes("chung kết") || nextSubRound.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
-            is_active: nextSubRound.is_active || false,
+            is_active: false,
             round_start: nextSubRound.start_time || new Date(),
             round_end: nextSubRound.end_time || nextSubRound.submission_deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
           });
+
+          // Copy score criteria from contest.rounds config to standalone Criteria collection
+          if (nextSubRound.score_criteria && nextSubRound.score_criteria.length > 0) {
+            const criteriaToCreate = nextSubRound.score_criteria.map(c => ({
+              round_id: nextSubRound._id,
+              name: c.name,
+              weight: c.weight,
+              description: c.description || ""
+            }));
+            await Criteria.insertMany(criteriaToCreate);
+          }
         }
       }
     }
@@ -205,22 +217,18 @@ router.patch("/:round_id/team/:team_id", authenticate, authorize("admin"), async
         ? `Đội ${team.name} của bạn đã được xác nhận vào vòng chung kết!`
         : `Đội ${team.name} của bạn đã bị loại khỏi danh sách chung kết.`;
 
-      for (const member of team.members) {
-        if (member.user_id) {
-          await Notification.create({
-            recipient_id: member.user_id,
-            user_id: member.user_id, // Compatibility
-            type,
-            payload: {
-              team_id: team._id,
-              team_name: team.name,
-              status,
-              round_id,
-            },
+      const recipientIds = team.members.map(m => m.user_id).filter(id => id);
+      if (recipientIds.length > 0) {
+        await sendNotification({
+          recipientIds,
+          type,
+          payload: {
             title,
             message,
-          });
-        }
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
       }
     }
 

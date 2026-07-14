@@ -236,7 +236,7 @@ function ContestFormPage() {
 
       const baseTime = contestData.start_date ? new Date(contestData.start_date).getTime() : Date.now();
       const deadline1 = new Date(baseTime + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-      const deadline2 = new Date(baseTime + 48 * 60 * 60 * 1000).toISOString().slice(0, 16);
+      const deadline2 = new Date(new Date(deadline1).getTime() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
       const customConfig = {
         season: contestData.season,
@@ -282,6 +282,7 @@ function ContestFormPage() {
       };
 
       localStorage.setItem(`hackathon_config_${contestId}`, JSON.stringify(customConfig));
+      localStorage.setItem('hackathon_just_created', 'true');
 
       setSuccess('Tạo Hackathon thành công! Đang chuyển hướng đến trang quản lý...');
       setCurrentStepText('Đang chuyển hướng...');

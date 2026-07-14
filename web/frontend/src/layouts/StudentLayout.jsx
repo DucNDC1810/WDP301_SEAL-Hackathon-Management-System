@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import NotificationBell from '../components/NotificationBell';
 import './StudentLayout.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -188,14 +189,11 @@ export const StudentLayout = () => {
           </div>
 
           {/* Right: BXH + Bell */}
-          <div className="sl-topbar-right">
+          <div className="sl-topbar-right" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button className="sl-bxh-btn" onClick={() => navigate('/ranking')}>
               🏆 Bảng xếp hạng
             </button>
-            <button className="sl-bell-btn" title="Thông báo">
-              <Ico d={BELL} size={18} sw={1.8} />
-              <span className="sl-bell-dot" />
-            </button>
+            <NotificationBell />
           </div>
         </header>
 

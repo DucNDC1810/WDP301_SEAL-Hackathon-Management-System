@@ -7,6 +7,7 @@ import {
   changePassword,
   deleteUser,
 } from "../services/userService.js";
+import { sendNotification } from "../services/notification.js";
 
 // ─── getMe ──────────────────────────────────────────────────────────────────
 
@@ -185,6 +186,26 @@ export const submitVerifyRequest = async (req, res) => {
       { new: true }
     ).select("-password_hash -verify_token -reset_token");
 
+    // Notify admins
+    try {
+      const admins = await User.find({ "roles.role_name": "admin" });
+      const adminIds = admins.map(a => a._id.toString());
+      if (adminIds.length > 0) {
+        await sendNotification({
+          recipientIds: adminIds,
+          type: "VERIFICATION_REQUESTED",
+          payload: {
+            title: "Yêu cầu xác thực hồ sơ mới",
+            message: `Người dùng "${updated.full_name}" đã gửi yêu cầu xác thực thông tin cá nhân.`,
+            ref_id: updated._id,
+            ref_type: "User"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending verification request notification:", err);
+    }
+
     res.status(200).json({ success: true, message: "Gửi yêu cầu xác thực thành công. Admin sẽ kiểm tra và phản hồi sớm.", data: updated });
   } catch (error) {
     console.error("[submitVerifyRequest]", error);
@@ -240,6 +261,24 @@ export const reviewVerifyRequest = async (req, res) => {
     ).select("-password_hash -verify_token -reset_token");
 
     if (!updated) return res.status(404).json({ success: false, message: "Không tìm thấy user" });
+
+    // Notify user
+    try {
+      await sendNotification({
+        recipientIds: [updated._id.toString()],
+        type: "VERIFICATION_REVIEWED",
+        payload: {
+          title: action === 'approve' ? "Hồ sơ của bạn đã được xác thực" : "Yêu cầu xác thực hồ sơ bị từ chối",
+          message: action === 'approve' 
+            ? "Chúc mừng! Hồ sơ thông tin cá nhân của bạn đã được phê duyệt." 
+            : `Yêu cầu xác thực thông tin cá nhân bị từ chối. Lý do: ${note || "Không có"}`,
+          ref_id: updated._id,
+          ref_type: "User"
+        }
+      });
+    } catch (err) {
+      console.error("Error sending verification review notification:", err);
+    }
 
     res.status(200).json({
       success: true,

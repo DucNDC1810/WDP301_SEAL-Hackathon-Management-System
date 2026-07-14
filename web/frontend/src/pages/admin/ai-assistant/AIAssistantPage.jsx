@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './AIAssistantPage.css';
+import { notification } from 'antd';
 
 const Ico = ({ d, size = 18, sw = 1.8, color = 'currentColor' }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw}
@@ -76,7 +77,10 @@ export default function AIAssistantPage() {
   const template = getTemplateById(selectedTemplate);
 
   const generateEmail = () => {
-    alert(`Email generated for: ${recipientFilter || 'All teams'}\nTemplate: ${template.name}`);
+    notification.success({
+      message: 'Email Generated',
+      description: `Email generated for: ${recipientFilter || 'All teams'}\nTemplate: ${template.name}`,
+    });
   };
 
   return (

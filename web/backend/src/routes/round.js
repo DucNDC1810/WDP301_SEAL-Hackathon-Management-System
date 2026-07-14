@@ -6,7 +6,7 @@ import User from "../models/User.js";
 import AuditLog from "../models/AuditLog.js";
 import Score from "../models/Score.js";
 import Team from "../models/Team.js";
-import Notification from "../models/Notification.js";
+import { sendNotification } from "../services/notification.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
 const router = Router();
@@ -16,13 +16,54 @@ router.get("/:round_id/setup", authenticate, async (req, res, next) => {
   try {
     const { round_id } = req.params;
 
-    const round = await Round.findById(round_id);
-    if (!round) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+    let round = await Round.findById(round_id);
+    let roundData = null;
+
+    if (round) {
+      // Standalone Round document
+      roundData = round;
+    } else {
+      // Fallback: look for embedded round inside Contest.rounds
+      const Contest = (await import("../models/Contest.js")).default;
+      const contest = await Contest.findOne({ "rounds._id": round_id });
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      const embeddedRound = contest.rounds.find(r => r._id.toString() === round_id);
+      if (!embeddedRound) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      // Shape to match Round document interface
+      roundData = {
+        _id: embeddedRound._id,
+        name: embeddedRound.name,
+        is_active: embeddedRound.is_active,
+        scoring_locked: embeddedRound.scoring_locked,
+        contest_id: contest._id,
+        // expose criteria from embedded round as well
+        score_criteria: embeddedRound.score_criteria || [],
+      };
     }
 
     // Fetch criteria from standalone Criteria collection
-    const criteriaList = await Criteria.find({ round_id });
+    let criteriaList = await Criteria.find({ round_id });
+
+    if (criteriaList.length === 0) {
+      const Contest = (await import("../models/Contest.js")).default;
+      const parentContest = await Contest.findOne({ "rounds._id": round_id });
+      if (parentContest) {
+        const embeddedRound = parentContest.rounds.id(round_id);
+        if (embeddedRound && embeddedRound.score_criteria && embeddedRound.score_criteria.length > 0) {
+          const criteriaToCreate = embeddedRound.score_criteria.map(c => ({
+            round_id,
+            name: c.name,
+            weight: c.weight,
+            description: c.description || ""
+          }));
+          criteriaList = await Criteria.insertMany(criteriaToCreate);
+        }
+      }
+    }
 
     const total_weight = criteriaList.reduce((sum, item) => sum + (item.weight || 0), 0);
     const weight_valid = Math.abs(total_weight - 1.0) <= 0.001;
@@ -42,11 +83,11 @@ router.get("/:round_id/setup", authenticate, async (req, res, next) => {
     const allAvailableJudges = await User.find({ "roles.role_name": "judge" }, "full_name email");
 
     return res.status(200).json({
-      round,
+      round: roundData,
       criteria: criteriaList,
       judges: assignedJudges,
       total_weight: Math.round(total_weight * 1000) / 1000,
-      is_active: round.is_active || false,
+      is_active: roundData.is_active || false,
       weight_valid,
       all_available_judges: allAvailableJudges
     });
@@ -54,6 +95,7 @@ router.get("/:round_id/setup", authenticate, async (req, res, next) => {
     next(error);
   }
 });
+
 
 // POST /api/round/:round_id/criteria/sync – Full replace criteria list from Contest config
 router.post("/:round_id/criteria/sync", authenticate, authorize("admin"), async (req, res, next) => {
@@ -97,26 +139,58 @@ router.post("/:round_id/judges", authenticate, authorize("admin"), async (req, r
     const { round_id } = req.params;
     const { judge_ids } = req.body; // Array of judge User IDs
 
-    const round = await Round.findById(round_id);
-    if (!round) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+    // Accept both standalone Round and embedded Contest round
+    let roundExists = await Round.findById(round_id);
+    if (!roundExists) {
+      const Contest = (await import("../models/Contest.js")).default;
+      const contest = await Contest.findOne({ "rounds._id": round_id });
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      roundExists = contest.rounds.find(r => r._id.toString() === round_id);
     }
 
     if (!Array.isArray(judge_ids)) {
       return res.status(400).json({ success: false, message: "Danh sách judge_ids không hợp lệ" });
     }
 
-    // Sync database: delete assignments not in the sent list
-    await JudgeAssignment.deleteMany({ round_id, judge_id: { $nin: judge_ids } });
+    // Find judges to be removed (not in the new list)
+    const toRemove = await JudgeAssignment.find({
+      round_id,
+      judge_id: { $nin: judge_ids }
+    });
+
+    // Protect judges who have already submitted scores — keep their assignments
+    const protectedJudgeIds = [];
+    for (const assignment of toRemove) {
+      const hasScores = await Score.exists({
+        judge_id: assignment.judge_id,
+        round_id,
+        status: "submitted"
+      });
+      if (hasScores) {
+        protectedJudgeIds.push(assignment.judge_id.toString());
+      }
+    }
+
+    // Only delete assignments for judges who have NOT scored yet
+    const deleteJudgeIds = toRemove
+      .map(a => a.judge_id?.toString())
+      .filter(id => id && !protectedJudgeIds.includes(id));
+
+    if (deleteJudgeIds.length > 0) {
+      await JudgeAssignment.deleteMany({ round_id, judge_id: { $in: deleteJudgeIds } });
+    }
 
     // Add new assignments
+    const contest_id = roundExists.contest_id || null;
     for (const judge_id of judge_ids) {
       const existing = await JudgeAssignment.findOne({ judge_id, round_id });
       if (!existing) {
         await JudgeAssignment.create({
           judge_id,
           round_id,
-          contest_id: round.contest_id,
+          contest_id,
           assigned_by: req.user?._id || null
         });
       }
@@ -130,7 +204,8 @@ router.post("/:round_id/judges", authenticate, authorize("admin"), async (req, r
         _id: a.judge_id._id,
         full_name: a.judge_id.full_name,
         email: a.judge_id.email,
-        assigned_at: a.assigned_at || a.created_at
+        assigned_at: a.assigned_at || a.created_at,
+        is_protected: protectedJudgeIds.includes(a.judge_id._id.toString())
       }));
 
     return res.status(200).json(assignedJudges);
@@ -138,6 +213,7 @@ router.post("/:round_id/judges", authenticate, authorize("admin"), async (req, r
     next(error);
   }
 });
+
 
 // POST /api/round/:round_id/criteria – Create a new criterion
 router.post("/:round_id/criteria", authenticate, authorize("admin"), async (req, res, next) => {
@@ -245,6 +321,30 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
     round.is_active = true;
     await round.save();
 
+    // Also update Contest embedded round is_active status
+    const Contest = (await import("../models/Contest.js")).default;
+    const contest = await Contest.findOne({ "rounds._id": round._id });
+    if (contest) {
+      const embeddedRound = contest.rounds.id(round._id);
+      if (embeddedRound) {
+        embeddedRound.is_active = true;
+        
+        // Auto-release problem when activated
+        const now = new Date();
+        embeddedRound.problem_released_at = now;
+        const durationHours = embeddedRound.coding_duration_hours || 24;
+        embeddedRound.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+
+        // Make sure only 1 round is active in contest.rounds
+        for (const r of contest.rounds) {
+          if (r._id.toString() !== round._id.toString()) {
+            r.is_active = false;
+          }
+        }
+        await contest.save();
+      }
+    }
+
     // Create AuditLog
     await AuditLog.create({
       entity_type: "Round",
@@ -321,23 +421,25 @@ router.patch("/:round_id/finish", authenticate, authorize("admin"), async (req, 
 
     // Send RESULT_PUBLISHED notification to all members of ACTIVE teams in this round
     const activeTeams = await Team.find({ contest_id: round.contest_id, status: { $in: ["ACTIVE", "CONFIRMED"] } });
-    const notifications = [];
+    const recipientIds = [];
     for (const team of activeTeams) {
       for (const member of team.members) {
         if (member.user_id) {
-          notifications.push({
-            user_id: member.user_id,
-            type: "RESULT_PUBLISHED",
-            title: "Kết quả đã được công bố",
-            message: `Kết quả vòng thi "${round.name}" đã được công bố.`,
-            ref_id: round._id,
-            ref_type: null,
-          });
+          recipientIds.push(member.user_id.toString());
         }
       }
     }
-    if (notifications.length > 0) {
-      await Notification.insertMany(notifications);
+    if (recipientIds.length > 0) {
+      await sendNotification({
+        recipientIds,
+        type: "RESULT_PUBLISHED",
+        payload: {
+          title: "Kết quả đã được công bố",
+          message: `Kết quả vòng thi "${round.name}" đã được công bố.`,
+          ref_id: round._id,
+          ref_type: null
+        }
+      });
     }
 
     return res.status(200).json({ success: true, status: "FINISHED" });

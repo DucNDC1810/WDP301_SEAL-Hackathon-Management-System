@@ -171,7 +171,7 @@ export const getSubmissions = async ({ round_id, status }) => {
   if (status) query.status = status;
 
   return await Submission.find(query)
-    .populate("team_id", "team_name")
+    .populate("team_id", "team_name contest_id")
     .sort({ submitted_at: -1 });
 };
 

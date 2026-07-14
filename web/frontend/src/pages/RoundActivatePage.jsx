@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getRoundSetup, assignJudges, activateRound } from '../api/round';
 import { useRoundStatus } from '../hooks/useRoundStatus';
 import { FrozenOverlay } from '../components/FrozenOverlay';
+import { notification, Modal } from 'antd';
 
 export default function RoundActivatePage() {
   const { round_id } = useParams();
@@ -61,10 +62,16 @@ export default function RoundActivatePage() {
     try {
       const res = await assignJudges(round_id, selectedJudgeIds);
       setAssignedJudges(res.data || []);
-      alert("Lưu phân công Hội đồng Ban giám khảo thành công!");
+      notification.success({
+        message: 'Thành công',
+        description: 'Lưu phân công Hội đồng Ban giám khảo thành công!',
+      });
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || err.message || "Không thể lưu danh sách Ban giám khảo.");
+      notification.error({
+        message: 'Lỗi',
+        description: err.response?.data?.message || err.message || "Không thể lưu danh sách Ban giám khảo.",
+      });
     } finally {
       setSavingJudges(false);
     }
@@ -72,37 +79,56 @@ export default function RoundActivatePage() {
 
   const handleActivateRound = async () => {
     if (!weightValid) {
-      alert("Tổng trọng số của tiêu chí chấm điểm phải bằng chính xác 1.0!");
+      notification.warning({
+        message: 'Tổng trọng số không hợp lệ',
+        description: 'Tổng trọng số của tiêu chí chấm điểm phải bằng chính xác 1.0!',
+      });
       return;
     }
     if (assignedJudges.length === 0) {
-      alert("Vui lòng phân công ít nhất 1 Judge trước khi kích hoạt!");
+      notification.warning({
+        message: 'Thiếu ban giám khảo',
+        description: 'Vui lòng phân công ít nhất 1 Judge trước khi kích hoạt!',
+      });
       return;
     }
 
-    if (!window.confirm("Kích hoạt Round Chung kết? Sau khi kích hoạt, vòng thi này sẽ chính thức bắt đầu và BGK có thể tiến hành chấm điểm.")) {
-      return;
-    }
-
-    setActivating(true);
-    try {
-      const res = await activateRound(round_id);
-      if (res.data.success) {
-        setRound(prev => ({ ...prev, is_active: true }));
-        alert("🎉 Vòng thi đã được kích hoạt thành công!");
+    Modal.confirm({
+      title: 'Kích hoạt Vòng thi?',
+      content: 'Kích hoạt Round Chung kết? Sau khi kích hoạt, vòng thi này sẽ chính thức bắt đầu và BGK có thể tiến hành chấm điểm.',
+      okText: 'Kích hoạt',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        setActivating(true);
+        try {
+          const res = await activateRound(round_id);
+          if (res.data.success) {
+            setRound(prev => ({ ...prev, is_active: true }));
+            notification.success({
+              message: 'Thành công',
+              description: '🎉 Vòng thi đã được kích hoạt thành công!',
+            });
+          }
+        } catch (err) {
+          console.error(err);
+          const serverErr = err.response?.data?.error;
+          const serverMsg = err.response?.data?.message;
+          if (serverErr === 'WEIGHT_INVALID') {
+            notification.error({
+              message: 'Kích hoạt thất bại',
+              description: `Tổng trọng số tiêu chí không hợp lệ (${err.response?.data?.total_weight})`,
+            });
+          } else {
+            notification.error({
+              message: 'Kích hoạt thất bại',
+              description: serverMsg || "Kích hoạt vòng thi thất bại. Vui lòng kiểm tra lại cấu hình.",
+            });
+          }
+        } finally {
+          setActivating(false);
+        }
       }
-    } catch (err) {
-      console.error(err);
-      const serverErr = err.response?.data?.error;
-      const serverMsg = err.response?.data?.message;
-      if (serverErr === 'WEIGHT_INVALID') {
-        alert(`Kích hoạt thất bại: Tổng trọng số tiêu chí không hợp lệ (${err.response?.data?.total_weight})`);
-      } else {
-        alert(serverMsg || "Kích hoạt vòng thi thất bại. Vui lòng kiểm tra lại cấu hình.");
-      }
-    } finally {
-      setActivating(false);
-    }
+    });
   };
 
   if (loading) {

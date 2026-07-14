@@ -207,6 +207,11 @@ export const StudentSubmitPage = () => {
   // Load slots after deadline
   useEffect(() => {
     if (!selectedRound || !contestId) return;
+    if (selectedRound.round_number <= 1) {
+      setSlots([]);
+      setMyBooking(null);
+      return;
+    }
     const passed = selectedRound.submission_deadline
       ? new Date() > new Date(selectedRound.submission_deadline)
       : false;
@@ -437,7 +442,7 @@ export const StudentSubmitPage = () => {
       </div>
 
       {/* Two-column grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 18, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: selectedRound?.round_number > 1 ? '1.4fr 1fr' : '1fr', gap: 18, alignItems: 'start' }}>
 
         {/* ── Left column ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -690,11 +695,12 @@ export const StudentSubmitPage = () => {
         </div>
 
         {/* ── Right column (schedule) ── */}
-        <div style={{
-          border: `1px solid ${C.line}`, borderRadius: 14,
-          background: C.card2, padding: 18,
-          display: 'flex', flexDirection: 'column', gap: 12,
-        }}>
+        {selectedRound?.round_number > 1 && (
+          <div style={{
+            border: `1px solid ${C.line}`, borderRadius: 14,
+            background: C.card2, padding: 18,
+            display: 'flex', flexDirection: 'column', gap: 12,
+          }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <div style={{
@@ -881,7 +887,8 @@ export const StudentSubmitPage = () => {
               )}
             </div>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Confirm submit modal */}

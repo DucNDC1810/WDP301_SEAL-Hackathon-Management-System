@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Modal as AntModal, Tooltip, Select } from 'antd';
+import { Modal as AntModal, Tooltip, Select, notification } from 'antd';
 import JudgeAssignmentTab from './tabs/JudgeAssignmentTab';
 import ProblemReleaseTab from './tabs/ProblemReleaseTab';
 import SubmissionReviewTab from './tabs/SubmissionReviewTab';
@@ -41,7 +41,6 @@ const MAIN_TABS = [
   { id: 3, label: 'Bảng đấu' },
   { id: 4, label: 'Phân công Judge & Mentor' },
   { id: 5, label: 'Phát đề bài' },
-  { id: 11, label: 'Lịch thuyết trình' },
   { id: 12, label: 'Bảng xếp hạng' },
   { id: 9, label: 'Review & ONGOING' },
 ];
@@ -420,10 +419,54 @@ export default function HackathonDetailPage({ defaultTab }) {
     }
   };
 
+  const handleDeleteSinglePool = async (poolId) => {
+    AntModal.confirm({
+      title: 'Xóa bảng đấu?',
+      content: 'Bạn có chắc chắn muốn xóa bảng đấu này không? Các đội thi thuộc bảng này sẽ bị gỡ ra.',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okType: 'danger',
+      onOk: async () => {
+        setPoolError('');
+        setPoolSuccess('');
+        setPoolWarning('');
+        try {
+          const res = await fetch(`${API_URL}/api/pools/${poolId}`, {
+            method: 'DELETE',
+            headers: hdrs(),
+          });
+          const d = await res.json();
+          if (d.success) {
+            setPoolSuccess('Đã xóa bảng đấu thành công!');
+            fetchPools();
+            fetchTeams();
+          } else {
+            setPoolError(d.message || 'Lỗi khi xóa bảng đấu');
+          }
+        } catch (err) {
+          console.error(err);
+          setPoolError('Lỗi kết nối máy chủ');
+        }
+      }
+    });
+  };
+
   useEffect(() => {
     setLoading(true);
     Promise.all([fetchContest(), fetchTeams()]).finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (localStorage.getItem('hackathon_just_created') === 'true') {
+      notification.success({
+        message: 'Tạo cuộc thi thành công!',
+        description: 'Bạn đã khởi tạo cuộc thi Hackathon thành công. Hãy tiếp tục thiết lập cấu hình bên dưới.',
+        placement: 'topRight',
+        duration: 5,
+      });
+      localStorage.removeItem('hackathon_just_created');
+    }
+  }, []);
 
   // Fetch rounds for leaderboard tab
   useEffect(() => {
@@ -511,6 +554,8 @@ export default function HackathonDetailPage({ defaultTab }) {
       const activeRounds = contest.rounds.filter(r => r.is_active);
       if (activeRounds.length > 0) {
         setSelectedPoolRoundId(activeRounds[0]._id);
+      } else {
+        setSelectedPoolRoundId(contest.rounds[0]._id);
       }
     }
   }, [contest, selectedPoolRoundId]);
@@ -542,11 +587,11 @@ export default function HackathonDetailPage({ defaultTab }) {
             description: contest.description || '',
             rules: parsed.rules || '',
             banner: parsed.banner || '',
-            registration_open_date: parsed.registration_open_date || contest.created_at?.slice(0, 16) || '',
-            registration_deadline: contest.registration_deadline?.slice(0, 16) || parsed.registration_deadline || '',
-            start_date: contest.start_date?.slice(0, 16) || parsed.start_date || '',
-            end_date: contest.end_date?.slice(0, 16) || parsed.end_date || '',
-            kickoff_date: parsed.kickoff_date || ''
+            registration_open_date: parsed.registration_open_date?.slice(0, 16) || contest.created_at?.slice(0, 16) || '',
+            registration_deadline: contest.registration_deadline?.slice(0, 16) || parsed.registration_deadline?.slice(0, 16) || '',
+            start_date: contest.start_date?.slice(0, 16) || parsed.start_date?.slice(0, 16) || '',
+            end_date: contest.end_date?.slice(0, 16) || parsed.end_date?.slice(0, 16) || '',
+            kickoff_date: parsed.kickoff_date?.slice(0, 16) || ''
           });
           if (parsed.tracks?.length > 0) {
             setActiveTrackId(prev => {
@@ -580,7 +625,7 @@ export default function HackathonDetailPage({ defaultTab }) {
 
         const baseTime = startDateStr ? new Date(startDateStr).getTime() : Date.now();
         const deadline1 = new Date(baseTime + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-        const deadline2 = new Date(baseTime + 48 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        const deadline2 = new Date(new Date(deadline1).getTime() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
         const initialConfig = {
           season: 'Summer',
@@ -655,18 +700,21 @@ export default function HackathonDetailPage({ defaultTab }) {
     localStorage.setItem(`hackathon_config_${id}`, JSON.stringify(newConfig));
 
     try {
-      const mappedRounds = (newConfig.tracks?.[0]?.rounds || []).map(r => ({
-        round_number: Number(r.sequence_order),
-        name: r.name,
-        submission_deadline: r.submission_deadline || null,
-        is_active: r.active,
-        score_criteria: (r.criteria || []).map(c => ({
-          name: c.name,
-          max_score: Number(c.max_score) || 10,
-          weight: Number(c.weight) || 0,
-          description: c.description || ''
-        }))
-      }));
+      const mappedRounds = (newConfig.tracks?.[0]?.rounds || []).map(r => {
+        const dbRound = contest?.rounds?.find(dr => dr.round_number === Number(r.sequence_order));
+        return {
+          round_number: Number(r.sequence_order),
+          name: r.name,
+          submission_deadline: r.submission_deadline || null,
+          is_active: dbRound ? dbRound.is_active : false,
+          score_criteria: (r.criteria || []).map(c => ({
+            name: c.name,
+            max_score: Number(c.max_score) || 10,
+            weight: Number(c.weight) || 0,
+            description: c.description || ''
+          }))
+        };
+      });
 
       await fetch(`${API_URL}/api/contests/${id}`, {
         method: 'PUT',
@@ -746,7 +794,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                   id: 'round-1-2',
                   name: 'Vòng Chung Kết',
                   sequence_order: 2,
-                  submission_deadline: new Date(new Date(startDateStr).getTime() + 48*60*60*1000).toISOString().slice(0, 16),
+                  submission_deadline: new Date(new Date(startDateStr).getTime() + 24*60*60*1000 + 48*60*60*1000).toISOString().slice(0, 16),
                   coding_duration_hours: 48,
                   top_n_advance: 3,
                   wildcard_enabled: false,
@@ -782,7 +830,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                   id: 'round-2-2',
                   name: 'Vòng Chung Cuộc',
                   sequence_order: 2,
-                  submission_deadline: new Date(new Date(startDateStr).getTime() + 36*60*60*1000).toISOString().slice(0, 16),
+                  submission_deadline: new Date(new Date(startDateStr).getTime() + 12*60*60*1000 + 36*60*60*1000).toISOString().slice(0, 16),
                   coding_duration_hours: 36,
                   top_n_advance: 3,
                   wildcard_enabled: true,
@@ -876,11 +924,17 @@ export default function HackathonDetailPage({ defaultTab }) {
     const eventDate = new Date(generalForm.start_date);
 
     if (closeDate <= openDate) {
-      alert('Ngày đóng đăng ký phải diễn ra sau ngày mở đăng ký.');
+      notification.warning({
+        message: 'Không hợp lệ',
+        description: 'Ngày đóng đăng ký phải diễn ra sau ngày mở đăng ký.',
+      });
       return;
     }
     if (eventDate <= closeDate) {
-      alert('Ngày thi đấu phải diễn ra sau ngày đóng đăng ký.');
+      notification.warning({
+        message: 'Không hợp lệ',
+        description: 'Ngày thi đấu phải diễn ra sau ngày đóng đăng ký.',
+      });
       return;
     }
 
@@ -916,9 +970,15 @@ export default function HackathonDetailPage({ defaultTab }) {
       updateConfigState(updated);
       setIsEditingInfo(false);
       await fetchContest();
-      alert('Cập nhật thông tin Hackathon thành công!');
+      notification.success({
+        message: 'Thành công',
+        description: 'Cập nhật thông tin Hackathon thành công!',
+      });
     } catch (err) {
-      alert(err.message || 'Không thể đồng bộ dữ liệu tới server.');
+      notification.error({
+        message: 'Lỗi đồng bộ',
+        description: err.message || 'Không thể đồng bộ dữ liệu tới server.',
+      });
     }
   };
 
@@ -929,7 +989,7 @@ export default function HackathonDetailPage({ defaultTab }) {
 
     const startDateStr = contest.start_date ? contest.start_date.slice(0, 16) : new Date().toISOString().slice(0, 16);
     const deadline1 = new Date(new Date(startDateStr).getTime() + 24*60*60*1000).toISOString().slice(0, 16);
-    const deadline2 = new Date(new Date(startDateStr).getTime() + 48*60*60*1000).toISOString().slice(0, 16);
+    const deadline2 = new Date(new Date(deadline1).getTime() + 48*60*60*1000).toISOString().slice(0, 16);
 
     const newTrack = {
       id: `track-${Date.now()}`,
@@ -1011,17 +1071,78 @@ export default function HackathonDetailPage({ defaultTab }) {
   const handleAddRound = (e) => {
     e.preventDefault();
     if (!roundForm.name.trim() || !roundForm.submission_deadline) {
-      alert('Vui lòng điền đầy đủ tên và hạn nộp bài.');
+      notification.warning({
+        message: 'Thông tin thiếu',
+        description: 'Vui lòng điền đầy đủ tên và hạn nộp bài.',
+      });
       return;
     }
-    if (roundForm.sequence_order <= 0 || roundForm.coding_duration_hours <= 0 || roundForm.top_n_advance <= 0) {
-      alert('Các giá trị số thứ tự, thời gian code, và số đội đi tiếp phải lớn hơn 0.');
+    const activeTrack = config.tracks.find(t => t.id === activeTrackId) || config.tracks[0];
+    if (!activeTrack) {
+      notification.error({
+        message: 'Lỗi',
+        description: 'Không tìm thấy Track cấu hình.',
+      });
       return;
     }
 
-    const activeTrack = config.tracks.find(t => t.id === activeTrackId) || config.tracks[0];
-    if (!activeTrack) {
-      alert('Không tìm thấy Track cấu hình.');
+    // Chronological deadline validation relative to contest start date
+    const contestStartStr = contest.start_date ? contest.start_date.slice(0, 16) : null;
+    if (contestStartStr && new Date(roundForm.submission_deadline) < new Date(contestStartStr)) {
+      notification.warning({
+        message: 'Hạn nộp không hợp lệ',
+        description: 'Hạn nộp bài phải sau thời gian bắt đầu cuộc thi.',
+      });
+      return;
+    }
+
+    const currentSeq = Number(roundForm.sequence_order);
+    const otherRounds = activeTrack.rounds.filter(r => r.id !== editingRoundId);
+
+    for (const other of otherRounds) {
+      const otherSeq = Number(other.sequence_order);
+      const otherDeadline = new Date(other.submission_deadline);
+      const currentDeadline = new Date(roundForm.submission_deadline);
+
+      if (currentSeq > otherSeq && currentDeadline <= otherDeadline) {
+        notification.warning({
+          message: 'Hạn nộp không hợp lệ',
+          description: `Vòng ${roundForm.name} (thứ tự ${currentSeq}) có hạn nộp trước hoặc trùng với vòng ${other.name} (thứ tự ${otherSeq}).`,
+        });
+        return;
+      }
+      if (currentSeq < otherSeq && currentDeadline >= otherDeadline) {
+        notification.warning({
+          message: 'Hạn nộp không hợp lệ',
+          description: `Vòng ${roundForm.name} (thứ tự ${currentSeq}) có hạn nộp sau hoặc trùng với vòng ${other.name} (thứ tự ${otherSeq}).`,
+        });
+        return;
+      }
+    }
+
+    const isRoundLastVal = (() => {
+      if (!activeTrack || !activeTrack.rounds) return false;
+      const currentSeq = Number(roundForm.sequence_order);
+      if (isNaN(currentSeq)) return false;
+      const otherRounds = activeTrack.rounds.filter(r => r.id !== editingRoundId);
+      if (otherRounds.length === 0) return true;
+      const maxOtherSeq = Math.max(...otherRounds.map(r => Number(r.sequence_order) || 0));
+      return currentSeq >= maxOtherSeq;
+    })();
+
+    if (roundForm.sequence_order <= 0 || roundForm.coding_duration_hours <= 0) {
+      notification.warning({
+        message: 'Giá trị không hợp lệ',
+        description: 'Các giá trị số thứ tự và thời gian code phải lớn hơn 0.',
+      });
+      return;
+    }
+
+    if (!isRoundLastVal && roundForm.top_n_advance <= 0) {
+      notification.warning({
+        message: 'Giá trị không hợp lệ',
+        description: 'Số đội đi tiếp phải lớn hơn 0.',
+      });
       return;
     }
 
@@ -1032,7 +1153,7 @@ export default function HackathonDetailPage({ defaultTab }) {
       submission_deadline: roundForm.submission_deadline,
       coding_duration_hours: Number(roundForm.coding_duration_hours),
       top_n_advance: Number(roundForm.top_n_advance),
-      wildcard_enabled: roundForm.wildcard_enabled,
+      wildcard_enabled: isRoundLastVal ? false : roundForm.wildcard_enabled,
       active: roundForm.active,
       criteria: editingRoundId ? (activeTrack.rounds.find(r => r.id === editingRoundId)?.criteria || []) : []
     };
@@ -1123,7 +1244,10 @@ export default function HackathonDetailPage({ defaultTab }) {
     e.preventDefault();
     if (!critForm.name.trim()) return;
     if (critForm.weight <= 0 || critForm.max_score <= 0) {
-      alert('Hệ số và điểm số tối đa phải lớn hơn 0.');
+      notification.warning({
+        message: 'Giá trị không hợp lệ',
+        description: 'Hệ số và điểm số tối đa phải lớn hơn 0.',
+      });
       return;
     }
 
@@ -1216,7 +1340,10 @@ export default function HackathonDetailPage({ defaultTab }) {
     });
 
     if (sourceCriteria.length === 0) {
-      alert('Vòng mẫu được chọn chưa có tiêu chí nào để sao chép.');
+      notification.warning({
+        message: 'Sao chép thất bại',
+        description: 'Vòng mẫu được chọn chưa có tiêu chí nào để sao chép.',
+      });
       return;
     }
 
@@ -1241,7 +1368,10 @@ export default function HackathonDetailPage({ defaultTab }) {
     });
 
     updateConfigState({ ...config, tracks: updatedTracks });
-    alert(`Đã sao chép thành công ${sourceCriteria.length} tiêu chí chấm điểm!`);
+    notification.success({
+      message: 'Sao chép thành công',
+      description: `Đã sao chép thành công ${sourceCriteria.length} tiêu chí chấm điểm!`,
+    });
     setCloneSourceRoundId('');
   };
 
@@ -1265,16 +1395,51 @@ export default function HackathonDetailPage({ defaultTab }) {
       }, 5000);
 
     } catch (err) {
-      alert('Lỗi kích hoạt giải đấu: ' + err.message);
+      notification.error({
+        message: 'Lỗi kích hoạt',
+        description: 'Lỗi kích hoạt giải đấu: ' + err.message,
+      });
     }
   };
 
   const isOngoing = contest.status === 'open';
   const selectedTrack = config.tracks.find(t => t.id === activeTrackId) || config.tracks[0];
+
+  const isRoundFormLast = (() => {
+    if (!selectedTrack || !selectedTrack.rounds) return false;
+    const currentSeq = Number(roundForm.sequence_order);
+    if (isNaN(currentSeq)) return false;
+    const otherRounds = selectedTrack.rounds.filter(r => r.id !== editingRoundId);
+    if (otherRounds.length === 0) return true;
+    const maxOtherSeq = Math.max(...otherRounds.map(r => Number(r.sequence_order) || 0));
+    return currentSeq >= maxOtherSeq;
+  })();
   
   // Calculate current criteria round weight summary
   const selectedCritRound = (config.tracks.find(t => t.id === selectedCritTrackId) || config.tracks[0])?.rounds.find(r => r.id === selectedCritRoundId);
   const currentWeightSum = selectedCritRound?.criteria?.reduce((sum, c) => sum + c.weight, 0) || 0;
+
+  // Checklist Calculations
+  const step1Ok = !!(contest.title && config.season && config.year && config.registration_open_date && config.registration_deadline && config.start_date && config.end_date && config.kickoff_date && config.rules?.trim());
+  const step2Ok = config.tracks.length >= 1 && config.tracks.every(t => t.rounds && t.rounds.length >= 2);
+  const step3Ok = config.tracks.length > 0 && config.tracks.every(t => t.rounds.length > 0 && t.rounds.every(r => r.criteria && r.criteria.length >= 1 && Math.abs(r.criteria.reduce((s, c) => s + c.weight, 0) - 1.0) < 0.001));
+  const step4Ok = pools.length > 0 && pools.some(p => p.teams && p.teams.length > 0);
+  const step5Ok = !!config.mentors_assigned;
+  const step6Ok = pools.length > 0 && pools.every(p => p.drive_link && p.drive_link.trim() !== '');
+  const step7Ok = contest.status === 'open';
+
+  const checklistSteps = [
+    { id: 1, label: 'Thông tin tổng quan', desc: 'Thiết lập tên, mùa giải, thể lệ, banner & ngày giờ sự kiện.', ok: step1Ok, tabId: 0 },
+    { id: 2, label: 'Cấu hình vòng thi', desc: 'Thiết lập tối thiểu 1 bảng thi (Track) và 2 vòng đấu (Rounds).', ok: step2Ok, tabId: 1 },
+    { id: 3, label: 'Tiêu chí chấm điểm', desc: 'Phân bổ ít nhất 1 tiêu chí & đảm bảo tổng trọng số bằng 1.0 mỗi vòng.', ok: step3Ok, tabId: 2 },
+    { id: 4, label: 'Chia bảng đấu & Đội thi', desc: 'Khởi tạo danh sách bảng đấu (Pools) & xếp các đội thi vào bảng.', ok: step4Ok, tabId: 3 },
+    { id: 5, label: 'Phân công Judge & Mentor', desc: 'Phân công Giám khảo & Người hướng dẫn chấm điểm các bảng.', ok: step5Ok, tabId: 4 },
+    { id: 6, label: 'Cấu hình đề bài', desc: 'Cập nhật link Google Drive đề bài thi cho tất cả bảng đấu.', ok: step6Ok, tabId: 3 },
+    { id: 7, label: 'Kích hoạt giải đấu', desc: 'Chuyển trạng thái Hackathon sang ONGOING để bắt đầu thi đấu.', ok: step7Ok, tabId: 9 }
+  ];
+
+  const completedCount = checklistSteps.filter(s => s.ok).length;
+  const checklistPct = Math.round((completedCount / checklistSteps.length) * 100);
 
   return (
     <div className="hd-page">
@@ -1354,26 +1519,70 @@ export default function HackathonDetailPage({ defaultTab }) {
               </div>
             </form>
           ) : (
-            <>
-              {config.banner && (
-                <div style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-cyan)' }}>
-                  <img src={config.banner} alt="Hackathon Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800'; }} />
+            <div className="hd-overview-layout">
+              {/* Left Column: Banner, overview, rules */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {config.banner && (
+                  <div style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-cyan)' }}>
+                    <img src={config.banner} alt="Hackathon Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800'; }} />
+                  </div>
+                )}
+
+                <div className="hd-overview-grid">
+                  <div className="hd-overview-card"><span className="hd-ov-label">Mùa giải / Năm</span><span className="hd-ov-value">{config.season} {config.year}</span></div>
+                  <div className="hd-overview-card"><span className="hd-ov-label">Mở đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_open_date || config.registration_open_date || contest.created_at)}</span></div>
+                  <div className="hd-overview-card"><span className="hd-ov-label">Hạn đóng đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_deadline || config.registration_deadline)}</span></div>
+                  <div className="hd-overview-card"><span className="hd-ov-label">Lịch khai mạc (Kickoff)</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.kickoff_date)}</span></div>
+                  <div className="hd-overview-card"><span className="hd-ov-label">Số vòng thi</span><span className="hd-ov-value">{selectedTrack?.rounds?.length || 0}</span></div>
                 </div>
-              )}
 
-              <div className="hd-overview-grid">
-                <div className="hd-overview-card"><span className="hd-ov-label">Mùa giải / Năm</span><span className="hd-ov-value">{config.season} {config.year}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Mở đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_open_date || config.registration_open_date || contest.created_at)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Hạn đóng đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_deadline || config.registration_deadline)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Lịch khai mạc (Kickoff)</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.kickoff_date)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Số vòng thi</span><span className="hd-ov-value">{selectedTrack?.rounds?.length || 0}</span></div>
+                <div className="hd-rules-card">
+                  <h3 className="hd-rules-title">Thể lệ & Luật thi đấu</h3>
+                  <div className="hd-rules-content">{config.rules || 'Chưa thiết lập thể lệ giải đấu.'}</div>
+                </div>
               </div>
 
-              <div className="hd-rules-card">
-                <h3 className="hd-rules-title">Thể lệ & Luật thi đấu</h3>
-                <div className="hd-rules-content">{config.rules || 'Chưa thiết lập thể lệ giải đấu.'}</div>
+              {/* Right Column: Setup Checklist & Progress Tracker */}
+              <div className="hd-checklist-container">
+                <div className="hd-checklist-header">
+                  <h3 className="hd-checklist-title">
+                    📋 Checklist Chuẩn Bị Giải Đấu
+                  </h3>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 650 }}>
+                    {completedCount}/7 hoàn thành
+                  </span>
+                </div>
+
+                <div className="hd-progress-wrapper">
+                  <div className="hd-progress-info">
+                    <span>Mức độ hoàn thiện</span>
+                    <strong style={{ color: 'var(--cyan)' }}>{checklistPct}%</strong>
+                  </div>
+                  <div className="hd-progress-bar-bg">
+                    <div className="hd-progress-bar-fill" style={{ width: `${checklistPct}%` }}></div>
+                  </div>
+                </div>
+
+                <div className="hd-checklist-steps">
+                  {checklistSteps.map(s => (
+                    <div key={s.id} className="hd-checklist-step">
+                      <div className={`hd-step-icon ${s.ok ? 'hd-step-icon--success' : 'hd-step-icon--pending'}`}>
+                        {s.ok ? <Ico d={CHECK} size={10}/> : <span style={{ fontSize: '12px', lineHeight: 1 }}>●</span>}
+                      </div>
+                      <div className="hd-step-content">
+                        <div className="hd-step-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ color: s.ok ? '#a7f3d0' : '#fbd38d' }}>{s.label}</span>
+                        </div>
+                        <div className="hd-step-desc">{s.desc}</div>
+                      </div>
+                      <button className="hd-step-action" onClick={() => setTab(s.tabId)}>
+                        Thiết lập
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       )}
@@ -1405,16 +1614,20 @@ export default function HackathonDetailPage({ defaultTab }) {
                   <div className="hd-form-grid">
                     <div className="hd-field"><label>Hạn nộp bài (Deadline) *</label><input type="datetime-local" required value={roundForm.submission_deadline} onChange={e=>setRoundForm(f=>({...f,submission_deadline:e.target.value}))}/></div>
                     <div className="hd-field"><label>Thời gian code (giờ) *</label><input type="number" required value={roundForm.coding_duration_hours} onChange={e=>setRoundForm(f=>({...f,coding_duration_hours:e.target.value}))}/></div>
-                    <div className="hd-field"><label>Số đội đi tiếp (Top N) *</label><input type="number" required value={roundForm.top_n_advance} onChange={e=>setRoundForm(f=>({...f,top_n_advance:e.target.value}))}/></div>
+                    {!isRoundFormLast && (
+                      <div className="hd-field"><label>Số đội đi tiếp (Top N) *</label><input type="number" required value={roundForm.top_n_advance} onChange={e=>setRoundForm(f=>({...f,top_n_advance:e.target.value}))}/></div>
+                    )}
                   </div>
-                  <div className="hd-form-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '10px' }}>
-                    <div className="hd-field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
-                      <label className="hd-switch">
-                        <input type="checkbox" checked={roundForm.wildcard_enabled} onChange={e=>setRoundForm(f=>({...f,wildcard_enabled:e.target.checked}))}/>
-                        <span className="hd-switch-slider"></span>
-                      </label>
-                      <span>Cho phép Vé vớt (Wildcard)</span>
-                    </div>
+                  <div className="hd-form-grid" style={{ gridTemplateColumns: isRoundFormLast ? '1fr' : '1fr 1fr', marginTop: '10px' }}>
+                    {!isRoundFormLast && (
+                      <div className="hd-field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
+                        <label className="hd-switch">
+                          <input type="checkbox" checked={roundForm.wildcard_enabled} onChange={e=>setRoundForm(f=>({...f,wildcard_enabled:e.target.checked}))}/>
+                          <span className="hd-switch-slider"></span>
+                        </label>
+                        <span>Cho phép Vé vớt (Wildcard)</span>
+                      </div>
+                    )}
                     <div className="hd-field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
                       <label className="hd-switch">
                         <input type="checkbox" checked={roundForm.active} onChange={e=>setRoundForm(f=>({...f,active:e.target.checked}))}/>
@@ -1434,13 +1647,20 @@ export default function HackathonDetailPage({ defaultTab }) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {selectedTrack.rounds.map(round => {
+                  const dbRound = contest?.rounds?.find(dr => dr.round_number === Number(round.sequence_order));
                   const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
                   const ok = Math.abs(ws - 1.0) < 0.001;
-                  const isOfficialActive = round.is_official_active;
+                  const isOfficialActive = contest?.status === 'open' && dbRound ? dbRound.is_active : round.is_official_active;
                   const valid = ok && (round.criteria?.length || 0) > 0;
                   const tip = isOfficialActive ? 'Vòng thi đang kích hoạt chấm điểm chính thức'
                     : !valid ? `Tổng trọng số = ${ws.toFixed(2)} ≠ 1.0 (Hoặc chưa có tiêu chí) — thêm/sửa tiêu chí để kích hoạt`
                     : 'Kích hoạt làm Vòng thi chính thức';
+
+                  const isLastRoundInList = (() => {
+                    const sortedRounds = [...selectedTrack.rounds].sort((a,b) => a.sequence_order - b.sequence_order);
+                    if (sortedRounds.length === 0) return false;
+                    return round.sequence_order === sortedRounds[sortedRounds.length - 1].sequence_order;
+                  })();
 
                   return (
                     <div key={round.id} className={`hd-round-card-modern ${!round.active ? 'hd-round-card-modern--inactive' : ''}`}>
@@ -1460,7 +1680,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                             <span className={`hd-round-status-tag ${round.active ? 'active' : ''}`}>
                               {round.active ? 'Đang bật' : 'Đang tắt'}
                             </span>
-                            {round.wildcard_enabled && (
+                            {round.wildcard_enabled && !isLastRoundInList && (
                               <span className="hd-round-status-tag wildcard">Wildcard</span>
                             )}
                           </div>
@@ -1483,13 +1703,15 @@ export default function HackathonDetailPage({ defaultTab }) {
                             <span className="hd-round-meta-val">{round.coding_duration_hours} giờ</span>
                           </div>
                         </div>
-                        <div className="hd-round-meta-item">
-                          <span className="hd-round-meta-icon">🏆</span>
-                          <div className="hd-round-meta-content">
-                            <span className="hd-round-meta-lbl">Đội đi tiếp</span>
-                            <span className="hd-round-meta-val">Top {round.top_n_advance}</span>
+                        {!isLastRoundInList && (
+                          <div className="hd-round-meta-item">
+                            <span className="hd-round-meta-icon">🏆</span>
+                            <div className="hd-round-meta-content">
+                              <span className="hd-round-meta-lbl">Đội đi tiếp</span>
+                              <span className="hd-round-meta-val">Top {round.top_n_advance}</span>
+                            </div>
                           </div>
-                        </div>
+                        )}
                         <div className="hd-round-meta-item">
                           <span className="hd-round-meta-icon">📋</span>
                           <div className="hd-round-meta-content">
@@ -1517,13 +1739,17 @@ export default function HackathonDetailPage({ defaultTab }) {
                               type="button"
                               disabled={!valid || isOfficialActive}
                               onClick={() => {
-                                AntModal.confirm({
-                                  title: `Kích hoạt "${round.name}"?`,
-                                  content: 'Các Vòng thi còn lại sẽ bị hủy kích hoạt làm vòng thi chính thức.',
-                                  okText: 'Kích hoạt',
-                                  cancelText: 'Hủy',
-                                  onOk: () => handleActivateRound(selectedTrack.id, round.id),
-                                });
+                                if (contest?.status === 'open' && dbRound?._id) {
+                                  navigate(`/round/${dbRound._id}/activate`);
+                                } else {
+                                  AntModal.confirm({
+                                    title: `Kích hoạt "${round.name}"?`,
+                                    content: 'Các Vòng thi còn lại sẽ bị hủy kích hoạt làm vòng thi chính thức.',
+                                    okText: 'Kích hoạt',
+                                    cancelText: 'Hủy',
+                                    onOk: () => handleActivateRound(selectedTrack.id, round.id),
+                                  });
+                                }
                               }}
                               className={`hd-btn-official ${isOfficialActive ? 'active' : ''}`}
                             >
@@ -1741,7 +1967,7 @@ export default function HackathonDetailPage({ defaultTab }) {
               value={selectedPoolRoundId}
               onChange={setSelectedPoolRoundId}
               style={{ width: 220 }}
-              options={contest.rounds.filter(r => r.is_active).map(r => ({
+              options={contest.rounds.map(r => ({
                 value: r._id,
                 label: r.name
               }))}
@@ -1810,7 +2036,22 @@ export default function HackathonDetailPage({ defaultTab }) {
                   <div key={p._id} className="hd-pool-card">
                     <div className="hd-pool-header">
                       <span className="hd-pool-name">{p.pool_name}</span>
-                      <span className="hd-pool-count">{(p.teams || []).length} đội</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="hd-pool-count">{(p.teams || []).length} đội</span>
+                        <button
+                          type="button"
+                          className="hd-btn-icon text-danger"
+                          onClick={() => handleDeleteSinglePool(p._id)}
+                          style={{
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '6px',
+                          }}
+                          title="Xóa bảng đấu"
+                        >
+                          <Ico d={TRASH} size={13} />
+                        </button>
+                      </div>
                     </div>
                     {/* Drive link input */}
                     <div style={{ margin: '10px 0' }}>
@@ -2263,14 +2504,6 @@ export default function HackathonDetailPage({ defaultTab }) {
               </p>
             )}
           </div>
-        </div>
-      )}
-
-      {/* ─── TAB 11: ĐẶT LỊCH TRÌNH BÀY ─── */}
-      {tab === 11 && (
-        <div className="hd-section">
-          <h2 className="hd-section-title">Đặt lịch trình bày</h2>
-          <PresentationScheduleTab contestId={id} contest={contest} />
         </div>
       )}
 

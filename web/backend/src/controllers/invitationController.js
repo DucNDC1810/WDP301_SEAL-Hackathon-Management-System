@@ -12,6 +12,7 @@ import {
   acceptTeamInvitation,
   rejectTeamInvitation,
 } from "../services/teamService.js";
+import { sendNotification } from "../services/notification.js";
 
 // ─── handleSendInvitation ─────────────────────────────────────────────────────
 
@@ -193,6 +194,25 @@ export const handleGetMyTeamInvitations = async (req, res) => {
 export const handleAcceptTeamInvitation = async (req, res) => {
   try {
     const team = await acceptTeamInvitation(req.params.id, req.user._id);
+
+    // Notify team leader
+    try {
+      if (team && team.leader_id) {
+        await sendNotification({
+          recipientIds: [team.leader_id.toString()],
+          type: "INVITATION_ACCEPTED",
+          payload: {
+            title: "Thành viên chấp nhận lời mời",
+            message: `Thí sinh "${req.user.full_name}" đã đồng ý tham gia đội "${team.team_name}" của bạn.`,
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending acceptance notification to leader:", err);
+    }
+
     res.status(200).json({ success: true, message: 'Đã chấp nhận lời mời vào đội', data: team });
   } catch (err) {
     console.error('[handleAcceptTeamInvitation]', err);
@@ -206,7 +226,28 @@ export const handleAcceptTeamInvitation = async (req, res) => {
  */
 export const handleRejectTeamInvitation = async (req, res) => {
   try {
-    await rejectTeamInvitation(req.params.id, req.user._id);
+    const inv = await rejectTeamInvitation(req.params.id, req.user._id);
+
+    // Notify team leader
+    try {
+      const Team = (await import("../models/Team.js")).default;
+      const team = await Team.findById(inv.team_id);
+      if (team && team.leader_id) {
+        await sendNotification({
+          recipientIds: [team.leader_id.toString()],
+          type: "INVITATION_REJECTED",
+          payload: {
+            title: "Lời mời gia nhập đội bị từ chối",
+            message: `Thí sinh "${req.user.full_name}" đã từ chối lời mời tham gia đội "${team.team_name}" của bạn.`,
+            ref_id: team._id,
+            ref_type: "Team"
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error sending rejection notification to leader:", err);
+    }
+
     res.status(200).json({ success: true, message: 'Đã từ chối lời mời' });
   } catch (err) {
     console.error('[handleRejectTeamInvitation]', err);

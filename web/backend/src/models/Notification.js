@@ -28,7 +28,7 @@ const notificationSchema = new mongoose.Schema(
     },
     ref_type: {
       type: String,
-      enum: ["Contest", "Team", "Invitation", "Score", null],
+      enum: ["Contest", "Team", "Invitation", "Score", "User", null],
       default: null,
     },
     is_read: {

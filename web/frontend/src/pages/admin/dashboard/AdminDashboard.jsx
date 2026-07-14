@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './AdminDashboard.css';
+import { notification } from 'antd';
 
 const Ico = ({ d, size = 18, sw = 1.8 }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw}
@@ -37,6 +38,87 @@ export default function AdminDashboard() {
     { id: 2, title: 'Mentor Office Hours Extended', time: '1 day ago' },
     { id: 3, title: 'New Judging Criteria Published', time: '2 days ago' }
   ]);
+
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastRole, setBroadcastRole] = useState('all');
+  const [broadcastType, setBroadcastType] = useState('general');
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
+
+  const API_URL = import.meta.env.VITE_API_URL || '';
+  const hdrs = () => ({
+    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+    'Content-Type': 'application/json'
+  });
+
+  const getUsersForBroadcast = async (role) => {
+    let url = `${API_URL}/api/users?limit=10000`;
+    if (role && role !== 'all') {
+      url = `${API_URL}/api/users?role=${role}&limit=10000`;
+    }
+    const res = await fetch(url, { headers: hdrs() });
+    if (!res.ok) throw new Error("Không thể tải danh sách người dùng");
+    const json = await res.json();
+    return json.data || [];
+  };
+
+  const handleSendBroadcast = async (e) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+      notification.warning({
+        message: 'Thiếu thông tin',
+        description: 'Vui lòng nhập đầy đủ tiêu đề và nội dung.',
+      });
+      return;
+    }
+    setSendingBroadcast(true);
+    try {
+      const users = await getUsersForBroadcast(broadcastRole);
+      const userIds = users.map(u => u._id);
+      if (userIds.length === 0) {
+        notification.warning({
+          message: 'Không tìm thấy người dùng',
+          description: 'Không tìm thấy người dùng nào thuộc nhóm đã chọn.',
+        });
+        return;
+      }
+      
+      const payload = {
+        user_ids: userIds,
+        type: broadcastType,
+        title: broadcastTitle.trim(),
+        message: broadcastMessage.trim()
+      };
+      
+      const response = await fetch(`${API_URL}/api/notifications/broadcast`, {
+        method: 'POST',
+        headers: hdrs(),
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        const errJson = await response.json();
+        throw new Error(errJson.message || "Gửi thông báo thất bại");
+      }
+      
+      notification.success({
+        message: 'Thành công',
+        description: `Đã gửi thông báo thành công tới ${userIds.length} người dùng!`,
+      });
+      setShowBroadcastModal(false);
+      setBroadcastTitle('');
+      setBroadcastMessage('');
+    } catch (err) {
+      console.error(err);
+      notification.error({
+        message: 'Lỗi',
+        description: err.message || "Lỗi xảy ra khi gửi thông báo.",
+      });
+    } finally {
+      setSendingBroadcast(false);
+    }
+  };
 
   useEffect(() => {
     // Fetch data from API
@@ -102,8 +184,8 @@ export default function AdminDashboard() {
           <p>Innovation Powered by AI • FPT University Competition Platform</p>
         </div>
         <div className="dashboard-actions">
-          <button className="btn-primary">Create Hackathon</button>
-          <button className="btn-secondary">View All Events</button>
+          <button className="btn-primary" onClick={() => setShowBroadcastModal(true)}>📢 Gửi thông báo</button>
+          <button className="btn-secondary">Create Hackathon</button>
         </div>
       </div>
 
@@ -246,6 +328,76 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {showBroadcastModal && (
+        <div className="broadcast-modal-overlay">
+          <div className="broadcast-modal">
+            <div className="broadcast-modal__header">
+              <h2>📢 Gửi thông báo hệ thống</h2>
+              <button className="broadcast-modal__close" onClick={() => setShowBroadcastModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleSendBroadcast} className="broadcast-modal__form">
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: '#a0aec0' }}>Đối tượng nhận:</label>
+                <select 
+                  value={broadcastRole} 
+                  onChange={(e) => setBroadcastRole(e.target.value)}
+                  style={{ width: '100%', padding: '10px', background: '#1a202c', border: '1px solid #2d3748', borderRadius: '6px', color: '#fff' }}
+                >
+                  <option value="all">Toàn bộ người dùng</option>
+                  <option value="student">Thí sinh (Student)</option>
+                  <option value="judge">Giám khảo (Judge)</option>
+                  <option value="mentor">Cố vấn (Mentor)</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: '#a0aec0' }}>Loại thông báo:</label>
+                <select 
+                  value={broadcastType} 
+                  onChange={(e) => setBroadcastType(e.target.value)}
+                  style={{ width: '100%', padding: '10px', background: '#1a202c', border: '1px solid #2d3748', borderRadius: '6px', color: '#fff' }}
+                >
+                  <option value="general">Thông báo chung</option>
+                  <option value="finalist_announcement">Chung kết</option>
+                  <option value="deadline_reminder">Nhắc nhở deadline</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: '#a0aec0' }}>Tiêu đề:</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Nhập tiêu đề thông báo..."
+                  value={broadcastTitle}
+                  onChange={(e) => setBroadcastTitle(e.target.value)}
+                  style={{ width: '100%', padding: '10px', background: '#1a202c', border: '1px solid #2d3748', borderRadius: '6px', color: '#fff' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: '#a0aec0' }}>Nội dung:</label>
+                <textarea
+                  required
+                  rows="4"
+                  placeholder="Nhập nội dung thông báo chi tiết..."
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  style={{ width: '100%', padding: '10px', background: '#1a202c', border: '1px solid #2d3748', borderRadius: '6px', color: '#fff', resize: 'vertical' }}
+                />
+              </div>
+
+              <div className="broadcast-modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowBroadcastModal(false)}>Hủy</button>
+                <button type="submit" className="btn-primary" disabled={sendingBroadcast}>
+                  {sendingBroadcast ? 'Đang gửi...' : 'Gửi thông báo'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { getFinalists, updateTeamStatus, getAuditLog } from '../api/finalist';
 import { getRoundSetup, assignJudges, activateRound, createCriteria, updateCriteria, deleteCriteria } from '../api/round';
 import { useRoundStatus } from '../hooks/useRoundStatus';
 import { FrozenOverlay } from '../components/FrozenOverlay';
+import { notification, Modal } from 'antd';
 
 export default function FinalistConfirmPage() {
   const { round_id } = useParams();
@@ -36,6 +37,7 @@ export default function FinalistConfirmPage() {
 
   // Active step state: 'teams' | 'judges' | 'criteria'
   const [activeTab, setActiveTab] = useState('teams');
+  const [selectedGroupTab, setSelectedGroupTab] = useState('');
 
   const loadData = async () => {
     try {
@@ -100,41 +102,63 @@ export default function FinalistConfirmPage() {
       setCritForm(EMPTY_CRIT);
       await loadData();
     } catch (err) {
-      alert(err.response?.data?.message || err.message || "Lỗi khi lưu tiêu chí.");
+      notification.error({
+        message: 'Lỗi',
+        description: err.response?.data?.message || err.message || "Lỗi khi lưu tiêu chí.",
+      });
     } finally {
       setCritSaving(false);
     }
   };
 
   const handleDeleteCrit = async (critId, critName) => {
-    if (!window.confirm(`Xóa tiêu chí "${critName}"?`)) return;
-    const targetId = nextRoundId || round_id;
-    try {
-      await deleteCriteria(targetId, critId);
-      await loadData();
-    } catch (err) {
-      alert(err.response?.data?.message || err.message || "Lỗi khi xóa tiêu chí.");
-    }
+    Modal.confirm({
+      title: 'Xóa tiêu chí?',
+      content: `Bạn có chắc chắn muốn xóa tiêu chí "${critName}"?`,
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        const targetId = nextRoundId || round_id;
+        try {
+          await deleteCriteria(targetId, critId);
+          await loadData();
+        } catch (err) {
+          notification.error({
+            message: 'Lỗi',
+            description: err.response?.data?.message || err.message || "Lỗi khi xóa tiêu chí.",
+          });
+        }
+      }
+    });
   };
 
   const handleStatusChange = async (teamId, teamName, newStatus) => {
     const actionText = newStatus === 'ACTIVE' ? 'XÁC NHẬN' : 'LOẠI';
     const confirmMessage = `Bạn có chắc chắn muốn ${actionText} đội "${teamName}" vào danh sách chung kết?`;
     
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      await updateTeamStatus(round_id, teamId, newStatus);
-      await loadData();
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || err.message || "Thao tác thay đổi trạng thái thất bại.");
-    } finally {
-      setActionLoading(false);
-    }
+    Modal.confirm({
+      title: `${actionText} đội thi?`,
+      content: confirmMessage,
+      okText: actionText,
+      cancelText: 'Hủy',
+      okButtonProps: newStatus === 'ACTIVE' ? {} : { danger: true },
+      onOk: async () => {
+        setActionLoading(true);
+        try {
+          await updateTeamStatus(round_id, teamId, newStatus);
+          await loadData();
+        } catch (err) {
+          console.error(err);
+          notification.error({
+            message: 'Lỗi',
+            description: err.response?.data?.message || err.message || "Thao tác thay đổi trạng thái thất bại.",
+          });
+        } finally {
+          setActionLoading(false);
+        }
+      }
+    });
   };
 
   const handleJudgeCheckboxChange = (judgeId) => {
@@ -152,11 +176,17 @@ export default function FinalistConfirmPage() {
     try {
       const res = await assignJudges(nextRoundId || round_id, selectedJudgeIds);
       setAssignedJudges(res.data || []);
-      alert("Lưu phân công Hội đồng Ban giám khảo thành công!");
+      notification.success({
+        message: 'Thành công',
+        description: "Lưu phân công Hội đồng Ban giám khảo thành công!",
+      });
       await loadData();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || err.message || "Không thể lưu danh sách Ban giám khảo.");
+      notification.error({
+        message: 'Lỗi',
+        description: err.response?.data?.message || err.message || "Không thể lưu danh sách Ban giám khảo.",
+      });
     } finally {
       setSavingJudges(false);
     }
@@ -164,38 +194,57 @@ export default function FinalistConfirmPage() {
 
   const handleActivateRound = async () => {
     if (!weightValid) {
-      alert("Tổng trọng số của tiêu chí chấm điểm phải bằng chính xác 1.0!");
+      notification.warning({
+        message: 'Tổng trọng số không hợp lệ',
+        description: "Tổng trọng số của tiêu chí chấm điểm phải bằng chính xác 1.0!",
+      });
       return;
     }
     if (assignedJudges.length === 0) {
-      alert("Vui lòng phân công ít nhất 1 Judge trước khi kích hoạt!");
+      notification.warning({
+        message: 'Thiếu ban giám khảo',
+        description: "Vui lòng phân công ít nhất 1 Judge trước khi kích hoạt!",
+      });
       return;
     }
 
-    if (!window.confirm("Kích hoạt Round Chung kết? Sau khi kích hoạt, vòng thi này sẽ chính thức bắt đầu và BGK có thể tiến hành chấm điểm.")) {
-      return;
-    }
-
-    setActivating(true);
-    try {
-      const res = await activateRound(nextRoundId || round_id);
-      if (res.data.success) {
-        setRound(prev => ({ ...prev, is_active: true }));
-        alert("🎉 Vòng thi đã được kích hoạt thành công!");
-        await loadData();
+    Modal.confirm({
+      title: 'Kích hoạt Vòng thi?',
+      content: 'Kích hoạt Round Chung kết? Sau khi kích hoạt, vòng thi này sẽ chính thức bắt đầu và BGK có thể tiến hành chấm điểm.',
+      okText: 'Kích hoạt',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        setActivating(true);
+        try {
+          const res = await activateRound(nextRoundId || round_id);
+          if (res.data.success) {
+            setRound(prev => ({ ...prev, is_active: true }));
+            notification.success({
+              message: 'Thành công',
+              description: "🎉 Vòng thi đã được kích hoạt thành công!",
+            });
+            await loadData();
+          }
+        } catch (err) {
+          console.error(err);
+          const serverErr = err.response?.data?.error;
+          const serverMsg = err.response?.data?.message;
+          if (serverErr === 'WEIGHT_INVALID') {
+            notification.error({
+              message: 'Kích hoạt thất bại',
+              description: `Kích hoạt thất bại: Tổng trọng số tiêu chí không hợp lệ (${err.response?.data?.total_weight})`,
+            });
+          } else {
+            notification.error({
+              message: 'Kích hoạt thất bại',
+              description: serverMsg || "Kích hoạt vòng thi thất bại. Vui lòng kiểm tra lại cấu hình.",
+            });
+          }
+        } finally {
+          setActivating(false);
+        }
       }
-    } catch (err) {
-      console.error(err);
-      const serverErr = err.response?.data?.error;
-      const serverMsg = err.response?.data?.message;
-      if (serverErr === 'WEIGHT_INVALID') {
-        alert(`Kích hoạt thất bại: Tổng trọng số tiêu chí không hợp lệ (${err.response?.data?.total_weight})`);
-      } else {
-        alert(serverMsg || "Kích hoạt vòng thi thất bại. Vui lòng kiểm tra lại cấu hình.");
-      }
-    } finally {
-      setActivating(false);
-    }
+    });
   };
 
   if (loading) {
@@ -294,6 +343,28 @@ export default function FinalistConfirmPage() {
   // Stats calculation
   const confirmedTeamsCount = finalists.filter(f => f.status === 'ACTIVE').length;
   const estimatedDuration = confirmedTeamsCount * 20; // 20 minutes per team
+
+  // Group finalists by assigned_group
+  const groupedFinalists = finalists.reduce((groups, team) => {
+    const groupName = team.assigned_group || 'Chưa phân bảng';
+    if (!groups[groupName]) {
+      groups[groupName] = [];
+    }
+    groups[groupName].push(team);
+    return groups;
+  }, {});
+
+  // Sort groups alphabetically and sort teams within each group by weighted_avg_score desc
+  const sortedGroupNames = Object.keys(groupedFinalists).sort((a, b) => a.localeCompare(b, 'vi'));
+  sortedGroupNames.forEach(groupName => {
+    groupedFinalists[groupName].sort((a, b) => {
+      const scoreA = Number(a.weighted_avg_score) || 0;
+      const scoreB = Number(b.weighted_avg_score) || 0;
+      return scoreB - scoreA;
+    });
+  });
+
+  const activeGroupTab = selectedGroupTab || (sortedGroupNames.length > 0 ? sortedGroupNames[0] : '');
 
   // Steps Configuration
   const steps = [
@@ -455,27 +526,19 @@ export default function FinalistConfirmPage() {
           })}
         </div>
 
-        {/* Dynamic Layout Grid */}
+        {/* Main Card View (Full Width) */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2.3fr 1fr',
-          gap: '24px',
-          alignItems: 'start'
+          background: "var(--bg-card)",
+          border: "1px solid var(--border)",
+          borderRadius: "16px",
+          padding: "28px",
+          boxShadow: "0 4px 30px rgba(0, 0, 0, 0.2)",
+          backdropFilter: "blur(12px)",
+          minHeight: '400px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between'
         }}>
-          
-          {/* Main Card View (Left Column) */}
-          <div style={{
-            background: "var(--bg-card)",
-            border: "1px solid var(--border)",
-            borderRadius: "16px",
-            padding: "28px",
-            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.2)",
-            backdropFilter: "blur(12px)",
-            minHeight: '400px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
-          }}>
             
             {/* ─── STEP 1: TEAMS ─── */}
             {activeTab === 'teams' && (
@@ -494,111 +557,213 @@ export default function FinalistConfirmPage() {
                   </h3>
 
                   {finalists.length > 0 ? (
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                      gap: '16px',
-                      marginBottom: '28px'
-                    }}>
-                      {finalists.map((team) => {
-                        const isActive = team.status === 'ACTIVE';
+                    <div>
+                      {/* Tabs Bar */}
+                      <div style={{
+                        display: 'flex',
+                        gap: '10px',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                        paddingBottom: '12px',
+                        marginBottom: '24px',
+                        overflowX: 'auto',
+                        scrollbarWidth: 'none'
+                      }}>
+                        {sortedGroupNames.map((groupName) => {
+                          const teamsInGroup = groupedFinalists[groupName];
+                          const activeInGroupCount = teamsInGroup.filter(t => t.status === 'ACTIVE').length;
+                          const isCurrent = activeGroupTab === groupName;
+
+                          return (
+                            <button
+                              key={groupName}
+                              onClick={() => setSelectedGroupTab(groupName)}
+                              style={{
+                                background: isCurrent ? 'rgba(0, 240, 255, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                                color: isCurrent ? 'var(--cyan)' : 'var(--text-secondary)',
+                                border: `1px solid ${isCurrent ? 'rgba(0, 240, 255, 0.3)' : 'var(--border)'}`,
+                                borderRadius: '8px',
+                                padding: '8px 16px',
+                                fontWeight: '700',
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                whiteSpace: 'nowrap',
+                                boxShadow: isCurrent ? 'var(--shadow-cyan)' : 'none'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isCurrent) {
+                                  e.currentTarget.style.color = '#fff';
+                                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isCurrent) {
+                                  e.currentTarget.style.color = 'var(--text-secondary)';
+                                  e.currentTarget.style.borderColor = 'var(--border)';
+                                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                                }
+                              }}
+                            >
+                              <span>📂 {groupName}</span>
+                              <span style={{
+                                fontSize: '0.72rem',
+                                background: isCurrent ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                color: isCurrent ? 'var(--cyan)' : 'var(--text-secondary)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 'bold'
+                              }}>
+                                {activeInGroupCount}/{teamsInGroup.length}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Active Tab Content */}
+                      {activeGroupTab && groupedFinalists[activeGroupTab] && (() => {
+                        const teamsInGroup = groupedFinalists[activeGroupTab];
+                        const activeInGroupCount = teamsInGroup.filter(t => t.status === 'ACTIVE').length;
                         return (
-                          <div
-                            key={team.team_id}
-                            style={{
-                              background: 'rgba(255, 255, 255, 0.02)',
-                              border: `1px solid ${isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-                              borderRadius: '12px',
-                              padding: '16px',
+                          <div>
+                            <div style={{
                               display: 'flex',
-                              flexDirection: 'column',
                               justifyContent: 'space-between',
-                              transition: 'all 0.2s',
-                              boxShadow: isActive ? '0 0 15px rgba(16, 185, 129, 0.05)' : '0 0 15px rgba(239, 68, 68, 0.05)'
-                            }}
-                          >
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 'bold', color: '#fff' }}>
-                                  {team.team_name}
-                                </h4>
-                                {team.is_wildcard && (
-                                  <span style={{
-                                    background: 'rgba(168, 85, 247, 0.15)',
-                                    color: '#a855f7',
-                                    border: '1px solid rgba(168, 85, 247, 0.3)',
-                                    padding: '2px 6px',
-                                    borderRadius: '4px',
-                                    fontSize: '0.6rem',
-                                    fontWeight: 'bold',
-                                    textTransform: 'uppercase'
-                                  }}>
-                                    Wild Card
-                                  </span>
-                                )}
-                              </div>
-
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-                                <p style={{ margin: '3px 0' }}>Bảng đấu: <strong style={{ color: '#fff' }}>{team.assigned_group}</strong></p>
-                                <p style={{ margin: '3px 0' }}>Điểm trung bình: <strong style={{ color: 'var(--cyan)' }}>{team.weighted_avg_score.toFixed(2)}</strong></p>
-                                <div style={{ margin: '6px 0 0 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span>Trạng thái:</span>
-                                  <span style={{
-                                    color: isActive ? '#10b981' : '#ef4444',
-                                    background: isActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                    border: `1px solid ${isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-                                    padding: '1px 6px',
-                                    borderRadius: '4px',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 'bold'
-                                  }}>
-                                    {team.status}
-                                  </span>
-                                </div>
-                              </div>
+                              alignItems: 'center',
+                              marginBottom: '16px',
+                              flexWrap: 'wrap',
+                              gap: '10px'
+                            }}>
+                              <h4 style={{
+                                fontSize: '1rem',
+                                color: 'var(--cyan)',
+                                margin: 0,
+                                fontWeight: '700',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                fontFamily: 'var(--font-display)',
+                                textTransform: 'uppercase'
+                              }}>
+                                {activeGroupTab}
+                              </h4>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                Đã chọn: <strong style={{ color: '#10b981' }}>{activeInGroupCount}</strong> / {teamsInGroup.length} đội
+                              </span>
                             </div>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                              gap: '16px',
+                              marginBottom: '20px'
+                            }}>
+                              {teamsInGroup.map((team) => {
+                                const isActive = team.status === 'ACTIVE';
+                                return (
+                                  <div
+                                    key={team.team_id}
+                                    style={{
+                                      background: 'rgba(255, 255, 255, 0.02)',
+                                      border: `1px solid ${isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                                      borderRadius: '12px',
+                                      padding: '16px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      justifyContent: 'space-between',
+                                      transition: 'all 0.2s',
+                                      boxShadow: isActive ? '0 0 15px rgba(16, 185, 129, 0.05)' : '0 0 15px rgba(239, 68, 68, 0.05)'
+                                    }}
+                                  >
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 'bold', color: '#fff' }}>
+                                          {team.team_name}
+                                        </h4>
+                                        {team.is_wildcard && (
+                                          <span style={{
+                                            background: 'rgba(168, 85, 247, 0.15)',
+                                            color: '#a855f7',
+                                            border: '1px solid rgba(168, 85, 247, 0.3)',
+                                            padding: '2px 6px',
+                                            borderRadius: '4px',
+                                            fontSize: '0.6rem',
+                                            fontWeight: 'bold',
+                                            textTransform: 'uppercase'
+                                          }}>
+                                            Wild Card
+                                          </span>
+                                        )}
+                                      </div>
 
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button
-                                onClick={() => handleStatusChange(team.team_id, team.team_name, 'ACTIVE')}
-                                disabled={isActive || actionLoading}
-                                style={{
-                                  flex: 1,
-                                  background: isActive ? 'rgba(16, 185, 129, 0.05)' : '#10b981',
-                                  color: isActive ? 'rgba(255,255,255,0.3)' : 'white',
-                                  border: isActive ? '1px solid rgba(16, 185, 129, 0.2)' : 'none',
-                                  padding: '6px 10px',
-                                  borderRadius: '6px',
-                                  fontWeight: '600',
-                                  fontSize: '0.8rem',
-                                  cursor: isActive ? 'not-allowed' : 'pointer',
-                                  transition: 'all 0.2s'
-                                }}
-                              >
-                                Xác nhận
-                              </button>
-                              <button
-                                onClick={() => handleStatusChange(team.team_id, team.team_name, 'ELIMINATED')}
-                                disabled={!isActive || actionLoading}
-                                style={{
-                                  flex: 1,
-                                  background: !isActive ? 'rgba(239, 68, 68, 0.05)' : '#ef4444',
-                                  color: !isActive ? 'rgba(255,255,255,0.3)' : 'white',
-                                  border: !isActive ? '1px solid rgba(239, 68, 68, 0.2)' : 'none',
-                                  padding: '6px 10px',
-                                  borderRadius: '6px',
-                                  fontWeight: '600',
-                                  fontSize: '0.8rem',
-                                  cursor: !isActive ? 'not-allowed' : 'pointer',
-                                  transition: 'all 0.2s'
-                                }}
-                              >
-                                Loại
-                              </button>
+                                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                                        <p style={{ margin: '3px 0' }}>Bảng đấu: <strong style={{ color: '#fff' }}>{team.assigned_group}</strong></p>
+                                        <p style={{ margin: '3px 0' }}>Điểm trung bình: <strong style={{ color: 'var(--cyan)' }}>{team.weighted_avg_score.toFixed(2)}</strong></p>
+                                        <div style={{ margin: '6px 0 0 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span>Trạng thái:</span>
+                                          <span style={{
+                                            color: isActive ? '#10b981' : '#ef4444',
+                                            background: isActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                            border: `1px solid ${isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                                            padding: '1px 6px',
+                                            borderRadius: '4px',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 'bold'
+                                          }}>
+                                            {team.status}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                      <button
+                                        onClick={() => handleStatusChange(team.team_id, team.team_name, 'ACTIVE')}
+                                        disabled={isActive || actionLoading}
+                                        style={{
+                                          flex: 1,
+                                          background: isActive ? 'rgba(16, 185, 129, 0.05)' : '#10b981',
+                                          color: isActive ? 'rgba(255,255,255,0.3)' : 'white',
+                                          border: isActive ? '1px solid rgba(16, 185, 129, 0.2)' : 'none',
+                                          padding: '6px 10px',
+                                          borderRadius: '6px',
+                                          fontWeight: '600',
+                                          fontSize: '0.8rem',
+                                          cursor: isActive ? 'not-allowed' : 'pointer',
+                                          transition: 'all 0.2s'
+                                        }}
+                                      >
+                                        Xác nhận
+                                      </button>
+                                      <button
+                                        onClick={() => handleStatusChange(team.team_id, team.team_name, 'ELIMINATED')}
+                                        disabled={!isActive || actionLoading}
+                                        style={{
+                                          flex: 1,
+                                          background: !isActive ? 'rgba(239, 68, 68, 0.05)' : '#ef4444',
+                                          color: !isActive ? 'rgba(255,255,255,0.3)' : 'white',
+                                          border: !isActive ? '1px solid rgba(239, 68, 68, 0.2)' : 'none',
+                                          padding: '6px 10px',
+                                          borderRadius: '6px',
+                                          fontWeight: '600',
+                                          fontSize: '0.8rem',
+                                          cursor: !isActive ? 'not-allowed' : 'pointer',
+                                          transition: 'all 0.2s'
+                                        }}
+                                      >
+                                        Loại
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );
-                      })}
+                      })()}
                     </div>
                   ) : (
                     <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', marginBottom: '28px' }}>
@@ -1134,135 +1299,6 @@ export default function FinalistConfirmPage() {
                 </div>
               </div>
             )}
-
-          </div>
-
-          {/* Sidebar Columns (Right Column) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
-            {/* SYSTEM STATUS Card */}
-            <div style={{
-              background: "var(--bg-card)",
-              border: "1px solid var(--border)",
-              borderRadius: "16px",
-              padding: "24px",
-              boxShadow: "0 4px 30px rgba(0, 0, 0, 0.2)",
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              <h4 style={{
-                margin: '0 0 16px 0',
-                fontSize: '0.75rem',
-                letterSpacing: '1px',
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-                fontWeight: '700'
-              }}>
-                SYSTEM STATUS
-              </h4>
-              
-              <h3 style={{
-                margin: '0 0 8px 0',
-                fontSize: '1.25rem',
-                fontWeight: '800',
-                color: isActivated ? 'var(--cyan)' : 'var(--orange)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                {isActivated ? "Đã kích hoạt" : "Chờ kích hoạt"}
-              </h3>
-              
-              <p style={{
-                margin: '0 0 16px 0',
-                fontSize: '0.78rem',
-                color: 'var(--text-secondary)',
-                lineHeight: '1.5'
-              }}>
-                {isActivated 
-                  ? "Vòng thi chung kết đã được cấu hình và kích hoạt thành công trên toàn hệ thống."
-                  : "Đang chờ thiết lập hội đồng ban giám khảo và kiểm duyệt trọng số tiêu chí chấm điểm."
-                }
-              </p>
-
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.75rem',
-                color: isActivated ? 'var(--cyan)' : 'var(--text-secondary)',
-                fontWeight: '600'
-              }}>
-                <span style={{ fontSize: '1rem' }}>✓</span>
-                <span>Đồng bộ hóa thời gian thực</span>
-              </div>
-
-              {/* Cyberpunk Gear SVG Icon Background */}
-              <div style={{
-                position: 'absolute',
-                right: '-15px',
-                bottom: '-15px',
-                opacity: 0.05,
-                pointerEvents: 'none'
-              }}>
-                <svg width="100" height="100" viewBox="0 0 24 24" fill="var(--cyan)">
-                  <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.04,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Thống kê nhanh Card */}
-            <div style={{
-              background: "var(--bg-card)",
-              border: "1px solid var(--border)",
-              borderRadius: "16px",
-              padding: "24px",
-              boxShadow: "0 4px 30px rgba(0, 0, 0, 0.2)"
-            }}>
-              <h4 style={{
-                margin: '0 0 16px 0',
-                fontSize: '0.75rem',
-                letterSpacing: '1px',
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-                fontWeight: '700'
-              }}>
-                Thống kê nhanh
-              </h4>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Ứng viên</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{confirmedTeamsCount} Nhóm</span>
-                  </div>
-                  <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div style={{
-                      width: `${Math.min((confirmedTeamsCount / 12) * 100, 100)}%`,
-                      height: '100%',
-                      background: 'linear-gradient(90deg, var(--purple) 0%, var(--cyan) 100%)',
-                      boxShadow: 'var(--shadow-cyan)'
-                    }} />
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Thời lượng dự kiến</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{estimatedDuration} Phút</span>
-                  </div>
-                  <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div style={{
-                      width: `${Math.min((estimatedDuration / 240) * 100, 100)}%`,
-                      height: '100%',
-                      background: 'linear-gradient(90deg, var(--cyan) 0%, #10b981 100%)',
-                      boxShadow: '0 0 8px rgba(16, 185, 129, 0.4)'
-                    }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
 
         </div>
 

@@ -328,6 +328,13 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
       const embeddedRound = contest.rounds.id(round._id);
       if (embeddedRound) {
         embeddedRound.is_active = true;
+        
+        // Auto-release problem when activated
+        const now = new Date();
+        embeddedRound.problem_released_at = now;
+        const durationHours = embeddedRound.coding_duration_hours || 24;
+        embeddedRound.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+
         // Make sure only 1 round is active in contest.rounds
         for (const r of contest.rounds) {
           if (r._id.toString() !== round._id.toString()) {

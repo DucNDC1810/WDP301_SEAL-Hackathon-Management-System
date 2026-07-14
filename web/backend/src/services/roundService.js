@@ -57,6 +57,13 @@ export const activateRound = async (contestId, roundId, actorId) => {
   }
 
   round.is_active = true;
+  
+  // Auto-release problem when activated
+  const now = new Date();
+  round.problem_released_at = now;
+  const durationHours = round.coding_duration_hours || 24;
+  round.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+
   await contest.save();
 
   // Gửi notification cho tất cả judges được assign trong round
@@ -218,16 +225,16 @@ export const releaseProblem = async (roundId, actorId) => {
     throw err;
   }
 
-  if (contest.status !== "open") {
-    const err = new Error("Không thể phát đề bài khi giải đấu chưa diễn ra (Trạng thái hiện tại không phải ONGOING)");
-    err.statusCode = 400;
-    throw err;
-  }
-
   const round = contest.rounds.id(roundId);
   if (!round) {
     const err = new Error("Không tìm thấy vòng thi");
     err.statusCode = 404;
+    throw err;
+  }
+
+  if (!round.is_active) {
+    const err = new Error("Vòng thi chưa được kích hoạt. Vui lòng kích hoạt vòng thi trước khi phát đề.");
+    err.statusCode = 400;
     throw err;
   }
 

@@ -50,15 +50,22 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   useEffect(() => {
     if (!contestId) return;
     setLoadingUsers(true);
-    Promise.all([
-      request('/api/users?limit=1000'),
-      request(`/api/pools/contests/${contestId}/pools`),
-    ]).then(([usersData, poolsData]) => {
-      setAllUsers(Array.isArray(usersData) ? usersData : (usersData?.data ?? []));
-      setPools(Array.isArray(poolsData) ? poolsData : (poolsData?.data ?? []));
-    }).catch(() => messageApi.error('Không thể tải danh sách người dùng'))
+    request('/api/users?limit=1000')
+      .then(usersData => {
+        setAllUsers(Array.isArray(usersData) ? usersData : (usersData?.data ?? []));
+      })
+      .catch(() => messageApi.error('Không thể tải danh sách người dùng'))
       .finally(() => setLoadingUsers(false));
   }, [contestId]);
+
+  useEffect(() => {
+    if (!contestId || !selectedRound) return;
+    request(`/api/pools/contests/${contestId}/pools?round_id=${selectedRound}`)
+      .then(poolsData => {
+        setPools(Array.isArray(poolsData) ? poolsData : (poolsData?.data ?? []));
+      })
+      .catch(() => messageApi.error('Không thể tải danh sách bảng đấu'));
+  }, [contestId, selectedRound]);
 
   const fetchAssignments = useCallback(async (rid) => {
     if (!contestId || !rid) return;
@@ -341,7 +348,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
               onChange={v => { setNewJudgePool(v); setNewJudgeId(null); setNewJudgeExternalEmail(''); }}
               style={{ width: '100%' }}
               placeholder="Chọn bảng trước..."
-              options={judgePoolOptions}
+              options={poolOptions}
             />
           </div>
 

@@ -71,10 +71,11 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
     ? contest.rounds.map(r => ({
         id: r._id,
         name: r.name,
+        is_active: r.is_active,
         problem_released_at: r.problem_released_at,
         submission_deadline: r.submission_deadline
       }))
-    : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name })));
+    : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name, is_active: r.is_active || r.active })));
 
   const [selectedRound, setSelectedRound] = useState(null);
 
@@ -214,16 +215,22 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
             </div>
           }
         />
-      ) : contest?.status !== 'open' ? (
+      ) : !currentRound?.is_active ? (
         <div className="flex flex-col gap-3">
           <Alert
             type="warning"
             showIcon
-            message="Không thể phát đề bài lúc này"
-            description="Giải đấu chưa được kích hoạt diễn ra (Trạng thái hiện tại không phải ONGOING). Hãy thay đổi trạng thái giải đấu sang ONGOING trong mục cấu hình trước khi thực hiện phát đề bài."
+            message="Vòng thi chưa được kích hoạt"
+            description="Vòng thi này chưa được kích hoạt chính thức. Bạn cần phân công Giám khảo và xác nhận kích hoạt vòng thi trước khi phát đề bài."
           />
-          <div className="flex justify-end">
-            <Button type="primary" disabled title="Giải đấu chưa diễn ra">📤 Phát đề ngay</Button>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="primary"
+              onClick={() => window.open(`/round/${selectedRound}/activate`, '_blank')}
+            >
+              ⚡ Kích hoạt Vòng thi ngay
+            </Button>
+            <Button type="primary" disabled title="Vòng thi chưa được kích hoạt">📤 Phát đề ngay</Button>
           </div>
         </div>
       ) : (

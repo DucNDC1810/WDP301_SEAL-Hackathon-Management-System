@@ -1647,9 +1647,10 @@ export default function HackathonDetailPage({ defaultTab }) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {selectedTrack.rounds.map(round => {
+                  const dbRound = contest?.rounds?.find(dr => dr.round_number === Number(round.sequence_order));
                   const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
                   const ok = Math.abs(ws - 1.0) < 0.001;
-                  const isOfficialActive = round.is_official_active;
+                  const isOfficialActive = contest?.status === 'open' && dbRound ? dbRound.is_active : round.is_official_active;
                   const valid = ok && (round.criteria?.length || 0) > 0;
                   const tip = isOfficialActive ? 'Vòng thi đang kích hoạt chấm điểm chính thức'
                     : !valid ? `Tổng trọng số = ${ws.toFixed(2)} ≠ 1.0 (Hoặc chưa có tiêu chí) — thêm/sửa tiêu chí để kích hoạt`
@@ -1738,13 +1739,17 @@ export default function HackathonDetailPage({ defaultTab }) {
                               type="button"
                               disabled={!valid || isOfficialActive}
                               onClick={() => {
-                                AntModal.confirm({
-                                  title: `Kích hoạt "${round.name}"?`,
-                                  content: 'Các Vòng thi còn lại sẽ bị hủy kích hoạt làm vòng thi chính thức.',
-                                  okText: 'Kích hoạt',
-                                  cancelText: 'Hủy',
-                                  onOk: () => handleActivateRound(selectedTrack.id, round.id),
-                                });
+                                if (contest?.status === 'open' && dbRound?._id) {
+                                  navigate(`/round/${dbRound._id}/activate`);
+                                } else {
+                                  AntModal.confirm({
+                                    title: `Kích hoạt "${round.name}"?`,
+                                    content: 'Các Vòng thi còn lại sẽ bị hủy kích hoạt làm vòng thi chính thức.',
+                                    okText: 'Kích hoạt',
+                                    cancelText: 'Hủy',
+                                    onOk: () => handleActivateRound(selectedTrack.id, round.id),
+                                  });
+                                }
                               }}
                               className={`hd-btn-official ${isOfficialActive ? 'active' : ''}`}
                             >

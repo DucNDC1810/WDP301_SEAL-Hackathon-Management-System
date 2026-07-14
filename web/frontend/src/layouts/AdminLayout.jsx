@@ -63,6 +63,7 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [pendingTeamsCount, setPendingTeamsCount] = useState(0);
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
+  const [pendingVerificationsCount, setPendingVerificationsCount] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -84,6 +85,14 @@ export default function AdminLayout() {
         const dataSubs = await resSubs.json();
         if (dataSubs.success) {
           setPendingSubmissions(dataSubs.data || []);
+        }
+
+        const resVerify = await fetch(`${API_URL}/api/users/verifications?status=pending`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const dataVerify = await resVerify.json();
+        if (dataVerify.success) {
+          setPendingVerificationsCount(dataVerify.data?.length || 0);
         }
       } catch (err) {
         console.error("Error fetching approval counts:", err);
@@ -155,7 +164,9 @@ export default function AdminLayout() {
 
         <nav className="al-nav">
           {NAV.map(({ key, label, path, d }) => {
-            const hasPending = key === 'team' && pendingTeamsCount > 0;
+            const hasPending =
+              (key === 'team' && pendingTeamsCount > 0) ||
+              (key === 'users' && pendingVerificationsCount > 0);
             return (
               <button
                 key={key}

@@ -282,6 +282,7 @@ function ContestFormPage() {
       };
 
       localStorage.setItem(`hackathon_config_${contestId}`, JSON.stringify(customConfig));
+      localStorage.setItem('hackathon_just_created', 'true');
 
       setSuccess('Tạo Hackathon thành công! Đang chuyển hướng đến trang quản lý...');
       setCurrentStepText('Đang chuyển hướng...');

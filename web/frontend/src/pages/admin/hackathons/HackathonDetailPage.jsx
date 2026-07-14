@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Modal as AntModal, Tooltip, Select } from 'antd';
+import { Modal as AntModal, Tooltip, Select, notification } from 'antd';
 import JudgeAssignmentTab from './tabs/JudgeAssignmentTab';
 import ProblemReleaseTab from './tabs/ProblemReleaseTab';
 import SubmissionReviewTab from './tabs/SubmissionReviewTab';
@@ -455,6 +455,18 @@ export default function HackathonDetailPage({ defaultTab }) {
     setLoading(true);
     Promise.all([fetchContest(), fetchTeams()]).finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (localStorage.getItem('hackathon_just_created') === 'true') {
+      notification.success({
+        message: 'Tạo cuộc thi thành công!',
+        description: 'Bạn đã khởi tạo cuộc thi Hackathon thành công. Hãy tiếp tục thiết lập cấu hình bên dưới.',
+        placement: 'topRight',
+        duration: 5,
+      });
+      localStorage.removeItem('hackathon_just_created');
+    }
+  }, []);
 
   // Fetch rounds for leaderboard tab
   useEffect(() => {

@@ -461,6 +461,14 @@ export default function HackathonDetailPage({ defaultTab }) {
     Promise.all([fetchContest(), fetchTeams()]).finally(() => setLoading(false));
   }, [id]);
 
+  // Re-fetch contest when switching to key tabs
+  // so activation/changes (done on separate pages) are reflected immediately
+  useEffect(() => {
+    if (tab === 1 || tab === 5) {
+      fetchContest();
+    }
+  }, [tab]);
+
   // Re-sync trạng thái contest (vd. round.is_active) khi quay lại trang này từ RoundActivatePage
   useEffect(() => {
     fetchContest();
@@ -1661,7 +1669,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                   const dbRound = contest?.rounds?.find(dr => dr.round_number === Number(round.sequence_order));
                   const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
                   const ok = Math.abs(ws - 1.0) < 0.001;
-                  const isOfficialActive = contest?.status === 'open' && dbRound ? dbRound.is_active : round.is_official_active;
+                  const isOfficialActive = dbRound ? dbRound.is_active : (round.is_official_active || false);
                   const valid = ok && (round.criteria?.length || 0) > 0;
                   const tip = isOfficialActive ? 'Vòng thi đang kích hoạt chấm điểm chính thức'
                     : !valid ? `Tổng trọng số = ${ws.toFixed(2)} ≠ 1.0 (Hoặc chưa có tiêu chí) — thêm/sửa tiêu chí để kích hoạt`
@@ -2621,36 +2629,51 @@ export default function HackathonDetailPage({ defaultTab }) {
                   🔮 Xem đề cử Wild Card
                 </button>
               )}
-              {selectedLeaderboardRoundId && (
-                <button
-                  onClick={() => navigate(`/finalist/${selectedLeaderboardRoundId}/confirm`)}
-                  style={{
-                    background: 'var(--gradient-primary)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: 'var(--shadow-cyan)',
-                    transition: 'all 0.2s',
-                    whiteSpace: 'nowrap',
-                    marginLeft: '10px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.02)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'none';
-                  }}
-                >
-                  🏆 Xác nhận & Kích hoạt Chung kết
-                </button>
-              )}
+              {(() => {
+                // Nút "Kích hoạt Chung kết" chỉ hiện khi:
+                // 1. Đang xem vòng KHÔNG PHẢI vòng cuối (tức vòng sơ loại hoặc vòng giữa)
+                // 2. Vòng đó đã KẾT THÚC (không còn is_active)
+                const selectedLbRound = leaderboardRounds.find(r => r._id === selectedLeaderboardRoundId);
+                const sortedLbRounds = [...leaderboardRounds].sort((a, b) => (a.round_number || 0) - (b.round_number || 0));
+                const isLastRound = selectedLbRound && sortedLbRounds.length > 0 &&
+                  selectedLbRound._id === sortedLbRounds[sortedLbRounds.length - 1]._id;
+                // Vòng coi là "đã xong" khi scoring bị khóa (BGK đã hoàn thành chấm điểm)
+                const isRoundFinished = selectedLbRound && selectedLbRound.scoring_locked === true;
+                const hasNextRound = !isLastRound && sortedLbRounds.length > 1;
+
+                if (!selectedLeaderboardRoundId || !hasNextRound || !isRoundFinished) return null;
+
+                return (
+                  <button
+                    onClick={() => navigate(`/finalist/${selectedLeaderboardRoundId}/confirm`)}
+                    style={{
+                      background: 'var(--gradient-primary)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: 'var(--shadow-cyan)',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap',
+                      marginLeft: '10px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'none';
+                    }}
+                  >
+                    🏆 Xác nhận &amp; Kích hoạt Chung kết
+                  </button>
+                );
+              })()}
             </div>
           </div>
 

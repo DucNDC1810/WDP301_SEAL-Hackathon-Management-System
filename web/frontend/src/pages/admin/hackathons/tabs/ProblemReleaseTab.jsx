@@ -73,7 +73,8 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
         name: r.name,
         is_active: r.is_active,
         problem_released_at: r.problem_released_at,
-        submission_deadline: r.submission_deadline
+        submission_deadline: r.submission_deadline,
+        coding_duration_hours: r.coding_duration_hours
       }))
     : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name, is_active: r.is_active || r.active })));
 
@@ -170,6 +171,13 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
 
   const releasedAt = releasedRounds[selectedRound] || currentRound?.problem_released_at;
 
+  // Tính deadline động: thời gian phát đề + số giờ làm bài
+  const effectiveDeadline = releasedAt && currentRound?.coding_duration_hours
+    ? new Date(new Date(releasedAt).getTime() + currentRound.coding_duration_hours * 60 * 60 * 1000)
+    : currentRound?.submission_deadline
+      ? new Date(currentRound.submission_deadline)
+      : null;
+
   // Kiểm tra pool nào chưa có drive_link
   const poolsMissingLink = pools.filter(p => !p.drive_link || !p.drive_link.trim());
   const canRelease = pools.length > 0 && poolsMissingLink.length === 0;
@@ -206,33 +214,20 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
           message={`✓ Đã phát đề lúc: ${new Date(releasedAt).toLocaleString('vi-VN')}`}
           description={
             <div className="flex flex-col gap-1 mt-1">
-              {currentRound?.submission_deadline && (
+              {effectiveDeadline && (
                 <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>
-                  Hạn nộp bài của vòng: <strong style={{ color: 'var(--cyan)' }}>{new Date(currentRound.submission_deadline).toLocaleString('vi-VN')}</strong>
+                  Hạn nộp bài: <strong style={{ color: 'var(--cyan)' }}>{effectiveDeadline.toLocaleString('vi-VN')}</strong>
+                  {currentRound?.coding_duration_hours && (
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', marginLeft: 8 }}>
+                      ({currentRound.coding_duration_hours}h kể từ lúc phát đề)
+                    </span>
+                  )}
                 </div>
               )}
-              <CountdownTimer deadline={currentRound?.submission_deadline} allSubmitted={allSubmittedInRound} />
+              <CountdownTimer deadline={effectiveDeadline} allSubmitted={allSubmittedInRound} />
             </div>
           }
         />
-      ) : !currentRound?.is_active ? (
-        <div className="flex flex-col gap-3">
-          <Alert
-            type="warning"
-            showIcon
-            message="Vòng thi chưa được kích hoạt"
-            description="Vòng thi này chưa được kích hoạt chính thức. Bạn cần phân công Giám khảo và xác nhận kích hoạt vòng thi trước khi phát đề bài."
-          />
-          <div className="flex justify-end gap-3">
-            <Button
-              type="primary"
-              onClick={() => window.open(`/round/${selectedRound}/activate`, '_blank')}
-            >
-              ⚡ Kích hoạt Vòng thi ngay
-            </Button>
-            <Button type="primary" disabled title="Vòng thi chưa được kích hoạt">📤 Phát đề ngay</Button>
-          </div>
-        </div>
       ) : (
         <div className="flex flex-col gap-3">
           {!canRelease && pools.length > 0 && (

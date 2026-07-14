@@ -232,11 +232,6 @@ export const releaseProblem = async (roundId, actorId) => {
     throw err;
   }
 
-  if (!round.is_active) {
-    const err = new Error("Vòng thi chưa được kích hoạt. Vui lòng kích hoạt vòng thi trước khi phát đề.");
-    err.statusCode = 400;
-    throw err;
-  }
 
   // Kiểm tra tất cả pool trong vòng này đã có drive_link chưa
   const pools = await Pool.find({ contest_id: contest._id, round_id: roundId });

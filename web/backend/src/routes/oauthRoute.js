@@ -15,7 +15,7 @@ const COOKIE_OPTS = {
 
 const generateAccessToken = (userId) =>
   jwt.sign({ id: userId }, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "24h",
   });
 
 const generateRefreshToken = (userId) =>

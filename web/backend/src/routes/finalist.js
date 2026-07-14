@@ -7,6 +7,7 @@ import AuditLog from "../models/AuditLog.js";
 import { sendNotification } from "../services/notification.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import Pool from "../models/Pool.js";
+import Criteria from "../models/Criteria.js";
 
 const router = Router();
 
@@ -143,10 +144,21 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
             contest_id: round.contest_id,
             name: nextSubRound.name,
             type: nextSubRound.round_number === 2 || nextSubRound.name.toLowerCase().includes("chung kết") || nextSubRound.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
-            is_active: nextSubRound.is_active || false,
+            is_active: false,
             round_start: nextSubRound.start_time || new Date(),
             round_end: nextSubRound.end_time || nextSubRound.submission_deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
           });
+
+          // Copy score criteria from contest.rounds config to standalone Criteria collection
+          if (nextSubRound.score_criteria && nextSubRound.score_criteria.length > 0) {
+            const criteriaToCreate = nextSubRound.score_criteria.map(c => ({
+              round_id: nextSubRound._id,
+              name: c.name,
+              weight: c.weight,
+              description: c.description || ""
+            }));
+            await Criteria.insertMany(criteriaToCreate);
+          }
         }
       }
     }

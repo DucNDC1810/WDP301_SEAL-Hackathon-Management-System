@@ -698,18 +698,21 @@ export default function HackathonDetailPage({ defaultTab }) {
     localStorage.setItem(`hackathon_config_${id}`, JSON.stringify(newConfig));
 
     try {
-      const mappedRounds = (newConfig.tracks?.[0]?.rounds || []).map(r => ({
-        round_number: Number(r.sequence_order),
-        name: r.name,
-        submission_deadline: r.submission_deadline || null,
-        is_active: r.active,
-        score_criteria: (r.criteria || []).map(c => ({
-          name: c.name,
-          max_score: Number(c.max_score) || 10,
-          weight: Number(c.weight) || 0,
-          description: c.description || ''
-        }))
-      }));
+      const mappedRounds = (newConfig.tracks?.[0]?.rounds || []).map(r => {
+        const dbRound = contest?.rounds?.find(dr => dr.round_number === Number(r.sequence_order));
+        return {
+          round_number: Number(r.sequence_order),
+          name: r.name,
+          submission_deadline: r.submission_deadline || null,
+          is_active: dbRound ? dbRound.is_active : false,
+          score_criteria: (r.criteria || []).map(c => ({
+            name: c.name,
+            max_score: Number(c.max_score) || 10,
+            weight: Number(c.weight) || 0,
+            description: c.description || ''
+          }))
+        };
+      });
 
       await fetch(`${API_URL}/api/contests/${id}`, {
         method: 'PUT',
@@ -919,11 +922,17 @@ export default function HackathonDetailPage({ defaultTab }) {
     const eventDate = new Date(generalForm.start_date);
 
     if (closeDate <= openDate) {
-      alert('Ngày đóng đăng ký phải diễn ra sau ngày mở đăng ký.');
+      notification.warning({
+        message: 'Không hợp lệ',
+        description: 'Ngày đóng đăng ký phải diễn ra sau ngày mở đăng ký.',
+      });
       return;
     }
     if (eventDate <= closeDate) {
-      alert('Ngày thi đấu phải diễn ra sau ngày đóng đăng ký.');
+      notification.warning({
+        message: 'Không hợp lệ',
+        description: 'Ngày thi đấu phải diễn ra sau ngày đóng đăng ký.',
+      });
       return;
     }
 
@@ -959,9 +968,15 @@ export default function HackathonDetailPage({ defaultTab }) {
       updateConfigState(updated);
       setIsEditingInfo(false);
       await fetchContest();
-      alert('Cập nhật thông tin Hackathon thành công!');
+      notification.success({
+        message: 'Thành công',
+        description: 'Cập nhật thông tin Hackathon thành công!',
+      });
     } catch (err) {
-      alert(err.message || 'Không thể đồng bộ dữ liệu tới server.');
+      notification.error({
+        message: 'Lỗi đồng bộ',
+        description: err.message || 'Không thể đồng bộ dữ liệu tới server.',
+      });
     }
   };
 
@@ -1054,12 +1069,18 @@ export default function HackathonDetailPage({ defaultTab }) {
   const handleAddRound = (e) => {
     e.preventDefault();
     if (!roundForm.name.trim() || !roundForm.submission_deadline) {
-      alert('Vui lòng điền đầy đủ tên và hạn nộp bài.');
+      notification.warning({
+        message: 'Thông tin thiếu',
+        description: 'Vui lòng điền đầy đủ tên và hạn nộp bài.',
+      });
       return;
     }
     const activeTrack = config.tracks.find(t => t.id === activeTrackId) || config.tracks[0];
     if (!activeTrack) {
-      alert('Không tìm thấy Track cấu hình.');
+      notification.error({
+        message: 'Lỗi',
+        description: 'Không tìm thấy Track cấu hình.',
+      });
       return;
     }
 
@@ -1074,12 +1095,18 @@ export default function HackathonDetailPage({ defaultTab }) {
     })();
 
     if (roundForm.sequence_order <= 0 || roundForm.coding_duration_hours <= 0) {
-      alert('Các giá trị số thứ tự và thời gian code phải lớn hơn 0.');
+      notification.warning({
+        message: 'Giá trị không hợp lệ',
+        description: 'Các giá trị số thứ tự và thời gian code phải lớn hơn 0.',
+      });
       return;
     }
 
     if (!isRoundLastVal && roundForm.top_n_advance <= 0) {
-      alert('Số đội đi tiếp phải lớn hơn 0.');
+      notification.warning({
+        message: 'Giá trị không hợp lệ',
+        description: 'Số đội đi tiếp phải lớn hơn 0.',
+      });
       return;
     }
 
@@ -1181,7 +1208,10 @@ export default function HackathonDetailPage({ defaultTab }) {
     e.preventDefault();
     if (!critForm.name.trim()) return;
     if (critForm.weight <= 0 || critForm.max_score <= 0) {
-      alert('Hệ số và điểm số tối đa phải lớn hơn 0.');
+      notification.warning({
+        message: 'Giá trị không hợp lệ',
+        description: 'Hệ số và điểm số tối đa phải lớn hơn 0.',
+      });
       return;
     }
 
@@ -1274,7 +1304,10 @@ export default function HackathonDetailPage({ defaultTab }) {
     });
 
     if (sourceCriteria.length === 0) {
-      alert('Vòng mẫu được chọn chưa có tiêu chí nào để sao chép.');
+      notification.warning({
+        message: 'Sao chép thất bại',
+        description: 'Vòng mẫu được chọn chưa có tiêu chí nào để sao chép.',
+      });
       return;
     }
 
@@ -1299,7 +1332,10 @@ export default function HackathonDetailPage({ defaultTab }) {
     });
 
     updateConfigState({ ...config, tracks: updatedTracks });
-    alert(`Đã sao chép thành công ${sourceCriteria.length} tiêu chí chấm điểm!`);
+    notification.success({
+      message: 'Sao chép thành công',
+      description: `Đã sao chép thành công ${sourceCriteria.length} tiêu chí chấm điểm!`,
+    });
     setCloneSourceRoundId('');
   };
 
@@ -1323,7 +1359,10 @@ export default function HackathonDetailPage({ defaultTab }) {
       }, 5000);
 
     } catch (err) {
-      alert('Lỗi kích hoạt giải đấu: ' + err.message);
+      notification.error({
+        message: 'Lỗi kích hoạt',
+        description: 'Lỗi kích hoạt giải đấu: ' + err.message,
+      });
     }
   };
 

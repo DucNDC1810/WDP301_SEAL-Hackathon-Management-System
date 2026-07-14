@@ -14,7 +14,8 @@ const presentationSlotSchema = new mongoose.Schema(
     pool_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Pool",
-      required: true,
+      required: false,
+      default: null,
     },
     start_time: { type: Date, required: true },
     end_time:   { type: Date, required: true },

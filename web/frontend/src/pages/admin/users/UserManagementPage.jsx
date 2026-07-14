@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './UserManagementPage.css';
+import { notification } from 'antd';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const tok  = () => localStorage.getItem('accessToken');
@@ -127,14 +128,23 @@ export default function UserManagementPage() {
       });
       const d = await r.json();
       if (d.success) {
-        alert(action === 'approve' ? 'Phê duyệt thành công!' : 'Từ chối thành công!');
+        notification.success({
+          message: 'Thành công',
+          description: action === 'approve' ? 'Phê duyệt thành công!' : 'Từ chối thành công!',
+        });
         fetchPendingVerifications();
         fetchUsers();
       } else {
-        alert(d.message || 'Lỗi xử lý');
+        notification.error({
+          message: 'Lỗi',
+          description: d.message || 'Lỗi xử lý',
+        });
       }
     } catch (err) {
-      alert('Không thể kết nối đến server');
+      notification.error({
+        message: 'Lỗi kết nối',
+        description: 'Không thể kết nối đến server',
+      });
     } finally {
       setReviewLoading(false);
     }

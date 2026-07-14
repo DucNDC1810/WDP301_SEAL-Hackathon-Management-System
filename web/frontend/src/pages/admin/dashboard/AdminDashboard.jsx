@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './AdminDashboard.css';
+import { notification } from 'antd';
 
 const Ico = ({ d, size = 18, sw = 1.8 }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw}
@@ -65,7 +66,10 @@ export default function AdminDashboard() {
   const handleSendBroadcast = async (e) => {
     e.preventDefault();
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
-      alert("Vui lòng nhập đầy đủ tiêu đề và nội dung.");
+      notification.warning({
+        message: 'Thiếu thông tin',
+        description: 'Vui lòng nhập đầy đủ tiêu đề và nội dung.',
+      });
       return;
     }
     setSendingBroadcast(true);
@@ -73,7 +77,10 @@ export default function AdminDashboard() {
       const users = await getUsersForBroadcast(broadcastRole);
       const userIds = users.map(u => u._id);
       if (userIds.length === 0) {
-        alert("Không tìm thấy người dùng nào thuộc nhóm đã chọn.");
+        notification.warning({
+          message: 'Không tìm thấy người dùng',
+          description: 'Không tìm thấy người dùng nào thuộc nhóm đã chọn.',
+        });
         return;
       }
       
@@ -95,13 +102,19 @@ export default function AdminDashboard() {
         throw new Error(errJson.message || "Gửi thông báo thất bại");
       }
       
-      alert(`Đã gửi thông báo thành công tới ${userIds.length} người dùng!`);
+      notification.success({
+        message: 'Thành công',
+        description: `Đã gửi thông báo thành công tới ${userIds.length} người dùng!`,
+      });
       setShowBroadcastModal(false);
       setBroadcastTitle('');
       setBroadcastMessage('');
     } catch (err) {
       console.error(err);
-      alert(err.message || "Lỗi xảy ra khi gửi thông báo.");
+      notification.error({
+        message: 'Lỗi',
+        description: err.message || "Lỗi xảy ra khi gửi thông báo.",
+      });
     } finally {
       setSendingBroadcast(false);
     }

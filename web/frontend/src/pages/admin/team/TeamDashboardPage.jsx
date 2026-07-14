@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import './TeamDashboardPage.css';
+import { notification } from 'antd';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -734,7 +735,10 @@ function TeamDashboardPage({ isEmbedded = false }) {
                   onClick={async () => {
                     const { type, teamId, teamName, reason } = confirmModal;
                     if (type === 'reject' && (!reason || !reason.trim())) {
-                      alert('Vui lòng nhập lý do từ chối.');
+                      notification.warning({
+                        message: 'Thiếu thông tin',
+                        description: 'Vui lòng nhập lý do từ chối.',
+                      });
                       return;
                     }
                     setConfirmModal(null);

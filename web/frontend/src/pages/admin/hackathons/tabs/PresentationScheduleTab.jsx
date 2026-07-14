@@ -57,13 +57,22 @@ export default function PresentationScheduleTab({ contestId, contest }) {
   const { request } = useApi();
   const [messageApi, ctx] = message.useMessage();
 
-  const rounds = (contest?.rounds || []).filter(r => r.is_active);
+  const rounds = (contest?.rounds || []).filter(r => r.round_number > 1);
   const [selectedRound, setSelectedRound] = useState(rounds[0]?._id ?? null);
-  const [pools, setPools]     = useState([]);
-  const [selectedPool, setSelectedPool] = useState(null);
+
+  // Sync selectedRound when rounds load/change
+  useEffect(() => {
+    if (rounds.length) {
+      if (!selectedRound || !rounds.some(r => r._id === selectedRound)) {
+        setSelectedRound(rounds[0]._id);
+      }
+    } else {
+      setSelectedRound(null);
+    }
+  }, [rounds, selectedRound]);
+
   const [slots, setSlots]     = useState([]);
   const [loading, setLoading] = useState(false);
-  const [poolLoading, setPoolLoading] = useState(false);
 
   const [showSingle, setShowSingle] = useState(false);
   const [showBulk,   setShowBulk]   = useState(false);
@@ -71,28 +80,13 @@ export default function PresentationScheduleTab({ contestId, contest }) {
   const [bulkForm,   setBulkForm]   = useState(EMPTY_BULK);
   const [submitting, setSubmitting] = useState(false);
 
-  // Load pools
-  useEffect(() => {
-    if (!contestId) return;
-    setPoolLoading(true);
-    fetch(`${API}/api/pools/contests/${contestId}/pools`, { headers: hdrs() })
-      .then(r => r.json())
-      .then(d => {
-        const list = d.data || d || [];
-        setPools(list);
-        if (list.length) setSelectedPool(list[0]._id);
-      })
-      .catch(() => {})
-      .finally(() => setPoolLoading(false));
-  }, [contestId]);
-
   // Load slots
   const loadSlots = useCallback(async () => {
-    if (!selectedRound || !selectedPool) return;
+    if (!selectedRound) return;
     setLoading(true);
     try {
       const data = await request(
-        `/api/presentation-slots?contest_id=${contestId}&round_id=${selectedRound}&pool_id=${selectedPool}`
+        `/api/presentation-slots?contest_id=${contestId}&round_id=${selectedRound}`
       );
       setSlots(Array.isArray(data) ? data : []);
     } catch {
@@ -100,7 +94,7 @@ export default function PresentationScheduleTab({ contestId, contest }) {
     } finally {
       setLoading(false);
     }
-  }, [selectedRound, selectedPool, contestId, request]);
+  }, [selectedRound, contestId, request]);
 
   useEffect(() => { loadSlots(); }, [loadSlots]);
 
@@ -111,7 +105,7 @@ export default function PresentationScheduleTab({ contestId, contest }) {
     try {
       await request('/api/presentation-slots', {
         method: 'POST',
-        body: { ...singleForm, contest_id: contestId, round_id: selectedRound, pool_id: selectedPool },
+        body: { ...singleForm, contest_id: contestId, round_id: selectedRound, pool_id: null },
       });
       messageApi.success('Tạo slot thành công');
       setShowSingle(false);
@@ -129,15 +123,15 @@ export default function PresentationScheduleTab({ contestId, contest }) {
     const validRooms = bulkForm.rooms.filter(r => r.trim());
     if (!validRooms.length) return messageApi.warning('Vui lòng nhập ít nhất 1 phòng');
     setSubmitting(true);
-    const totalSlots = validRooms.length * bulkForm.count * (bulkForm.all_pools ? pools.length : 1);
+    const totalSlots = validRooms.length * bulkForm.count;
     try {
       const res = await request('/api/presentation-slots/bulk', {
         method: 'POST',
         body: {
           contest_id: contestId,
           round_id: selectedRound,
-          pool_id: selectedPool,
-          all_pools: bulkForm.all_pools,
+          pool_id: null,
+          all_pools: false,
           start_time: bulkForm.start_time,
           slot_duration_min: bulkForm.slot_duration_min,
           break_duration_min: bulkForm.break_duration_min,
@@ -193,41 +187,26 @@ export default function PresentationScheduleTab({ contestId, contest }) {
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 13, color: '#94a3b8', whiteSpace: 'nowrap' }}>Pool:</span>
-          {poolLoading
-            ? <Spin size="small" />
-            : <Select
-                value={selectedPool}
-                onChange={setSelectedPool}
-                style={{ minWidth: 150 }}
-                options={pools.map(p => ({ value: p._id, label: p.pool_name }))}
-                placeholder="Chọn pool"
-              />
-          }
-        </div>
-
         <div className="flex items-center gap-2 ml-auto">
           <Button
             disabled={!slots.length}
             onClick={() => {
               const roundName = rounds.find(r => r._id === selectedRound)?.name ?? selectedRound;
-              const poolName  = pools.find(p => p._id === selectedPool)?.pool_name ?? selectedPool;
-              exportCSV(slots, roundName, poolName, contest?.title);
+              exportCSV(slots, roundName, "", contest?.title);
             }}
           >
             Xuất lịch CSV
           </Button>
           <Button
             onClick={() => { setShowBulk(true); setBulkForm(EMPTY_BULK); }}
-            disabled={!selectedRound || !selectedPool}
+            disabled={!selectedRound}
           >
             Tạo nhiều slot
           </Button>
           <Button
             type="primary"
             onClick={() => { setShowSingle(true); setSingleForm(EMPTY_SINGLE); }}
-            disabled={!selectedRound || !selectedPool}
+            disabled={!selectedRound}
           >
             + Tạo slot
           </Button>
@@ -255,7 +234,7 @@ export default function PresentationScheduleTab({ contestId, contest }) {
           textAlign: 'center', padding: '40px 0', color: '#4a6080', fontSize: 14,
           border: '1px dashed #162036', borderRadius: 12,
         }}>
-          Chưa có slot nào.{selectedRound && selectedPool ? ' Nhấn "+ Tạo slot" để bắt đầu.' : ' Chọn vòng và pool để xem.'}
+          Chưa có slot nào.{selectedRound ? ' Nhấn "+ Tạo slot" để bắt đầu.' : ' Chọn vòng để xem.'}
         </div>
       ) : (
         <div style={{ background: '#0c1524', border: '1px solid #162036', borderRadius: 12, overflow: 'hidden' }}>
@@ -356,8 +335,7 @@ export default function PresentationScheduleTab({ contestId, contest }) {
       {(() => {
         const IS  = { width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #334155', background: '#0f172a', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' };
         const validRooms = bulkForm.rooms.filter(r => r.trim()).length || 1;
-        const poolCount  = bulkForm.all_pools ? pools.length : 1;
-        const totalSlots = validRooms * bulkForm.count * poolCount;
+        const totalSlots = validRooms * bulkForm.count;
         return (
           <Modal
             title="Tạo nhiều slot (tự động)"
@@ -373,7 +351,7 @@ export default function PresentationScheduleTab({ contestId, contest }) {
               {/* Preview */}
               <div style={{ padding: '10px 14px', background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 8, fontSize: 12, color: '#94a3b8' }}>
                 <strong style={{ color: '#00d4ff' }}>{totalSlots} slot</strong> sẽ được tạo
-                {' '}({bulkForm.count} slot × {validRooms} phòng{bulkForm.all_pools ? ` × ${pools.length} pool` : ''})
+                {' '}({bulkForm.count} slot × {validRooms} phòng)
               </div>
 
               {/* Start time */}
@@ -426,20 +404,6 @@ export default function PresentationScheduleTab({ contestId, contest }) {
                   ))}
                 </div>
               </div>
-
-              {/* All pools toggle */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
-                <div onClick={() => setBulkForm(f => ({ ...f, all_pools: !f.all_pools }))}
-                  style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .2s',
-                    border: `2px solid ${bulkForm.all_pools ? '#00d4ff' : '#334155'}`,
-                    background: bulkForm.all_pools ? 'rgba(0,212,255,.1)' : 'transparent',
-                  }}>
-                  {bulkForm.all_pools && <span style={{ color: '#00d4ff', fontSize: 11, fontWeight: 700 }}>✓</span>}
-                </div>
-                <span style={{ fontSize: 13, color: '#c9d6e8' }}>
-                  Tạo cho <strong>tất cả pool</strong> ({pools.length} pool)
-                </span>
-              </label>
 
               {/* Note */}
               <label style={{ fontSize: 13 }}>

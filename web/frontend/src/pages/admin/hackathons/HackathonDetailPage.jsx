@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Modal as AntModal, Tooltip, Select, notification } from 'antd';
 import JudgeAssignmentTab from './tabs/JudgeAssignmentTab';
 import ProblemReleaseTab from './tabs/ProblemReleaseTab';
@@ -48,18 +48,23 @@ const MAIN_TABS = [
 export default function HackathonDetailPage({ defaultTab }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [contest, setContest] = useState(null);
   const [pools, setPools]     = useState([]);
   const [teams, setTeams]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab]         = useState(defaultTab !== undefined ? defaultTab : 0);
+  const initialTab = (() => {
+    const fromQuery = new URLSearchParams(location.search).get('tab');
+    if (fromQuery !== null && !Number.isNaN(Number(fromQuery))) return Number(fromQuery);
+    return defaultTab !== undefined ? defaultTab : 0;
+  })();
+  const [tab, setTab]         = useState(initialTab);
 
   useEffect(() => {
     if (defaultTab !== undefined) {
       setTab(defaultTab);
-    } else {
-      setTab(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultTab]);
 
   // Tab 3: Pools config states
@@ -455,6 +460,12 @@ export default function HackathonDetailPage({ defaultTab }) {
     setLoading(true);
     Promise.all([fetchContest(), fetchTeams()]).finally(() => setLoading(false));
   }, [id]);
+
+  // Re-sync trạng thái contest (vd. round.is_active) khi quay lại trang này từ RoundActivatePage
+  useEffect(() => {
+    fetchContest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
 
   useEffect(() => {
     if (localStorage.getItem('hackathon_just_created') === 'true') {
@@ -1467,7 +1478,7 @@ export default function HackathonDetailPage({ defaultTab }) {
             className={`hd-tab ${tab === t.id ? 'hd-tab--active' : ''}`}
             onClick={() => {
               setTab(t.id);
-              navigate(`/admin/hackathons/${id}`);
+              navigate(`/admin/hackathons/${id}?tab=${t.id}`, { replace: true });
             }}
           >
             {t.label}

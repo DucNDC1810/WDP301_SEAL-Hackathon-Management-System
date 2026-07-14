@@ -296,12 +296,7 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
   try {
     const { round_id } = req.params;
 
-    const round = await Round.findById(round_id);
-    if (!round) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
-    }
-
-    // Check criteria weight
+    // Check criteria weight (standalone Criteria collection — dùng chung cho cả 2 trường hợp)
     const criteriaList = await Criteria.find({ round_id });
     const total_weight = criteriaList.reduce((sum, item) => sum + (item.weight || 0), 0);
     const weight_valid = Math.abs(total_weight - 1.0) <= 0.001;
@@ -316,39 +311,68 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
       return res.status(400).json({ error: "NO_JUDGES_ASSIGNED", message: "Vui lòng phân công ít nhất 1 Judge trước khi kích hoạt vòng thi." });
     }
 
-    // Activate the round
-    const beforeActive = round.is_active;
-    round.is_active = true;
-    await round.save();
-
-    // Also update Contest embedded round is_active status
+    const round = await Round.findById(round_id);
     const Contest = (await import("../models/Contest.js")).default;
-    const contest = await Contest.findOne({ "rounds._id": round._id });
-    if (contest) {
-      const embeddedRound = contest.rounds.id(round._id);
-      if (embeddedRound) {
-        embeddedRound.is_active = true;
-        
-        // Auto-release problem when activated
-        const now = new Date();
-        embeddedRound.problem_released_at = now;
-        const durationHours = embeddedRound.coding_duration_hours || 24;
-        embeddedRound.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
 
-        // Make sure only 1 round is active in contest.rounds
-        for (const r of contest.rounds) {
-          if (r._id.toString() !== round._id.toString()) {
-            r.is_active = false;
+    let beforeActive;
+
+    if (round) {
+      // Standalone Round document
+      beforeActive = round.is_active;
+      round.is_active = true;
+      await round.save();
+
+      // Also update Contest embedded round is_active status (nếu có liên kết cùng _id)
+      const contest = await Contest.findOne({ "rounds._id": round._id });
+      if (contest) {
+        const embeddedRound = contest.rounds.id(round._id);
+        if (embeddedRound) {
+          embeddedRound.is_active = true;
+
+          const now = new Date();
+          embeddedRound.problem_released_at = now;
+          const durationHours = embeddedRound.coding_duration_hours || 24;
+          embeddedRound.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+
+          for (const r of contest.rounds) {
+            if (r._id.toString() !== round._id.toString()) {
+              r.is_active = false;
+            }
           }
+          await contest.save();
         }
-        await contest.save();
       }
+    } else {
+      // Fallback: round chỉ tồn tại như embedded subdocument trong Contest.rounds
+      const contest = await Contest.findOne({ "rounds._id": round_id });
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      const embeddedRound = contest.rounds.id(round_id);
+      if (!embeddedRound) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+
+      beforeActive = embeddedRound.is_active;
+      embeddedRound.is_active = true;
+
+      const now = new Date();
+      embeddedRound.problem_released_at = now;
+      const durationHours = embeddedRound.coding_duration_hours || 24;
+      embeddedRound.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+
+      for (const r of contest.rounds) {
+        if (r._id.toString() !== round_id) {
+          r.is_active = false;
+        }
+      }
+      await contest.save();
     }
 
     // Create AuditLog
     await AuditLog.create({
       entity_type: "Round",
-      entity_id: round._id,
+      entity_id: round_id,
       action: "ROUND_ACTIVATED",
       old_value: { is_active: beforeActive },
       new_value: { is_active: true },
@@ -356,7 +380,7 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
       performed_at: new Date(),
       // Compatibility fields
       resource: "ROUND",
-      resource_id: round._id,
+      resource_id: round_id,
       actor_id: req.user?._id || null,
       actor_email: req.user?.email || "system",
       before: { is_active: beforeActive },

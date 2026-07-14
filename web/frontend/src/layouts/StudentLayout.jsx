@@ -188,11 +188,8 @@ export const StudentLayout = () => {
             <span className="sl-clock">{formatClock(now)}</span>
           </div>
 
-          {/* Right: BXH + Bell */}
+          {/* Right: Bell */}
           <div className="sl-topbar-right" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button className="sl-bxh-btn" onClick={() => navigate('/ranking')}>
-              🏆 Bảng xếp hạng
-            </button>
             <NotificationBell />
           </div>
         </header>

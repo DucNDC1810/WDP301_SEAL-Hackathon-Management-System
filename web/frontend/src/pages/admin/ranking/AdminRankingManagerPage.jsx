@@ -491,7 +491,7 @@ function Empty({ text }) {
 }
 
 const s = {
-  page: { padding: '32px 28px', color: 'var(--text-primary)', maxWidth: 1000 },
+  page: { padding: '32px 28px', color: 'var(--text-primary)', maxWidth: 1200, margin: '0 auto' },
   title: { fontSize: '1.5rem', fontWeight: 800, margin: 0, fontFamily: 'var(--font-display)', letterSpacing: 1 },
   label: { display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--cyan)', marginBottom: 10 },
   th: { padding: '11px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--cyan)', borderBottom: '1px solid rgba(0,240,255,.12)', background: 'rgba(0,240,255,.03)', whiteSpace: 'nowrap' },

@@ -443,3 +443,37 @@ export const updatePool = async (poolId, { pool_name, description, drive_link, t
     session.endSession();
   }
 };
+
+/**
+ * Xóa một bảng đấu cụ thể.
+ */
+export const deleteSinglePool = async (poolId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const pool = await Pool.findById(poolId).session(session);
+    if (!pool) {
+      const err = new Error("Không tìm thấy bảng đấu");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (pool.teams && pool.teams.length > 0) {
+      await Team.updateMany(
+        { _id: { $in: pool.teams } },
+        { $set: { pool_id: null } },
+        { session }
+      );
+    }
+
+    await Pool.findByIdAndDelete(poolId).session(session);
+    await session.commitTransaction();
+    return { success: true };
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
+};

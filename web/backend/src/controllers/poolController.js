@@ -6,6 +6,7 @@ import {
   assignTeamsToExistingPools,
   addSinglePool,
   updatePool,
+  deleteSinglePool,
 } from "../services/poolService.js";
 
 /**
@@ -197,6 +198,28 @@ export const handleUpdatePool = async (req, res) => {
     });
   } catch (error) {
     console.error("[handleUpdatePool]", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Lỗi máy chủ",
+    });
+  }
+};
+
+/**
+ * DELETE /pools/:poolId
+ * Xóa một bảng đấu đơn lẻ (Chỉ Admin)
+ */
+export const handleDeleteSinglePool = async (req, res) => {
+  try {
+    const { poolId } = req.params;
+    await deleteSinglePool(poolId);
+
+    res.status(200).json({
+      success: true,
+      message: "Xóa bảng đấu thành công",
+    });
+  } catch (error) {
+    console.error("[handleDeleteSinglePool]", error);
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Lỗi máy chủ",

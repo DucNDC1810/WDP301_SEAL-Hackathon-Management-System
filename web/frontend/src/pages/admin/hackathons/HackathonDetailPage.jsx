@@ -419,6 +419,38 @@ export default function HackathonDetailPage({ defaultTab }) {
     }
   };
 
+  const handleDeleteSinglePool = async (poolId) => {
+    AntModal.confirm({
+      title: 'Xóa bảng đấu?',
+      content: 'Bạn có chắc chắn muốn xóa bảng đấu này không? Các đội thi thuộc bảng này sẽ bị gỡ ra.',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okType: 'danger',
+      onOk: async () => {
+        setPoolError('');
+        setPoolSuccess('');
+        setPoolWarning('');
+        try {
+          const res = await fetch(`${API_URL}/api/pools/${poolId}`, {
+            method: 'DELETE',
+            headers: hdrs(),
+          });
+          const d = await res.json();
+          if (d.success) {
+            setPoolSuccess('Đã xóa bảng đấu thành công!');
+            fetchPools();
+            fetchTeams();
+          } else {
+            setPoolError(d.message || 'Lỗi khi xóa bảng đấu');
+          }
+        } catch (err) {
+          console.error(err);
+          setPoolError('Lỗi kết nối máy chủ');
+        }
+      }
+    });
+  };
+
   useEffect(() => {
     setLoading(true);
     Promise.all([fetchContest(), fetchTeams()]).finally(() => setLoading(false));
@@ -541,11 +573,11 @@ export default function HackathonDetailPage({ defaultTab }) {
             description: contest.description || '',
             rules: parsed.rules || '',
             banner: parsed.banner || '',
-            registration_open_date: parsed.registration_open_date || contest.created_at?.slice(0, 16) || '',
-            registration_deadline: contest.registration_deadline?.slice(0, 16) || parsed.registration_deadline || '',
-            start_date: contest.start_date?.slice(0, 16) || parsed.start_date || '',
-            end_date: contest.end_date?.slice(0, 16) || parsed.end_date || '',
-            kickoff_date: parsed.kickoff_date || ''
+            registration_open_date: parsed.registration_open_date?.slice(0, 16) || contest.created_at?.slice(0, 16) || '',
+            registration_deadline: contest.registration_deadline?.slice(0, 16) || parsed.registration_deadline?.slice(0, 16) || '',
+            start_date: contest.start_date?.slice(0, 16) || parsed.start_date?.slice(0, 16) || '',
+            end_date: contest.end_date?.slice(0, 16) || parsed.end_date?.slice(0, 16) || '',
+            kickoff_date: parsed.kickoff_date?.slice(0, 16) || ''
           });
           if (parsed.tracks?.length > 0) {
             setActiveTrackId(prev => {
@@ -1912,7 +1944,22 @@ export default function HackathonDetailPage({ defaultTab }) {
                   <div key={p._id} className="hd-pool-card">
                     <div className="hd-pool-header">
                       <span className="hd-pool-name">{p.pool_name}</span>
-                      <span className="hd-pool-count">{(p.teams || []).length} đội</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="hd-pool-count">{(p.teams || []).length} đội</span>
+                        <button
+                          type="button"
+                          className="hd-btn-icon text-danger"
+                          onClick={() => handleDeleteSinglePool(p._id)}
+                          style={{
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '6px',
+                          }}
+                          title="Xóa bảng đấu"
+                        >
+                          <Ico d={TRASH} size={13} />
+                        </button>
+                      </div>
                     </div>
                     {/* Drive link input */}
                     <div style={{ margin: '10px 0' }}>

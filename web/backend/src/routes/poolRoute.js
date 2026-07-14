@@ -7,6 +7,7 @@ import {
   handleAssignTeams,
   handleAddSinglePool,
   handleUpdatePool,
+  handleDeleteSinglePool,
 } from "../controllers/poolController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
@@ -42,6 +43,14 @@ router.put(
   authenticate,
   authorize("admin"),
   handleUpdatePool
+);
+
+// DELETE /api/pools/:poolId - Xóa một bảng đấu cụ thể (Chỉ Admin)
+router.delete(
+  "/:poolId",
+  authenticate,
+  authorize("admin"),
+  handleDeleteSinglePool
 );
 
 // POST /api/pools/contests/:contestId/assign-teams - Xếp các đội vào bảng đấu ngẫu nhiên (Chỉ Admin)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Modal, message } from 'antd';
 import './HackathonListPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -50,14 +51,31 @@ export default function HackathonListPage() {
 
   useEffect(() => { fetchContests(); }, []);
 
-  const handleDelete = async (id, title) => {
-    if (!window.confirm(`Xóa cuộc thi "${title}"?`)) return;
-    setDeleting(id);
-    try {
-      const r = await fetch(`${API_URL}/api/contests/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token()}` } });
-      const d = await r.json();
-      if (d.success) setContests(prev => prev.filter(c => c._id !== id));
-    } finally { setDeleting(null); }
+  const handleDelete = (id, title) => {
+    Modal.confirm({
+      title: 'Xác nhận xóa cuộc thi?',
+      content: `Bạn có chắc chắn muốn xóa cuộc thi "${title}"? Thao tác này không thể hoàn tác.`,
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setDeleting(id);
+        try {
+          const r = await fetch(`${API_URL}/api/contests/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token()}` } });
+          const d = await r.json();
+          if (d.success) {
+            setContests(prev => prev.filter(c => c._id !== id));
+            message.success('Xóa cuộc thi thành công!');
+          } else {
+            message.error(d.message || 'Không thể xóa cuộc thi.');
+          }
+        } catch (e) {
+          message.error('Có lỗi xảy ra khi xóa cuộc thi.');
+        } finally {
+          setDeleting(null);
+        }
+      }
+    });
   };
 
   // Gradient banners — luôn hiện dù không có ảnh từ network

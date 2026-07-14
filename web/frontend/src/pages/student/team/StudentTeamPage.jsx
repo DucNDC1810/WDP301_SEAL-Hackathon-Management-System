@@ -683,7 +683,14 @@ export const StudentTeamPage = () => {
                   style={{ width: '100%', justifyContent: 'center' }}
                   disabled={leaveLoading}
                   onClick={() => {
-                    if (window.confirm('Bạn có chắc muốn rời khỏi đội này?')) handleLeaveTeam();
+                    Modal.confirm({
+                      title: 'Rời khỏi đội thi?',
+                      content: 'Bạn có chắc chắn muốn rời khỏi đội này không?',
+                      okText: 'Rời đội',
+                      cancelText: 'Hủy',
+                      okButtonProps: { danger: true },
+                      onOk: () => handleLeaveTeam(),
+                    });
                   }}
                 >
                   {leaveLoading ? 'Đang xử lý...' : '← Rời đội'}

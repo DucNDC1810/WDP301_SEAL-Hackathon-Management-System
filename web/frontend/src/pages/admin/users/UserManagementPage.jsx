@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './UserManagementPage.css';
-import { notification } from 'antd';
+import { notification, Modal, Input } from 'antd';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const tok  = () => localStorage.getItem('accessToken');
@@ -44,6 +44,8 @@ export default function UserManagementPage() {
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [rejectUserId, setRejectUserId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const fetchUsers = async (p = page, role = filterRole, q = search) => {
     setLoading(true);
@@ -106,19 +108,45 @@ export default function UserManagementPage() {
     } finally { setSaving(false); }
   };
 
-  const handleRemoveRole = async (userId, roleName) => {
-    if (!window.confirm(`Xóa role "${roleName}" của user này?`)) return;
-    const r = await fetch(`${API_URL}/api/users/${userId}/roles/${roleName}`, { method:'DELETE', headers: hdrs() });
-    const d = await r.json();
-    if (d.success) setUsers(prev => prev.map(u => u._id === userId ? d.data : u));
+  const handleRemoveRole = (userId, roleName) => {
+    Modal.confirm({
+      title: 'Xác nhận xóa vai trò?',
+      content: `Bạn có chắc chắn muốn xóa role "${roleName}" của người dùng này?`,
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          const r = await fetch(`${API_URL}/api/users/${userId}/roles/${roleName}`, { method:'DELETE', headers: hdrs() });
+          const d = await r.json();
+          if (d.success) {
+            setUsers(prev => prev.map(u => u._id === userId ? d.data : u));
+            notification.success({ message: 'Thành công', description: `Đã xóa role ${roleName}` });
+          } else {
+            notification.error({ message: 'Lỗi', description: d.message || 'Không thể xóa role' });
+          }
+        } catch {
+          notification.error({ message: 'Lỗi', description: 'Có lỗi xảy ra' });
+        }
+      }
+    });
   };
 
-  const handleReviewVerify = async (userId, action) => {
-    let note = '';
+  const handleReviewVerify = (userId, action) => {
     if (action === 'reject') {
-      note = window.prompt('Nhập lý do từ chối:');
-      if (note === null) return; // cancel
+      setRejectUserId(userId);
+    } else {
+      Modal.confirm({
+        title: 'Xác nhận phê duyệt?',
+        content: 'Bạn có chắc chắn muốn phê duyệt yêu cầu xác thực này?',
+        okText: 'Phê duyệt',
+        cancelText: 'Hủy',
+        onOk: () => submitReviewVerify(userId, 'approve', '')
+      });
     }
+  };
+
+  const submitReviewVerify = async (userId, action, note) => {
     setReviewLoading(true);
     try {
       const r = await fetch(`${API_URL}/api/users/${userId}/verify-review`, {
@@ -442,6 +470,38 @@ export default function UserManagementPage() {
           />
         </div>
       )}
+
+      {/* Reject Verification Modal */}
+      <Modal
+        title="Từ chối yêu cầu xác thực"
+        open={!!rejectUserId}
+        onOk={() => {
+          if (!rejectReason.trim()) {
+            notification.error({ message: 'Lỗi', description: 'Vui lòng nhập lý do từ chối!' });
+            return;
+          }
+          submitReviewVerify(rejectUserId, 'reject', rejectReason);
+          setRejectUserId(null);
+          setRejectReason('');
+        }}
+        onCancel={() => {
+          setRejectUserId(null);
+          setRejectReason('');
+        }}
+        okText="Từ chối"
+        okButtonProps={{ danger: true }}
+        cancelText="Hủy"
+      >
+        <div style={{ padding: '10px 0' }}>
+          <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Lý do từ chối *</label>
+          <Input.TextArea
+            rows={3}
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Nhập lý do từ chối xác thực..."
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -68,15 +68,28 @@ export default function ProblemReleaseTab({ config, contestId, contest }) {
   const [messageApi, contextHolder] = message.useMessage();
 
   const rounds = contest?.rounds
-    ? contest.rounds.filter(r => r.is_active).map(r => ({
+    ? contest.rounds.map(r => ({
         id: r._id,
         name: r.name,
         problem_released_at: r.problem_released_at,
         submission_deadline: r.submission_deadline
       }))
-    : (config?.tracks || []).flatMap(t => (t.rounds || []).filter(r => r.is_active).map(r => ({ ...r, trackName: t.name })));
+    : (config?.tracks || []).flatMap(t => (t.rounds || []).map(r => ({ ...r, trackName: t.name })));
 
-  const [selectedRound, setSelectedRound] = useState(rounds[0]?.id || null);
+  const [selectedRound, setSelectedRound] = useState(null);
+
+  useEffect(() => {
+    if (rounds.length) {
+      const activeRounds = contest?.rounds ? contest.rounds.filter(r => r.is_active) : [];
+      const defaultId = activeRounds[0]?._id || rounds[0]?.id || rounds[0]?._id;
+      if (!selectedRound || !rounds.some(r => (r.id || r._id) === selectedRound)) {
+        setSelectedRound(defaultId);
+      }
+    } else {
+      setSelectedRound(null);
+    }
+  }, [rounds, selectedRound, contest]);
+
   const [pools, setPools] = useState([]);
   const [teamSubmissions, setTeamSubmissions] = useState({});
   const [loading, setLoading] = useState(false);

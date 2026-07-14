@@ -554,6 +554,8 @@ export default function HackathonDetailPage({ defaultTab }) {
       const activeRounds = contest.rounds.filter(r => r.is_active);
       if (activeRounds.length > 0) {
         setSelectedPoolRoundId(activeRounds[0]._id);
+      } else {
+        setSelectedPoolRoundId(contest.rounds[0]._id);
       }
     }
   }, [contest, selectedPoolRoundId]);
@@ -623,7 +625,7 @@ export default function HackathonDetailPage({ defaultTab }) {
 
         const baseTime = startDateStr ? new Date(startDateStr).getTime() : Date.now();
         const deadline1 = new Date(baseTime + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-        const deadline2 = new Date(baseTime + 48 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        const deadline2 = new Date(new Date(deadline1).getTime() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
         const initialConfig = {
           season: 'Summer',
@@ -792,7 +794,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                   id: 'round-1-2',
                   name: 'Vòng Chung Kết',
                   sequence_order: 2,
-                  submission_deadline: new Date(new Date(startDateStr).getTime() + 48*60*60*1000).toISOString().slice(0, 16),
+                  submission_deadline: new Date(new Date(startDateStr).getTime() + 24*60*60*1000 + 48*60*60*1000).toISOString().slice(0, 16),
                   coding_duration_hours: 48,
                   top_n_advance: 3,
                   wildcard_enabled: false,
@@ -828,7 +830,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                   id: 'round-2-2',
                   name: 'Vòng Chung Cuộc',
                   sequence_order: 2,
-                  submission_deadline: new Date(new Date(startDateStr).getTime() + 36*60*60*1000).toISOString().slice(0, 16),
+                  submission_deadline: new Date(new Date(startDateStr).getTime() + 12*60*60*1000 + 36*60*60*1000).toISOString().slice(0, 16),
                   coding_duration_hours: 36,
                   top_n_advance: 3,
                   wildcard_enabled: true,
@@ -987,7 +989,7 @@ export default function HackathonDetailPage({ defaultTab }) {
 
     const startDateStr = contest.start_date ? contest.start_date.slice(0, 16) : new Date().toISOString().slice(0, 16);
     const deadline1 = new Date(new Date(startDateStr).getTime() + 24*60*60*1000).toISOString().slice(0, 16);
-    const deadline2 = new Date(new Date(startDateStr).getTime() + 48*60*60*1000).toISOString().slice(0, 16);
+    const deadline2 = new Date(new Date(deadline1).getTime() + 48*60*60*1000).toISOString().slice(0, 16);
 
     const newTrack = {
       id: `track-${Date.now()}`,
@@ -1082,6 +1084,40 @@ export default function HackathonDetailPage({ defaultTab }) {
         description: 'Không tìm thấy Track cấu hình.',
       });
       return;
+    }
+
+    // Chronological deadline validation relative to contest start date
+    const contestStartStr = contest.start_date ? contest.start_date.slice(0, 16) : null;
+    if (contestStartStr && new Date(roundForm.submission_deadline) < new Date(contestStartStr)) {
+      notification.warning({
+        message: 'Hạn nộp không hợp lệ',
+        description: 'Hạn nộp bài phải sau thời gian bắt đầu cuộc thi.',
+      });
+      return;
+    }
+
+    const currentSeq = Number(roundForm.sequence_order);
+    const otherRounds = activeTrack.rounds.filter(r => r.id !== editingRoundId);
+
+    for (const other of otherRounds) {
+      const otherSeq = Number(other.sequence_order);
+      const otherDeadline = new Date(other.submission_deadline);
+      const currentDeadline = new Date(roundForm.submission_deadline);
+
+      if (currentSeq > otherSeq && currentDeadline <= otherDeadline) {
+        notification.warning({
+          message: 'Hạn nộp không hợp lệ',
+          description: `Vòng ${roundForm.name} (thứ tự ${currentSeq}) có hạn nộp trước hoặc trùng với vòng ${other.name} (thứ tự ${otherSeq}).`,
+        });
+        return;
+      }
+      if (currentSeq < otherSeq && currentDeadline >= otherDeadline) {
+        notification.warning({
+          message: 'Hạn nộp không hợp lệ',
+          description: `Vòng ${roundForm.name} (thứ tự ${currentSeq}) có hạn nộp sau hoặc trùng với vòng ${other.name} (thứ tự ${otherSeq}).`,
+        });
+        return;
+      }
     }
 
     const isRoundLastVal = (() => {
@@ -1926,7 +1962,7 @@ export default function HackathonDetailPage({ defaultTab }) {
               value={selectedPoolRoundId}
               onChange={setSelectedPoolRoundId}
               style={{ width: 220 }}
-              options={contest.rounds.filter(r => r.is_active).map(r => ({
+              options={contest.rounds.map(r => ({
                 value: r._id,
                 label: r.name
               }))}

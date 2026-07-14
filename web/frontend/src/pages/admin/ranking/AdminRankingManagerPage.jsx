@@ -2,12 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   adminGetContests, adminToggleIndividual,
   adminGetIndividuals, adminUpsertIndividual,
-  adminGetChapters, adminUpdateChapter, adminCreateChapter,
 } from '../../../api/adminRanking';
 
 const TABS = [
   { key: 'individual', label: '👤 Điểm cá nhân' },
-  { key: 'chapter',    label: '🏫 Điểm Chapter' },
   { key: 'settings',  label: '⚙️ Cài đặt' },
 ];
 
@@ -107,7 +105,6 @@ export default function AdminRankingManagerPage() {
       {activeTab === 'individual' && selectedContest && (
         <IndividualTab contestId={selectedContest._id} contestTitle={selectedContest.title} />
       )}
-      {activeTab === 'chapter' && <ChapterTab />}
       {activeTab === 'settings' && (
         <SettingsTab contests={contests} setContests={setContests} loadingContests={loadingContests} />
       )}
@@ -256,151 +253,7 @@ function IndividualTab({ contestId, contestTitle }) {
 }
 
 /* ─────────────────────────────────────────────
-   TAB 2: Điểm Chapter
-───────────────────────────────────────────── */
-function ChapterTab() {
-  const [chapters, setChapters] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [editing, setEditing]   = useState(null);
-  const [saving, setSaving]     = useState(false);
-  const [msg, setMsg]           = useState(null);
-  const [showNew, setShowNew]   = useState(false);
-  const [newName, setNewName]   = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const load = () => {
-    setLoading(true);
-    adminGetChapters()
-      .then((res) => setChapters(res.data?.data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const handleSave = async () => {
-    if (!editing) return;
-    setSaving(true); setMsg(null);
-    try {
-      await adminUpdateChapter(editing._id, {
-        cumulative_score: editing.cumulative_score,
-      });
-      setMsg({ type: 'ok', text: `Đã cập nhật ${editing.name}` });
-      setEditing(null);
-      load();
-    } catch (err) {
-      setMsg({ type: 'err', text: err.response?.data?.message || 'Lỗi lưu' });
-    } finally { setSaving(false); }
-  };
-
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    setCreating(true); setMsg(null);
-    try {
-      await adminCreateChapter({ name: newName.trim() });
-      setMsg({ type: 'ok', text: `Đã tạo chapter "${newName.trim()}"` });
-      setNewName(''); setShowNew(false);
-      load();
-    } catch (err) {
-      setMsg({ type: 'err', text: err.response?.data?.message || 'Lỗi tạo chapter' });
-    } finally { setCreating(false); }
-  };
-
-  if (loading) return <Loader />;
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-          {chapters.length} chapter trong hệ thống
-        </p>
-        <button onClick={() => setShowNew((v) => !v)} style={s.btnSave}>+ Thêm Chapter</button>
-      </div>
-
-      {showNew && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-          <input
-            value={newName} onChange={(e) => setNewName(e.target.value)}
-            placeholder="Tên chapter mới..."
-            style={{ ...s.numInput, width: 260 }}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-          />
-          <button onClick={handleCreate} disabled={creating || !newName.trim()} style={s.btnSave}>
-            {creating ? '...' : 'Tạo'}
-          </button>
-          <button onClick={() => { setShowNew(false); setNewName(''); }} style={s.btnCancel}>Huỷ</button>
-        </div>
-      )}
-
-      {msg && (
-        <div style={{ ...s.msg, background: msg.type === 'ok' ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)', borderColor: msg.type === 'ok' ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)', color: msg.type === 'ok' ? '#22c55e' : '#ef4444' }}>
-          {msg.type === 'ok' ? '✓' : '✗'} {msg.text}
-        </div>
-      )}
-
-      {chapters.length === 0 ? (
-        <Empty text="Chưa có chapter nào. Tạo chapter đầu tiên!" />
-      ) : (
-        <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid var(--border)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'rgba(17,24,39,.6)' }}>
-            <thead>
-              <tr>
-                {['Chapter', 'Điểm tích lũy hiện tại', 'Cập nhật điểm', ''].map((h, i) => (
-                  <th key={i} style={s.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {chapters.map((ch) => {
-                const isEditing = editing?._id === ch._id;
-                return (
-                  <tr key={ch._id} style={{ borderBottom: '1px solid rgba(0,240,255,.05)', background: isEditing ? 'rgba(0,240,255,.04)' : 'transparent' }}>
-                    <td style={{ ...s.td, fontWeight: 700, color: 'var(--text-primary)' }}>{ch.name}</td>
-                    <td style={s.td}>
-                      {ch.cumulative_score > 0 ? (
-                        <span style={{ color: 'var(--cyan)', fontWeight: 700 }}>{ch.cumulative_score.toFixed(2)}</span>
-                      ) : (
-                        <span style={s.pending}>Pending BTC #5</span>
-                      )}
-                    </td>
-                    <td style={s.td}>
-                      {isEditing ? (
-                        <input type="number" min={0} step={0.01}
-                          value={editing.cumulative_score}
-                          onChange={(e) => setEditing({ ...editing, cumulative_score: e.target.value })}
-                          style={s.numInput}
-                          autoFocus
-                        />
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ ...s.td, textAlign: 'right' }}>
-                      {isEditing ? (
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button onClick={handleSave} disabled={saving} style={s.btnSave}>{saving ? '...' : 'Lưu'}</button>
-                          <button onClick={() => setEditing(null)} style={s.btnCancel}>Huỷ</button>
-                        </div>
-                      ) : (
-                        <button onClick={() => setEditing({ _id: ch._id, name: ch.name, cumulative_score: ch.cumulative_score })} style={s.btnEdit}>Sửa</button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <p style={{ marginTop: 14, fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-        * Điểm tích lũy chapter cộng dồn qua các mùa — giải quyết Pending BTC #5
-      </p>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────
-   TAB 3: Cài đặt (bật/tắt individual ranking)
+   TAB 2: Cài đặt (bật/tắt individual ranking)
 ───────────────────────────────────────────── */
 function SettingsTab({ contests, setContests, loadingContests }) {
   const [toggling, setToggling] = useState(null);

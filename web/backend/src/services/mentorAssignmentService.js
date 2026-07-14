@@ -31,6 +31,17 @@ export const assignMentor = async ({ contest_id, round_id, board_id, team_id, me
     const err = new Error("Không tìm thấy đội thi"); err.statusCode = 404; throw err;
   }
 
+  // Mỗi bảng chỉ được 1 mentor phụ trách 1 đội — các đội khác trong cùng bảng phải có mentor khác
+  const conflictInBoard = await MentorAssignment.findOne({
+    mentor_id, contest_id, round_id, board_id, team_id: { $ne: team_id },
+  }).populate("team_id", "team_name");
+  if (conflictInBoard) {
+    const err = new Error(
+      `Mentor "${mentor.full_name}" đã phụ trách đội "${conflictInBoard.team_id?.team_name || 'khác'}" trong bảng này. Mỗi mentor chỉ được phụ trách 1 đội/bảng — các đội trong cùng bảng phải có mentor khác nhau.`
+    );
+    err.statusCode = 409; throw err;
+  }
+
   // Đếm số teams mentor đang phụ trách trong cùng round
   const currentCount = await MentorAssignment.countDocuments({
     mentor_id, contest_id, round_id,

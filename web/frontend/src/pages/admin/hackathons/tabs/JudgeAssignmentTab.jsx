@@ -41,8 +41,8 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   // Mentor modal state
   const [showMentorModal, setShowMentorModal] = useState(false);
   const [newMentorId, setNewMentorId] = useState(null);
-  const [newMentorPool, setNewMentorPool] = useState(null);
-  const [newMentorTeam, setNewMentorTeam] = useState(null);
+  const [newMentorPoolFilter, setNewMentorPoolFilter] = useState(null); // lọc danh sách đội theo bảng (tùy chọn)
+  const [newMentorTeams, setNewMentorTeams] = useState([]); // multi-select, có thể chọn đội từ nhiều bảng khác nhau
 
   const [saving, setSaving] = useState(false);
 
@@ -119,11 +119,6 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   const mentors = allUsers.filter(u => u.roles?.some(r => r.role_name === 'mentor'));
   const poolOptions = pools.map(p => ({ value: p._id, label: p.pool_name }));
 
-  const getTeamsInPool = (poolId) => {
-    const pool = pools.find(p => p._id === poolId || p._id?.toString() === poolId);
-    return (pool?.teams || []).map(t => ({ value: t._id || t, label: t.team_name || t }));
-  };
-
   // Pool đã có judge
   const assignedPoolIds = new Set(judgeAssignments.map(a => a.poolId));
 
@@ -178,19 +173,78 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     }
   };
 
+  const resetMentorModal = () => {
+    setNewMentorId(null); setNewMentorPoolFilter(null); setNewMentorTeams([]);
+  };
+
+  // Danh sách tất cả đội (kèm bảng của đội) trên toàn bộ vòng thi — dùng để multi-select nhanh,
+  // tránh việc phải mở lại modal cho từng bảng/đội khi có nhiều bảng thi
+  const allTeamOptions = pools.flatMap(p =>
+    (p.teams || []).map(t => ({
+      value: (t._id || t)?.toString(),
+      poolId: p._id,
+      label: `${t.team_name || t} — ${p.pool_name}`,
+    }))
+  );
+
+  // Mỗi mentor chỉ được phụ trách 1 đội / bảng — các đội khác trong cùng bảng phải có mentor khác
+  const boardsAlreadyMentored = new Set(
+    mentorAssignments.filter(a => a.mentorId === newMentorId?.toString()).map(a => a.poolId)
+  );
+  const selectedBoardIds = new Set(
+    newMentorTeams
+      .map(id => allTeamOptions.find(o => o.value === id)?.poolId)
+      .filter(Boolean)
+  );
+
+  const teamOptionsWithLock = allTeamOptions.map(o => {
+    const alreadySelected = newMentorTeams.includes(o.value);
+    const boardTaken = boardsAlreadyMentored.has(o.poolId) || (!alreadySelected && selectedBoardIds.has(o.poolId));
+    return {
+      ...o,
+      disabled: boardTaken,
+      label: boardTaken ? `${o.label} (bảng đã có mentor này)` : o.label,
+    };
+  });
+  const visibleTeamOptions = newMentorPoolFilter
+    ? teamOptionsWithLock.filter(o => o.poolId === newMentorPoolFilter)
+    : teamOptionsWithLock;
+
+  // Chọn tất cả nhưng chỉ 1 đội/bảng, để đảm bảo các đội trong cùng bảng luôn có mentor khác nhau
+  const selectAllTeams = () => {
+    const covered = new Set(boardsAlreadyMentored);
+    const picks = [];
+    for (const o of visibleTeamOptions) {
+      if (o.disabled || covered.has(o.poolId)) continue;
+      picks.push(o.value);
+      covered.add(o.poolId);
+    }
+    setNewMentorTeams(picks);
+  };
+
   const addMentor = async () => {
-    if (!newMentorId || !newMentorPool || !newMentorTeam) {
-      messageApi.error('Vui lòng chọn mentor, bảng và đội!'); return;
+    if (!newMentorId || newMentorTeams.length === 0) {
+      messageApi.error('Vui lòng chọn mentor và ít nhất một đội!'); return;
     }
     setSaving(true);
     try {
-      await request(`/api/mentor-assignments/contests/${contestId}/rounds/${selectedRound}`, {
-        method: 'POST',
-        body: { board_id: newMentorPool, team_id: newMentorTeam, mentor_id: newMentorId },
-      });
-      messageApi.success('Đã phân công mentor!');
+      const results = await Promise.allSettled(
+        newMentorTeams.map(teamId => {
+          const opt = allTeamOptions.find(o => o.value === teamId);
+          return request(`/api/mentor-assignments/contests/${contestId}/rounds/${selectedRound}`, {
+            method: 'POST',
+            body: { board_id: opt?.poolId, team_id: teamId, mentor_id: newMentorId },
+          });
+        })
+      );
+      const failedCount = results.filter(r => r.status === 'rejected').length;
+      if (failedCount === 0) {
+        messageApi.success(`Đã phân công mentor cho ${newMentorTeams.length} đội!`);
+      } else {
+        messageApi.warning(`Thành công ${newMentorTeams.length - failedCount}/${newMentorTeams.length} đội (${failedCount} đội lỗi, có thể đã được phân công trước đó).`);
+      }
       setShowMentorModal(false);
-      setNewMentorId(null); setNewMentorPool(null); setNewMentorTeam(null);
+      resetMentorModal();
       fetchAssignments(selectedRound);
     } catch (e) {
       messageApi.error(e.message || 'Không thể phân công mentor');
@@ -440,17 +494,24 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
         title="Phân công Mentor"
         open={showMentorModal}
         onOk={addMentor}
-        onCancel={() => { setShowMentorModal(false); setNewMentorId(null); setNewMentorPool(null); setNewMentorTeam(null); }}
-        okText="Phân công"
+        onCancel={() => { setShowMentorModal(false); resetMentorModal(); }}
+        okText={newMentorTeams.length > 1 ? `Phân công (${newMentorTeams.length} đội)` : 'Phân công'}
         cancelText="Hủy"
         confirmLoading={saving}
+        width={560}
       >
         <div className="space-y-4 py-2">
+          <Alert
+            type="info"
+            showIcon
+            message="Có thể chọn nhiều đội cùng lúc (kể cả ở nhiều bảng khác nhau) để phân công 1 mentor cho tất cả trong một lần, không cần lặp lại từng bảng."
+          />
+
           <div>
             <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Chọn Mentor</label>
             <Select
               value={newMentorId}
-              onChange={setNewMentorId}
+              onChange={v => { setNewMentorId(v); setNewMentorTeams([]); }}
               style={{ width: '100%' }}
               placeholder="Tìm theo tên hoặc email..."
               loading={loadingUsers}
@@ -479,28 +540,51 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Bảng đấu</label>
+            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Lọc theo bảng <span style={{ fontWeight: 400, opacity: 0.6 }}>(tùy chọn — chỉ để tìm đội nhanh hơn)</span>
+            </label>
             <Select
-              value={newMentorPool}
-              onChange={v => { setNewMentorPool(v); setNewMentorTeam(null); }}
+              value={newMentorPoolFilter}
+              onChange={setNewMentorPoolFilter}
               style={{ width: '100%' }}
-              placeholder="Chọn bảng"
+              placeholder="Tất cả các bảng"
+              allowClear
               options={poolOptions}
             />
           </div>
 
-          {newMentorPool && (
-            <div>
-              <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Đội thi</label>
-              <Select
-                value={newMentorTeam}
-                onChange={setNewMentorTeam}
-                style={{ width: '100%' }}
-                placeholder="Chọn đội"
-                options={getTeamsInPool(newMentorPool)}
-              />
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Đội thi</label>
+              <Button
+                size="small"
+                type="link"
+                disabled={!newMentorId}
+                style={{ padding: 0, height: 'auto' }}
+                onClick={selectAllTeams}
+              >
+                Chọn tất cả {newMentorPoolFilter ? 'trong bảng' : ''} (mỗi bảng 1 đội)
+              </Button>
             </div>
-          )}
+            <Select
+              mode="multiple"
+              value={newMentorTeams}
+              onChange={setNewMentorTeams}
+              style={{ width: '100%' }}
+              placeholder={newMentorId ? 'Chọn một hoặc nhiều đội...' : 'Chọn mentor trước'}
+              disabled={!newMentorId}
+              showSearch
+              allowClear
+              maxTagCount="responsive"
+              filterOption={(input, opt) => (opt?.label || '').toLowerCase().includes(input.toLowerCase())}
+              options={visibleTeamOptions}
+            />
+            <p className="text-xs mt-1" style={{ color: newMentorTeams.length > 0 ? 'var(--cyan)' : 'var(--text-muted)' }}>
+              {newMentorTeams.length > 0
+                ? `Đã chọn ${newMentorTeams.length} đội.`
+                : 'Mỗi mentor chỉ được phụ trách 1 đội / bảng — các đội đã có mentor này ở bảng khác sẽ bị khóa.'}
+            </p>
+          </div>
         </div>
       </Modal>
     </div>

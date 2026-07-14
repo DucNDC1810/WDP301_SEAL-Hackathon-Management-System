@@ -273,7 +273,6 @@ export const handleBookSlot = async (req, res) => {
       }
     }
 
-    const round = await findRoundInContest(slot.contest_id.toString(), slot.round_id.toString());
     if (round?.submission_deadline && new Date() > new Date(round.submission_deadline))
       return res.status(400).json({ message: "Đã qua hạn nộp bài, không thể đăng ký lịch trình bày nữa." });
 

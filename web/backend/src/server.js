@@ -1,4 +1,12 @@
 import "dotenv/config";
+import dns from "dns";
+
+// Một số máy dev có DNS resolver nội bộ (vd. 127.0.0.1) không hoạt động,
+// khiến Node.js không resolve được SRV record của MongoDB Atlas dù hệ điều
+// hành vẫn resolve DNS bình thường. Ép dùng DNS công khai để tránh phụ thuộc
+// vào cấu hình mạng của từng máy.
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
+
 import { createServer } from "http";
 import express from "express";
 import cookieParser from "cookie-parser";

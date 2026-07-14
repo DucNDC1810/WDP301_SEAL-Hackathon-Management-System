@@ -296,12 +296,7 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
   try {
     const { round_id } = req.params;
 
-    const round = await Round.findById(round_id);
-    if (!round) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
-    }
-
-    // Check criteria weight
+    // Check criteria weight (standalone Criteria collection — dùng chung cho cả 2 trường hợp)
     const criteriaList = await Criteria.find({ round_id });
     const total_weight = criteriaList.reduce((sum, item) => sum + (item.weight || 0), 0);
     const weight_valid = Math.abs(total_weight - 1.0) <= 0.001;
@@ -316,49 +311,82 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
       return res.status(400).json({ error: "NO_JUDGES_ASSIGNED", message: "Vui lòng phân công ít nhất 1 Judge trước khi kích hoạt vòng thi." });
     }
 
-    // Activate the round
-    const beforeActive = round.is_active;
-    round.is_active = true;
-    await round.save();
-
-    // Also update Contest embedded round is_active status
-    // NOTE: Standalone Round._id !== embedded contest round._id, so we use contest_id + type mapping
+    const round = await Round.findById(round_id);
     const Contest = (await import("../models/Contest.js")).default;
-    const contest = round.contest_id ? await Contest.findById(round.contest_id) : null;
-    if (contest && contest.rounds && contest.rounds.length > 0) {
-      const sortedEmbedded = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
-      
-      let targetEmbedded;
-      if (round.type === 'PRELIMINARY') {
-        targetEmbedded = sortedEmbedded[0]; // vòng đầu tiên
-      } else if (round.type === 'FINAL') {
-        targetEmbedded = sortedEmbedded[sortedEmbedded.length - 1]; // vòng cuối
-      } else {
-        // fallback: round with closest round_number
-        targetEmbedded = sortedEmbedded[0];
+
+    let beforeActive;
+
+    if (round) {
+      // Standalone Round document
+      beforeActive = round.is_active;
+      round.is_active = true;
+      await round.save();
+
+      // Also update Contest embedded round is_active status.
+      // Standalone Round._id có thể khác embedded contest round._id, nên map qua
+      // contest_id + type (PRELIMINARY → vòng đầu, FINAL → vòng cuối theo round_number).
+      const contest = round.contest_id ? await Contest.findById(round.contest_id) : null;
+      if (contest && contest.rounds && contest.rounds.length > 0) {
+        const sortedEmbedded = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
+
+        let targetEmbedded = contest.rounds.id(round._id);
+        if (!targetEmbedded) {
+          if (round.type === 'PRELIMINARY') {
+            targetEmbedded = sortedEmbedded[0]; // vòng đầu tiên
+          } else if (round.type === 'FINAL') {
+            targetEmbedded = sortedEmbedded[sortedEmbedded.length - 1]; // vòng cuối
+          } else {
+            targetEmbedded = sortedEmbedded[0];
+          }
+        }
+
+        if (targetEmbedded) {
+          targetEmbedded.is_active = true;
+
+          const now = new Date();
+          targetEmbedded.problem_released_at = now;
+          const durationHours = targetEmbedded.coding_duration_hours || 24;
+          targetEmbedded.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+
+          for (const r of contest.rounds) {
+            if (r._id.toString() !== targetEmbedded._id.toString()) {
+              r.is_active = false;
+            }
+          }
+          await contest.save();
+        }
+      }
+    } else {
+      // Fallback: round chỉ tồn tại như embedded subdocument trong Contest.rounds
+      const contest = await Contest.findOne({ "rounds._id": round_id });
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      const embeddedRound = contest.rounds.id(round_id);
+      if (!embeddedRound) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
       }
 
-      if (targetEmbedded) {
-        // Deactivate all embedded rounds first
-        for (const r of contest.rounds) {
+      beforeActive = embeddedRound.is_active;
+      embeddedRound.is_active = true;
+
+      const now = new Date();
+      embeddedRound.problem_released_at = now;
+      const durationHours = embeddedRound.coding_duration_hours || 24;
+      embeddedRound.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+
+      for (const r of contest.rounds) {
+        if (r._id.toString() !== round_id) {
           r.is_active = false;
         }
-        targetEmbedded.is_active = true;
-        
-        // Auto-release problem when activated
-        const now = new Date();
-        targetEmbedded.problem_released_at = now;
-        const durationHours = targetEmbedded.coding_duration_hours || 24;
-        targetEmbedded.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
-        
-        await contest.save();
       }
+      await contest.save();
     }
 
     // Create AuditLog
     await AuditLog.create({
       entity_type: "Round",
-      entity_id: round._id,
+      entity_id: round_id,
       action: "ROUND_ACTIVATED",
       old_value: { is_active: beforeActive },
       new_value: { is_active: true },
@@ -366,7 +394,7 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
       performed_at: new Date(),
       // Compatibility fields
       resource: "ROUND",
-      resource_id: round._id,
+      resource_id: round_id,
       actor_id: req.user?._id || null,
       actor_email: req.user?.email || "system",
       before: { is_active: beforeActive },

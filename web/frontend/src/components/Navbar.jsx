@@ -71,13 +71,6 @@ function Navbar() {
         </ul>
 
         <div className="navbar__actions">
-          <button
-            className="navbar__btn navbar__btn--ghost"
-            onClick={() => navigate('/ranking')}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-          >
-            🏆 Xếp hạng
-          </button>
           {user ? (
             <>
               {/* Reusable Notification Bell */}

@@ -16,28 +16,52 @@ const TEAM = ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 7a4 4 0 1 0 0-8 4
 const CHECK = 'M22 11.08V12a10 10 0 1 1-5.93-9.14';
 const ZETA = 'M13 2 3 14h9l-1 8 10-12h-9l1-8z';
 const BELL = 'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0';
-const ALERT = 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z';
 const INFO = 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 16v-4M12 8h.01';
+
+const STATUS_LABEL = { draft: 'Nháp', open: 'Mở đăng ký', closed: 'Đã đóng' };
+const STATUS_COLOR = { draft: '#a0aec0', open: '#00d4ff', closed: '#a855f7' };
+
+const ACTION_LABEL = {
+  CREATE: 'đã tạo mới',
+  UPDATE: 'đã cập nhật',
+  DELETE: 'đã xóa',
+  APPROVE: 'đã duyệt',
+  REJECT: 'đã từ chối',
+  ASSIGN_ROLE: 'đã gán vai trò cho',
+  REMOVE_ROLE: 'đã gỡ vai trò của',
+  DISQUALIFY: 'đã loại',
+};
+
+const RESOURCE_LABEL = {
+  USER: 'người dùng', TEAM: 'đội thi', CONTEST: 'cuộc thi', POOL: 'bảng thi',
+  TOPIC: 'đề tài', SCORE: 'điểm số', RANKING: 'bảng xếp hạng', INVITATION: 'lời mời',
+  MENTOR_ASSIGNMENT: 'phân công mentor', APPEAL: 'khiếu nại', NOTIFICATION: 'thông báo',
+  SUBMISSION: 'bài nộp', ROUND: 'vòng thi',
+};
+
+const timeAgo = (dateStr) => {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return 'vừa xong';
+  if (min < 60) return `${min} phút trước`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} giờ trước`;
+  const day = Math.floor(hr / 24);
+  return `${day} ngày trước`;
+};
 
 export default function AdminDashboard() {
   const [hackathons, setHackathons] = useState([]);
   const [metrics, setMetrics] = useState({
-    activeHackathons: 12,
-    totalParticipants: 1247,
-    teamsRegistered: 342,
-    aiTasksCompleted: 856
+    activeHackathons: 0,
+    totalParticipants: 0,
+    teamsRegistered: 0,
+    pendingApprovals: 0,
   });
-  const [feedItems, setFeedItems] = useState([
-    { id: 1, type: 'success', text: 'AI analyzed 5 new submissions', time: '2 min ago' },
-    { id: 2, type: 'success', text: 'Deadline reminder emails sent to 12 teams', time: '15 min ago' },
-    { id: 3, type: 'info', text: 'Interview questions generated for Team Alpha', time: '1 hour ago' },
-    { id: 4, type: 'warning', text: 'Missing submission alert triggered', time: '2 hours ago' }
-  ]);
-  const [announcements, setAnnouncements] = useState([
-    { id: 1, title: 'Final Round Starts Tomorrow', time: '3 hours ago' },
-    { id: 2, title: 'Mentor Office Hours Extended', time: '1 day ago' },
-    { id: 3, title: 'New Judging Criteria Published', time: '2 days ago' }
-  ]);
+  const [feedItems, setFeedItems] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [nextDeadline, setNextDeadline] = useState(null); // { label, date }
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastTitle, setBroadcastTitle] = useState('');
@@ -120,60 +144,119 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => {
-    // Fetch data from API
-    fetchDashboardData();
-  }, []);
-
   const fetchDashboardData = async () => {
     try {
-      // Mock data - replace with actual API calls
-      setHackathons([
-        {
-          id: 1,
-          name: 'AI Innovation Challenge 2026',
-          status: 'Registration Open',
-          teams: 156,
-          startDate: 'AI/ML',
-          endDate: 'Ends 15/6/2026',
-          icon: '🤖'
-        },
-        {
-          id: 2,
-          name: 'Web3 DeFi Hackathon',
-          status: 'In Progress',
-          teams: 89,
-          startDate: 'Blockchain',
-          endDate: 'Ends 8/6/2026',
-          icon: '⛓️'
-        },
-        {
-          id: 3,
-          name: 'Mobile App Sprint',
-          status: 'Judging',
-          teams: 124,
-          startDate: 'Mobile',
-          endDate: 'Ends 1/6/2026',
-          icon: '📱'
-        }
+      const [contestsRes, studentsRes, pendingTeamsRes, auditRes] = await Promise.all([
+        fetch(`${API_URL}/api/contests`, { headers: hdrs() }).then(r => r.json()),
+        fetch(`${API_URL}/api/users?role=contestant&limit=1`, { headers: hdrs() }).then(r => r.json()),
+        fetch(`${API_URL}/api/teams/all-pending`, { headers: hdrs() }).then(r => r.json()),
+        fetch(`${API_URL}/api/audit-logs?limit=10`, { headers: hdrs() }).then(r => r.json()),
       ]);
+
+      const contests = contestsRes.data || [];
+
+      // Số đội đăng ký ở từng cuộc thi (chỉ gọi cho các cuộc thi chưa đóng để giảm số request)
+      const teamCounts = await Promise.all(
+        contests.map(async (c) => {
+          try {
+            const res = await fetch(`${API_URL}/api/teams/contests/${c._id}/all`, { headers: hdrs() });
+            if (!res.ok) return 0;
+            const json = await res.json();
+            return json.count ?? (json.data ? json.data.length : 0);
+          } catch {
+            return 0;
+          }
+        })
+      );
+      const teamsRegistered = teamCounts.reduce((sum, n) => sum + n, 0);
+
+      setMetrics({
+        activeHackathons: contests.filter((c) => c.status === 'open').length,
+        totalParticipants: studentsRes.total ?? 0,
+        teamsRegistered,
+        pendingApprovals: pendingTeamsRes.count ?? (pendingTeamsRes.data || []).length,
+      });
+
+      // Danh sách cuộc thi hiển thị: ưu tiên đang mở đăng ký/diễn ra, mới nhất trước
+      const displayList = contests
+        .filter((c) => c.status !== 'closed')
+        .slice(0, 5)
+        .map((c, idx) => {
+          const activeRound = (c.rounds || []).find((r) => r.is_active);
+          return {
+            id: c._id,
+            name: c.title,
+            status: STATUS_LABEL[c.status] || c.status,
+            statusColor: STATUS_COLOR[c.status] || '#00d4ff',
+            teams: teamCounts[idx] || 0,
+            roundInfo: activeRound ? activeRound.name : 'Chưa kích hoạt vòng thi',
+            deadlineText: c.registration_deadline
+              ? `Hạn đăng ký: ${new Date(c.registration_deadline).toLocaleDateString('vi-VN')}`
+              : (c.end_date ? `Kết thúc: ${new Date(c.end_date).toLocaleDateString('vi-VN')}` : 'Chưa đặt lịch'),
+          };
+        });
+      setHackathons(displayList);
+
+      // Deadline gần nhất trong tương lai (đăng ký hoặc nộp bài của vòng đang chạy)
+      const now = Date.now();
+      const candidates = [];
+      contests.forEach((c) => {
+        if (c.registration_deadline && new Date(c.registration_deadline).getTime() > now) {
+          candidates.push({ label: `Hạn đăng ký — ${c.title}`, date: c.registration_deadline });
+        }
+        (c.rounds || []).forEach((r) => {
+          if (r.submission_deadline && new Date(r.submission_deadline).getTime() > now) {
+            candidates.push({ label: `Hạn nộp bài — ${c.title} (${r.name})`, date: r.submission_deadline });
+          }
+        });
+      });
+      candidates.sort((a, b) => new Date(a.date) - new Date(b.date));
+      setNextDeadline(candidates[0] || null);
+
+      // Hoạt động gần đây từ Audit Log thật của hệ thống
+      const logs = auditRes.data || [];
+      setFeedItems(
+        logs.slice(0, 4).map((log) => ({
+          id: log._id,
+          type: log.status === 'failure' ? 'warning' : (log.action?.includes('DELETE') || log.action?.includes('REJECT') ? 'warning' : 'success'),
+          text: `${log.actor_email || 'Hệ thống'} ${ACTION_LABEL[log.action] || log.action.toLowerCase()} ${RESOURCE_LABEL[log.resource] || log.resource.toLowerCase()}`,
+          time: timeAgo(log.created_at),
+        }))
+      );
+      setAnnouncements(
+        logs.slice(0, 3).map((log) => ({
+          id: log._id,
+          title: `${RESOURCE_LABEL[log.resource] || log.resource}: ${ACTION_LABEL[log.action] || log.action}`,
+          time: timeAgo(log.created_at),
+        }))
+      );
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Registration Open':
-        return '#00d4ff';
-      case 'In Progress':
-        return '#00d4ff';
-      case 'Judging':
-        return '#a855f7';
-      default:
-        return '#00d4ff';
-    }
-  };
+  useEffect(() => {
+    fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Đếm ngược tới deadline gần nhất, cập nhật mỗi giây
+  useEffect(() => {
+    if (!nextDeadline) return;
+    const tick = () => {
+      const ms = Math.max(0, new Date(nextDeadline.date).getTime() - Date.now());
+      const totalSeconds = Math.floor(ms / 1000);
+      setCountdown({
+        days: Math.floor(totalSeconds / 86400),
+        hours: Math.floor((totalSeconds % 86400) / 3600),
+        minutes: Math.floor((totalSeconds % 3600) / 60),
+        seconds: totalSeconds % 60,
+      });
+    };
+    tick();
+    const timerId = setInterval(tick, 1000);
+    return () => clearInterval(timerId);
+  }, [nextDeadline]);
 
   return (
     <div className="dashboard-main">
@@ -197,7 +280,6 @@ export default function AdminDashboard() {
             <span className="metric-icon"><Ico d={TROPHY} size={20} sw={1.8} /></span>
           </div>
           <div className="metric-value">{metrics.activeHackathons}</div>
-          <div className="metric-change">↑ 12%</div>
         </div>
 
         <div className="metric-card">
@@ -206,7 +288,6 @@ export default function AdminDashboard() {
             <span className="metric-icon"><Ico d={USERS} size={20} sw={1.8} /></span>
           </div>
           <div className="metric-value">{metrics.totalParticipants.toLocaleString()}</div>
-          <div className="metric-change">↑ 8%</div>
         </div>
 
         <div className="metric-card">
@@ -215,16 +296,14 @@ export default function AdminDashboard() {
             <span className="metric-icon"><Ico d={TEAM} size={20} sw={1.8} /></span>
           </div>
           <div className="metric-value">{metrics.teamsRegistered}</div>
-          <div className="metric-change">↑ 12%</div>
         </div>
 
         <div className="metric-card">
           <div className="metric-header">
-            <span className="metric-label">AI Tasks Completed</span>
+            <span className="metric-label">Pending Team Approvals</span>
             <span className="metric-icon"><Ico d={CHECK} size={20} sw={1.8} /></span>
           </div>
-          <div className="metric-value">{metrics.aiTasksCompleted}</div>
-          <div className="metric-change">↑ 23%</div>
+          <div className="metric-value">{metrics.pendingApprovals}</div>
         </div>
       </div>
 
@@ -234,22 +313,25 @@ export default function AdminDashboard() {
         <div className="dashboard-section">
           <h2 className="section-title">Active Hackathons</h2>
           <div className="hackathons-list">
+            {hackathons.length === 0 && (
+              <p style={{ color: '#a0aec0' }}>Chưa có cuộc thi nào đang mở.</p>
+            )}
             {hackathons.map((h) => (
               <div key={h.id} className="hackathon-card">
                 <div className="hackathon-header">
                   <div className="hackathon-title">
-                    <div className="hackathon-icon">{h.icon}</div>
+                    <div className="hackathon-icon"><Ico d={TROPHY} size={20} sw={1.8} /></div>
                     <div>
                       <h3>{h.name}</h3>
                       <div className="hackathon-meta">
                         <span><Ico d={TEAM} size={14} sw={1.5} /> {h.teams} teams</span>
-                        <span><Ico d={ZETA} size={14} sw={1.5} /> {h.startDate}</span>
-                        <span><Ico d={BELL} size={14} sw={1.5} /> {h.endDate}</span>
+                        <span><Ico d={ZETA} size={14} sw={1.5} /> {h.roundInfo}</span>
+                        <span><Ico d={BELL} size={14} sw={1.5} /> {h.deadlineText}</span>
                       </div>
                     </div>
                   </div>
                   <div className="hackathon-status">
-                    <span className="status-badge" style={{ borderLeftColor: getStatusColor(h.status) }}>
+                    <span className="status-badge" style={{ borderLeftColor: h.statusColor }}>
                       {h.status}
                     </span>
                   </div>
@@ -268,34 +350,44 @@ export default function AdminDashboard() {
               <span className="card-icon"><Ico d={BELL} size={16} sw={1.8} /></span>
               <h3>Next Deadline</h3>
             </div>
-            <div className="countdown">
-              <div className="countdown-item">
-                <div className="countdown-value">11</div>
-                <div className="countdown-label">DAYS</div>
-              </div>
-              <div className="countdown-item">
-                <div className="countdown-value">20</div>
-                <div className="countdown-label">HOURS</div>
-              </div>
-              <div className="countdown-item">
-                <div className="countdown-value">07</div>
-                <div className="countdown-label">MINUTES</div>
-              </div>
-              <div className="countdown-item">
-                <div className="countdown-value">35</div>
-                <div className="countdown-label">SECONDS</div>
-              </div>
-            </div>
+            {nextDeadline ? (
+              <>
+                <p style={{ color: '#a0aec0', fontSize: '0.85rem', margin: '0 0 8px' }}>{nextDeadline.label}</p>
+                <div className="countdown">
+                  <div className="countdown-item">
+                    <div className="countdown-value">{countdown.days}</div>
+                    <div className="countdown-label">DAYS</div>
+                  </div>
+                  <div className="countdown-item">
+                    <div className="countdown-value">{String(countdown.hours).padStart(2, '0')}</div>
+                    <div className="countdown-label">HOURS</div>
+                  </div>
+                  <div className="countdown-item">
+                    <div className="countdown-value">{String(countdown.minutes).padStart(2, '0')}</div>
+                    <div className="countdown-label">MINUTES</div>
+                  </div>
+                  <div className="countdown-item">
+                    <div className="countdown-value">{String(countdown.seconds).padStart(2, '0')}</div>
+                    <div className="countdown-label">SECONDS</div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p style={{ color: '#a0aec0' }}>Không có deadline sắp tới.</p>
+            )}
           </div>
 
-          {/* AI Activity Feed */}
+          {/* Activity Feed — nguồn từ Audit Log thật của hệ thống */}
           <div className="sidebar-card activity-feed">
             <div className="card-header">
               <span className="card-icon"><Ico d={ZETA} size={16} sw={1.8} /></span>
-              <h3>AI Activity Feed</h3>
-              <span className="card-badge">Active</span>
+              <h3>Recent Activity</h3>
+              <span className="card-badge">Live</span>
             </div>
             <div className="feed-items">
+              {feedItems.length === 0 && (
+                <p style={{ color: '#a0aec0', fontSize: '0.85rem' }}>Chưa có hoạt động nào được ghi nhận.</p>
+              )}
               {feedItems.map((item) => (
                 <div key={item.id} className={`feed-item feed-${item.type}`}>
                   <span className="feed-dot"></span>
@@ -308,13 +400,16 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Recent Announcements */}
+          {/* Recent Admin Actions — nguồn từ Audit Log thật của hệ thống */}
           <div className="sidebar-card announcements">
             <div className="card-header">
               <span className="card-icon"><Ico d={INFO} size={16} sw={1.8} /></span>
-              <h3>Recent Announcements</h3>
+              <h3>Recent Admin Actions</h3>
             </div>
             <div className="announcements-list">
+              {announcements.length === 0 && (
+                <p style={{ color: '#a0aec0', fontSize: '0.85rem' }}>Chưa có hoạt động nào được ghi nhận.</p>
+              )}
               {announcements.map((item) => (
                 <div key={item.id} className="announcement-item">
                   <div className="announcement-icon"><Ico d={INFO} size={14} sw={1.5} /></div>

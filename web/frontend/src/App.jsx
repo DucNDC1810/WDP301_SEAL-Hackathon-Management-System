@@ -16,6 +16,7 @@ import Footer from './components/Footer';
 // Pages
 import HomePage from './pages/homepage/HomePage';
 import LoginPage from './pages/login/LoginPage';
+import SignupPage from './pages/signup/SignupPage';
 import OAuthCallback from './pages/oauth-callback/OAuthCallback';
 
 // Admin
@@ -96,7 +97,7 @@ function App() {
             <Routes>
               {/* Auth */}
               <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
-              <Route path="/signup" element={<GuestRoute><LoginPage /></GuestRoute>} />
+              <Route path="/signup" element={<GuestRoute><SignupPage /></GuestRoute>} />
               <Route path="/oauth-callback" element={<OAuthCallback />} />
               <Route path="/complete-profile" element={<CompleteProfilePage />} />
               <Route path="/verify-invitation" element={<InvitationVerifyPage />} />

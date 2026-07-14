@@ -1013,14 +1013,29 @@ export default function HackathonDetailPage({ defaultTab }) {
       alert('Vui lòng điền đầy đủ tên và hạn nộp bài.');
       return;
     }
-    if (roundForm.sequence_order <= 0 || roundForm.coding_duration_hours <= 0 || roundForm.top_n_advance <= 0) {
-      alert('Các giá trị số thứ tự, thời gian code, và số đội đi tiếp phải lớn hơn 0.');
-      return;
-    }
-
     const activeTrack = config.tracks.find(t => t.id === activeTrackId) || config.tracks[0];
     if (!activeTrack) {
       alert('Không tìm thấy Track cấu hình.');
+      return;
+    }
+
+    const isRoundLastVal = (() => {
+      if (!activeTrack || !activeTrack.rounds) return false;
+      const currentSeq = Number(roundForm.sequence_order);
+      if (isNaN(currentSeq)) return false;
+      const otherRounds = activeTrack.rounds.filter(r => r.id !== editingRoundId);
+      if (otherRounds.length === 0) return true;
+      const maxOtherSeq = Math.max(...otherRounds.map(r => Number(r.sequence_order) || 0));
+      return currentSeq >= maxOtherSeq;
+    })();
+
+    if (roundForm.sequence_order <= 0 || roundForm.coding_duration_hours <= 0) {
+      alert('Các giá trị số thứ tự và thời gian code phải lớn hơn 0.');
+      return;
+    }
+
+    if (!isRoundLastVal && roundForm.top_n_advance <= 0) {
+      alert('Số đội đi tiếp phải lớn hơn 0.');
       return;
     }
 
@@ -1031,7 +1046,7 @@ export default function HackathonDetailPage({ defaultTab }) {
       submission_deadline: roundForm.submission_deadline,
       coding_duration_hours: Number(roundForm.coding_duration_hours),
       top_n_advance: Number(roundForm.top_n_advance),
-      wildcard_enabled: roundForm.wildcard_enabled,
+      wildcard_enabled: isRoundLastVal ? false : roundForm.wildcard_enabled,
       active: roundForm.active,
       criteria: editingRoundId ? (activeTrack.rounds.find(r => r.id === editingRoundId)?.criteria || []) : []
     };
@@ -1270,6 +1285,16 @@ export default function HackathonDetailPage({ defaultTab }) {
 
   const isOngoing = contest.status === 'open';
   const selectedTrack = config.tracks.find(t => t.id === activeTrackId) || config.tracks[0];
+
+  const isRoundFormLast = (() => {
+    if (!selectedTrack || !selectedTrack.rounds) return false;
+    const currentSeq = Number(roundForm.sequence_order);
+    if (isNaN(currentSeq)) return false;
+    const otherRounds = selectedTrack.rounds.filter(r => r.id !== editingRoundId);
+    if (otherRounds.length === 0) return true;
+    const maxOtherSeq = Math.max(...otherRounds.map(r => Number(r.sequence_order) || 0));
+    return currentSeq >= maxOtherSeq;
+  })();
   
   // Calculate current criteria round weight summary
   const selectedCritRound = (config.tracks.find(t => t.id === selectedCritTrackId) || config.tracks[0])?.rounds.find(r => r.id === selectedCritRoundId);
@@ -1470,16 +1495,20 @@ export default function HackathonDetailPage({ defaultTab }) {
                   <div className="hd-form-grid">
                     <div className="hd-field"><label>Hạn nộp bài (Deadline) *</label><input type="datetime-local" required value={roundForm.submission_deadline} onChange={e=>setRoundForm(f=>({...f,submission_deadline:e.target.value}))}/></div>
                     <div className="hd-field"><label>Thời gian code (giờ) *</label><input type="number" required value={roundForm.coding_duration_hours} onChange={e=>setRoundForm(f=>({...f,coding_duration_hours:e.target.value}))}/></div>
-                    <div className="hd-field"><label>Số đội đi tiếp (Top N) *</label><input type="number" required value={roundForm.top_n_advance} onChange={e=>setRoundForm(f=>({...f,top_n_advance:e.target.value}))}/></div>
+                    {!isRoundFormLast && (
+                      <div className="hd-field"><label>Số đội đi tiếp (Top N) *</label><input type="number" required value={roundForm.top_n_advance} onChange={e=>setRoundForm(f=>({...f,top_n_advance:e.target.value}))}/></div>
+                    )}
                   </div>
-                  <div className="hd-form-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '10px' }}>
-                    <div className="hd-field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
-                      <label className="hd-switch">
-                        <input type="checkbox" checked={roundForm.wildcard_enabled} onChange={e=>setRoundForm(f=>({...f,wildcard_enabled:e.target.checked}))}/>
-                        <span className="hd-switch-slider"></span>
-                      </label>
-                      <span>Cho phép Vé vớt (Wildcard)</span>
-                    </div>
+                  <div className="hd-form-grid" style={{ gridTemplateColumns: isRoundFormLast ? '1fr' : '1fr 1fr', marginTop: '10px' }}>
+                    {!isRoundFormLast && (
+                      <div className="hd-field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
+                        <label className="hd-switch">
+                          <input type="checkbox" checked={roundForm.wildcard_enabled} onChange={e=>setRoundForm(f=>({...f,wildcard_enabled:e.target.checked}))}/>
+                          <span className="hd-switch-slider"></span>
+                        </label>
+                        <span>Cho phép Vé vớt (Wildcard)</span>
+                      </div>
+                    )}
                     <div className="hd-field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
                       <label className="hd-switch">
                         <input type="checkbox" checked={roundForm.active} onChange={e=>setRoundForm(f=>({...f,active:e.target.checked}))}/>
@@ -1507,6 +1536,12 @@ export default function HackathonDetailPage({ defaultTab }) {
                     : !valid ? `Tổng trọng số = ${ws.toFixed(2)} ≠ 1.0 (Hoặc chưa có tiêu chí) — thêm/sửa tiêu chí để kích hoạt`
                     : 'Kích hoạt làm Vòng thi chính thức';
 
+                  const isLastRoundInList = (() => {
+                    const sortedRounds = [...selectedTrack.rounds].sort((a,b) => a.sequence_order - b.sequence_order);
+                    if (sortedRounds.length === 0) return false;
+                    return round.sequence_order === sortedRounds[sortedRounds.length - 1].sequence_order;
+                  })();
+
                   return (
                     <div key={round.id} className={`hd-round-card-modern ${!round.active ? 'hd-round-card-modern--inactive' : ''}`}>
                       {/* Left: Identity and Badges */}
@@ -1525,7 +1560,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                             <span className={`hd-round-status-tag ${round.active ? 'active' : ''}`}>
                               {round.active ? 'Đang bật' : 'Đang tắt'}
                             </span>
-                            {round.wildcard_enabled && (
+                            {round.wildcard_enabled && !isLastRoundInList && (
                               <span className="hd-round-status-tag wildcard">Wildcard</span>
                             )}
                           </div>
@@ -1548,13 +1583,15 @@ export default function HackathonDetailPage({ defaultTab }) {
                             <span className="hd-round-meta-val">{round.coding_duration_hours} giờ</span>
                           </div>
                         </div>
-                        <div className="hd-round-meta-item">
-                          <span className="hd-round-meta-icon">🏆</span>
-                          <div className="hd-round-meta-content">
-                            <span className="hd-round-meta-lbl">Đội đi tiếp</span>
-                            <span className="hd-round-meta-val">Top {round.top_n_advance}</span>
+                        {!isLastRoundInList && (
+                          <div className="hd-round-meta-item">
+                            <span className="hd-round-meta-icon">🏆</span>
+                            <div className="hd-round-meta-content">
+                              <span className="hd-round-meta-lbl">Đội đi tiếp</span>
+                              <span className="hd-round-meta-val">Top {round.top_n_advance}</span>
+                            </div>
                           </div>
-                        </div>
+                        )}
                         <div className="hd-round-meta-item">
                           <span className="hd-round-meta-icon">📋</span>
                           <div className="hd-round-meta-content">

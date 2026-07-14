@@ -100,7 +100,7 @@ export default function FinishRoundPage() {
               <span className="text-gray-500">Loại vòng:</span>{' '}
               <span className="text-white font-medium">{round.type}</span>
             </div>
-            {round.top_n && (
+            {round.top_n && round.type !== 'FINAL' && (
               <div>
                 <span className="text-gray-500">Top N:</span>{' '}
                 <span className="text-white font-medium">{round.top_n}</span>

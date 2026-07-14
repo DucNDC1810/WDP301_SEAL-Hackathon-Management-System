@@ -1275,6 +1275,28 @@ export default function HackathonDetailPage({ defaultTab }) {
   const selectedCritRound = (config.tracks.find(t => t.id === selectedCritTrackId) || config.tracks[0])?.rounds.find(r => r.id === selectedCritRoundId);
   const currentWeightSum = selectedCritRound?.criteria?.reduce((sum, c) => sum + c.weight, 0) || 0;
 
+  // Checklist Calculations
+  const step1Ok = !!(contest.title && config.season && config.year && config.registration_open_date && config.registration_deadline && config.start_date && config.end_date && config.kickoff_date && config.rules?.trim());
+  const step2Ok = config.tracks.length >= 1 && config.tracks.every(t => t.rounds && t.rounds.length >= 2);
+  const step3Ok = config.tracks.length > 0 && config.tracks.every(t => t.rounds.length > 0 && t.rounds.every(r => r.criteria && r.criteria.length >= 1 && Math.abs(r.criteria.reduce((s, c) => s + c.weight, 0) - 1.0) < 0.001));
+  const step4Ok = pools.length > 0 && pools.some(p => p.teams && p.teams.length > 0);
+  const step5Ok = !!config.mentors_assigned;
+  const step6Ok = pools.length > 0 && pools.every(p => p.drive_link && p.drive_link.trim() !== '');
+  const step7Ok = contest.status === 'open';
+
+  const checklistSteps = [
+    { id: 1, label: 'Thông tin tổng quan', desc: 'Thiết lập tên, mùa giải, thể lệ, banner & ngày giờ sự kiện.', ok: step1Ok, tabId: 0 },
+    { id: 2, label: 'Cấu hình vòng thi', desc: 'Thiết lập tối thiểu 1 bảng thi (Track) và 2 vòng đấu (Rounds).', ok: step2Ok, tabId: 1 },
+    { id: 3, label: 'Tiêu chí chấm điểm', desc: 'Phân bổ ít nhất 1 tiêu chí & đảm bảo tổng trọng số bằng 1.0 mỗi vòng.', ok: step3Ok, tabId: 2 },
+    { id: 4, label: 'Chia bảng đấu & Đội thi', desc: 'Khởi tạo danh sách bảng đấu (Pools) & xếp các đội thi vào bảng.', ok: step4Ok, tabId: 3 },
+    { id: 5, label: 'Phân công Judge & Mentor', desc: 'Phân công Giám khảo & Người hướng dẫn chấm điểm các bảng.', ok: step5Ok, tabId: 4 },
+    { id: 6, label: 'Cấu hình đề bài', desc: 'Cập nhật link Google Drive đề bài thi cho tất cả bảng đấu.', ok: step6Ok, tabId: 3 },
+    { id: 7, label: 'Kích hoạt giải đấu', desc: 'Chuyển trạng thái Hackathon sang ONGOING để bắt đầu thi đấu.', ok: step7Ok, tabId: 9 }
+  ];
+
+  const completedCount = checklistSteps.filter(s => s.ok).length;
+  const checklistPct = Math.round((completedCount / checklistSteps.length) * 100);
+
   return (
     <div className="hd-page">
       {/* Header */}
@@ -1353,26 +1375,70 @@ export default function HackathonDetailPage({ defaultTab }) {
               </div>
             </form>
           ) : (
-            <>
-              {config.banner && (
-                <div style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-cyan)' }}>
-                  <img src={config.banner} alt="Hackathon Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800'; }} />
+            <div className="hd-overview-layout">
+              {/* Left Column: Banner, overview, rules */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {config.banner && (
+                  <div style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-cyan)' }}>
+                    <img src={config.banner} alt="Hackathon Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800'; }} />
+                  </div>
+                )}
+
+                <div className="hd-overview-grid">
+                  <div className="hd-overview-card"><span className="hd-ov-label">Mùa giải / Năm</span><span className="hd-ov-value">{config.season} {config.year}</span></div>
+                  <div className="hd-overview-card"><span className="hd-ov-label">Mở đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_open_date || config.registration_open_date || contest.created_at)}</span></div>
+                  <div className="hd-overview-card"><span className="hd-ov-label">Hạn đóng đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_deadline || config.registration_deadline)}</span></div>
+                  <div className="hd-overview-card"><span className="hd-ov-label">Lịch khai mạc (Kickoff)</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.kickoff_date)}</span></div>
+                  <div className="hd-overview-card"><span className="hd-ov-label">Số vòng thi</span><span className="hd-ov-value">{selectedTrack?.rounds?.length || 0}</span></div>
                 </div>
-              )}
 
-              <div className="hd-overview-grid">
-                <div className="hd-overview-card"><span className="hd-ov-label">Mùa giải / Năm</span><span className="hd-ov-value">{config.season} {config.year}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Mở đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_open_date || config.registration_open_date || contest.created_at)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Hạn đóng đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_deadline || config.registration_deadline)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Lịch khai mạc (Kickoff)</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.kickoff_date)}</span></div>
-                <div className="hd-overview-card"><span className="hd-ov-label">Số vòng thi</span><span className="hd-ov-value">{selectedTrack?.rounds?.length || 0}</span></div>
+                <div className="hd-rules-card">
+                  <h3 className="hd-rules-title">Thể lệ & Luật thi đấu</h3>
+                  <div className="hd-rules-content">{config.rules || 'Chưa thiết lập thể lệ giải đấu.'}</div>
+                </div>
               </div>
 
-              <div className="hd-rules-card">
-                <h3 className="hd-rules-title">Thể lệ & Luật thi đấu</h3>
-                <div className="hd-rules-content">{config.rules || 'Chưa thiết lập thể lệ giải đấu.'}</div>
+              {/* Right Column: Setup Checklist & Progress Tracker */}
+              <div className="hd-checklist-container">
+                <div className="hd-checklist-header">
+                  <h3 className="hd-checklist-title">
+                    📋 Checklist Chuẩn Bị Giải Đấu
+                  </h3>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 650 }}>
+                    {completedCount}/7 hoàn thành
+                  </span>
+                </div>
+
+                <div className="hd-progress-wrapper">
+                  <div className="hd-progress-info">
+                    <span>Mức độ hoàn thiện</span>
+                    <strong style={{ color: 'var(--cyan)' }}>{checklistPct}%</strong>
+                  </div>
+                  <div className="hd-progress-bar-bg">
+                    <div className="hd-progress-bar-fill" style={{ width: `${checklistPct}%` }}></div>
+                  </div>
+                </div>
+
+                <div className="hd-checklist-steps">
+                  {checklistSteps.map(s => (
+                    <div key={s.id} className="hd-checklist-step">
+                      <div className={`hd-step-icon ${s.ok ? 'hd-step-icon--success' : 'hd-step-icon--pending'}`}>
+                        {s.ok ? <Ico d={CHECK} size={10}/> : <span style={{ fontSize: '12px', lineHeight: 1 }}>●</span>}
+                      </div>
+                      <div className="hd-step-content">
+                        <div className="hd-step-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ color: s.ok ? '#a7f3d0' : '#fbd38d' }}>{s.label}</span>
+                        </div>
+                        <div className="hd-step-desc">{s.desc}</div>
+                      </div>
+                      <button className="hd-step-action" onClick={() => setTab(s.tabId)}>
+                        Thiết lập
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       )}

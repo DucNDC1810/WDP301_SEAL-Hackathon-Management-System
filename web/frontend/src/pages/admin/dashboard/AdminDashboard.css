@@ -417,7 +417,7 @@
 
 .feed-content p {
   font-size: 0.85rem;
-  color: #ffffff;
+  color: var(--text-primary);
   margin: 0 0 0.3rem 0;
   line-height: 1.4;
 }
@@ -477,7 +477,7 @@
 
 .announcement-content p {
   font-size: 0.85rem;
-  color: #ffffff;
+  color: var(--text-primary);
   margin: 0 0 0.3rem 0;
   line-height: 1.4;
 }

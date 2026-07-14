@@ -84,7 +84,7 @@ export default function AdminRankingManagerPage() {
                   <button key={c._id} onClick={() => setSelectedContest(c)} style={{
                     padding: '7px 14px', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600,
                     cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-                    background: active ? 'rgba(0,240,255,.08)' : 'rgba(17,24,39,.5)',
+                    background: active ? 'rgba(0,240,255,.08)' : 'var(--bg-card)',
                     border: `1px solid ${active ? 'rgba(0,240,255,.35)' : 'var(--border)'}`,
                     color: active ? 'var(--cyan)' : 'var(--text-primary)',
                   }}>
@@ -182,7 +182,7 @@ function IndividualTab({ contestId, contestTitle }) {
         <Empty text="Không tìm thấy thành viên nào" />
       ) : (
         <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid var(--border)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'rgba(17,24,39,.6)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)' }}>
             <thead>
               <tr>
                 {['Họ tên', 'Email', 'Điểm kỳ này', 'Điểm tích lũy', ''].map((h, i) => (
@@ -296,7 +296,7 @@ function SettingsTab({ contests, setContests, loadingContests }) {
             const enabled = c.individual_ranking_enabled;
             const isToggling = toggling === c._id;
             return (
-              <div key={c._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderRadius: 10, border: `1px solid ${enabled ? 'rgba(0,240,255,.2)' : 'var(--border)'}`, background: enabled ? 'rgba(0,240,255,.04)' : 'rgba(17,24,39,.4)', gap: 12, flexWrap: 'wrap' }}>
+              <div key={c._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderRadius: 10, border: `1px solid ${enabled ? 'rgba(0,240,255,.2)' : 'var(--border)'}`, background: enabled ? 'rgba(0,240,255,.04)' : 'var(--bg-card)', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.93rem' }}>{c.title}</span>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, color: st.color, background: st.bg, border: `1px solid ${st.border}`, padding: '1px 7px', borderRadius: 4 }}>{st.label}</span>
@@ -350,7 +350,7 @@ const s = {
   th: { padding: '11px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--cyan)', borderBottom: '1px solid rgba(0,240,255,.12)', background: 'rgba(0,240,255,.03)', whiteSpace: 'nowrap' },
   td: { padding: '12px 16px', fontSize: '0.9rem' },
   numInput: { padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(0,240,255,.3)', background: 'rgba(0,240,255,.04)', color: 'var(--text-primary)', fontSize: '0.9rem', width: 120, outline: 'none' },
-  searchInput: { padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'rgba(17,24,39,.6)', color: 'var(--text-primary)', fontSize: '0.85rem', width: 220, outline: 'none' },
+  searchInput: { padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem', width: 220, outline: 'none' },
   btnEdit: { padding: '5px 14px', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', background: 'rgba(0,240,255,.08)', color: 'var(--cyan)', border: '1px solid rgba(0,240,255,.25)' },
   btnSave: { padding: '5px 14px', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', background: 'rgba(34,197,94,.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,.3)' },
   btnCancel: { padding: '5px 14px', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', background: 'rgba(148,163,184,.08)', color: 'var(--text-secondary)', border: '1px solid var(--border)' },

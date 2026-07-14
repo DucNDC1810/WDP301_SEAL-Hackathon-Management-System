@@ -77,10 +77,10 @@ export default function TeamRegistrationPage() {
             <button
               onClick={() => navigate('/admin/team')}
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'var(--bg-card)',
                 border: '1px solid var(--al-border)',
                 borderRadius: '8px',
-                color: '#fff',
+                color: 'var(--al-text)',
                 padding: '8px 16px',
                 cursor: 'pointer',
                 display: 'flex',
@@ -90,8 +90,8 @@ export default function TeamRegistrationPage() {
                 fontWeight: '600',
                 transition: 'background 0.2s',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}
             >
               ← Quay lại
             </button>

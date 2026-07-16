@@ -359,7 +359,7 @@ function TeamsTable({ enriched, navigate, limit }) {
           {rows.map((t, i) => {
             const statusCls  = t.scoreStatus === 'submitted' ? 'completed' : t.scoreStatus === 'draft' ? 'reviewing' : 'pending';
             const statusText = { submitted:'✓ Đã chấm', draft:'● Đang chấm', none:'Chờ chấm' }[t.scoreStatus] || 'Chờ chấm';
-            const canScore   = t.roundIsActive && !t.scoringLocked;
+            const canScore   = !t.scoringLocked;
 
             return (
               <tr key={t.id || i}>
@@ -376,7 +376,7 @@ function TeamsTable({ enriched, navigate, limit }) {
                   {t.totalScore != null ? t.totalScore.toFixed(1) : '—'}
                 </td>
                 <td>
-                  <Tooltip title={!canScore ? (t.scoringLocked ? 'Chấm điểm đã bị khóa' : 'Vòng thi đã đóng — không thể chấm') : ''}>
+                  <Tooltip title={!canScore ? 'Chấm điểm đã bị khóa' : ''}>
                     <button
                       className={`jd-review-btn ${t.scoreStatus === 'submitted' ? 'done' : ''}`}
                       disabled={!canScore}
@@ -441,11 +441,11 @@ function SectionCompetitions({ enriched, navigate }) {
                   </span>
                   <button
                     className="jd-round-btn"
-                    style={{ border:`1px solid ${(!pool.roundIsActive || pool.scoringLocked) ? 'rgba(255,255,255,0.1)' : 'rgba(0,212,255,0.3)'}`, background: (!pool.roundIsActive || pool.scoringLocked) ? 'transparent' : 'rgba(0,212,255,0.08)', color: (!pool.roundIsActive || pool.scoringLocked) ? 'rgba(255,255,255,0.25)' : '#00d4ff', opacity: (!pool.roundIsActive || pool.scoringLocked) ? 0.5 : 1, cursor: (!pool.roundIsActive || pool.scoringLocked) ? 'not-allowed' : 'pointer' }}
-                    disabled={!pool.roundIsActive || pool.scoringLocked}
+                    style={{ border:`1px solid ${pool.scoringLocked ? 'rgba(255,255,255,0.1)' : 'rgba(0,212,255,0.3)'}`, background: pool.scoringLocked ? 'transparent' : 'rgba(0,212,255,0.08)', color: pool.scoringLocked ? 'rgba(255,255,255,0.25)' : '#00d4ff', opacity: pool.scoringLocked ? 0.5 : 1, cursor: pool.scoringLocked ? 'not-allowed' : 'pointer' }}
+                    disabled={pool.scoringLocked}
                     onClick={() => navigate(`/judge/scoring/${pool.contestId}/rounds/${pool.roundId}/pools/${pool.poolId}`)}
                   >
-                    {(!pool.roundIsActive || pool.scoringLocked) ? '🔒' : '⚖ Chấm'}
+                    {pool.scoringLocked ? '🔒' : '⚖ Chấm'}
                   </button>
                 </div>
               ))}

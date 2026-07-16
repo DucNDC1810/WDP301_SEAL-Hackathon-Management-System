@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Modal as AntModal, Tooltip, Select, notification } from 'antd';
 import JudgeAssignmentTab from './tabs/JudgeAssignmentTab';
-import ProblemReleaseTab from './tabs/ProblemReleaseTab';
 import SubmissionReviewTab from './tabs/SubmissionReviewTab';
 import ScoringLockTab from './tabs/ScoringLockTab';
 import TeamEliminationTab from './tabs/TeamEliminationTab';
@@ -40,7 +39,6 @@ const MAIN_TABS = [
   { id: 2, label: 'Tiêu chí chấm điểm' },
   { id: 3, label: 'Bảng đấu' },
   { id: 4, label: 'Phân công Judge & Mentor' },
-  { id: 5, label: 'Phát đề bài' },
   { id: 12, label: 'Bảng xếp hạng' },
   { id: 9, label: 'Review & ONGOING' },
 ];
@@ -464,7 +462,7 @@ export default function HackathonDetailPage({ defaultTab }) {
   // Re-fetch contest when switching to key tabs
   // so activation/changes (done on separate pages) are reflected immediately
   useEffect(() => {
-    if (tab === 1 || tab === 5) {
+    if (tab === 1) {
       fetchContest();
     }
   }, [tab]);
@@ -1244,20 +1242,6 @@ export default function HackathonDetailPage({ defaultTab }) {
     updateConfigState({ ...config, tracks: updatedTracks });
   };
 
-  // Toggle active round
-  const handleToggleRoundActive = (trackId, roundId) => {
-    const updatedTracks = config.tracks.map(t => {
-      if (t.id === trackId) {
-        return {
-          ...t,
-          rounds: t.rounds.map(r => r.id === roundId ? { ...r, active: !r.active } : r)
-        };
-      }
-      return t;
-    });
-    updateConfigState({ ...config, tracks: updatedTracks });
-  };
-
   // ─── CRITERIA HANDLERS ─────────────────────────────────────────────────────
   const handleAddCriteria = (e) => {
     e.preventDefault();
@@ -1774,14 +1758,6 @@ export default function HackathonDetailPage({ defaultTab }) {
                             >
                               {isOfficialActive ? '✓ Đang chạy' : '▷ Kích hoạt'}
                             </button>
-                          </Tooltip>
-
-                          {/* Quick active toggler */}
-                          <Tooltip title={round.active ? 'Tạm tắt vòng thi' : 'Mở hoạt động vòng thi'}>
-                            <label className="hd-switch">
-                              <input type="checkbox" checked={round.active} onChange={() => handleToggleRoundActive(selectedTrack.id, round.id)}/>
-                              <span className="hd-switch-slider"></span>
-                            </label>
                           </Tooltip>
 
                           {/* Edit / Delete buttons */}
@@ -2316,11 +2292,6 @@ export default function HackathonDetailPage({ defaultTab }) {
       {/* ─── TAB 4: PHÂN CÔNG JUDGE & MENTOR (FE-1.1) ─── */}
       {tab === 4 && (
         <JudgeAssignmentTab config={config} contestId={id} contest={contest} />
-      )}
-
-      {/* ─── TAB 5: PHÁT ĐỀ BÀI (FE-1.3) ─── */}
-      {tab === 5 && (
-        <ProblemReleaseTab config={config} contestId={id} contest={contest} />
       )}
 
       {/* ─── TAB 6: DUYỆT BÀI NỘP LATE (FE-1.4) ─── */}

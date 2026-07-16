@@ -86,14 +86,7 @@ export default function TeamRegistrationPage() {
       .finally(() => setLoading(false));
   }, [contestId]);
 
-  const handleContestChange = (e) => {
-    const newId = e.target.value;
-    if (newId) {
-      navigate(`/admin/team/${newId}`);
-    } else {
-      navigate(`/admin/team`);
-    }
-  };
+
 
   const filtered = contests.filter(c =>
     getStatus(c) !== 'closed' &&
@@ -138,30 +131,7 @@ export default function TeamRegistrationPage() {
             </p>
           </div>
         </div>
-        {!contestId && (
-          <div className="hfp-selector-wrap">
-            <label className="hfp-select-label">Chọn cuộc thi:</label>
-            {loading ? (
-              <div className="hfp-select-loader">Đang tải cuộc thi...</div>
-            ) : (
-              <select
-                className="hfp-select"
-                value={contestId || ''}
-                onChange={handleContestChange}
-              >
-                <option value="">-- Vui lòng chọn cuộc thi --</option>
-                {contests.filter(c => getStatus(c) !== 'closed').map((c) => {
-                  const hasPending = pendingContestIds.has(c._id);
-                  return (
-                    <option key={c._id} value={c._id}>
-                      {c.title} {c.status === 'open' ? '🟢 (ONGOING)' : '⚪ (Draft)'} {hasPending ? '🔴 (Cần duyệt)' : ''}
-                    </option>
-                  );
-                })}
-              </select>
-            )}
-          </div>
-        )}
+
       </div>
 
       {/* Content */}

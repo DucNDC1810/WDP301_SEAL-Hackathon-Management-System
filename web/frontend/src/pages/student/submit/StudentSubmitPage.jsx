@@ -485,21 +485,37 @@ export const StudentSubmitPage = () => {
             </div>
           </div>
 
-          {/* Late submission warning */}
-          {isPastDeadline && (
+          {/* Late / Locked submission warning */}
+          {selectedRound?.scoring_locked ? (
             <div style={{
               display: 'flex', alignItems: 'flex-start', gap: 12,
-              background: 'rgba(245,158,11,.06)', border: '1px solid rgba(245,158,11,.25)',
+              background: 'rgba(239,68,68,.06)', border: '1px solid rgba(239,68,68,.25)',
               borderRadius: 10, padding: '12px 16px',
             }}>
-              <span style={{ color: C.amber, marginTop: 1 }}><Ico d={WARN} size={15} /></span>
+              <span style={{ color: C.red, marginTop: 1 }}><Ico d={WARN} size={15} /></span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>Đã qua hạn nộp bài</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>Đã khóa chấm điểm</div>
                 <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
-                  Bài nộp lúc này sẽ được đánh dấu <strong style={{ color: C.amber }}>nộp trễ</strong> và cần admin phê duyệt trước khi được tính điểm.
+                  Vòng thi này đã khóa chấm điểm. Bạn không thể nộp hoặc cập nhật bài dự thi được nữa.
                 </div>
               </div>
             </div>
+          ) : (
+            isPastDeadline && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 12,
+                background: 'rgba(245,158,11,.06)', border: '1px solid rgba(245,158,11,.25)',
+                borderRadius: 10, padding: '12px 16px',
+              }}>
+                <span style={{ color: C.amber, marginTop: 1 }}><Ico d={WARN} size={15} /></span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>Đã qua hạn nộp bài</div>
+                  <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+                    Bài nộp lúc này sẽ được đánh dấu <strong style={{ color: C.amber }}>nộp trễ</strong> và cần admin phê duyệt trước khi được tính điểm.
+                  </div>
+                </div>
+              </div>
+            )
           )}
 
           {/* Current submission status */}
@@ -608,6 +624,7 @@ export const StudentSubmitPage = () => {
                 <input
                   value={form.repo_url}
                   placeholder="https://github.com/your-org/your-repo"
+                  disabled={selectedRound?.scoring_locked || false}
                   onChange={(e) => { setForm(f => ({ ...f, repo_url: e.target.value })); setErrors(er => ({ ...er, repo_url: null })); }}
                   style={{ ...inputStyle, borderColor: errors.repo_url ? C.red : C.line }}
                 />
@@ -625,6 +642,7 @@ export const StudentSubmitPage = () => {
                 <input
                   value={form.slide_url}
                   placeholder="https://docs.google.com/presentation/..."
+                  disabled={selectedRound?.scoring_locked || false}
                   onChange={(e) => { setForm(f => ({ ...f, slide_url: e.target.value })); setErrors(er => ({ ...er, slide_url: null })); }}
                   style={{ ...inputStyle, borderColor: errors.slide_url ? C.red : C.line }}
                 />
@@ -642,15 +660,16 @@ export const StudentSubmitPage = () => {
                 <input
                   value={form.demo_url}
                   placeholder="https://youtube.com/..."
+                  disabled={selectedRound?.scoring_locked || false}
                   onChange={(e) => setForm(f => ({ ...f, demo_url: e.target.value }))}
                   style={inputStyle}
                 />
               </div>
 
               {/* is_accessible checkbox */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: selectedRound?.scoring_locked ? 'not-allowed' : 'pointer', userSelect: 'none' }}>
                 <div
-                  onClick={() => setForm(f => ({ ...f, is_accessible: !f.is_accessible }))}
+                  onClick={() => !selectedRound?.scoring_locked && setForm(f => ({ ...f, is_accessible: !f.is_accessible }))}
                   style={{
                     width: 18, height: 18, borderRadius: 4, flexShrink: 0,
                     border: `2px solid ${form.is_accessible ? C.cyan : C.line}`,
@@ -670,8 +689,8 @@ export const StudentSubmitPage = () => {
               {/* Submit button */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
                 <button
-                  disabled={submitting || isPastDeadline}
-                  title={isPastDeadline ? 'Đã qua hạn nộp bài' : undefined}
+                  disabled={submitting || selectedRound?.scoring_locked}
+                  title={selectedRound?.scoring_locked ? 'Đã khóa chấm điểm' : undefined}
                   onClick={() => {
                     const e = validate();
                     if (Object.keys(e).length) { setErrors(e); return; }
@@ -681,9 +700,9 @@ export const StudentSubmitPage = () => {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 7,
                     padding: '9px 22px', borderRadius: 9, border: 'none',
-                    background: isPastDeadline ? C.line : 'linear-gradient(90deg,#00d4ff,#0099bb)',
-                    color: isPastDeadline ? C.dim : '#000',
-                    fontSize: 14, fontWeight: 700, cursor: isPastDeadline ? 'not-allowed' : 'pointer',
+                    background: selectedRound?.scoring_locked ? C.line : 'linear-gradient(90deg,#00d4ff,#0099bb)',
+                    color: selectedRound?.scoring_locked ? C.dim : '#000',
+                    fontSize: 14, fontWeight: 700, cursor: selectedRound?.scoring_locked ? 'not-allowed' : 'pointer',
                     opacity: submitting ? .7 : 1, transition: 'opacity .2s',
                   }}
                 >

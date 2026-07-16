@@ -47,13 +47,24 @@ function fmtDate(iso) {
 }
 
 // ─── Avatar component ─────────────────────────────────────────────────────────
-function Avatar({ name = "", size = 40, closed = false, className = "" }) {
+function Avatar({ name = "", url = "", size = 40, closed = false, className = "" }) {
   const style = closed
     ? { width: size, height: size, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.25)" }
     : { width: size, height: size, background: avatarGradient(name), border: "none", color: "#fff" };
   return (
-    <div className={`tc-avatar ${className}`} style={{ ...style, fontSize: size * 0.36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, flexShrink: 0, letterSpacing: "-0.5px" }}>
-      {closed ? "🔒" : initials(name)}
+    <div className={`tc-avatar ${className}`} style={{ ...style, fontSize: size * 0.36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, flexShrink: 0, letterSpacing: "-0.5px", overflow: "hidden" }}>
+      {closed ? (
+        "🔒"
+      ) : url ? (
+        <img 
+          src={url} 
+          alt={name} 
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          onError={(e) => { e.target.style.display = "none"; }}
+        />
+      ) : (
+        initials(name)
+      )}
     </div>
   );
 }
@@ -66,7 +77,7 @@ function MentorItem({ conv, selected, onClick }) {
       onClick={onClick}
     >
       <div style={{ position: "relative", flexShrink: 0 }}>
-        <Avatar name={conv.mentorName} size={42} closed={!conv.chatOpen} />
+        <Avatar name={conv.mentorName} url={conv.mentorAvatar} size={42} closed={!conv.chatOpen} />
         {conv.chatOpen && <span className="tc-online-dot" />}
       </div>
       <div className="tc-mentor-info">
@@ -107,7 +118,7 @@ function MsgBubble({ msg, isMe, showAvatar, showName }) {
     <div className={`tc-msg${isMe ? " tc-msg--me" : " tc-msg--other"}`}>
       {!isMe && (
         <div style={{ width: 32, flexShrink: 0, alignSelf: "flex-end" }}>
-          {showAvatar && <Avatar name={senderName} size={32} />}
+          {showAvatar && <Avatar name={senderName} url={msg.sender_id?.avatar_url} size={32} />}
         </div>
       )}
       <div className="tc-msg-content">
@@ -128,7 +139,7 @@ function MsgBubble({ msg, isMe, showAvatar, showName }) {
       </div>
       {isMe && (
         <div style={{ width: 32, flexShrink: 0, alignSelf: "flex-end" }}>
-          {showAvatar && <Avatar name={senderName} size={32} />}
+          {showAvatar && <Avatar name={senderName} url={msg.sender_id?.avatar_url} size={32} />}
         </div>
       )}
     </div>
@@ -290,7 +301,7 @@ function ChatWindow({ conv, userId, request }) {
       {/* Header */}
       <div className="tc-chat-header">
         <div style={{ position: "relative" }}>
-          <Avatar name={conv.mentorName} size={40} closed={!conv.chatOpen} />
+          <Avatar name={conv.mentorName} url={conv.mentorAvatar} size={40} closed={!conv.chatOpen} />
           {conv.chatOpen && <span className="tc-online-dot" />}
         </div>
         <div className="tc-chat-header-info">
@@ -331,7 +342,7 @@ function ChatWindow({ conv, userId, request }) {
         ) : messages.length === 0 ? (
           <div className="tc-empty-chat">
             <div className="tc-empty-chat-icon-wrap">
-              <Avatar name={conv.mentorName} size={64} />
+              <Avatar name={conv.mentorName} url={conv.mentorAvatar} size={64} />
             </div>
             <div className="tc-empty-chat-title">Bắt đầu cuộc trò chuyện</div>
             <div className="tc-empty-chat-sub">
@@ -345,7 +356,7 @@ function ChatWindow({ conv, userId, request }) {
 
         {someoneTyping && (
           <div className="tc-typing">
-            <Avatar name={typingName} size={24} />
+            <Avatar name={typingName} url={conv.mentorAvatar} size={24} />
             <div className="tc-typing-bubble">
               <span className="tc-typing-dot" />
               <span className="tc-typing-dot" />

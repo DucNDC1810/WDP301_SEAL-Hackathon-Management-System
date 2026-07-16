@@ -44,8 +44,8 @@ const statusDesc = {
   ELIMINATED:       'Đội đã bị loại khỏi cuộc thi.',
 };
 
-// Avatar with gradient background
-const Avatar = ({ name, size = 36, radius = '50%' }) => {
+// Avatar with gradient background or image
+const Avatar = ({ name, url, size = 36, radius = '50%' }) => {
   const letter = (name || '?')[0].toUpperCase();
   const palettes = [
     ['#0e7490', '#06b6d4'],
@@ -64,8 +64,18 @@ const Avatar = ({ name, size = 36, radius = '50%' }) => {
       fontWeight: 700, fontSize: size * 0.4, color: '#fff', flexShrink: 0,
       fontFamily: "'Space Grotesk', sans-serif",
       boxShadow: `0 0 12px ${from}55`,
+      overflow: 'hidden',
     }}>
-      {letter}
+      {url ? (
+        <img 
+          src={url} 
+          alt={name} 
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+      ) : (
+        letter
+      )}
     </div>
   );
 };
@@ -805,7 +815,7 @@ export const StudentTeamPage = () => {
                     display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px',
                     borderBottom: i < (team.members?.length ?? 0) - 1 ? `1px solid #0f1a2e` : 'none',
                   }}>
-                    <Avatar name={memberName} size={40} radius={11} />
+                    <Avatar name={memberName} url={m.user_id?.avatar_url} size={40} radius={11} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 2 }}>{memberName}</div>
                       <div style={{ fontSize: 12, color: C.dim }}>{m.email}</div>
@@ -870,7 +880,7 @@ export const StudentTeamPage = () => {
                     padding: '10px 0', borderBottom: `1px solid #0f1a2e`,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Avatar name={m.email} size={32} radius={9} />
+                      <Avatar name={m.email} url={m.user_id?.avatar_url} size={32} radius={9} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.email}</div>
                         <div style={{ fontSize: 11, color: C.dim }}>Sent {timeAgo(m.created_at || team.created_at)}</div>

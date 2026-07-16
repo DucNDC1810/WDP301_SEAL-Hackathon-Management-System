@@ -1122,6 +1122,46 @@ input:checked + .hd-switch-slider:before {
   animation: hd-pulse-dot 1.8s ease-in-out infinite;
 }
 
+.hd-round-countdown-banner-status-dot--completed {
+  animation: none !important;
+  background: var(--cyan) !important;
+  box-shadow: 0 0 8px var(--cyan) !important;
+}
+
+.hd-round-completed-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 30px;
+  border-radius: 16px;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  backdrop-filter: blur(10px);
+  z-index: 1;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.4),
+    0 0 40px rgba(0, 240, 255, 0.1);
+  color: var(--cyan);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.hd-round-completed-icon {
+  font-size: 1.2rem;
+  background: var(--cyan);
+  color: #060b10;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
 @keyframes hd-pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.5; transform: scale(0.8); }
@@ -1450,6 +1490,13 @@ input:checked + .hd-switch-slider:before {
   border-color: var(--green);
   background: rgba(16, 185, 129, 0.15);
   color: var(--green);
+  cursor: default;
+}
+
+.hd-btn-official.completed {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
   cursor: default;
 }
 

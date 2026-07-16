@@ -113,6 +113,7 @@ export default function JudgeDashboardPage() {
             status: mapSubStatus(sub.status),
             repoUrl: sub.repo_url,
             slideUrl: sub.slide_url,
+            demoUrl: sub.demo_url,
           };
         });
 
@@ -147,6 +148,7 @@ export default function JudgeDashboardPage() {
               name: t?.team_name || tid,
               repoUrl: sub.repoUrl,
               slideUrl: sub.slideUrl,
+              demoUrl: sub.demoUrl,
               status: sub.status,
               isMentee: mentees.has(tid),
             };
@@ -397,6 +399,9 @@ export default function JudgeDashboardPage() {
                             {team.slideUrl && (
                               <a href={team.slideUrl} target="_blank" rel="noreferrer" className="jp-link jp-link--slide">📊 Slide</a>
                             )}
+                            {team.demoUrl && (
+                              <a href={team.demoUrl} target="_blank" rel="noreferrer" className="jp-link jp-link--demo">🎥 Video</a>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -459,6 +464,9 @@ export default function JudgeDashboardPage() {
               {scoringTeam.slideUrl
                 ? <a href={scoringTeam.slideUrl} target="_blank" rel="noreferrer" className="jp-score-link jp-score-link--slide">📊 Mở Slide</a>
                 : <span className="jp-no-link">Không có slide</span>}
+              {scoringTeam.demoUrl && (
+                <a href={scoringTeam.demoUrl} target="_blank" rel="noreferrer" className="jp-score-link jp-score-link--demo" style={{ marginLeft: 8 }}>🎥 Mở Video</a>
+              )}
             </div>
 
             <div className="jp-crit-list">

@@ -1570,20 +1570,33 @@ export default function HackathonDetailPage({ defaultTab }) {
                   ? contest?.rounds?.find(x => x.round_number === Number(activeRound.sequence_order))
                   : null;
                 if (!activeRound || !activeDbRound?.submission_deadline) return null;
+                const isLocked = activeDbRound?.scoring_locked;
                 return (
                   <div className="hd-round-countdown-banner">
                     <div className="hd-round-countdown-banner-info">
-                      <span className="hd-round-countdown-banner-status">
-                        <span className="hd-round-countdown-banner-status-dot" />
-                        Đang thi
+                      <span 
+                        className="hd-round-countdown-banner-status"
+                        style={isLocked ? { color: 'var(--cyan)', background: 'rgba(0, 240, 255, 0.1)', borderColor: 'rgba(0, 240, 255, 0.4)', boxShadow: '0 0 16px rgba(0, 240, 255, 0.15)' } : {}}
+                      >
+                        <span className={`hd-round-countdown-banner-status-dot ${isLocked ? 'hd-round-countdown-banner-status-dot--completed' : ''}`} />
+                        {isLocked ? 'Đã hoàn thành' : 'Đang thi'}
                       </span>
-                      <span className="hd-round-countdown-banner-eyebrow">Vòng thi đang kích hoạt</span>
+                      <span className="hd-round-countdown-banner-eyebrow">
+                        {isLocked ? 'Vòng thi đã kết thúc' : 'Vòng thi đang kích hoạt'}
+                      </span>
                       <span className="hd-round-countdown-banner-title">{activeRound.name}</span>
                       <div className="hd-round-countdown-banner-dates">
                         <span>📅 Hạn nộp bài: <strong style={{ color: '#ffffff' }}>{fmtDate(activeDbRound.submission_deadline)}</strong></span>
                       </div>
                     </div>
-                    <RoundCountdownBox deadline={activeDbRound.submission_deadline} />
+                    {isLocked ? (
+                      <div className="hd-round-completed-box">
+                        <span className="hd-round-completed-icon">✓</span>
+                        <span>Đã hoàn thành</span>
+                      </div>
+                    ) : (
+                      <RoundCountdownBox deadline={activeDbRound.submission_deadline} />
+                    )}
                   </div>
                 );
               })()}
@@ -1647,8 +1660,10 @@ export default function HackathonDetailPage({ defaultTab }) {
                   const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
                   const ok = Math.abs(ws - 1.0) < 0.001;
                   const isOfficialActive = dbRound ? dbRound.is_active : (round.is_official_active || false);
+                  const isLocked = dbRound?.scoring_locked;
                   const valid = ok && (round.criteria?.length || 0) > 0;
-                  const tip = isOfficialActive ? 'Vòng thi đang kích hoạt chấm điểm chính thức'
+                  const tip = isLocked ? 'Vòng thi đã kết thúc và khóa chấm điểm'
+                    : isOfficialActive ? 'Vòng thi đang kích hoạt chấm điểm chính thức'
                     : !valid ? `Tổng trọng số = ${ws.toFixed(2)} ≠ 1.0 (Hoặc chưa có tiêu chí) — thêm/sửa tiêu chí để kích hoạt`
                     : 'Kích hoạt làm Vòng thi chính thức';
 
@@ -1761,9 +1776,9 @@ export default function HackathonDetailPage({ defaultTab }) {
                                   });
                                 }
                               }}
-                              className={`hd-btn-official ${isOfficialActive ? 'active' : ''}`}
+                              className={`hd-btn-official ${isLocked ? 'completed' : isOfficialActive ? 'active' : ''}`}
                             >
-                              {isOfficialActive ? '✓ Đang chạy' : '▷ Kích hoạt'}
+                              {isLocked ? '🔒 Đã khóa' : isOfficialActive ? '✓ Đang chạy' : '▷ Kích hoạt'}
                             </button>
                           </Tooltip>
 

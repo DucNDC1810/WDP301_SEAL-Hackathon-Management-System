@@ -60,7 +60,7 @@ export const getMessages = async ({ contestId, roundId, teamId, mentorId, page =
     .sort({ created_at: 1 })
     .skip(skip)
     .limit(limit)
-    .populate("sender_id", "full_name email");
+    .populate("sender_id", "full_name email avatar_url");
 
   const total = await ChatMessage.countDocuments({
     contest_id: contestId,
@@ -84,7 +84,7 @@ export const sendMessage = async ({ contestId, roundId, teamId, mentorId, sender
     read_by: [senderId],
   });
 
-  return await msg.populate("sender_id", "full_name email");
+  return await msg.populate("sender_id", "full_name email avatar_url");
 };
 
 export const markMessagesRead = async ({ contestId, roundId, teamId, mentorId, userId }) => {
@@ -104,7 +104,7 @@ export const markMessagesRead = async ({ contestId, roundId, teamId, mentorId, u
 export const getTeamMentors = async (teamId, userId) => {
   const assignments = await MentorAssignment.find({ team_id: teamId })
     .populate("contest_id", "title status rounds")
-    .populate("mentor_id", "full_name email");
+    .populate("mentor_id", "full_name email avatar_url");
 
   const result = await Promise.all(
     assignments.map(async (a) => {
@@ -145,6 +145,7 @@ export const getTeamMentors = async (teamId, userId) => {
         mentorId: a.mentor_id._id,
         mentorName: a.mentor_id.full_name,
         mentorEmail: a.mentor_id.email,
+        mentorAvatar: a.mentor_id.avatar_url,
         chatOpen,
         lastMessage: lastMsg || null,
       };

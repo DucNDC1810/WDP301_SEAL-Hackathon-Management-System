@@ -92,6 +92,12 @@ export const createSubmission = async ({ repo_url, demo_url, slide_url, team_id,
     throw err;
   }
 
+  if (round.scoring_locked) {
+    const err = new Error("Vòng thi đã khóa chấm điểm, không thể cập nhật bài nộp");
+    err.statusCode = 400;
+    throw err;
+  }
+
   if (!round.is_active) {
     const err = new Error("Vòng thi này hiện không hoạt động, không thể nộp bài");
     err.statusCode = 400;
@@ -171,7 +177,14 @@ export const getSubmissions = async ({ round_id, status }) => {
   if (status) query.status = status;
 
   return await Submission.find(query)
-    .populate("team_id", "team_name contest_id")
+    .populate({
+      path: "team_id",
+      select: "team_name contest_id pool_id",
+      populate: {
+        path: "pool_id",
+        select: "pool_name name"
+      }
+    })
     .sort({ submitted_at: -1 });
 };
 

@@ -82,6 +82,7 @@ export const handleListSubmissions = async (req, res, next) => {
         slide_url: sub.slide_url,
         team_id: sub.team_id?._id || sub.team_id,
         team_name: sub.team_id?.team_name || "N/A",
+        pool_name: sub.team_id?.pool_id?.pool_name || sub.team_id?.pool_id?.name || "N/A",
         contest_id: sub.team_id?.contest_id || null,
         round_id: sub.round_id,
         is_accessible: sub.is_accessible,

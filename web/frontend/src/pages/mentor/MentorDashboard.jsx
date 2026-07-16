@@ -67,8 +67,8 @@ function buildScheduleEvents(contests) {
 // ─── Enrich raw assignments from /api/mentor-assignments/me ──────────────────
 function enrichAssignment(a, idx) {
   const contest = a.contest_id || {};
-  const rounds  = (contest.rounds || []).filter(r => r.is_active);
-  const round   = rounds.find(r => r._id?.toString() === a.round_id?.toString()) || {};
+  const allRounds = contest.rounds || [];
+  const round   = allRounds.find(r => r._id?.toString() === a.round_id?.toString()) || {};
   const pool    = a.board_id || {};
   const team    = a.team_id  || {};
 
@@ -79,7 +79,7 @@ function enrichAssignment(a, idx) {
     contestStart:  contest.start_date,
     contestEnd:    contest.end_date,
     contestStatus: statusMap[contest.status] || 'upcoming',
-    rounds:        rounds,
+    rounds:        allRounds.filter(r => r.is_active),
     roundId:       round._id?.toString() || a.round_id?.toString() || '',
     roundName:     round.name || '—',
     roundIsActive: !!round.is_active,
@@ -786,28 +786,66 @@ function SectionEval({ enriched, scores, navigate }) {
 }
 
 // ─── Section: Scoring (teams to score — not own mentees) ─────────────────────
-function SectionScoring({ enriched, judgeMap, navigate }) {
-  // Deduplicate by (contestId, roundId) — each unique round the mentor is assigned to
+function SectionScoring({ enriched, judgeMap, rawJudge, navigate }) {
+  // Deduplicate by (contestId, roundId) — each unique round the mentor/judge is assigned to
   const seen = new Set();
-  const rounds = enriched.reduce((acc, a) => {
-    const key = `${a.contestId}___${a.roundId}`;
-    if (!seen.has(key) && a.contestId && a.roundId) {
+  const rounds = [];
+
+  const addRound = (r) => {
+    const key = `${r.contestId}___${r.roundId}`;
+    if (!seen.has(key) && r.contestId && r.roundId) {
       seen.add(key);
-      // If mentor also has a judge assignment for this round → use judge URL (pool-scoped)
+      rounds.push(r);
+    }
+  };
+
+  // 1. Add rounds from mentor assignments (enriched)
+  if (Array.isArray(enriched)) {
+    enriched.forEach(a => {
+      const key = `${a.contestId}___${a.roundId}`;
       const judgePoolId = judgeMap[key];
-      acc.push({
+      addRound({
         key,
         contestId:    a.contestId,
         roundId:      a.roundId,
         contestName:  a.contestName,
         roundName:    a.roundName,
         roundIsActive: a.roundIsActive,
-        accentColor:  a.accentColor,
-        judgePoolId,  // defined → navigate to judge URL; undefined → mentor URL (all pools)
+        accentColor:  a.accentColor || '#00d4ff',
+        judgePoolId,
       });
-    }
-    return acc;
-  }, []);
+    });
+  }
+
+  // 2. Add rounds from judge assignments (rawJudge)
+  if (Array.isArray(rawJudge)) {
+    rawJudge.forEach((ja, idx) => {
+      const contest = ja.contest_id || {};
+      const contestId = (contest._id || contest).toString();
+      const roundId = ja.round_id?.toString();
+      if (!contestId || !roundId) return;
+
+      const key = `${contestId}___${roundId}`;
+      if (seen.has(key)) return;
+
+      // Find round details from contest
+      const roundsArr = contest.rounds || [];
+      const round = roundsArr.find(r => r._id?.toString() === roundId) || {};
+      
+      const ACCENT_COLORS = ['#00d4ff', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
+
+      addRound({
+        key,
+        contestId,
+        roundId,
+        contestName:  contest.title || '—',
+        roundName:    round.name || '—',
+        roundIsActive: !!round.is_active,
+        accentColor:  ACCENT_COLORS[idx % ACCENT_COLORS.length],
+        judgePoolId:  ja.pool_id?._id || ja.pool_id,
+      });
+    });
+  }
 
   const endedRounds  = rounds.filter(r => !r.roundIsActive);
   const activeRounds = rounds.filter(r => r.roundIsActive);
@@ -1004,6 +1042,7 @@ export default function MentorDashboard() {
   const [contests, setContests]     = useState([]);
   const [enriched, setEnriched]     = useState([]); // processed mentor assignments
   const [judgeMap, setJudgeMap]     = useState({}); // "contestId___roundId" → poolId
+  const [rawJudge, setRawJudge]     = useState([]);
   const [scores, setScores]         = useState({});  // { "contestId___roundId": [score,...] }
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [chatUnread, setChatUnread] = useState(0);
@@ -1073,9 +1112,10 @@ export default function MentorDashboard() {
         if (cid && rid && pid) jMap[`${cid}___${rid}`] = pid;
       });
       setJudgeMap(jMap);
+      setRawJudge(rawJudge);
 
       // 2. Enrich each mentor assignment with flat data
-      const enrichedList = rawAssignments.map((a, idx) => enrichAssignment(a, idx)).filter(a => a.roundIsActive);
+      const enrichedList = rawAssignments.map((a, idx) => enrichAssignment(a, idx));
       setContests(allContests);
       setEnriched(enrichedList);
 
@@ -1123,7 +1163,7 @@ export default function MentorDashboard() {
     switch (activeView) {
       case 'dashboard': return <SectionDashboard contests={contests} enriched={enriched} loading={loading} navigate={navigate} />;
       case 'teams':     return <SectionTeams     enriched={enriched} onOpenTeam={setSelectedTeam} navigate={navigate} />;
-      case 'scoring':   return <SectionScoring   enriched={enriched} judgeMap={judgeMap} navigate={navigate} />;
+      case 'scoring':   return <SectionScoring   enriched={enriched} judgeMap={judgeMap} rawJudge={rawJudge} navigate={navigate} />;
       case 'schedule':  return <SectionSchedule  contests={contests} enriched={enriched} />;
       case 'eval':      return <SectionEval      enriched={enriched} scores={scores} navigate={navigate} />;
       case 'settings':  return <SectionSettings  user={user} />;

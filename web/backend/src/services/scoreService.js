@@ -282,7 +282,7 @@ export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
 
   const [scores, submissions, unscheduledTeams] = await Promise.all([
     Score.find({ judge_id: judgeId, round_id: roundId, team_id: { $in: allTeamIds } }).lean(),
-    Submission.find({ round_id: roundId, team_id: { $in: allTeamIds } }).select("team_id repo_url slide_url").lean(),
+    Submission.find({ round_id: roundId, team_id: { $in: allTeamIds } }).select("team_id repo_url slide_url demo_url").lean(),
     unscheduledTeamIds.length
       ? Team.find({ _id: { $in: unscheduledTeamIds } }).select("team_name").lean()
       : [],
@@ -304,7 +304,7 @@ export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
 
   const subByTeam = {};
   for (const sub of submissions) {
-    subByTeam[String(sub.team_id)] = { repo_url: sub.repo_url, slide_url: sub.slide_url };
+    subByTeam[String(sub.team_id)] = { repo_url: sub.repo_url, slide_url: sub.slide_url, demo_url: sub.demo_url };
   }
 
   const buildEntry = (teamId, teamName, slot) => {
@@ -319,6 +319,7 @@ export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
       room:         slot?.room ?? null,
       repo_url:     sub.repo_url  ?? null,
       slide_url:    sub.slide_url ?? null,
+      demo_url:     sub.demo_url  ?? null,
       score_status: sc.score_status  ?? null,
       score_id:     sc.score_id      ?? null,
       total_score:  sc.total_score   ?? null,

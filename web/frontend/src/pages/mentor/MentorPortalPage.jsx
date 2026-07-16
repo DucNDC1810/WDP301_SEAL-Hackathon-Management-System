@@ -112,6 +112,7 @@ export default function MentorPortalPage() {
           status: mapSubStatus(sub.status),
           repoUrl: sub.repo_url,
           slideUrl: sub.slide_url,
+          demoUrl: sub.demo_url,
           submittedAt: sub.submitted_at,
         };
       });
@@ -348,13 +349,16 @@ export default function MentorPortalPage() {
                             <Tag color={sc.color} style={{ marginLeft: 8 }}>{sc.label}</Tag>
                           </div>
                           <div className="mp-sub-links">
-                            {sub.repoUrl
-                              ? <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--repo">🔗 Xem Repo</a>
-                              : <span className="mp-no-link">Chưa có repo</span>}
-                            {sub.slideUrl
-                              ? <a href={sub.slideUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--slide">📊 Xem Slide</a>
-                              : <span className="mp-no-link">Chưa có slide</span>}
-                          </div>
+                             {sub.repoUrl
+                               ? <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--repo">🔗 Xem Repo</a>
+                               : <span className="mp-no-link">Chưa có repo</span>}
+                             {sub.slideUrl
+                               ? <a href={sub.slideUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--slide">📊 Xem Slide</a>
+                               : <span className="mp-no-link">Chưa có slide</span>}
+                             {sub.demoUrl && (
+                               <a href={sub.demoUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--demo" style={{ marginLeft: 8 }}>🎥 Xem Demo</a>
+                             )}
+                           </div>
                         </div>
                       )}
                     </div>

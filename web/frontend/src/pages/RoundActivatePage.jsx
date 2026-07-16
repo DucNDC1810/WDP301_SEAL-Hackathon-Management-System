@@ -95,7 +95,7 @@ export default function RoundActivatePage() {
 
     Modal.confirm({
       title: 'Kích hoạt Vòng thi?',
-      content: 'Kích hoạt Round Chung kết? Sau khi kích hoạt, vòng thi này sẽ chính thức bắt đầu và BGK có thể tiến hành chấm điểm.',
+      content: `Kích hoạt ${round?.name || 'vòng thi'}? Sau khi kích hoạt, vòng thi này sẽ chính thức bắt đầu và BGK có thể tiến hành chấm điểm.`,
       okText: 'Kích hoạt',
       cancelText: 'Hủy',
       onOk: async () => {
@@ -108,6 +108,14 @@ export default function RoundActivatePage() {
               message: 'Thành công',
               description: '🎉 Vòng thi đã được kích hoạt thành công!',
             });
+            setTimeout(() => {
+              const cId = round?.contest_id?._id || round?.contest_id;
+              if (cId) {
+                navigate(`/admin/hackathons/${cId}`);
+              } else {
+                navigate(`/admin/hackathons`);
+              }
+            }, 1500);
           }
         } catch (err) {
           console.error(err);
@@ -250,7 +258,7 @@ export default function RoundActivatePage() {
             color: "#fff",
             textShadow: "0 0 10px rgba(0, 240, 255, 0.4)"
           }}>
-            KÍCH HOẠT VÒNG CHUNG KẾT
+            KÍCH HOẠT {round?.name ? round.name.toUpperCase() : 'VÒNG THI'}
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             Thiết lập Hội đồng Ban giám khảo độc lập và kiểm tra tiêu chí chấm điểm cho vòng thi: <strong style={{ color: 'var(--cyan)' }}>{round?.name}</strong>
@@ -305,18 +313,6 @@ export default function RoundActivatePage() {
                 Hội đồng Ban giám khảo (Judges)
               </h3>
               
-              <p style={{
-                fontSize: '0.8rem',
-                color: 'var(--orange)',
-                fontWeight: 'bold',
-                marginBottom: '16px',
-                background: 'rgba(245, 158, 11, 0.08)',
-                border: '1px dashed rgba(245, 158, 11, 0.2)',
-                padding: '8px 12px',
-                borderRadius: '6px'
-              }}>
-                ⚠️ Panel độc lập — không dùng lại Judge của Vòng Sơ loại!
-              </p>
 
               {/* Selector List */}
               <div style={{

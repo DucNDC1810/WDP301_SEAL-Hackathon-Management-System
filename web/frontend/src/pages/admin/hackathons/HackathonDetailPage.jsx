@@ -1595,6 +1595,33 @@ export default function HackathonDetailPage({ defaultTab }) {
         <div className="hd-section">
           {selectedTrack ? (
             <div className="hd-rounds-panel" style={{ width: '100%', border: 'none', padding: 0 }}>
+              {(() => {
+                const activeRound = selectedTrack.rounds.find(r => {
+                  const dr = contest?.rounds?.find(x => x.round_number === Number(r.sequence_order));
+                  return dr ? dr.is_active : (r.is_official_active || false);
+                });
+                const activeDbRound = activeRound
+                  ? contest?.rounds?.find(x => x.round_number === Number(activeRound.sequence_order))
+                  : null;
+                if (!activeRound || !activeDbRound?.submission_deadline) return null;
+                return (
+                  <div className="hd-round-countdown-banner">
+                    <div className="hd-round-countdown-banner-info">
+                      <span className="hd-round-countdown-banner-status">
+                        <span className="hd-round-countdown-banner-status-dot" />
+                        Đang thi
+                      </span>
+                      <span className="hd-round-countdown-banner-eyebrow">Vòng thi đang kích hoạt</span>
+                      <span className="hd-round-countdown-banner-title">{activeRound.name}</span>
+                      <div className="hd-round-countdown-banner-dates">
+                        <span>📅 Hạn nộp bài: <strong style={{ color: '#ffffff' }}>{fmtDate(activeDbRound.submission_deadline)}</strong></span>
+                      </div>
+                    </div>
+                    <RoundCountdownBox deadline={activeDbRound.submission_deadline} />
+                  </div>
+                );
+              })()}
+
               <div className="hd-section-header">
                 <div>
                   <h2 className="hd-section-title">Danh sách Vòng thi</h2>
@@ -2746,6 +2773,51 @@ export default function HackathonDetailPage({ defaultTab }) {
               })()}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Đếm ngược thời gian còn lại tới hạn nộp bài của vòng thi đang active (dạng GIỜ:PHÚT:GIÂY)
+function RoundCountdownBox({ deadline }) {
+  const calcRemaining = () => Math.max(0, new Date(deadline).getTime() - Date.now());
+  const [remaining, setRemaining] = useState(calcRemaining());
+
+  useEffect(() => {
+    const timerId = setInterval(() => setRemaining(calcRemaining()), 1000);
+    return () => clearInterval(timerId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deadline]);
+
+  const totalSeconds = Math.floor(remaining / 1000);
+  const hours   = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  const isExpired = remaining === 0;
+
+  return (
+    <div className="hd-round-countdown">
+      <span className="hd-round-countdown-lbl">⏱️ Thời gian còn lại</span>
+      {isExpired ? (
+        <span className="hd-round-countdown-expired">Đã hết giờ</span>
+      ) : (
+        <div className="hd-round-countdown-units">
+          <div className="hd-round-countdown-unit">
+            <span className="hd-round-countdown-num">{pad(hours)}</span>
+            <span className="hd-round-countdown-unit-lbl">Giờ</span>
+          </div>
+          <span className="hd-round-countdown-sep">:</span>
+          <div className="hd-round-countdown-unit">
+            <span className="hd-round-countdown-num">{pad(minutes)}</span>
+            <span className="hd-round-countdown-unit-lbl">Phút</span>
+          </div>
+          <span className="hd-round-countdown-sep">:</span>
+          <div className="hd-round-countdown-unit">
+            <span className="hd-round-countdown-num">{pad(seconds)}</span>
+            <span className="hd-round-countdown-unit-lbl">Giây</span>
+          </div>
         </div>
       )}
     </div>

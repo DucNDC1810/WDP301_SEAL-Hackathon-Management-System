@@ -5,7 +5,8 @@ import MentorAssignment from "../models/MentorAssignment.js";
 import Invitation from "../models/Invitation.js";
 import Contest from "../models/Contest.js";
 import User from "../models/User.js";
-import { sendJudgeInvitationEmail } from "./emailService.js";
+import { sendJudgeInvitationEmail, sendJudgeAssignedEmail } from "./emailService.js";
+import { notifyJudgeAssignedToPool } from "./notificationService.js";
 
 // ─── assignJudge ──────────────────────────────────────────────────────────────
 
@@ -181,6 +182,29 @@ export const assignJudge = async ({
     { path: "pool_id",     select: "pool_name" },
     { path: "assigned_by", select: "full_name email" },
   ]);
+
+  // Gửi thông báo thời gian thực và email cho Giám khảo
+  try {
+    const judgeUser = assignment.judge_id;
+    const poolObj = assignment.pool_id;
+    if (judgeUser && poolObj) {
+      await notifyJudgeAssignedToPool({
+        user_id: judgeUser._id,
+        contestTitle: contest.title,
+        poolName: poolObj.pool_name,
+        ref_id: contest._id,
+      });
+
+      sendJudgeAssignedEmail(
+        judgeUser.email,
+        judgeUser.full_name || "Giám khảo",
+        contest.title,
+        poolObj.pool_name
+      ).catch((mailErr) => console.error("[sendJudgeAssignedEmail error]", mailErr));
+    }
+  } catch (notifErr) {
+    console.error("[assignJudge notification error]", notifErr);
+  }
 
   return { assignment, warnings: [] };
 };

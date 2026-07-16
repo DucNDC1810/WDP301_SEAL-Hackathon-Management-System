@@ -198,15 +198,31 @@ export const sendMissingSubmissionEmail = async (to, fullName, contestTitle) => 
 
 // ─── sendMentorAssignedEmail ──────────────────────────────────────────────────
 
-export const sendMentorAssignedEmail = async (to, fullName, contestTitle, poolName) => {
+export const sendMentorAssignedEmail = async (to, fullName, contestTitle, teamName) => {
   await transporter.sendMail({
     from: FROM,
     to,
-    subject: `[SEAL Hackathon] Bạn được phân công làm giám khảo - ${contestTitle}`,
+    subject: `[SEAL Hackathon] Bạn được phân công làm Mentor - ${contestTitle}`,
     html: `
       <p>Chào <strong>${fullName}</strong>,</p>
-      <p>Bạn đã được phân công làm <strong>giám khảo</strong> cho bảng <strong>${poolName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
-      <p>Vui lòng đăng nhập vào hệ thống để xem danh sách đội thi được phân công.</p>
+      <p>Bạn đã được phân công làm <strong>Mentor</strong> hỗ trợ cho đội <strong>${teamName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
+      <p>Vui lòng đăng nhập vào hệ thống để xem thông tin đội thi và bắt đầu hỗ trợ.</p>
+      <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
+    `,
+  });
+};
+
+// ─── sendJudgeAssignedEmail ───────────────────────────────────────────────────
+
+export const sendJudgeAssignedEmail = async (to, fullName, contestTitle, poolName) => {
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `[SEAL Hackathon] Bạn được phân công làm Giám khảo - ${contestTitle}`,
+    html: `
+      <p>Chào <strong>${fullName}</strong>,</p>
+      <p>Bạn đã được phân công làm <strong>Giám khảo</strong> cho bảng <strong>${poolName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
+      <p>Vui lòng đăng nhập vào hệ thống để xem danh sách đội thi được phân công chấm điểm.</p>
       <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
     `,
   });

@@ -117,7 +117,6 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     u.roles?.some(r => r.role_name === 'judge' || r.role_name === 'mentor')
   );
   const mentors = allUsers.filter(u => u.roles?.some(r => r.role_name === 'mentor'));
-  const poolOptions = pools.map(p => ({ value: p._id, label: p.pool_name }));
 
   // Pool đã có judge
   const assignedPoolIds = new Set(judgeAssignments.map(a => a.poolId));
@@ -129,6 +128,16 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
       a => a.mentorId === userId?.toString() && a.poolId === poolId?.toString()
     );
   };
+
+  // Các bảng mà giám khảo đang chọn (nếu là mentor) đã phụ trách — không cho chọn để chấm cùng bảng
+  const boardsMentoredByNewJudge = new Set(
+    newJudgeId
+      ? mentorAssignments.filter(a => a.mentorId === newJudgeId?.toString()).map(a => a.poolId)
+      : []
+  );
+  const poolOptions = pools
+    .filter(p => !boardsMentoredByNewJudge.has(p._id?.toString()))
+    .map(p => ({ value: p._id, label: p.pool_name }));
 
   const resetJudgeModal = () => {
     setNewJudgeId(null);
@@ -429,7 +438,10 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
               </label>
               <Select
                 value={newJudgeId}
-                onChange={setNewJudgeId}
+                onChange={v => {
+                  setNewJudgeId(v);
+                  if (isMentorOfPool(v, newJudgePool)) setNewJudgePool(null);
+                }}
                 style={{ width: '100%' }}
                 placeholder={newJudgePool ? 'Tìm theo tên hoặc email...' : 'Chọn bảng trước'}
                 disabled={!newJudgePool}

@@ -8,6 +8,7 @@ import Pool from "../models/Pool.js";
 import User from "../models/User.js";
 import PresentationSlot from "../models/PresentationSlot.js";
 import Submission from "../models/Submission.js";
+import Team from "../models/Team.js";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,9 @@ export const createScore = async ({
     err.statusCode = 403; throw err;
   }
 
-  // Timing check: judge-role user chỉ chấm được sau khi slot của team bắt đầu
+  // Timing check: nếu team có lịch trình bày (PresentationSlot), judge-role user
+  // chỉ chấm được sau khi slot bắt đầu. Team chưa có lịch (contest không dùng lịch
+  // trình bày) thì chấm được ngay — không chặn.
   const actor = await User.findById(actorId).select("roles").lean();
   const actorRoles = (actor?.roles || []).map(r => r.role_name);
   if (actorRoles.includes("judge") && !actorRoles.includes("mentor")) {
@@ -68,11 +71,7 @@ export const createScore = async ({
       booked_team_id: team_id,
       status: { $in: ["booked", "completed"] },
     }).select("start_time").lean();
-    if (!slot) {
-      const err = new Error("Team chưa có lịch trình bày");
-      err.statusCode = 403; throw err;
-    }
-    if (slot.start_time > new Date()) {
+    if (slot && slot.start_time > new Date()) {
       const err = new Error("Chưa đến giờ trình bày của team này");
       err.statusCode = 403; throw err;
     }
@@ -156,9 +155,6 @@ export const updateScore = async (scoreId, judgeId, { comment, score_details, su
   if (score.judge_id.toString() !== judgeId.toString() &&
       score.mentor_id?.toString() !== judgeId.toString()) {
     const err = new Error("Không có quyền chỉnh sửa"); err.statusCode = 403; throw err;
-  }
-  if (score.status === "submitted") {
-    const err = new Error("Không thể chỉnh sửa điểm đã nộp"); err.statusCode = 400; throw err;
   }
 
   const round = await getRound(score.contest_id.toString(), score.round_id.toString());
@@ -257,13 +253,14 @@ export const getMyScores = async (contestId, roundId, judgeId) => {
 
 export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
   const assignment = await JudgeAssignment.findOne({ judge_id: judgeId, contest_id: contestId, round_id: roundId })
-    .populate("pool_id", "pool_name")
+    .populate("pool_id", "pool_name teams")
     .lean();
 
   if (!assignment) return { pool_id: null, pool_name: null, slots: [] };
 
   const poolId   = assignment.pool_id._id;
   const poolName = assignment.pool_id.pool_name;
+  const poolTeamIds = (assignment.pool_id.teams || []).map((t) => t.toString());
 
   const slots = await PresentationSlot.find({
     contest_id: contestId,
@@ -275,13 +272,20 @@ export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
     .sort({ start_time: 1 })
     .lean();
 
-  if (!slots.length) return { pool_id: poolId, pool_name: poolName, slots: [] };
+  // Teams trong bảng chưa có slot trình bày (hoặc contest này không dùng lịch trình bày)
+  // vẫn phải xuất hiện để judge chấm được ngay — không phụ thuộc PresentationSlot.
+  const scheduledTeamIds = new Set(slots.map((s) => s.booked_team_id?._id?.toString()).filter(Boolean));
+  const unscheduledTeamIds = poolTeamIds.filter((id) => !scheduledTeamIds.has(id));
 
-  const teamIds = slots.map((s) => s.booked_team_id?._id).filter(Boolean);
+  const allTeamIds = [...scheduledTeamIds, ...unscheduledTeamIds];
+  if (!allTeamIds.length) return { pool_id: poolId, pool_name: poolName, slots: [] };
 
-  const [scores, submissions] = await Promise.all([
-    Score.find({ judge_id: judgeId, round_id: roundId, team_id: { $in: teamIds } }).lean(),
-    Submission.find({ round_id: roundId, team_id: { $in: teamIds } }).select("team_id repo_url slide_url").lean(),
+  const [scores, submissions, unscheduledTeams] = await Promise.all([
+    Score.find({ judge_id: judgeId, round_id: roundId, team_id: { $in: allTeamIds } }).lean(),
+    Submission.find({ round_id: roundId, team_id: { $in: allTeamIds } }).select("team_id repo_url slide_url").lean(),
+    unscheduledTeamIds.length
+      ? Team.find({ _id: { $in: unscheduledTeamIds } }).select("team_name").lean()
+      : [],
   ]);
 
   const scoreDetails = await ScoreDetail.find({ score_id: { $in: scores.map((s) => s._id) } }).lean();
@@ -303,28 +307,36 @@ export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
     subByTeam[String(sub.team_id)] = { repo_url: sub.repo_url, slide_url: sub.slide_url };
   }
 
+  const buildEntry = (teamId, teamName, slot) => {
+    const sc  = scoreByTeam[teamId] || {};
+    const sub = subByTeam[teamId]   || {};
+    return {
+      slot_id:      slot?._id ?? null,
+      team_id:      teamId,
+      team_name:    teamName ?? "—",
+      start_time:   slot?.start_time ?? null,
+      end_time:     slot?.end_time ?? null,
+      room:         slot?.room ?? null,
+      repo_url:     sub.repo_url  ?? null,
+      slide_url:    sub.slide_url ?? null,
+      score_status: sc.score_status  ?? null,
+      score_id:     sc.score_id      ?? null,
+      total_score:  sc.total_score   ?? null,
+      score_details: sc.score_details ?? [],
+    };
+  };
+
+  const scheduledEntries = slots.map((slot) =>
+    buildEntry(String(slot.booked_team_id?._id), slot.booked_team_id?.team_name, slot)
+  );
+  const unscheduledEntries = unscheduledTeams.map((t) =>
+    buildEntry(String(t._id), t.team_name, null)
+  );
+
   return {
     pool_id:   poolId,
     pool_name: poolName,
-    slots: slots.map((slot) => {
-      const teamId = String(slot.booked_team_id?._id);
-      const sc  = scoreByTeam[teamId] || {};
-      const sub = subByTeam[teamId]   || {};
-      return {
-        slot_id:      slot._id,
-        team_id:      slot.booked_team_id?._id,
-        team_name:    slot.booked_team_id?.team_name ?? "—",
-        start_time:   slot.start_time,
-        end_time:     slot.end_time,
-        room:         slot.room,
-        repo_url:     sub.repo_url  ?? null,
-        slide_url:    sub.slide_url ?? null,
-        score_status: sc.score_status  ?? null,
-        score_id:     sc.score_id      ?? null,
-        total_score:  sc.total_score   ?? null,
-        score_details: sc.score_details ?? [],
-      };
-    }),
+    slots: [...scheduledEntries, ...unscheduledEntries],
   };
 };
 

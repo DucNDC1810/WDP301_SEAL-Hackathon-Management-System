@@ -2,6 +2,8 @@ import MentorAssignment from "../models/MentorAssignment.js";
 import Contest from "../models/Contest.js";
 import Team from "../models/Team.js";
 import User from "../models/User.js";
+import { sendMentorAssignedEmail } from "./emailService.js";
+import { notifyMentorAssignedToTeam, notifyTeamMentorAssigned } from "./notificationService.js";
 
 const FPT_DOMAINS = ["@fpt.edu.vn", "@fe.edu.vn", "@fpt.com.vn"];
 const MAX_TEAMS_PER_MENTOR_PER_ROUND = 3;
@@ -61,9 +63,54 @@ export const assignMentor = async ({ contest_id, round_id, board_id, team_id, me
 
   await assignment.populate([
     { path: "mentor_id", select: "full_name email" },
-    { path: "team_id",   select: "team_name status" },
+    { path: "team_id",   select: "team_name status members leader_id" },
     { path: "board_id",  select: "pool_name" },
   ]);
+
+  // Gửi thông báo thời gian thực & email cho Mentor và Đội thi
+  try {
+    const mentorUser = assignment.mentor_id;
+    const teamObj = assignment.team_id;
+    const poolObj = assignment.board_id;
+
+    if (mentorUser && teamObj) {
+      // 1. Notify Mentor (In-app)
+      await notifyMentorAssignedToTeam({
+        user_id: mentorUser._id,
+        contestTitle: contest.title,
+        poolName: poolObj?.pool_name || "Bảng đấu",
+        teamName: teamObj.team_name,
+        ref_id: teamObj._id,
+      });
+
+      // 2. Notify Mentor (Email)
+      sendMentorAssignedEmail(
+        mentorUser.email,
+        mentorUser.full_name || "Mentor",
+        contest.title,
+        teamObj.team_name
+      ).catch((mailErr) => console.error("[sendMentorAssignedEmail error]", mailErr));
+
+      // 3. Notify Team members (In-app)
+      const memberUserIds = (teamObj.members || [])
+        .filter((m) => m.user_id && m.email_verified)
+        .map((m) => m.user_id.toString());
+      if (teamObj.leader_id && !memberUserIds.includes(teamObj.leader_id.toString())) {
+        memberUserIds.push(teamObj.leader_id.toString());
+      }
+
+      if (memberUserIds.length > 0) {
+        await notifyTeamMentorAssigned({
+          user_ids: memberUserIds,
+          contestTitle: contest.title,
+          mentorName: mentorUser.full_name || "Mentor",
+          ref_id: teamObj._id,
+        });
+      }
+    }
+  } catch (notifErr) {
+    console.error("[assignMentor notifications error]", notifErr);
+  }
 
   return { assignment, warnings };
 };

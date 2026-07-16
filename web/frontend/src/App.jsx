@@ -144,7 +144,7 @@ function App() {
               {/* Judge — chỉ chấm điểm sau khi vòng kết thúc */}
               <Route path="/judge/accept-invite"                           element={<JudgeAcceptInvitePage />} />
               <Route path="/judge/dashboard"                              element={<JudgeRoute><JudgeHomePage /></JudgeRoute>} />
-              <Route path="/judge/scoring/:contestId/rounds/:roundId/pools/:poolId" element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
+              <Route path="/judge/scoring/:contestId/rounds/:roundId/pools/:poolId?" element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
 
               {/* Student dashboard — sidebar layout, no Navbar/Footer */}
               <Route path="/dashboard" element={<AuthRoute><StudentLayout /></AuthRoute>}>

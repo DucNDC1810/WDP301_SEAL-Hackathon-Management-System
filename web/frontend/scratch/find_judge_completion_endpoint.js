@@ -10,14 +10,9 @@ const searchDir = (dir) => {
       searchDir(fullPath);
     } else if (f.endsWith('.js')) {
       const content = fs.readFileSync(fullPath, 'utf8');
-      const lines = content.split('\n');
-      lines.forEach((line, idx) => {
-        if (line.includes('.status') || line.includes('status:') || line.includes('status =')) {
-          if (line.includes('ACTIVE') || line.includes('CONFIRMED') || line.includes('ELIMINATED')) {
-            console.log(`${fullPath}:${idx + 1}: ${line.trim()}`);
-          }
-        }
-      });
+      if (content.includes('judge-completion') || content.includes('/judge-completion')) {
+        console.log(`Found candidate: ${fullPath}`);
+      }
     }
   });
 };

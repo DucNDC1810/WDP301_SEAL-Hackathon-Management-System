@@ -65,7 +65,7 @@ function enrichJudgeAssignment(a, idx, scoreMap) {
     roundName:     round.name || '—',
     roundIsActive: !!round.is_active,
     scoringLocked: !!round.scoring_locked,
-    poolId:        pool._id?.toString() || '',
+    poolId:        pool._id?.toString() || 'null',
     poolName:      pool.pool_name || '—',
     teams:         enrichedTeams,
     teamCount:     total,

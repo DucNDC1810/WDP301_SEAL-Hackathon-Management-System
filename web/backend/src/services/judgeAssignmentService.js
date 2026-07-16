@@ -244,7 +244,7 @@ export const getMyJudgeAssignments = async (judgeId, contestId, roundId) => {
   if (contestId) query.contest_id = contestId;
   if (roundId)   query.round_id   = roundId;
 
-  return JudgeAssignment.find(query)
+  const assignments = await JudgeAssignment.find(query)
     .populate("contest_id", "title start_date end_date status rounds score_criteria")
     .populate({
       path: "pool_id",
@@ -256,4 +256,30 @@ export const getMyJudgeAssignments = async (judgeId, contestId, roundId) => {
       },
     })
     .sort({ created_at: -1 });
+
+  const Team = mongoose.models.Team || mongoose.model("Team");
+  const results = [];
+
+  for (const doc of assignments) {
+    const obj = doc.toObject();
+    if (!obj.pool_id) {
+      // Fetch all active/confirmed teams in this contest to display as finalist teams
+      const activeTeams = await Team.find({
+        contest_id: obj.contest_id?._id || obj.contest_id,
+        status: { $in: ["ACTIVE", "CONFIRMED"] }
+      })
+      .select("team_name status topic_id members leader_id")
+      .populate({ path: "topic_id", select: "title" })
+      .lean();
+
+      obj.pool_id = {
+        _id: null,
+        pool_name: "Chung kết",
+        teams: activeTeams
+      };
+    }
+    results.push(obj);
+  }
+
+  return results;
 };

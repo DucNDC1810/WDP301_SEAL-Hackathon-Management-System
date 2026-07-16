@@ -81,12 +81,15 @@ export const createScore = async ({
   // Mentor: round-level — any mentor assignment in this round grants scoring rights for OTHER teams
   // (conflict check above already blocks scoring own mentees)
   const mentorAssigned = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id });
-  // Judge: pool-level — find which pool contains this team, then check judge assignment
+  // Judge: pool-level or round-level — find which pool contains this team, then check judge assignment
   let judgeAssigned = false;
   if (!mentorAssigned) {
     const pool = await Pool.findOne({ contest_id, round_id, teams: team_id }).select("_id").lean();
     if (pool) {
       judgeAssigned = !!(await JudgeAssignment.exists({ judge_id: actorId, contest_id, round_id, pool_id: pool._id }));
+    } else {
+      // Direct round assignment (e.g. final round where pools are not created)
+      judgeAssigned = !!(await JudgeAssignment.exists({ judge_id: actorId, contest_id, round_id }));
     }
   }
   if (!judgeAssigned && !mentorAssigned) {
@@ -258,14 +261,22 @@ export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
 
   if (!assignment) return { pool_id: null, pool_name: null, slots: [] };
 
-  const poolId   = assignment.pool_id._id;
-  const poolName = assignment.pool_id.pool_name;
-  const poolTeamIds = (assignment.pool_id.teams || []).map((t) => t.toString());
+  const poolId   = assignment.pool_id?._id || null;
+  const poolName = assignment.pool_id?.pool_name || "Chung kết";
+  
+  let poolTeamIds = [];
+  if (assignment.pool_id) {
+    poolTeamIds = (assignment.pool_id.teams || []).map((t) => t.toString());
+  } else {
+    // If no pool is assigned (e.g. final round), fetch all active/confirmed teams in the contest
+    const activeTeams = await Team.find({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } }).select("_id").lean();
+    poolTeamIds = activeTeams.map((t) => t._id.toString());
+  }
 
   const slots = await PresentationSlot.find({
     contest_id: contestId,
     round_id:   roundId,
-    pool_id:    poolId,
+    ...(poolId ? { pool_id: poolId } : {}),
     status:     { $in: ["booked", "completed"] },
   })
     .populate("booked_team_id", "team_name")

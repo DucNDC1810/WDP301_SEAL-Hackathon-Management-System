@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './AIAssistantPage.css';
 import { notification } from 'antd';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const Ico = ({ d, size = 18, sw = 1.8, color = 'currentColor' }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw}
@@ -51,8 +53,62 @@ const EMAIL_TEMPLATES = [
   },
 ];
 
+const CHAT_SUGGESTIONS = [
+  'Cuộc thi SEAL Hackathon 2026 có bao nhiêu người tham gia?',
+  'Khi nào cuộc thi đó bắt đầu và kết thúc?',
+  'Liệt kê tất cả các cuộc thi trong hệ thống',
+  'Có bao nhiêu giám khảo và mentor được phân công?',
+];
+
 export default function AIAssistantPage() {
-  const [activeTab, setActiveTab] = useState('email');
+  const [activeTab, setActiveTab] = useState('chat');
+
+  // ── Chat state ──
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]); // raw Gemini Content[] để giữ ngữ cảnh
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, chatSending]);
+
+  const sendChatMessage = async (text) => {
+    const question = (text ?? chatInput).trim();
+    if (!question || chatSending) return;
+
+    setChatMessages((prev) => [...prev, { role: 'user', text: question }]);
+    setChatInput('');
+    setChatSending(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+        body: JSON.stringify({ message: question, history: chatHistory }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Lỗi khi gọi trợ lý AI');
+      }
+      setChatMessages((prev) => [...prev, { role: 'model', text: data.reply }]);
+      setChatHistory(data.history || []);
+    } catch (err) {
+      setChatMessages((prev) => [...prev, { role: 'model', text: `⚠ ${err.message || 'Không thể kết nối trợ lý AI'}`, isError: true }]);
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const handleChatSubmit = (e) => {
+    e.preventDefault();
+    sendChatMessage();
+  };
+
   const [selectedTemplate, setSelectedTemplate] = useState(1);
   const [recipientFilter, setRecipientFilter] = useState('All teams / Bracket A / Specific team');
   const [customVars, setCustomVars] = useState('e.g., deadline date, event location');
@@ -169,6 +225,10 @@ export default function AIAssistantPage() {
 
       {/* Tabs */}
       <div className="ai-tabs">
+        <button className={`tab ${activeTab === 'chat' ? 'tab--active' : ''}`} onClick={() => setActiveTab('chat')}>
+          <Ico d={CHECKMARK} size={16} />
+          <span>Thống kê & Điều hành</span>
+        </button>
         <button className={`tab ${activeTab === 'email' ? 'tab--active' : ''}`} onClick={() => setActiveTab('email')}>
           <Ico d={MAIL} size={16} />
           <span>AI Email Generator</span>
@@ -184,6 +244,52 @@ export default function AIAssistantPage() {
       </div>
 
       {/* Content */}
+      {activeTab === 'chat' && (
+        <div className="ai-content">
+          <div className="chat-panel">
+            <div className="chat-messages">
+              {chatMessages.length === 0 && (
+                <div className="chat-empty">
+                  <Ico d={INFO} size={32} color="#00d4ff" />
+                  <p>Hỏi tôi về số liệu, thời gian, trạng thái các cuộc thi. Tôi sẽ tra dữ liệu thật trong hệ thống trước khi trả lời.</p>
+                  <div className="chat-suggestions">
+                    {CHAT_SUGGESTIONS.map((s) => (
+                      <button key={s} type="button" className="chat-suggestion" onClick={() => sendChatMessage(s)}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {chatMessages.map((m, i) => (
+                <div key={i} className={`chat-msg chat-msg--${m.role}`}>
+                  <div className={`chat-bubble ${m.isError ? 'chat-bubble--error' : ''}`}>{m.text}</div>
+                </div>
+              ))}
+              {chatSending && (
+                <div className="chat-msg chat-msg--model">
+                  <div className="chat-bubble chat-bubble--loading">Đang tra cứu dữ liệu...</div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <form className="chat-input-row" onSubmit={handleChatSubmit}>
+              <input
+                className="chat-input"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="VD: Cuộc thi X có bao nhiêu người? Khi nào bắt đầu?"
+                disabled={chatSending}
+              />
+              <button type="submit" className="btn-generate" disabled={chatSending || !chatInput.trim()}>
+                <Ico d={SEND} size={16} />
+                <span>Gửi</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'email' && (
         <div className="ai-content">
           <div className="email-generator">

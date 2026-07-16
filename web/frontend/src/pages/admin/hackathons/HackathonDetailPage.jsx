@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Modal as AntModal, Tooltip, Select, notification } from 'antd';
 import JudgeAssignmentTab from './tabs/JudgeAssignmentTab';
-import ProblemReleaseTab from './tabs/ProblemReleaseTab';
 import SubmissionReviewTab from './tabs/SubmissionReviewTab';
 import ScoringLockTab from './tabs/ScoringLockTab';
 import TeamEliminationTab from './tabs/TeamEliminationTab';
@@ -40,7 +39,6 @@ const MAIN_TABS = [
   { id: 2, label: 'Tiêu chí chấm điểm' },
   { id: 3, label: 'Bảng đấu' },
   { id: 4, label: 'Phân công Judge & Mentor' },
-  { id: 5, label: 'Phát đề bài' },
   { id: 12, label: 'Bảng xếp hạng' },
   { id: 9, label: 'Review & ONGOING' },
 ];
@@ -464,7 +462,7 @@ export default function HackathonDetailPage({ defaultTab }) {
   // Re-fetch contest when switching to key tabs
   // so activation/changes (done on separate pages) are reflected immediately
   useEffect(() => {
-    if (tab === 1 || tab === 5) {
+    if (tab === 1) {
       fetchContest();
     }
   }, [tab]);
@@ -1244,20 +1242,6 @@ export default function HackathonDetailPage({ defaultTab }) {
     updateConfigState({ ...config, tracks: updatedTracks });
   };
 
-  // Toggle active round
-  const handleToggleRoundActive = (trackId, roundId) => {
-    const updatedTracks = config.tracks.map(t => {
-      if (t.id === trackId) {
-        return {
-          ...t,
-          rounds: t.rounds.map(r => r.id === roundId ? { ...r, active: !r.active } : r)
-        };
-      }
-      return t;
-    });
-    updateConfigState({ ...config, tracks: updatedTracks });
-  };
-
   // ─── CRITERIA HANDLERS ─────────────────────────────────────────────────────
   const handleAddCriteria = (e) => {
     e.preventDefault();
@@ -1611,6 +1595,33 @@ export default function HackathonDetailPage({ defaultTab }) {
         <div className="hd-section">
           {selectedTrack ? (
             <div className="hd-rounds-panel" style={{ width: '100%', border: 'none', padding: 0 }}>
+              {(() => {
+                const activeRound = selectedTrack.rounds.find(r => {
+                  const dr = contest?.rounds?.find(x => x.round_number === Number(r.sequence_order));
+                  return dr ? dr.is_active : (r.is_official_active || false);
+                });
+                const activeDbRound = activeRound
+                  ? contest?.rounds?.find(x => x.round_number === Number(activeRound.sequence_order))
+                  : null;
+                if (!activeRound || !activeDbRound?.submission_deadline) return null;
+                return (
+                  <div className="hd-round-countdown-banner">
+                    <div className="hd-round-countdown-banner-info">
+                      <span className="hd-round-countdown-banner-status">
+                        <span className="hd-round-countdown-banner-status-dot" />
+                        Đang thi
+                      </span>
+                      <span className="hd-round-countdown-banner-eyebrow">Vòng thi đang kích hoạt</span>
+                      <span className="hd-round-countdown-banner-title">{activeRound.name}</span>
+                      <div className="hd-round-countdown-banner-dates">
+                        <span>📅 Hạn nộp bài: <strong style={{ color: '#ffffff' }}>{fmtDate(activeDbRound.submission_deadline)}</strong></span>
+                      </div>
+                    </div>
+                    <RoundCountdownBox deadline={activeDbRound.submission_deadline} />
+                  </div>
+                );
+              })()}
+
               <div className="hd-section-header">
                 <div>
                   <h2 className="hd-section-title">Danh sách Vòng thi</h2>
@@ -1774,14 +1785,6 @@ export default function HackathonDetailPage({ defaultTab }) {
                             >
                               {isOfficialActive ? '✓ Đang chạy' : '▷ Kích hoạt'}
                             </button>
-                          </Tooltip>
-
-                          {/* Quick active toggler */}
-                          <Tooltip title={round.active ? 'Tạm tắt vòng thi' : 'Mở hoạt động vòng thi'}>
-                            <label className="hd-switch">
-                              <input type="checkbox" checked={round.active} onChange={() => handleToggleRoundActive(selectedTrack.id, round.id)}/>
-                              <span className="hd-switch-slider"></span>
-                            </label>
                           </Tooltip>
 
                           {/* Edit / Delete buttons */}
@@ -2318,11 +2321,6 @@ export default function HackathonDetailPage({ defaultTab }) {
         <JudgeAssignmentTab config={config} contestId={id} contest={contest} />
       )}
 
-      {/* ─── TAB 5: PHÁT ĐỀ BÀI (FE-1.3) ─── */}
-      {tab === 5 && (
-        <ProblemReleaseTab config={config} contestId={id} contest={contest} />
-      )}
-
       {/* ─── TAB 6: DUYỆT BÀI NỘP LATE (FE-1.4) ─── */}
       {tab === 6 && (
         <SubmissionReviewTab config={config} contestId={id} contest={contest} />
@@ -2775,6 +2773,51 @@ export default function HackathonDetailPage({ defaultTab }) {
               })()}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Đếm ngược thời gian còn lại tới hạn nộp bài của vòng thi đang active (dạng GIỜ:PHÚT:GIÂY)
+function RoundCountdownBox({ deadline }) {
+  const calcRemaining = () => Math.max(0, new Date(deadline).getTime() - Date.now());
+  const [remaining, setRemaining] = useState(calcRemaining());
+
+  useEffect(() => {
+    const timerId = setInterval(() => setRemaining(calcRemaining()), 1000);
+    return () => clearInterval(timerId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deadline]);
+
+  const totalSeconds = Math.floor(remaining / 1000);
+  const hours   = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  const isExpired = remaining === 0;
+
+  return (
+    <div className="hd-round-countdown">
+      <span className="hd-round-countdown-lbl">⏱️ Thời gian còn lại</span>
+      {isExpired ? (
+        <span className="hd-round-countdown-expired">Đã hết giờ</span>
+      ) : (
+        <div className="hd-round-countdown-units">
+          <div className="hd-round-countdown-unit">
+            <span className="hd-round-countdown-num">{pad(hours)}</span>
+            <span className="hd-round-countdown-unit-lbl">Giờ</span>
+          </div>
+          <span className="hd-round-countdown-sep">:</span>
+          <div className="hd-round-countdown-unit">
+            <span className="hd-round-countdown-num">{pad(minutes)}</span>
+            <span className="hd-round-countdown-unit-lbl">Phút</span>
+          </div>
+          <span className="hd-round-countdown-sep">:</span>
+          <div className="hd-round-countdown-unit">
+            <span className="hd-round-countdown-num">{pad(seconds)}</span>
+            <span className="hd-round-countdown-unit-lbl">Giây</span>
+          </div>
         </div>
       )}
     </div>

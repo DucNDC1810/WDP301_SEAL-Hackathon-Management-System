@@ -40,7 +40,11 @@ export const getByRound = async (req, res, next) => {
 
 export const getMyAssignments = async (req, res, next) => {
   try {
-    const { contestId, roundId } = req.query;
+    // Accept both camelCase and snake_case: callers in this codebase use both
+    // conventions, and an unrecognised name would silently drop the filter and
+    // return assignments from every contest/round.
+    const contestId = req.query.contestId ?? req.query.contest_id;
+    const roundId   = req.query.roundId   ?? req.query.round_id;
     const assignments = await getMyJudgeAssignments(req.user._id, contestId, roundId);
     res.json(assignments);
   } catch (e) { next(e); }

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { OrderedListOutlined } from "@ant-design/icons";
 import { useAuth } from "../../../context/AuthContext";
 import { useApi } from "../../../hooks/useApi";
+import { getRoundStatusKey } from "../../../utils/roundStatus";
 import "../student.css";
 
 /* ─── Design tokens ────────────────────────────────────────────────────────── */
@@ -912,9 +913,9 @@ export const StudentOverviewPage = () => {
         const safeActiveIndex = activeIndex === -1 ? 0 : activeIndex;
 
         const getRoundStatus = (r) => {
-          if (r.is_active) return 'active';
-          if (r.submission_deadline && new Date(r.submission_deadline) < new Date() && !r.is_active) return 'done';
-          return 'upcoming';
+          // Shared logic; this view labels a finished round 'done' instead of 'ended'.
+          const key = getRoundStatusKey(r);
+          return key === 'ended' ? 'done' : key;
         };
 
         const fmtDate = (iso) => {
@@ -1664,9 +1665,9 @@ export const StudentOverviewPage = () => {
         const modalRounds = contest?.rounds ?? [];
 
         const getRoundStatus = (r) => {
-          if (r.is_active) return 'active';
-          if (r.submission_deadline && new Date(r.submission_deadline) < new Date() && !r.is_active) return 'done';
-          return 'upcoming';
+          // Shared logic; this view labels a finished round 'done' instead of 'ended'.
+          const key = getRoundStatusKey(r);
+          return key === 'ended' ? 'done' : key;
         };
         const dotBg = (st) => {
           if (st === 'done') return '#00d4ff';

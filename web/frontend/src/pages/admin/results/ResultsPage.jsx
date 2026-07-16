@@ -4,6 +4,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { getRoundStatus } from '../../../utils/roundStatus';
 import './ResultsPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -279,7 +280,7 @@ export default function ResultsPage() {
               >
                 {rounds.map(r => (
                   <option key={r._id} value={r._id}>
-                    {r.name} {r.is_active ? '(Đang mở)' : ''}
+                    {r.name} ({getRoundStatus(r).label})
                   </option>
                 ))}
               </select>

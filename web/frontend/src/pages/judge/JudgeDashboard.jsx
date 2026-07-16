@@ -555,7 +555,8 @@ function SectionSchedule({ enriched }) {
         contest: a.contestName,
         date: dateStr ? fmtDate(dateStr) : null,
         rawDate: dateStr,
-        type: r.is_active ? 'current' : (dateStr && new Date(dateStr) > new Date() ? 'future' : 'past'),
+        // A locked round is finished even though is_active stays true — check it first.
+        type: r.scoring_locked ? 'past' : (r.is_active ? 'current' : (dateStr && new Date(dateStr) > new Date() ? 'future' : 'past')),
       };
     }).filter(e => e.date)
   ).sort((a, b) => new Date(a.rawDate) - new Date(b.rawDate));

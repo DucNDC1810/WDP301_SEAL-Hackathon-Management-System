@@ -8,6 +8,7 @@ import TeamEliminationTab from './tabs/TeamEliminationTab';
 import PresentationScheduleTab from './tabs/PresentationScheduleTab';
 import LeaderboardTable from '../../../components/LeaderboardTable';
 import TiebreakAlert from '../../../components/TiebreakAlert';
+import { getRoundStatus } from '../../../utils/roundStatus';
 import './HackathonDetailPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -1707,9 +1708,23 @@ export default function HackathonDetailPage({ defaultTab }) {
                             )}
                           </div>
                           <div className="hd-round-status-badges">
-                            <span className={`hd-round-status-tag ${round.active ? 'active' : ''}`}>
-                              {round.active ? 'Đang bật' : 'Đang tắt'}
-                            </span>
+                            {(() => {
+                              // Prefer the DB round's real state; a locked round must read
+                              // as "Đã kết thúc" instead of staying "Đang bật" forever.
+                              const st = dbRound ? getRoundStatus(dbRound) : null;
+                              if (st) {
+                                return (
+                                  <span className={`hd-round-status-tag ${st.key === 'active' ? 'active' : ''} ${st.key === 'ended' ? 'ended' : ''}`}>
+                                    {st.label}
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className={`hd-round-status-tag ${round.active ? 'active' : ''}`}>
+                                  {round.active ? 'Đang bật' : 'Đang tắt'}
+                                </span>
+                              );
+                            })()}
                             {round.wildcard_enabled && !isLastRoundInList && (
                               <span className="hd-round-status-tag wildcard">Wildcard</span>
                             )}
@@ -2595,7 +2610,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                 ) : (
                   leaderboardRounds.map(r => (
                     <option key={r._id} value={r._id}>
-                      {r.name} {!r.is_active ? '(Chưa kích hoạt)' : '(Đang chạy)'}
+                      {r.name} ({getRoundStatus(r).label})
                     </option>
                   ))
                 )}

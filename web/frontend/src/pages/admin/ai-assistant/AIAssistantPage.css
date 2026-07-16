@@ -564,6 +564,24 @@
   border-color: var(--cyan);
 }
 
+.chat-msg--user .chat-bubble::selection {
+  background: #021018;
+  color: var(--cyan);
+}
+.chat-msg--user .chat-bubble *::selection {
+  background: #021018;
+  color: var(--cyan);
+}
+
+.chat-msg--model .chat-bubble::selection {
+  background: var(--cyan);
+  color: #021018;
+}
+.chat-msg--model .chat-bubble *::selection {
+  background: var(--cyan);
+  color: #021018;
+}
+
 .chat-bubble--loading {
   color: var(--text-secondary);
   font-style: italic;

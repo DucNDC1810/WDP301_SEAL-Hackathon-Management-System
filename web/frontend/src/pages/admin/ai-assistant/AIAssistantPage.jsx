@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import './AIAssistantPage.css';
-import { notification } from 'antd';
+import { notification, Popconfirm, ConfigProvider, theme } from 'antd';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -73,7 +73,9 @@ export default function AIAssistantPage() {
       return [];
     }
   });
-  const [chatInput, setChatInput] = useState('');
+  const [chatInput, setChatInput] = useState(() => {
+    return localStorage.getItem('ai_chatInput') || '';
+  });
   const [chatSending, setChatSending] = useState(false);
   const [chatHistory, setChatHistory] = useState(() => {
     try {
@@ -93,13 +95,17 @@ export default function AIAssistantPage() {
     localStorage.setItem('ai_chatHistory', JSON.stringify(chatHistory));
   }, [chatHistory]);
 
+  useEffect(() => {
+    localStorage.setItem('ai_chatInput', chatInput);
+  }, [chatInput]);
+
   const clearChatHistory = () => {
-    if (window.confirm("Bạn có chắc muốn xóa lịch sử trò chuyện không?")) {
-      setChatMessages([]);
-      setChatHistory([]);
-      localStorage.removeItem('ai_chatMessages');
-      localStorage.removeItem('ai_chatHistory');
-    }
+    setChatMessages([]);
+    setChatHistory([]);
+    setChatInput('');
+    localStorage.removeItem('ai_chatMessages');
+    localStorage.removeItem('ai_chatHistory');
+    localStorage.removeItem('ai_chatInput');
   };
 
   useEffect(() => {
@@ -307,16 +313,36 @@ export default function AIAssistantPage() {
             </div>
             <form className="chat-input-row" onSubmit={handleChatSubmit}>
               {chatMessages.length > 0 && (
-                <button
-                  type="button"
-                  className="btn-generate"
-                  style={{ backgroundColor: '#ff4d4f', padding: '0 12px' }}
-                  onClick={clearChatHistory}
-                  title="Xóa lịch sử"
-                  disabled={chatSending}
+                <ConfigProvider 
+                  theme={{ 
+                    algorithm: theme.defaultAlgorithm,
+                    token: {
+                      colorBgElevated: '#ffffff',
+                      colorBgContainer: '#ffffff',
+                      colorText: 'rgba(0, 0, 0, 0.88)',
+                      colorTextHeading: 'rgba(0, 0, 0, 0.88)'
+                    }
+                  }}
                 >
-                  <Ico d={TRASH} size={16} />
-                </button>
+                  <Popconfirm
+                    title="Xóa lịch sử"
+                    description="Bạn có chắc muốn xóa toàn bộ lịch sử trò chuyện?"
+                    onConfirm={clearChatHistory}
+                    okText="Xóa"
+                    cancelText="Hủy"
+                    placement="topRight"
+                  >
+                    <button
+                      type="button"
+                      className="btn-generate"
+                      style={{ backgroundColor: '#ff4d4f', padding: '0 12px' }}
+                      title="Xóa lịch sử"
+                      disabled={chatSending}
+                    >
+                      <Ico d={TRASH} size={16} />
+                    </button>
+                  </Popconfirm>
+                </ConfigProvider>
               )}
               <input
                 className="chat-input"

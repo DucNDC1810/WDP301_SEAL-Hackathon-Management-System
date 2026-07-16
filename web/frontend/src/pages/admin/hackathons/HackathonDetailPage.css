@@ -1332,6 +1332,11 @@ input:checked + .hd-switch-slider:before {
   color: var(--orange);
 }
 
+.hd-round-status-tag.ended {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+}
+
 /* Middle Section: Metadata details list */
 .hd-round-middle {
   display: grid;

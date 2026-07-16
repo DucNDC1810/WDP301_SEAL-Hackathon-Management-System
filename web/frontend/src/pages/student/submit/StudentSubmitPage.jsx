@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { message, Modal, Empty } from 'antd';
 import { useApi } from '../../../hooks/useApi';
+import { getRoundStatus } from '../../../utils/roundStatus';
 import '../student.css';
 
 const Ico = ({ d, size = 14, sw = 1.8 }) => (
@@ -430,7 +431,7 @@ export const StudentSubmitPage = () => {
           >
             {rounds.filter(r => r.is_active).map((r) => (
               <option key={r._id} value={r._id}>
-                {r.name}{r.is_active ? ' (đang diễn ra)' : ''}
+                {r.name} ({getRoundStatus(r).label})
               </option>
             ))}
           </select>

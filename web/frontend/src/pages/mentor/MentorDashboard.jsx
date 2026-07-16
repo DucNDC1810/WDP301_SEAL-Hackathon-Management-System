@@ -5,6 +5,7 @@ import { Progress, Spin, Tooltip, message, Tag } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useApi } from '../../hooks/useApi';
+import { getRoundStatusKey } from '../../utils/roundStatus';
 import './MentorDashboard.css';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || '';
@@ -50,8 +51,9 @@ function buildScheduleEvents(contests) {
           time: fmtDate(dateStr),
           rawDate: dateStr,
           color,
-          type: r.is_active ? 'active' : (new Date(dateStr) > new Date() ? 'upcoming' : 'ended'),
-          icon: r.is_active ? '▶' : '📅',
+          // A locked round is over even though is_active stays true — check it first.
+          type: r.scoring_locked ? 'ended' : (r.is_active ? 'active' : (new Date(dateStr) > new Date() ? 'upcoming' : 'ended')),
+          icon: (r.is_active && !r.scoring_locked) ? '▶' : '📅',
         });
       }
     });
@@ -407,8 +409,10 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
               {h.rounds.length > 0 && (
                 <div style={{ padding:'10px 20px 14px' }}>
                   {h.rounds.map((r, ri) => {
-                    const rColor = r.is_active ? '#10b981' : '#6b7280';
-                    const rLabel = r.is_active ? 'Đang mở' : (r.scoring_locked ? 'Đã đóng' : 'Sắp tới');
+                    // Locked round must read as closed even though is_active stays true.
+                    const rKey = getRoundStatusKey(r);
+                    const rColor = rKey === 'active' ? '#10b981' : '#6b7280';
+                    const rLabel = rKey === 'active' ? 'Đang mở' : (rKey === 'ended' ? 'Đã đóng' : 'Sắp tới');
                     return (
                       <div key={r._id} style={{
                         display:'flex', alignItems:'center', gap:10, padding:'6px 0',

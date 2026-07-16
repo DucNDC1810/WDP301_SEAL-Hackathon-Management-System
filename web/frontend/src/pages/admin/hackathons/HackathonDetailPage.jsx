@@ -602,6 +602,25 @@ export default function HackathonDetailPage({ defaultTab }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
+          if (parsed.tracks?.length > 0) {
+            parsed.tracks = parsed.tracks.map(t => ({
+              ...t,
+              rounds: t.rounds.map(r => {
+                const dbRound = contest.rounds?.find(dr => dr.round_number === Number(r.sequence_order));
+                if (dbRound) {
+                  return {
+                    ...r,
+                    coding_duration_hours: dbRound.coding_duration_hours !== undefined ? dbRound.coding_duration_hours : r.coding_duration_hours,
+                    top_n_advance: dbRound.top_n_advance !== undefined ? dbRound.top_n_advance : r.top_n_advance,
+                    wildcard_enabled: dbRound.wildcard_enabled !== undefined ? dbRound.wildcard_enabled : r.wildcard_enabled,
+                    name: dbRound.name || r.name,
+                    submission_deadline: dbRound.submission_deadline || r.submission_deadline
+                  };
+                }
+                return r;
+              })
+            }));
+          }
           setConfig(parsed);
           setGeneralForm({
             title: contest.title || '',
@@ -730,6 +749,9 @@ export default function HackathonDetailPage({ defaultTab }) {
           name: r.name,
           submission_deadline: r.submission_deadline || null,
           is_active: dbRound ? dbRound.is_active : false,
+          coding_duration_hours: Number(r.coding_duration_hours) || 24,
+          top_n_advance: Number(r.top_n_advance) || 10,
+          wildcard_enabled: r.wildcard_enabled || false,
           score_criteria: (r.criteria || []).map(c => ({
             name: c.name,
             max_score: Number(c.max_score) || 10,
@@ -1765,6 +1787,14 @@ export default function HackathonDetailPage({ defaultTab }) {
                               disabled={!valid || isOfficialActive}
                               onClick={() => {
                                 if (contest?.status === 'open' && dbRound?._id) {
+                                  const seq = Number(round.sequence_order);
+                                  if (seq > 1) {
+                                    const prevDbRound = contest?.rounds?.find(dr => dr.round_number === seq - 1);
+                                    if (prevDbRound?._id) {
+                                      navigate(`/finalist/${prevDbRound._id}/confirm`);
+                                      return;
+                                    }
+                                  }
                                   navigate(`/round/${dbRound._id}/activate`);
                                 } else {
                                   AntModal.confirm({
@@ -1791,6 +1821,41 @@ export default function HackathonDetailPage({ defaultTab }) {
                           </button>
                         </div>
                       </div>
+                      {/* ── Phát đề: hiển thị khi vòng đang active hoặc đã khóa ── */}
+                      {(isOfficialActive || isLocked) && (
+                        <div className="hd-problem-release-row">
+                          <div className="hd-problem-release-left">
+                            <span className="hd-problem-release-icon">📂</span>
+                            <div>
+                              <span className="hd-problem-release-title">Phát đề</span>
+                              <span className="hd-problem-release-time">
+                                {dbRound?.problem_released_at
+                                  ? `Đã phát lúc ${fmtDate(dbRound.problem_released_at)}`
+                                  : 'Chưa phát đề'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="hd-problem-release-pools">
+                            {pools.filter(p => p.round_number === (dbRound?.round_number ?? Number(round.sequence_order))).length > 0
+                              ? pools
+                                  .filter(p => p.round_number === (dbRound?.round_number ?? Number(round.sequence_order)))
+                                  .map(pool => (
+                                    <div key={pool._id} className="hd-problem-pool-chip">
+                                      <span className="hd-problem-pool-name">{pool.pool_name || pool.name}</span>
+                                      {pool.drive_link ? (
+                                        <a href={pool.drive_link} target="_blank" rel="noreferrer" className="hd-problem-pool-link">
+                                          🔗 Xem đề
+                                        </a>
+                                      ) : (
+                                        <span className="hd-problem-pool-no-link">Chưa có link</span>
+                                      )}
+                                    </div>
+                                  ))
+                              : <span className="hd-problem-pool-no-link">Chưa cấu hình bảng đấu</span>
+                            }
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

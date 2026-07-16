@@ -16,14 +16,30 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
   try {
     const { round_id } = req.params;
 
-    const round = await Round.findById(round_id);
+    let round = await Round.findById(round_id);
+    let contest;
     if (!round) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
-    }
-
-    const contest = await Contest.findById(round.contest_id);
-    if (!contest) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy giải đấu" });
+      contest = await Contest.findOne({ "rounds._id": round_id });
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      const embeddedRound = contest.rounds.id(round_id);
+      if (!embeddedRound) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      round = {
+        _id: embeddedRound._id,
+        contest_id: contest._id,
+        name: embeddedRound.name,
+        top_n: embeddedRound.top_n_advance || 6,
+        wildcard_count: embeddedRound.wildcard_count || 1,
+        wildcard_enabled: embeddedRound.wildcard_enabled || false
+      };
+    } else {
+      contest = await Contest.findById(round.contest_id);
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy giải đấu" });
+      }
     }
 
     const boundary = round.top_n || 6;
@@ -247,9 +263,20 @@ router.get("/:round_id/audit-log", authenticate, async (req, res, next) => {
   try {
     const { round_id } = req.params;
 
-    const round = await Round.findById(round_id);
+    let round = await Round.findById(round_id);
     if (!round) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      const contest = await Contest.findOne({ "rounds._id": round_id });
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      const embeddedRound = contest.rounds.id(round_id);
+      if (!embeddedRound) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      round = {
+        _id: embeddedRound._id,
+        contest_id: contest._id
+      };
     }
 
     // Find all teams in this contest to filter audit logs

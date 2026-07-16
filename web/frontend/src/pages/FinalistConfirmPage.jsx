@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getFinalists, updateTeamStatus, getAuditLog } from '../api/finalist';
-import { getRoundSetup, assignJudges, activateRound, createCriteria, updateCriteria, deleteCriteria } from '../api/round';
+import { getRoundSetup, assignJudges, activateRound, createCriteria, updateCriteria, deleteCriteria, getPools, updatePool, updateRound } from '../api/round';
 import { useRoundStatus } from '../hooks/useRoundStatus';
 import { FrozenOverlay } from '../components/FrozenOverlay';
 import { notification, Modal } from 'antd';
@@ -27,6 +27,13 @@ export default function FinalistConfirmPage() {
   const [selectedJudgeIds, setSelectedJudgeIds] = useState([]);
   const [savingJudges, setSavingJudges] = useState(false);
   const [activating, setActivating] = useState(false);
+  const [judgeSearchQuery, setJudgeSearchQuery] = useState('');
+  const [pools, setPools] = useState([]);
+  const [loadingPools, setLoadingPools] = useState(false);
+  const [updatingPoolId, setUpdatingPoolId] = useState(null);
+  const [poolDriveLinks, setPoolDriveLinks] = useState({});
+  const [roundDriveLink, setRoundDriveLink] = useState('');
+  const [updatingRoundLink, setUpdatingRoundLink] = useState(false);
 
   // Criteria inline management
   const EMPTY_CRIT = { name: '', weight: '', description: '' };
@@ -54,6 +61,7 @@ export default function FinalistConfirmPage() {
       const setupRes = await getRoundSetup(nextId);
       const setupData = setupRes.data;
       setRound(setupData.round);
+      setRoundDriveLink(setupData.round?.drive_link || '');
       setCriteria(setupData.criteria || []);
       setAssignedJudges(setupData.judges || []);
       setAllAvailableJudges(setupData.all_available_judges || []);
@@ -62,11 +70,73 @@ export default function FinalistConfirmPage() {
       
       const ids = (setupData.judges || []).map(j => j._id);
       setSelectedJudgeIds(ids);
+
+      // Load pools
+      if (setupData.round?.contest_id) {
+        setLoadingPools(true);
+        try {
+          const poolsRes = await getPools(setupData.round.contest_id, nextId);
+          const poolsData = poolsRes.data?.data || [];
+          setPools(poolsData);
+          
+          // Pre-populate poolDriveLinks
+          const links = {};
+          poolsData.forEach(p => {
+            links[p._id] = p.drive_link || '';
+          });
+          setPoolDriveLinks(links);
+        } catch (poolErr) {
+          console.error("Lỗi tải pools:", poolErr);
+        } finally {
+          setLoadingPools(false);
+        }
+      }
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || err.message || "Lỗi khi tải dữ liệu Chung kết.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdatePoolLink = async (poolId) => {
+    const driveLink = poolDriveLinks[poolId] || '';
+    setUpdatingPoolId(poolId);
+    try {
+      await updatePool(poolId, { drive_link: driveLink });
+      notification.success({
+        message: 'Thành công',
+        description: 'Đã cập nhật link đề bài cho bảng đấu.',
+      });
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      notification.error({
+        message: 'Lỗi',
+        description: err.response?.data?.message || err.message || 'Lỗi khi cập nhật đề bài.',
+      });
+    } finally {
+      setUpdatingPoolId(null);
+    }
+  };
+
+  const handleUpdateRoundLink = async () => {
+    setUpdatingRoundLink(true);
+    try {
+      await updateRound(nextRoundId, { drive_link: roundDriveLink });
+      notification.success({
+        message: 'Thành công',
+        description: 'Đã cập nhật link đề bài cho Vòng Chung kết thành công.',
+      });
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      notification.error({
+        message: 'Lỗi',
+        description: err.response?.data?.message || err.message || 'Lỗi khi cập nhật đề bài.',
+      });
+    } finally {
+      setUpdatingRoundLink(false);
     }
   };
 
@@ -370,7 +440,8 @@ export default function FinalistConfirmPage() {
   const steps = [
     { id: 'teams', step: 1, label: 'Xác nhận Đội thi', icon: '🏆', desc: 'Duyệt danh sách Chung kết' },
     { id: 'judges', step: 2, label: 'Cấu hình Giám khảo', icon: '👥', desc: 'Chọn ban giám khảo độc lập' },
-    { id: 'criteria', step: 3, label: 'Tiêu chí & Kích hoạt', icon: '📋', desc: 'Kiểm tra tiêu chí & kích hoạt' }
+    { id: 'problems', step: 3, label: 'Cấu hình Đề bài', icon: '📂', desc: 'Cập nhật Google Drive đề bài' },
+    { id: 'criteria', step: 4, label: 'Tiêu chí & Kích hoạt', icon: '📋', desc: 'Kiểm tra tiêu chí & kích hoạt' }
   ];
 
   return (
@@ -449,12 +520,13 @@ export default function FinalistConfirmPage() {
           borderRadius: '16px',
           padding: '20px 28px',
           marginBottom: '32px',
-          flexWrap: 'wrap',
-          gap: '16px'
+          flexWrap: 'nowrap',
+          gap: '12px',
+          overflowX: 'auto'
         }}>
           {steps.map((s, idx) => {
             const isCurrent = activeTab === s.id;
-            const isFinished = (s.step === 1 && confirmedTeamsCount > 0) || (s.step === 2 && assignedJudges.length > 0);
+            const isFinished = (s.step === 1 && confirmedTeamsCount > 0) || (s.step === 2 && assignedJudges.length > 0) || (s.step === 3 && round?.drive_link);
             
             return (
               <React.Fragment key={s.id}>
@@ -464,14 +536,14 @@ export default function FinalistConfirmPage() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '14px',
+                    gap: '12px',
                     cursor: 'pointer',
-                    flex: '1',
-                    minWidth: '220px',
+                    flex: '1 1 auto',
                     transition: 'all 0.2s',
                     padding: '8px',
                     borderRadius: '8px',
-                    background: isCurrent ? 'rgba(0, 240, 255, 0.02)' : 'transparent'
+                    background: isCurrent ? 'rgba(0, 240, 255, 0.02)' : 'transparent',
+                    minWidth: 'max-content'
                   }}
                 >
                   <div style={{
@@ -487,7 +559,8 @@ export default function FinalistConfirmPage() {
                     fontWeight: 'bold',
                     fontSize: '1rem',
                     boxShadow: isCurrent ? 'var(--shadow-cyan)' : 'none',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    flexShrink: 0
                   }}>
                     {s.step}
                   </div>
@@ -515,10 +588,11 @@ export default function FinalistConfirmPage() {
                 {/* Line Separator between steps */}
                 {idx < steps.length - 1 && (
                   <div style={{
-                    flex: '0.2',
+                    flex: '1',
                     height: '2px',
                     background: isFinished ? 'var(--cyan)' : 'rgba(255, 255, 255, 0.08)',
-                    minWidth: '20px'
+                    minWidth: '15px',
+                    maxWidth: '60px'
                   }} />
                 )}
               </React.Fragment>
@@ -813,38 +887,64 @@ export default function FinalistConfirmPage() {
                     }}>
                       Bước 2: Cấu hình & Chọn Ban giám khảo
                     </h3>
-                    <span style={{
-                      fontSize: '0.75rem',
-                      color: 'var(--orange)',
-                      fontWeight: 'bold',
-                      background: 'rgba(245, 158, 11, 0.06)',
-                      border: '1px dashed rgba(245, 158, 11, 0.15)',
-                      padding: '4px 10px',
-                      borderRadius: '4px'
-                    }}>
-                      ⚠️ Panel độc lập – không dùng lại Judge của Vòng Sơ loại!
-                    </span>
+                  </div>
+
+                  {/* Search Input for Judges */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Tìm kiếm giám khảo theo tên hoặc email..."
+                      value={judgeSearchQuery}
+                      onChange={(e) => setJudgeSearchQuery(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '10px',
+                        padding: '10px 16px',
+                        fontSize: '0.85rem',
+                        color: '#fff',
+                        outline: 'none',
+                        transition: 'all 0.2s',
+                        boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.2)'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = 'var(--cyan)';
+                        e.target.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.15), inset 0 1px 3px rgba(0, 0, 0, 0.2)';
+                        e.target.style.background = 'rgba(255, 255, 255, 0.05)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = 'var(--border)';
+                        e.target.style.boxShadow = 'inset 0 1px 3px rgba(0, 0, 0, 0.2)';
+                        e.target.style.background = 'rgba(255, 255, 255, 0.03)';
+                      }}
+                    />
                   </div>
 
                   {/* List of Judges */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-                    {allAvailableJudges.length > 0 ? (
-                      allAvailableJudges.map((judge, idx) => {
-                        const isChecked = selectedJudgeIds.includes(judge._id);
-                        return (
-                          <div
-                            key={judge._id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              background: isChecked ? 'rgba(0, 240, 255, 0.03)' : 'rgba(255, 255, 255, 0.01)',
-                              border: `1px solid ${isChecked ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)'}`,
-                              borderRadius: '10px',
-                              padding: '12px 16px',
-                              transition: 'all 0.2s'
-                            }}
-                          >
+                    {(() => {
+                      const filteredJudges = allAvailableJudges.filter(j => 
+                        j.full_name?.toLowerCase().includes(judgeSearchQuery.toLowerCase()) ||
+                        j.email?.toLowerCase().includes(judgeSearchQuery.toLowerCase())
+                      );
+                      return filteredJudges.length > 0 ? (
+                        filteredJudges.map((judge, idx) => {
+                          const isChecked = selectedJudgeIds.includes(judge._id);
+                          return (
+                            <div
+                              key={judge._id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                background: isChecked ? 'rgba(0, 240, 255, 0.03)' : 'rgba(255, 255, 255, 0.01)',
+                                border: `1px solid ${isChecked ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)'}`,
+                                borderRadius: '10px',
+                                padding: '12px 16px',
+                                transition: 'all 0.2s'
+                              }}
+                            >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                               <input
                                 type="checkbox"
@@ -895,10 +995,11 @@ export default function FinalistConfirmPage() {
                       })
                     ) : (
                       <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                        Không tìm thấy tài khoản giám khảo để phân công.
+                        Không tìm thấy tài khoản giám khảo phù hợp với từ khóa tìm kiếm.
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
+                </div>
 
                   <div style={{
                     display: 'flex',
@@ -959,7 +1060,7 @@ export default function FinalistConfirmPage() {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('criteria')}
+                    onClick={() => setActiveTab('problems')}
                     style={{
                       background: 'var(--gradient-primary)',
                       color: 'white',
@@ -975,13 +1076,168 @@ export default function FinalistConfirmPage() {
                     onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.03)"}
                     onMouseLeave={(e) => e.currentTarget.style.transform = "none"}
                   >
-                    Tiếp tục: Cấu hình Tiêu chí →
+                    Tiếp tục: Cấu hình Đề bài →
                   </button>
                 </div>
               </div>
             )}
 
-            {/* ─── STEP 3: CRITERIA & ACTIVATION ─── */}
+            {/* ─── STEP 3: PROBLEMS & DRIVE LINKS ─── */}
+            {activeTab === 'problems' && (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                    <h3 style={{
+                      fontSize: '1.15rem',
+                      color: '#fff',
+                      margin: 0,
+                      fontFamily: 'var(--font-display)',
+                      textTransform: 'uppercase',
+                      borderLeft: '4px solid var(--cyan)',
+                      paddingLeft: '10px'
+                    }}>
+                      Bước 3: Cấu hình Đề bài Vòng Chung kết
+                    </h3>
+                  </div>
+
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.5' }}>
+                    Nhập đường dẫn Google Drive hoặc tài liệu đề bài chính thức cho Vòng thi Chung kết dưới đây. Đề bài này sẽ được phát và hiển thị trực tiếp cho tất cả các đội thi vượt qua vòng loại.
+                  </p>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px',
+                      background: 'rgba(255, 255, 255, 0.01)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderRadius: '12px',
+                      padding: '24px',
+                      marginBottom: '24px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#fff', fontWeight: '600' }}>
+                          Liên kết tài liệu Đề bài (Google Drive / OneDrive...)
+                        </h4>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Vui lòng đảm bảo quyền truy cập liên kết ở chế độ công khai hoặc chia sẻ cho các đội thi.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Nhập đường dẫn đề bài (ví dụ: https://drive.google.com/drive/folders/...)"
+                        value={roundDriveLink}
+                        onChange={(e) => setRoundDriveLink(e.target.value)}
+                        disabled={isActivated}
+                        style={{
+                          flex: 1,
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          fontSize: '0.85rem',
+                          color: '#fff',
+                          outline: 'none',
+                          transition: 'all 0.2s'
+                        }}
+                      />
+                      <button
+                        onClick={handleUpdateRoundLink}
+                        disabled={updatingRoundLink || isActivated}
+                        style={{
+                          background: 'rgba(0, 240, 255, 0.08)',
+                          color: 'var(--cyan)',
+                          border: '1px solid rgba(0, 240, 255, 0.25)',
+                          padding: '10px 20px',
+                          borderRadius: '8px',
+                          fontWeight: '600',
+                          fontSize: '0.85rem',
+                          cursor: (updatingRoundLink || isActivated) ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {updatingRoundLink ? 'Đang lưu...' : 'Lưu đề bài'}
+                      </button>
+                      {round?.drive_link && (
+                        <a
+                          href={round.drive_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            width: '40px',
+                            height: '40px',
+                            textDecoration: 'none',
+                            fontSize: '1rem',
+                            transition: 'all 0.2s'
+                          }}
+                          title="Mở link đề bài"
+                          onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#fff'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+                        >
+                          🔗
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '30px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                    <button
+                      onClick={() => setActiveTab('judges')}
+                      style={{
+                        background: 'transparent',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border)',
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        fontWeight: '600',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#fff'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+                    >
+                      ← Quay lại: Giám khảo
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('criteria')}
+                      style={{
+                        background: 'var(--gradient-primary)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 24px',
+                        borderRadius: '8px',
+                        fontWeight: '700',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        boxShadow: 'var(--shadow-cyan)',
+                        transition: 'transform 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.03)"}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = "none"}
+                    >
+                      Tiếp tục: Cấu hình Tiêu chí →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+                        {/* ─── STEP 4: CRITERIA & ACTIVATION ─── */}
             {activeTab === 'criteria' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
                 <div>
@@ -1280,7 +1536,7 @@ export default function FinalistConfirmPage() {
 
                   <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                     <button
-                      onClick={() => setActiveTab('judges')}
+                      onClick={() => setActiveTab('problems')}
                       style={{
                         background: 'transparent',
                         color: 'var(--text-secondary)',
@@ -1293,7 +1549,7 @@ export default function FinalistConfirmPage() {
                         transition: 'all 0.2s'
                       }}
                     >
-                      ← Quay lại: Giám khảo
+                      ← Quay lại: Đề bài
                     </button>
                   </div>
                 </div>

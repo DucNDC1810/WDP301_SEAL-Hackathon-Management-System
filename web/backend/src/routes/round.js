@@ -411,6 +411,35 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
   }
 });
 
+// PATCH /api/round/:round_id
+router.patch("/:round_id", authenticate, authorize("admin"), async (req, res, next) => {
+  try {
+    const { round_id } = req.params;
+    const { drive_link } = req.body;
+
+    const round = await Round.findById(round_id);
+    if (round) {
+      round.drive_link = drive_link || "";
+      await round.save();
+    }
+
+    // Also find and update the embedded round in Contest
+    const Contest = (await import("../models/Contest.js")).default;
+    const contest = await Contest.findOne({ "rounds._id": round_id });
+    if (contest) {
+      const embeddedRound = contest.rounds.id(round_id);
+      if (embeddedRound) {
+        embeddedRound.drive_link = drive_link || "";
+        await contest.save();
+      }
+    }
+
+    return res.json({ success: true, message: "Đã cập nhật link đề bài thành công" });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // PATCH /api/round/:round_id/finish
 router.patch("/:round_id/finish", authenticate, authorize("admin"), async (req, res, next) => {
   try {

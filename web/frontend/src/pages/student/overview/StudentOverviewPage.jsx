@@ -363,6 +363,10 @@ export const StudentOverviewPage = () => {
           return;
         }
 
+        if (activeRound.drive_link) {
+          setPoolDriveLink(activeRound.drive_link);
+        }
+
         await Promise.allSettled([
           request(`/api/submissions?round_id=${activeRound._id}`).then(
             (res) => {

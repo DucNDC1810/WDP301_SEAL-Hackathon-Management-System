@@ -1031,9 +1031,10 @@ input:checked + .hd-switch-slider:before {
   border-radius: 12px;
   padding: 16px 24px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 20px;
   transition: all var(--transition-base);
   position: relative;
   overflow: hidden;
@@ -1307,6 +1308,127 @@ input:checked + .hd-switch-slider:before {
 .hd-round-countdown-total-lbl strong {
   color: rgba(0, 240, 255, 0.75);
   font-weight: 700;
+}
+
+/* ── Problem Release row (inside round card) ── */
+/* ── Phát đề section: full-width row at bottom of active round card ── */
+.hd-problem-release-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 4px;
+  padding: 12px 20px;
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.06) 0%, rgba(168, 85, 247, 0.04) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-top: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hd-problem-release-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--cyan), var(--purple));
+  border-radius: 0 0 0 8px;
+}
+
+.hd-problem-release-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 8px;
+}
+
+.hd-problem-release-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.hd-problem-release-title {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 2px;
+}
+
+.hd-problem-release-time {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.hd-problem-release-pools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.hd-problem-pool-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 4px 12px;
+  transition: all var(--transition-fast);
+}
+
+.hd-problem-pool-chip:has(.hd-problem-pool-link):hover {
+  border-color: rgba(0, 240, 255, 0.3);
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.hd-problem-pool-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.hd-problem-pool-link {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--cyan);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  transition: all var(--transition-fast);
+  border-bottom: 1px solid transparent;
+}
+
+.hd-problem-pool-link:hover {
+  border-bottom-color: var(--cyan);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+}
+
+.hd-problem-pool-no-link {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  opacity: 0.7;
 }
 
 .hd-round-card-modern:hover {

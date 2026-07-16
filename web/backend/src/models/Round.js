@@ -50,6 +50,11 @@ const roundSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    drive_link: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

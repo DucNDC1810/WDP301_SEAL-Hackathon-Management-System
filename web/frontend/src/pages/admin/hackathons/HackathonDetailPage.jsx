@@ -1595,7 +1595,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                         <span>Đã hoàn thành</span>
                       </div>
                     ) : (
-                      <RoundCountdownBox deadline={activeDbRound.submission_deadline} />
+                      <RoundCountdownBox deadline={activeDbRound.submission_deadline} codingHours={activeRound.coding_duration_hours || activeDbRound.coding_duration_hours} />
                     )}
                   </div>
                 );
@@ -2894,7 +2894,8 @@ export default function HackathonDetailPage({ defaultTab }) {
 }
 
 // Đếm ngược thời gian còn lại tới hạn nộp bài của vòng thi đang active (dạng GIỜ:PHÚT:GIÂY)
-function RoundCountdownBox({ deadline }) {
+// codingHours: tổng thời gian làm bài đã cấu hình cho vòng thi
+function RoundCountdownBox({ deadline, codingHours }) {
   const calcRemaining = () => Math.max(0, new Date(deadline).getTime() - Date.now());
   const [remaining, setRemaining] = useState(calcRemaining());
 
@@ -2903,6 +2904,10 @@ function RoundCountdownBox({ deadline }) {
     return () => clearInterval(timerId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deadline]);
+
+  const totalMs   = (codingHours || 24) * 3600 * 1000;
+  const elapsed   = Math.max(0, totalMs - remaining);
+  const progress  = Math.min(100, Math.round((elapsed / totalMs) * 100));
 
   const totalSeconds = Math.floor(remaining / 1000);
   const hours   = Math.floor(totalSeconds / 3600);
@@ -2934,6 +2939,13 @@ function RoundCountdownBox({ deadline }) {
           </div>
         </div>
       )}
+      {/* Progress bar: thời gian đã trôi qua / tổng thời gian làm bài */}
+      <div className="hd-round-countdown-progress-wrap">
+        <div className="hd-round-countdown-progress-bar" style={{ width: `${progress}%` }} />
+      </div>
+      <span className="hd-round-countdown-total-lbl">
+        Tổng thời gian làm bài: <strong>{codingHours || 24}h</strong> &nbsp;·&nbsp; Đã qua: <strong>{progress}%</strong>
+      </span>
     </div>
   );
 }

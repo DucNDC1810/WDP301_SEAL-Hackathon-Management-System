@@ -49,9 +49,9 @@ export default function JudgeDashboardPage() {
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [contestData, poolsData, subsData, myScoresData] = await Promise.all([
+        const [contestData, myAssignmentsData, subsData, myScoresData] = await Promise.all([
           request(`/api/contests/${contestId}`),
-          request(`/api/pools/contests/${contestId}/pools`),
+          request(`/api/judge-assignments/me?contest_id=${contestId}&round_id=${roundId}`),
           request(`/api/submissions?round_id=${roundId}`),
           request(`/api/scores/contests/${contestId}/rounds/${roundId}/my-scores`).catch(() => []),
         ]);
@@ -75,7 +75,14 @@ export default function JudgeDashboardPage() {
           setCriteria(crits);
         }
 
-        const allPools = Array.isArray(poolsData) ? poolsData : (poolsData?.data ?? []);
+        const myAssignments = Array.isArray(myAssignmentsData) ? myAssignmentsData : (myAssignmentsData?.data ?? []);
+        // Chỉ hiện (các) bảng mà mình thực sự được phân công làm giám khảo, không phải tất cả bảng của contest
+        const poolsMap = new Map();
+        myAssignments.forEach(a => {
+          const p = a.pool_id;
+          if (p && p._id) poolsMap.set(p._id.toString(), p);
+        });
+        const allPools = Array.from(poolsMap.values());
 
         // Build submission map: teamId → sub info
         const subList = Array.isArray(subsData) ? subsData : (subsData?.data ?? []);
@@ -484,7 +491,7 @@ export default function JudgeDashboardPage() {
             <div className="jp-form-actions">
               <Button onClick={() => saveScore('draft')} loading={submitting}>💾 Lưu nháp</Button>
               <Button type="primary" onClick={() => saveScore('submitted')} loading={submitting} style={{ minWidth: 160 }}>
-                ✓ Nộp điểm chính thức
+                {scores[scoringTeam?.id]?.status === 'submitted' ? '✓ Cập nhật điểm chính thức' : '✓ Nộp điểm chính thức'}
               </Button>
             </div>
 

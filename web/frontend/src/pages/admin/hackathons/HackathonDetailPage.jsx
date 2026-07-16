@@ -33,6 +33,9 @@ const CROSS      = ['M18 6L6 18M6 6l12 12'];
 const ALERT      = ['M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'];
 const ROCKET     = ['M4.5 16.5c-1.5 1.5-2.5 3.5-2.5 5.5 2 0 4-1 5.5-2.5L22 5.5c.5-.5.5-1.5 0-2s-1.5-.5-2 0L4.5 16.5z', 'M12 12l2.5-2.5', 'M9 15l2.5-2.5'];
 const COPY       = ['M9 15H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2', 'M13 9h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z'];
+const CHEVRON_LEFT  = ['M15 18l-6-6 6-6'];
+const CHEVRON_RIGHT = ['M9 18l6-6-6-6'];
+
 
 const MAIN_TABS = [
   { id: 0, label: 'Tổng quan' },
@@ -58,6 +61,8 @@ export default function HackathonDetailPage({ defaultTab }) {
     return defaultTab !== undefined ? defaultTab : 0;
   })();
   const [tab, setTab]         = useState(initialTab);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
 
   useEffect(() => {
     if (defaultTab !== undefined) {
@@ -1433,7 +1438,6 @@ export default function HackathonDetailPage({ defaultTab }) {
   const step7Ok = contest.status === 'open';
 
   const checklistSteps = [
-    { id: 1, label: 'Thông tin tổng quan', desc: 'Thiết lập tên, mùa giải, thể lệ, banner & ngày giờ sự kiện.', ok: step1Ok, tabId: 0 },
     { id: 2, label: 'Cấu hình vòng thi', desc: 'Thiết lập tối thiểu 1 bảng thi (Track) và 2 vòng đấu (Rounds).', ok: step2Ok, tabId: 1 },
     { id: 3, label: 'Tiêu chí chấm điểm', desc: 'Phân bổ ít nhất 1 tiêu chí & đảm bảo tổng trọng số bằng 1.0 mỗi vòng.', ok: step3Ok, tabId: 2 },
     { id: 4, label: 'Chia bảng đấu & Đội thi', desc: 'Khởi tạo danh sách bảng đấu (Pools) & xếp các đội thi vào bảng.', ok: step4Ok, tabId: 3 },
@@ -1477,6 +1481,32 @@ export default function HackathonDetailPage({ defaultTab }) {
             {t.label}
           </button>
         ))}
+
+        {/* Progress Drawer Trigger */}
+        <button
+          className="hd-tabs-progress-trigger"
+          style={{
+            marginLeft: 'auto',
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--cyan)',
+            cursor: 'pointer',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '10px 16px',
+            borderRadius: '6px',
+            transition: 'all 0.2s',
+            borderBottom: '3px solid transparent'
+          }}
+          onClick={() => setIsDrawerOpen(true)}
+        >
+          <Ico d={CHEVRON_LEFT} size={14} />
+          <span>Tiến độ chuẩn bị</span>
+        </button>
+
       </div>
 
       {/* ─── TAB 0: TỔNG QUAN ─── */}
@@ -1523,7 +1553,7 @@ export default function HackathonDetailPage({ defaultTab }) {
               </div>
             </form>
           ) : (
-            <div className="hd-overview-layout">
+            <div className="hd-overview-layout" style={{ gridTemplateColumns: '1fr' }}>
               {/* Left Column: Banner, overview, rules */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {config.banner && (
@@ -1545,48 +1575,8 @@ export default function HackathonDetailPage({ defaultTab }) {
                   <div className="hd-rules-content">{config.rules || 'Chưa thiết lập thể lệ giải đấu.'}</div>
                 </div>
               </div>
-
-              {/* Right Column: Setup Checklist & Progress Tracker */}
-              <div className="hd-checklist-container">
-                <div className="hd-checklist-header">
-                  <h3 className="hd-checklist-title">
-                    📋 Checklist Chuẩn Bị Giải Đấu
-                  </h3>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 650 }}>
-                    {completedCount}/7 hoàn thành
-                  </span>
-                </div>
-
-                <div className="hd-progress-wrapper">
-                  <div className="hd-progress-info">
-                    <span>Mức độ hoàn thiện</span>
-                    <strong style={{ color: 'var(--cyan)' }}>{checklistPct}%</strong>
-                  </div>
-                  <div className="hd-progress-bar-bg">
-                    <div className="hd-progress-bar-fill" style={{ width: `${checklistPct}%` }}></div>
-                  </div>
-                </div>
-
-                <div className="hd-checklist-steps">
-                  {checklistSteps.map(s => (
-                    <div key={s.id} className="hd-checklist-step">
-                      <div className={`hd-step-icon ${s.ok ? 'hd-step-icon--success' : 'hd-step-icon--pending'}`}>
-                        {s.ok ? <Ico d={CHECK} size={10}/> : <span style={{ fontSize: '12px', lineHeight: 1 }}>●</span>}
-                      </div>
-                      <div className="hd-step-content">
-                        <div className="hd-step-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ color: s.ok ? '#a7f3d0' : '#fbd38d' }}>{s.label}</span>
-                        </div>
-                        <div className="hd-step-desc">{s.desc}</div>
-                      </div>
-                      <button className="hd-step-action" onClick={() => setTab(s.tabId)}>
-                        Thiết lập
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
+
           )}
         </div>
       )}
@@ -2790,6 +2780,123 @@ export default function HackathonDetailPage({ defaultTab }) {
           )}
         </div>
       )}
+      {/* Floating Trigger on the right edge of the screen */}
+      <button 
+        className="hd-drawer-trigger" 
+        onClick={() => setIsDrawerOpen(prev => !prev)}
+        style={{
+          position: 'fixed',
+          right: 0,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 1000,
+          background: 'linear-gradient(135deg, rgba(0, 240, 255, 0.12) 0%, rgba(168, 85, 247, 0.12) 100%)',
+          border: '1px solid rgba(0, 240, 255, 0.3)',
+          borderRight: 'none',
+          borderRadius: '12px 0 0 12px',
+          padding: '12px 6px',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+          color: 'var(--cyan)',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '-4px 0 20px rgba(0, 240, 255, 0.15)',
+          transition: 'all 0.2s ease-in-out'
+        }}
+      >
+        <Ico d={CHEVRON_LEFT} size={16} />
+        <span 
+          style={{ 
+            writingMode: 'vertical-rl', 
+            textTransform: 'uppercase', 
+            fontSize: '0.68rem', 
+            letterSpacing: '2px', 
+            fontWeight: 700 
+          }}
+        >
+          Tiến độ
+        </span>
+      </button>
+
+      {/* Slide-out Progress Drawer */}
+      <div className={`hd-progress-drawer ${isDrawerOpen ? 'hd-progress-drawer--open' : ''}`}>
+        <div className="hd-drawer-overlay" onClick={() => setIsDrawerOpen(false)} />
+        <div className="hd-drawer-content">
+          {/* Drawer Header */}
+          <div className="hd-drawer-header">
+            <button className="hd-drawer-close" onClick={() => setIsDrawerOpen(false)}>
+              <Ico d={CROSS} size={20} />
+            </button>
+            <h3 className="hd-drawer-title">Tiến độ chuẩn bị giải đấu</h3>
+            <div className="hd-drawer-rocket">
+              <Ico d={ROCKET} size={24} />
+            </div>
+          </div>
+
+          {/* Drawer Body */}
+          <div className="hd-drawer-body">
+            {/* Progress Card */}
+            <div className="hd-drawer-progress-card">
+              <div className="hd-drawer-progress-info">
+                <div>
+                  <span className="hd-drawer-progress-label">Tổng tiến độ</span>
+                  <div className="hd-drawer-progress-pct">{checklistPct}%</div>
+                </div>
+                <span className="hd-drawer-progress-count">
+                  {completedCount}/{checklistSteps.length} bước hoàn thành
+                </span>
+              </div>
+              <div className="hd-progress-bar-bg">
+                <div className="hd-progress-bar-fill" style={{ width: `${checklistPct}%` }}></div>
+              </div>
+            </div>
+
+            {/* Checklist Steps */}
+            <div className="hd-drawer-steps">
+              {checklistSteps.map((s, idx) => (
+                <div key={s.id} className="hd-drawer-step-item">
+                  <div className="hd-drawer-step-timeline">
+                    <div className={`hd-drawer-step-bullet ${s.ok ? 'hd-drawer-step-bullet--success' : 'hd-drawer-step-bullet--pending'}`}>
+                      {s.ok ? <Ico d={CHECK} size={8}/> : <span className="hd-drawer-bullet-dot" />}
+                    </div>
+                    {idx < checklistSteps.length - 1 && <div className="hd-drawer-step-line" />}
+                  </div>
+                  
+                  <div className="hd-drawer-step-details">
+                    <div className="hd-drawer-step-main">
+                      <span className={`hd-drawer-step-label ${s.ok ? 'hd-drawer-step-label--ok' : 'hd-drawer-step-label--pending'}`}>
+                        {s.label}
+                      </span>
+                      <span className={`hd-drawer-step-status ${s.ok ? 'hd-drawer-step-status--ok' : 'hd-drawer-step-status--pending'}`}>
+                        {s.ok ? 'Hoàn thành' : 'Chưa xong'}
+                      </span>
+                    </div>
+                    <p className="hd-drawer-step-desc">{s.desc}</p>
+                    {!s.ok && (
+                      <button className="hd-drawer-step-btn" onClick={() => { setTab(s.tabId); setIsDrawerOpen(false); }}>
+                        Thiết lập <Ico d={CHEVRON_RIGHT} size={10} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Suggestions / Gợi ý card */}
+            <div className="hd-drawer-suggestions">
+              <div className="hd-suggestions-header">
+                <span className="hd-suggestions-icon">💡</span>
+                <span className="hd-suggestions-title">Gợi ý thiết lập</span>
+              </div>
+              <p className="hd-suggestions-text">
+                Lần lượt: tạo vòng thi → bảng đấu → tiêu chí chấm → gán mentor & giám khảo → lên lịch sự kiện → kiểm tra điều kiện → mở đăng ký.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

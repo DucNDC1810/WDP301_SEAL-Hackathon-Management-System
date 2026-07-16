@@ -20,6 +20,7 @@ const SEND = 'M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.25996
 const ALERT = ['M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'];
 const PEOPLE = ['M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.64 2.38 1.77 2.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z'];
 const CHECKMARK = 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z';
+const TRASH = ['M3 6h18', 'M19 6v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6', 'M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2'];
 
 // Email templates
 const EMAIL_TEMPLATES = [
@@ -64,11 +65,42 @@ export default function AIAssistantPage() {
   const [activeTab, setActiveTab] = useState('chat');
 
   // ── Chat state ──
-  const [chatMessages, setChatMessages] = useState([]);
+  const [chatMessages, setChatMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ai_chatMessages');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [chatInput, setChatInput] = useState('');
   const [chatSending, setChatSending] = useState(false);
-  const [chatHistory, setChatHistory] = useState([]); // raw Gemini Content[] để giữ ngữ cảnh
+  const [chatHistory, setChatHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ai_chatHistory');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  }); // raw Gemini Content[] để giữ ngữ cảnh
   const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('ai_chatMessages', JSON.stringify(chatMessages));
+  }, [chatMessages]);
+
+  useEffect(() => {
+    localStorage.setItem('ai_chatHistory', JSON.stringify(chatHistory));
+  }, [chatHistory]);
+
+  const clearChatHistory = () => {
+    if (window.confirm("Bạn có chắc muốn xóa lịch sử trò chuyện không?")) {
+      setChatMessages([]);
+      setChatHistory([]);
+      localStorage.removeItem('ai_chatMessages');
+      localStorage.removeItem('ai_chatHistory');
+    }
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -274,6 +306,18 @@ export default function AIAssistantPage() {
               <div ref={chatEndRef} />
             </div>
             <form className="chat-input-row" onSubmit={handleChatSubmit}>
+              {chatMessages.length > 0 && (
+                <button
+                  type="button"
+                  className="btn-generate"
+                  style={{ backgroundColor: '#ff4d4f', padding: '0 12px' }}
+                  onClick={clearChatHistory}
+                  title="Xóa lịch sử"
+                  disabled={chatSending}
+                >
+                  <Ico d={TRASH} size={16} />
+                </button>
+              )}
               <input
                 className="chat-input"
                 value={chatInput}

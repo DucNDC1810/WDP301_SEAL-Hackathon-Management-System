@@ -5,7 +5,7 @@ import { notification } from 'antd';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-function TeamDashboardPage({ isEmbedded = false }) {
+function TeamDashboardPage({ isEmbedded = false, onTeamsUpdated }) {
   const { contestId } = useParams();
 
   // ─── States ────────────────────────────────────────────────────────────────
@@ -93,6 +93,7 @@ function TeamDashboardPage({ isEmbedded = false }) {
 
       setSuccess(`Đã duyệt đội thi "${teamName}" thành công.`);
       fetchTeams(false);
+      if (onTeamsUpdated) onTeamsUpdated();
     } catch (err) {
       setError(err.message || 'Lỗi khi duyệt đội thi.');
     }
@@ -122,6 +123,7 @@ function TeamDashboardPage({ isEmbedded = false }) {
 
       setSuccess(`Đã từ chối đội thi "${teamName}". Thông báo đã được gửi đến đội.`);
       fetchTeams(false);
+      if (onTeamsUpdated) onTeamsUpdated();
     } catch (err) {
       setError(err.message || 'Lỗi khi từ chối duyệt đội thi.');
     }
@@ -142,6 +144,7 @@ function TeamDashboardPage({ isEmbedded = false }) {
 
       setSuccess(`Đã loại đội thi "${teamName}" thành công.`);
       fetchTeams(false);
+      if (onTeamsUpdated) onTeamsUpdated();
     } catch (err) {
       setError(err.message || 'Lỗi khi loại đội thi.');
     }
@@ -410,31 +413,43 @@ function TeamDashboardPage({ isEmbedded = false }) {
                               </span>
                             </td>
                             <td>
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 {team.status === 'WAITING_APPROVAL' && (
                                   <>
                                     <button
                                       type="button"
-                                      className="btn btn--sm btn--outline-green"
+                                      className="btn-approve-team"
                                       onClick={() => setConfirmModal({ type: 'approve', teamId: team._id, teamName: team.team_name })}
                                     >
-                                      ✓ Duyệt
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                      Duyệt
                                     </button>
                                     <button
                                       type="button"
-                                      className="btn btn--sm btn--outline-red"
+                                      className="btn-reject-team"
                                       onClick={() => setConfirmModal({ type: 'reject', teamId: team._id, teamName: team.team_name, reason: '' })}
                                     >
-                                      ✗ Từ chối
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+                                        <line x1="18" y1="6" x2="6" y2="18" />
+                                        <line x1="6" y1="6" x2="18" y2="18" />
+                                      </svg>
+                                      Từ chối
                                     </button>
                                   </>
                                 )}
                                 {team.status === 'CONFIRMED' && (
                                   <button
                                     type="button"
-                                    className="btn btn--sm btn--outline-red"
+                                    className="btn-reject-team"
                                     onClick={() => setConfirmModal({ type: 'disqualify', teamId: team._id, teamName: team.team_name })}
                                   >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+                                      <circle cx="12" cy="12" r="10" />
+                                      <line x1="15" y1="9" x2="9" y2="15" />
+                                      <line x1="9" y1="9" x2="15" y2="15" />
+                                    </svg>
                                     Loại bỏ
                                   </button>
                                 )}
@@ -454,13 +469,31 @@ function TeamDashboardPage({ isEmbedded = false }) {
                                       const isVerified = member.user_id && member.user_id.profile_verify_status === 'approved';
                                       return (
                                         <div className="member-detail-card" key={mIdx}>
-                                          <div className="member-detail-card__top">
-                                            <span className="member-name">{memberName}</span>
-                                            <span className={`member-verify-indicator ${isVerified ? 'member-verify-indicator--verified' : ''}`}>
-                                              {isVerified ? '✓ Đã xác thực' : '⏳ Chờ xác thực'}
-                                            </span>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div className="member-avatar-wrap">
+                                              {member.user_id?.avatar_url ? (
+                                                <img 
+                                                  src={member.user_id.avatar_url} 
+                                                  alt={memberName} 
+                                                  className="member-avatar-img"
+                                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                                />
+                                              ) : (
+                                                <div className="member-avatar-fallback">
+                                                  {memberName.trim().split(' ').pop()?.[0]?.toUpperCase() || '?'}
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <div className="member-detail-card__top" style={{ marginBottom: '4px' }}>
+                                                <span className="member-name">{memberName}</span>
+                                                <span className={`member-verify-indicator ${isVerified ? 'member-verify-indicator--verified' : ''}`}>
+                                                  {isVerified ? '✓ Đã xác thực' : '⏳ Chờ xác thực'}
+                                                </span>
+                                              </div>
+                                              <div className="member-email">{member.email}</div>
+                                            </div>
                                           </div>
-                                          <div className="member-email">{member.email}</div>
                                         </div>
                                       );
                                     })}

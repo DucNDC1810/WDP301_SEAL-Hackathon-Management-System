@@ -1482,31 +1482,6 @@ export default function HackathonDetailPage({ defaultTab }) {
           </button>
         ))}
 
-        {/* Progress Drawer Trigger */}
-        <button
-          className="hd-tabs-progress-trigger"
-          style={{
-            marginLeft: 'auto',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--cyan)',
-            cursor: 'pointer',
-            fontSize: '0.88rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '10px 16px',
-            borderRadius: '6px',
-            transition: 'all 0.2s',
-            borderBottom: '3px solid transparent'
-          }}
-          onClick={() => setIsDrawerOpen(true)}
-        >
-          <Ico d={CHEVRON_LEFT} size={14} />
-          <span>Tiến độ chuẩn bị</span>
-        </button>
-
       </div>
 
       {/* ─── TAB 0: TỔNG QUAN ─── */}
@@ -2790,15 +2765,17 @@ export default function HackathonDetailPage({ defaultTab }) {
           top: '50%',
           transform: 'translateY(-50%)',
           zIndex: 1000,
-          background: 'linear-gradient(135deg, rgba(0, 240, 255, 0.12) 0%, rgba(168, 85, 247, 0.12) 100%)',
+          background: 'linear-gradient(135deg, rgba(0, 240, 255, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
           border: '1px solid rgba(0, 240, 255, 0.3)',
           borderRight: 'none',
-          borderRadius: '12px 0 0 12px',
-          padding: '12px 6px',
+          borderRadius: '16px 0 0 16px',
+          width: '36px',
+          padding: '16px 4px',
           cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          justifyContent: 'center',
           gap: '8px',
           color: 'var(--cyan)',
           backdropFilter: 'blur(10px)',
@@ -2806,18 +2783,18 @@ export default function HackathonDetailPage({ defaultTab }) {
           transition: 'all 0.2s ease-in-out'
         }}
       >
-        <Ico d={CHEVRON_LEFT} size={16} />
         <span 
           style={{ 
             writingMode: 'vertical-rl', 
             textTransform: 'uppercase', 
             fontSize: '0.68rem', 
-            letterSpacing: '2px', 
-            fontWeight: 700 
+            letterSpacing: '1px', 
+            fontWeight: 700
           }}
         >
           Tiến độ
         </span>
+        <Ico d={isDrawerOpen ? CHEVRON_RIGHT : CHEVRON_LEFT} size={18} />
       </button>
 
       {/* Slide-out Progress Drawer */}

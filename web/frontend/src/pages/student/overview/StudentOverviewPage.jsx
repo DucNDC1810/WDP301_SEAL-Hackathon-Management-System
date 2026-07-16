@@ -348,7 +348,8 @@ export const StudentOverviewPage = () => {
 
         const contestId = team.contest_id?._id ?? team.contest_id;
 
-        if (team.status?.toUpperCase() !== "CONFIRMED" || !contestId) {
+        const statusUpper = team.status?.toUpperCase();
+        if ((statusUpper !== "CONFIRMED" && !(statusUpper === "ACTIVE" && team.contest_id)) || !contestId) {
           setLoading(false);
           return;
         }

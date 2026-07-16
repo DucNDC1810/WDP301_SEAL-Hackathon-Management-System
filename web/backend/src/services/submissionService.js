@@ -72,7 +72,7 @@ export const createSubmission = async ({ repo_url, demo_url, slide_url, team_id,
     throw err;
   }
 
-  if (team.status !== 'CONFIRMED') {
+  if (team.status !== 'CONFIRMED' && !(team.status === 'ACTIVE' && team.contest_id)) {
     const err = new Error("Đội thi của bạn chưa được admin phê duyệt, không thể nộp bài");
     err.statusCode = 403;
     throw err;

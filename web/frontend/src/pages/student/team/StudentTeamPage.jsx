@@ -525,14 +525,15 @@ export const StudentTeamPage = () => {
   }
 
   // ── Has team ─────────────────────────────────────────────────────────────
-  const badge   = STATUS_BADGE[team.status] || STATUS_BADGE.ACTIVE;
-  const desc    = statusDesc[team.status] || '';
+  const hasContest = !!team.contest_id;
+  const isConfirmed = team.status === 'CONFIRMED' || (team.status === 'ACTIVE' && hasContest);
+  const badge   = isConfirmed ? STATUS_BADGE.CONFIRMED : (STATUS_BADGE[team.status] || STATUS_BADGE.ACTIVE);
+  const desc    = isConfirmed ? 'Đội đã được xác nhận tham gia cuộc thi. Chúc bạn thi đấu tốt!' : (statusDesc[team.status] || '');
   const pending = team.members?.filter(m => !m.user_id || m.user_id.profile_verify_status !== 'approved') ?? [];
 
   const contestCard = (() => {
-    if (team.status === 'CONFIRMED' || team.status === 'WAITING_APPROVAL') {
+    if (isConfirmed || team.status === 'WAITING_APPROVAL') {
       const contestTitle = team.contest_id?.title || 'Cuộc thi đã đăng ký';
-      const isConfirmed  = team.status === 'CONFIRMED';
       return (
         <div style={{ ...cardStyle, padding: 20 }}>
           <div style={labelStyle}>Cuộc thi đã đăng ký</div>
@@ -548,7 +549,7 @@ export const StudentTeamPage = () => {
         </div>
       );
     }
-    if (team.status === 'ACTIVE' || team.status === 'REJECTED') {
+    if ((team.status === 'ACTIVE' && !hasContest) || team.status === 'REJECTED') {
       const totalMembers  = team.members?.length ?? 0;
       const verifiedCount = team.members?.filter(m => m.user_id && m.user_id.profile_verify_status === 'approved').length ?? 0;
       const canRegister   = totalMembers >= 4 && verifiedCount === totalMembers;
@@ -627,7 +628,7 @@ export const StudentTeamPage = () => {
             Đội thi
           </h2>
         </div>
-        {team.status === 'CONFIRMED' && (
+        {isConfirmed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(34,197,94,.08)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 20, padding: '6px 14px', fontSize: 12, fontWeight: 700, color: C.green }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, display: 'inline-block', boxShadow: `0 0 6px ${C.green}` }} />
             Đã xác nhận

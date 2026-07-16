@@ -351,7 +351,7 @@ export const StudentSubmitPage = () => {
     );
   }
 
-  if (team.status !== 'CONFIRMED') {
+  if (team.status !== 'CONFIRMED' && !(team.status === 'ACTIVE' && team.contest_id)) {
     return (
       <div style={{ padding: '28px 32px', background: C.bg }}>
         {pageHeader}

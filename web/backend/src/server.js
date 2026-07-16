@@ -40,6 +40,7 @@ import finalSubmissionRoute from "./routes/finalSubmissionRoute.js";
 import teamRankingRoute from "./routes/teamRanking.js";
 import adminRankingRoute from "./routes/adminRankingRoute.js";
 import prizeRoute from "./routes/prize.js";
+import aiChatRoute from "./routes/aiChatRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -98,6 +99,7 @@ app.use("/api/submission", finalSubmissionRoute);
 app.use("/api/ranking", teamRankingRoute);
 app.use("/api/admin/ranking", adminRankingRoute);
 app.use("/api/prize", prizeRoute);
+app.use("/api/ai", aiChatRoute);
 
 initSocket(httpServer);
 

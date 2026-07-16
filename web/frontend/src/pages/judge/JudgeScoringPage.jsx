@@ -215,8 +215,10 @@ export const JudgeScoringPage = () => {
     loadTeamDetail(slot.team_id);
   };
 
-  const isUnlocked = (slot) => new Date(slot.start_time) <= now;
+  // Team chưa có lịch trình bày (start_time null) luôn mở để chấm ngay
+  const isUnlocked = (slot) => !slot.start_time || new Date(slot.start_time) <= now;
   const isLive     = (slot) => {
+    if (!slot.start_time || !slot.end_time) return false;
     const start = new Date(slot.start_time);
     const end   = new Date(slot.end_time);
     return start <= now && now < end;
@@ -276,7 +278,7 @@ export const JudgeScoringPage = () => {
   const progPct        = totalSlots > 0 ? submittedCount / totalSlots : 0;
   const gCirc          = 2 * Math.PI * 74;
   const pCirc          = 2 * Math.PI * 11;
-  const isReadOnly     = selected?.score_status === 'submitted';
+  const isSubmitted    = selected?.score_status === 'submitted';
   const filledCount    = criteria.filter((c) => (draft.criteria?.[c.id] ?? 0) > 0).length;
 
   const roundLine = round
@@ -370,7 +372,7 @@ export const JudgeScoringPage = () => {
               {schedule.slots.map((slot) => {
                 const unlocked      = isUnlocked(slot);
                 const live          = isLive(slot);
-                const isSelected    = String(selected?.slot_id) === String(slot.slot_id);
+                const isSelected    = selected && String(selected.team_id) === String(slot.team_id);
                 const done          = slot.score_status === 'submitted';
                 const isDraft       = slot.score_status === 'draft';
                 const remMs         = new Date(slot.start_time) - now;
@@ -384,7 +386,7 @@ export const JudgeScoringPage = () => {
 
                 return (
                   <div
-                    key={String(slot.slot_id)}
+                    key={String(slot.slot_id ?? slot.team_id)}
                     className="jsp-slot"
                     onClick={() => unlocked && openSlot(slot, criteria)}
                     style={{ position: 'relative', display: 'flex', gap: 11, padding: '11px 11px 11px 8px', borderRadius: 11, marginBottom: 4, cursor: unlocked ? 'pointer' : 'not-allowed', background: isSelected ? 'rgba(0,229,255,.07)' : 'transparent', opacity: unlocked ? 1 : 0.55, transition: 'background .15s' }}
@@ -554,7 +556,7 @@ export const JudgeScoringPage = () => {
                         c={c}
                         value={draft.criteria?.[c.id] ?? 0}
                         onChange={(v) => setScore(c.id, v)}
-                        readOnly={isReadOnly}
+                        readOnly={false}
                       />
                     ))}
                   </div>
@@ -565,9 +567,8 @@ export const JudgeScoringPage = () => {
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.13em', color: '#5f6f7e', margin: '0 2px 10px' }}>NHẬN XÉT TỔNG QUAN</div>
                   <textarea
                     value={draft.comment}
-                    onChange={(e) => !isReadOnly && setDraft((p) => ({ ...p, comment: e.target.value }))}
+                    onChange={(e) => setDraft((p) => ({ ...p, comment: e.target.value }))}
                     placeholder="Ghi nhận điểm mạnh, góp ý cho team..."
-                    disabled={isReadOnly}
                     style={{ width: '100%', minHeight: 92, background: '#0e151d', border: '1px solid #1c2632', borderRadius: 13, color: '#e8eef5', padding: '13px 15px', fontSize: 13, fontFamily: 'inherit', lineHeight: 1.5, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
@@ -634,27 +635,22 @@ export const JudgeScoringPage = () => {
             <div style={{ flexShrink: 0, padding: '16px 22px 20px', borderTop: '1px solid #16202b', background: '#0a0d12' }}>
               {!selected ? (
                 <div style={{ textAlign: 'center', fontSize: 12, color: '#5f6f7e' }}>Chọn team để bắt đầu chấm</div>
-              ) : isReadOnly ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 11, background: 'rgba(52,211,153,.10)', border: '1px solid rgba(52,211,153,.32)' }}>
-                    <span style={{ fontSize: 16 }}>✓</span>
-                    <div style={{ lineHeight: 1.25 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#6ee7b7' }}>Đã nộp điểm chính thức</div>
-                      <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#5a8a76' }}>Tổng {selected.total_score?.toFixed(1) ?? total.toFixed(1)} / 10</div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelected((s) => ({ ...s, score_status: 'draft' }))}
-                    style={{ width: '100%', padding: 11, borderRadius: 11, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                  >Mở khóa chỉnh sửa</button>
-                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                  {isSubmitted && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 11, background: 'rgba(52,211,153,.10)', border: '1px solid rgba(52,211,153,.32)' }}>
+                      <span style={{ fontSize: 16 }}>✓</span>
+                      <div style={{ lineHeight: 1.25 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#6ee7b7' }}>Đã nộp điểm chính thức</div>
+                        <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#5a8a76' }}>Tổng {selected.total_score?.toFixed(1) ?? total.toFixed(1)} / 10 — vẫn có thể sửa cho đến khi Admin khóa chấm điểm</div>
+                      </div>
+                    </div>
+                  )}
                   <button
                     onClick={() => saveScore(true)}
                     disabled={submitting}
                     style={{ width: '100%', padding: 13, borderRadius: 11, border: 'none', background: submitting ? '#0e3a47' : 'linear-gradient(135deg,#00e5ff,#00a3c4)', color: '#04222a', fontSize: 14, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 18px rgba(0,229,255,.28)', letterSpacing: '.2px' }}
-                  >{submitting ? 'Đang nộp...' : 'Nộp Điểm chính thức'}</button>
+                  >{submitting ? 'Đang nộp...' : isSubmitted ? 'Cập nhật điểm chính thức' : 'Nộp Điểm chính thức'}</button>
                   <button
                     onClick={() => saveScore(false)}
                     disabled={submitting}

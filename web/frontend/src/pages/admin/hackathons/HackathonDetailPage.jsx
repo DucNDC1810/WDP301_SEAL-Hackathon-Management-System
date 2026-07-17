@@ -1454,17 +1454,25 @@ export default function HackathonDetailPage({ defaultTab }) {
   const step1Ok = !!(contest.title && config.season && config.year && config.registration_open_date && config.registration_deadline && config.start_date && config.end_date && config.kickoff_date && config.rules?.trim());
   const step2Ok = config.tracks.length >= 1 && config.tracks.every(t => t.rounds && t.rounds.length >= 2);
   const step3Ok = config.tracks.length > 0 && config.tracks.every(t => t.rounds.length > 0 && t.rounds.every(r => r.criteria && r.criteria.length >= 1 && Math.abs(r.criteria.reduce((s, c) => s + c.weight, 0) - 1.0) < 0.001));
-  const step4Ok = pools.length > 0 && pools.some(p => p.teams && p.teams.length > 0);
+  const selectedRound = contest?.rounds?.find(r => r._id === selectedPoolRoundId);
+  const isFinalRound = selectedRound && (
+    selectedRound.name?.toLowerCase().includes("chung kết") || 
+    selectedRound.name?.toLowerCase().includes("final") ||
+    selectedRound.name?.toLowerCase().includes("chung cuộc") ||
+    (contest?.rounds && selectedRound.round_number === Math.max(...contest.rounds.map(r => r.round_number)))
+  );
+
+  const step4Ok = isFinalRound ? true : (pools.length > 0 && pools.some(p => p.teams && p.teams.length > 0));
   const step5Ok = !!config.mentors_assigned;
-  const step6Ok = pools.length > 0 && pools.every(p => p.drive_link && p.drive_link.trim() !== '');
+  const step6Ok = isFinalRound ? true : (pools.length > 0 && pools.every(p => p.drive_link && p.drive_link.trim() !== ''));
   const step7Ok = contest.status === 'open';
 
   const checklistSteps = [
     { id: 2, label: 'Cấu hình vòng thi', desc: 'Thiết lập tối thiểu 1 bảng thi (Track) và 2 vòng đấu (Rounds).', ok: step2Ok, tabId: 1 },
     { id: 3, label: 'Tiêu chí chấm điểm', desc: 'Phân bổ ít nhất 1 tiêu chí & đảm bảo tổng trọng số bằng 1.0 mỗi vòng.', ok: step3Ok, tabId: 2 },
-    { id: 4, label: 'Chia bảng đấu & Đội thi', desc: 'Khởi tạo danh sách bảng đấu (Pools) & xếp các đội thi vào bảng.', ok: step4Ok, tabId: 3 },
+    { id: 4, label: 'Chia bảng đấu & Đội thi', desc: isFinalRound ? 'Không yêu cầu chia bảng đối với vòng chung kết.' : 'Khởi tạo danh sách bảng đấu (Pools) & xếp các đội thi vào bảng.', ok: step4Ok, tabId: 3, isNotRequired: isFinalRound },
     { id: 5, label: 'Phân công Judge & Mentor', desc: 'Phân công Giám khảo & Người hướng dẫn chấm điểm các bảng.', ok: step5Ok, tabId: 4 },
-    { id: 6, label: 'Cấu hình đề bài', desc: 'Cập nhật link Google Drive đề bài thi cho tất cả bảng đấu.', ok: step6Ok, tabId: 3 },
+    { id: 6, label: 'Cấu hình đề bài', desc: isFinalRound ? 'link đề bài đã được cho ngay khi kích hoạt chung kết.' : 'Cập nhật link Google Drive đề bài thi cho tất cả bảng đấu.', ok: step6Ok, tabId: 3, isNotRequired: isFinalRound },
     { id: 7, label: 'Kích hoạt giải đấu', desc: 'Chuyển trạng thái Hackathon sang ONGOING để bắt đầu thi đấu.', ok: step7Ok, tabId: 9 }
   ];
 
@@ -2927,7 +2935,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                         {s.label}
                       </span>
                       <span className={`hd-drawer-step-status ${s.ok ? 'hd-drawer-step-status--ok' : 'hd-drawer-step-status--pending'}`}>
-                        {s.ok ? 'Hoàn thành' : 'Chưa xong'}
+                        {s.isNotRequired ? 'Không yêu cầu' : s.ok ? 'Hoàn thành' : 'Chưa xong'}
                       </span>
                     </div>
                     <p className="hd-drawer-step-desc">{s.desc}</p>

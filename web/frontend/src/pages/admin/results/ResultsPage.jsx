@@ -31,6 +31,7 @@ export default function ResultsPage() {
   const [contests, setContests] = useState([]);
   const [selectedRoundId, setSelectedRoundId] = useState('');
   const [rounds, setRounds] = useState([]);
+  const [activePoolTab, setActivePoolTab] = useState('');
 
   const [data, setData] = useState({
     metrics: {
@@ -114,6 +115,23 @@ export default function ResultsPage() {
     }
   }, [contestId, selectedRoundId]);
 
+  // Reset active pool tab when selectedRoundId or data.leaderboard changes
+  useEffect(() => {
+    if (data.leaderboard && data.leaderboard.length > 0) {
+      const isFinal = data.leaderboard[0].isFinalRound;
+      if (!isFinal) {
+        const pools = Array.from(new Set(data.leaderboard.map(item => item.poolName || "Chưa phân bảng")));
+        if (pools.length > 0 && !pools.includes(activePoolTab)) {
+          setActivePoolTab(pools[0]);
+        }
+      } else {
+        setActivePoolTab('');
+      }
+    } else {
+      setActivePoolTab('');
+    }
+  }, [selectedRoundId, data.leaderboard]);
+
   const fetchResultsData = async (cid, rid) => {
     setLoading(true);
     try {
@@ -136,11 +154,13 @@ export default function ResultsPage() {
         const allRankings = Array.isArray(rankings) ? rankings : rankings.data || [];
         totalTeams = allRankings.length;
 
-        leaderboard = allRankings.slice(0, 5).map((r, i) => ({
-          rank: i + 1,
+        leaderboard = allRankings.map((r, i) => ({
+          rank: r.rank_position || (i + 1),
           name: r.team_name,
           score: r.final_score || 0,
           category: r.category || 'General',
+          poolName: r.board_id ? r.board_id.pool_name : null,
+          isFinalRound: r.is_final_round || false,
         }));
 
         const scores = allRankings.map(r => r.final_score || 0);
@@ -331,30 +351,127 @@ export default function ResultsPage() {
           {/* Leaderboard */}
           <div className="results-panel">
             <h2 className="panel-title">BẢNG XẾP HẠNG VÒNG ĐẤU (LEADERBOARD)</h2>
-            <div className="leaderboard">
+            <div className="leaderboard" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {data.leaderboard.length > 0 ? (
-                data.leaderboard.map((team, idx) => (
-                  <div key={idx} className="leaderboard-item">
-                    <div className="leaderboard-rank">
-                      <span className="rank-badge" style={{ backgroundColor: getMedalColor(team.rank) }}>
-                        {team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : team.rank}
-                      </span>
+                (() => {
+                  const isFinal = data.leaderboard[0].isFinalRound;
+
+                  if (isFinal) {
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {data.leaderboard.map((team, idx) => (
+                          <div key={idx} className="leaderboard-item">
+                            <div className="leaderboard-rank">
+                              <span className="rank-badge" style={{ backgroundColor: getMedalColor(team.rank) }}>
+                                {team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : team.rank}
+                              </span>
+                            </div>
+                            <div className="leaderboard-info">
+                              <p className="team-name">{team.name}</p>
+                              <p className="team-category">{team.category}</p>
+                            </div>
+                            <div className="leaderboard-score">
+                              <p className="score-value">{team.score.toFixed(2)}</p>
+                              <p className="score-label">Điểm trung bình</p>
+                            </div>
+                            <div className="leaderboard-medal">
+                              <span className={`medal-badge medal-${team.rank.toString().toLowerCase()}`}>
+                                {getMedalLabel(team.rank)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+
+                  // Group by poolName for preliminary rounds
+                  const grouped = {};
+                  data.leaderboard.forEach(item => {
+                    const key = item.poolName || "Chưa phân bảng";
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(item);
+                  });
+
+                  const pools = Object.keys(grouped);
+                  const currentPool = activePoolTab || pools[0] || "Chưa phân bảng";
+                  const teamsInPool = grouped[currentPool] || [];
+                  const sortedTeams = [...teamsInPool].sort((a, b) => b.score - a.score);
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                      {/* Horizontal Tabs */}
+                      <div className="pool-tabs" style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 12, flexWrap: 'wrap' }}>
+                        {pools.map(poolName => {
+                          const isActive = poolName === currentPool;
+                          return (
+                            <button
+                              key={poolName}
+                              onClick={() => setActivePoolTab(poolName)}
+                              style={{
+                                background: isActive ? 'rgba(0, 212, 255, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                                color: isActive ? '#00d4ff' : 'rgba(255, 255, 255, 0.6)',
+                                border: isActive ? '1px solid #00d4ff' : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '20px',
+                                padding: '6px 16px',
+                                fontSize: '0.85rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                outline: 'none'
+                              }}
+                            >
+                              <span>📦</span>
+                              <span>{poolName}</span>
+                              <span style={{
+                                fontSize: '0.72rem',
+                                padding: '1px 6px',
+                                borderRadius: '10px',
+                                background: isActive ? 'rgba(0, 212, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                                color: isActive ? '#00d4ff' : 'rgba(255, 255, 255, 0.4)',
+                                fontWeight: 700
+                              }}>
+                                {grouped[poolName].length}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Leaderboard Items for the selected pool */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {sortedTeams.map((team, idx) => {
+                          const rankInPool = idx + 1;
+                          return (
+                            <div key={idx} className="leaderboard-item">
+                              <div className="leaderboard-rank">
+                                <span className="rank-badge" style={{ backgroundColor: getMedalColor(rankInPool) }}>
+                                  {rankInPool === 1 ? '🥇' : rankInPool === 2 ? '🥈' : rankInPool === 3 ? '🥉' : rankInPool}
+                                </span>
+                              </div>
+                              <div className="leaderboard-info">
+                                <p className="team-name">{team.name}</p>
+                                <p className="team-category">{team.category}</p>
+                              </div>
+                              <div className="leaderboard-score">
+                                <p className="score-value">{team.score.toFixed(2)}</p>
+                                <p className="score-label">Điểm trung bình</p>
+                              </div>
+                              <div className="leaderboard-medal">
+                                <span className={`medal-badge medal-${rankInPool.toString().toLowerCase()}`}>
+                                  {getMedalLabel(rankInPool)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="leaderboard-info">
-                      <p className="team-name">{team.name}</p>
-                      <p className="team-category">{team.category}</p>
-                    </div>
-                    <div className="leaderboard-score">
-                      <p className="score-value">{team.score.toFixed(2)}</p>
-                      <p className="score-label">Điểm trung bình</p>
-                    </div>
-                    <div className="leaderboard-medal">
-                      <span className={`medal-badge medal-${team.rank.toString().toLowerCase()}`}>
-                        {getMedalLabel(team.rank)}
-                      </span>
-                    </div>
-                  </div>
-                ))
+                  );
+                })()
               ) : (
                 <div className="empty-state">Chưa có dữ liệu xếp hạng. Vui lòng chấm điểm và tính xếp hạng.</div>
               )}

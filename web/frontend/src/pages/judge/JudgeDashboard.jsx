@@ -459,15 +459,64 @@ function SectionCompetitions({ enriched, navigate }) {
 
 // ─── Section: Teams ───────────────────────────────────────────────────────────
 function SectionTeams({ enriched, navigate }) {
+  // Group assignments by contestId
+  const byContest = {};
+  enriched.forEach(a => {
+    if (!byContest[a.contestId]) {
+      byContest[a.contestId] = {
+        id: a.contestId,
+        name: a.contestName,
+        accentColor: a.accentColor,
+        assignments: []
+      };
+    }
+    byContest[a.contestId].assignments.push(a);
+  });
+
+  const contests = Object.values(byContest).filter(c => 
+    c.assignments.some(a => a.teams && a.teams.length > 0)
+  );
+
+  if (contests.length === 0) {
+    return (
+      <div>
+        <div className="md-section-header">
+          <div className="md-section-title">👥 Đội cần chấm điểm</div>
+        </div>
+        <div className="jd-empty">
+          <div className="jd-empty-icon">👥</div>
+          <div className="jd-empty-title">Không có đội nào trong bảng được phân công</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="md-section-header">
         <div className="md-section-title">
           👥 Đội cần chấm điểm
-          <span className="md-section-count">{enriched.reduce((s, a) => s + a.teamCount, 0)} đội</span>
+          <span className="md-section-count">{contests.reduce((sum, c) => sum + c.assignments.reduce((s, a) => s + a.teamCount, 0), 0)} đội</span>
         </div>
       </div>
-      <TeamsTable enriched={enriched} navigate={navigate} />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        {contests.map(c => {
+          const totalTeams = c.assignments.reduce((s, a) => s + a.teamCount, 0);
+          return (
+            <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 }}>
+                <span style={{ fontSize: '1.15rem' }}>🏆</span>
+                <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{c.name}</span>
+                <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 12, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
+                  {totalTeams} đội
+                </span>
+              </div>
+              <TeamsTable enriched={c.assignments} navigate={navigate} />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

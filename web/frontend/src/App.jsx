@@ -129,6 +129,8 @@ function App() {
                 <Route path="timeline/:contestId"              element={<HackathonFeaturePage feature="timeline" />} />
                 <Route path="presentation"                     element={<HackathonFeaturePage feature="presentation" />} />
                 <Route path="presentation/:contestId"          element={<HackathonFeaturePage feature="presentation" />} />
+                <Route path="awards"                           element={<HackathonFeaturePage feature="awards" />} />
+                <Route path="awards/:contestId"                element={<HackathonFeaturePage feature="awards" />} />
                 <Route path="users"                         element={<UserManagementPage />} />
                 <Route path="ranking-manager"              element={<AdminRankingManagerPage />} />
               </Route>

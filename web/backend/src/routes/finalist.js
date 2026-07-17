@@ -31,6 +31,7 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
         _id: embeddedRound._id,
         contest_id: contest._id,
         name: embeddedRound.name,
+        type: embeddedRound.round_number === 2 || embeddedRound.name.toLowerCase().includes("chung kết") || embeddedRound.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
         top_n: embeddedRound.top_n_advance || 6,
         wildcard_count: embeddedRound.wildcard_count || 1,
         wildcard_enabled: embeddedRound.wildcard_enabled || false
@@ -75,6 +76,9 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
       scoreMap[teamIdStr].push(score.weighted_avg_score || 0);
     }
 
+    const isFinalRound = round.type === "FINAL" || round.name?.toLowerCase().includes("chung kết") || round.name?.toLowerCase().includes("final");
+    const fallbackGroupName = isFinalRound ? "Kết quả chung cuộc" : "Chưa phân bảng";
+
     const teamList = [];
     for (const team of teams) {
       const teamScores = scoreMap[team._id.toString()];
@@ -85,7 +89,7 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
       teamList.push({
         team_id: team._id,
         team_name: team.name || team.team_name || "Unknown Team",
-        assigned_group: teamPoolMap[team._id.toString()] || team.assigned_group || "Chưa phân bảng",
+        assigned_group: teamPoolMap[team._id.toString()] || team.assigned_group || fallbackGroupName,
         status: team.status || "ACTIVE",
         weighted_avg_score: Math.round(avgScore * 100) / 100,
       });
@@ -94,7 +98,7 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
     // Group by assigned_group to find Top N
     const groupsMap = {};
     for (const team of teamList) {
-      const groupName = team.assigned_group || "Chưa phân bảng";
+      const groupName = team.assigned_group || fallbackGroupName;
       if (!groupsMap[groupName]) {
         groupsMap[groupName] = [];
       }

@@ -67,7 +67,7 @@ export default function LeaderboardTable({ groupName, teams }) {
           borderRadius: "4px",
           display: "inline-block"
         }}></span>
-        Bảng: {groupName}
+        {groupName === 'Kết quả chung cuộc' ? groupName : `Bảng: ${groupName}`}
       </h3>
       <div style={{ overflowX: "auto" }}>
         <table className="leaderboard-table" style={{

@@ -373,6 +373,9 @@ export const checkJudgeCompletion = async (roundId) => {
     .populate("judge_id", "full_name email")
     .populate("pool_id");
 
+  const contest = await Contest.findOne({ "rounds._id": roundId }).select("_id").lean();
+  const contestId = contest?._id;
+
   // Get unique judges from assignments
   const judgeMap = {};
   for (const assign of assignments) {
@@ -398,15 +401,19 @@ export const checkJudgeCompletion = async (roundId) => {
   for (const judgeId of Object.keys(judgeMap)) {
     const judgeInfo = judgeMap[judgeId];
 
-    // Thu thập tất cả team_id từ các pool mà judge được phân công
-    const teamIds = [];
-    for (const pool of judgeInfo.pools) {
-      if (pool.teams && Array.isArray(pool.teams)) {
-        teamIds.push(...pool.teams.map((t) => t.toString()));
+    let uniqueTeamIds = [];
+    if (judgeInfo.pools.length > 0) {
+      const teamIds = [];
+      for (const pool of judgeInfo.pools) {
+        if (pool.teams && Array.isArray(pool.teams)) {
+          teamIds.push(...pool.teams.map((t) => t.toString()));
+        }
       }
+      uniqueTeamIds = [...new Set(teamIds)];
+    } else if (contestId) {
+      const activeTeams = await Team.find({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } }).select("_id").lean();
+      uniqueTeamIds = activeTeams.map((t) => t._id.toString());
     }
-
-    const uniqueTeamIds = [...new Set(teamIds)];
 
     // Số lượng đội có bài nộp trong vòng này trong pool của judge
     const expectedCount = await Submission.countDocuments({

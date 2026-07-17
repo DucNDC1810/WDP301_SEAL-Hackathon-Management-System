@@ -205,10 +205,14 @@ export const getScoringProgress = async (contestId, roundId) => {
     .populate("pool_id")
     .lean();
 
+  const activeTeamsCount = await Team.countDocuments({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } });
+
   let judgeExpectedScores = 0;
   for (const ja of judgeAssignments) {
     if (ja.pool_id && Array.isArray(ja.pool_id.teams)) {
       judgeExpectedScores += ja.pool_id.teams.length;
+    } else {
+      judgeExpectedScores += activeTeamsCount;
     }
   }
 

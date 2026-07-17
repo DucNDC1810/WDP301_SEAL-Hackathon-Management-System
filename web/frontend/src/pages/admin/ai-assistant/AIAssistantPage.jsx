@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './AIAssistantPage.css';
-import { notification } from 'antd';
+import { notification, Popconfirm, ConfigProvider, theme } from 'antd';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const Ico = ({ d, size = 18, sw = 1.8, color = 'currentColor' }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw}
@@ -18,6 +20,7 @@ const SEND = 'M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.25996
 const ALERT = ['M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'];
 const PEOPLE = ['M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.64 2.38 1.77 2.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z'];
 const CHECKMARK = 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z';
+const TRASH = ['M3 6h18', 'M19 6v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6', 'M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2'];
 
 // Email templates
 const EMAIL_TEMPLATES = [
@@ -51,8 +54,99 @@ const EMAIL_TEMPLATES = [
   },
 ];
 
+const CHAT_SUGGESTIONS = [
+  'Cuộc thi SEAL Hackathon 2026 có bao nhiêu người tham gia?',
+  'Khi nào cuộc thi đó bắt đầu và kết thúc?',
+  'Liệt kê tất cả các cuộc thi trong hệ thống',
+  'Có bao nhiêu giám khảo và mentor được phân công?',
+];
+
 export default function AIAssistantPage() {
-  const [activeTab, setActiveTab] = useState('email');
+  const [activeTab, setActiveTab] = useState('chat');
+
+  // ── Chat state ──
+  const [chatMessages, setChatMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ai_chatMessages');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [chatInput, setChatInput] = useState(() => {
+    return localStorage.getItem('ai_chatInput') || '';
+  });
+  const [chatSending, setChatSending] = useState(false);
+  const [chatHistory, setChatHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ai_chatHistory');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  }); // raw Gemini Content[] để giữ ngữ cảnh
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('ai_chatMessages', JSON.stringify(chatMessages));
+  }, [chatMessages]);
+
+  useEffect(() => {
+    localStorage.setItem('ai_chatHistory', JSON.stringify(chatHistory));
+  }, [chatHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('ai_chatInput', chatInput);
+  }, [chatInput]);
+
+  const clearChatHistory = () => {
+    setChatMessages([]);
+    setChatHistory([]);
+    setChatInput('');
+    localStorage.removeItem('ai_chatMessages');
+    localStorage.removeItem('ai_chatHistory');
+    localStorage.removeItem('ai_chatInput');
+  };
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, chatSending]);
+
+  const sendChatMessage = async (text) => {
+    const question = (text ?? chatInput).trim();
+    if (!question || chatSending) return;
+
+    setChatMessages((prev) => [...prev, { role: 'user', text: question }]);
+    setChatInput('');
+    setChatSending(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+        body: JSON.stringify({ message: question, history: chatHistory }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Lỗi khi gọi trợ lý AI');
+      }
+      setChatMessages((prev) => [...prev, { role: 'model', text: data.reply }]);
+      setChatHistory(data.history || []);
+    } catch (err) {
+      setChatMessages((prev) => [...prev, { role: 'model', text: `⚠ ${err.message || 'Không thể kết nối trợ lý AI'}`, isError: true }]);
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const handleChatSubmit = (e) => {
+    e.preventDefault();
+    sendChatMessage();
+  };
+
   const [selectedTemplate, setSelectedTemplate] = useState(1);
   const [recipientFilter, setRecipientFilter] = useState('All teams / Bracket A / Specific team');
   const [customVars, setCustomVars] = useState('e.g., deadline date, event location');
@@ -169,6 +263,10 @@ export default function AIAssistantPage() {
 
       {/* Tabs */}
       <div className="ai-tabs">
+        <button className={`tab ${activeTab === 'chat' ? 'tab--active' : ''}`} onClick={() => setActiveTab('chat')}>
+          <Ico d={CHECKMARK} size={16} />
+          <span>Thống kê & Điều hành</span>
+        </button>
         <button className={`tab ${activeTab === 'email' ? 'tab--active' : ''}`} onClick={() => setActiveTab('email')}>
           <Ico d={MAIL} size={16} />
           <span>AI Email Generator</span>
@@ -184,6 +282,84 @@ export default function AIAssistantPage() {
       </div>
 
       {/* Content */}
+      {activeTab === 'chat' && (
+        <div className="ai-content">
+          <div className="chat-panel">
+            <div className="chat-messages">
+              {chatMessages.length === 0 && (
+                <div className="chat-empty">
+                  <Ico d={INFO} size={32} color="#00d4ff" />
+                  <p>Hỏi tôi về số liệu, thời gian, trạng thái các cuộc thi. Tôi sẽ tra dữ liệu thật trong hệ thống trước khi trả lời.</p>
+                  <div className="chat-suggestions">
+                    {CHAT_SUGGESTIONS.map((s) => (
+                      <button key={s} type="button" className="chat-suggestion" onClick={() => sendChatMessage(s)}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {chatMessages.map((m, i) => (
+                <div key={i} className={`chat-msg chat-msg--${m.role}`}>
+                  <div className={`chat-bubble ${m.isError ? 'chat-bubble--error' : ''}`}>{m.text}</div>
+                </div>
+              ))}
+              {chatSending && (
+                <div className="chat-msg chat-msg--model">
+                  <div className="chat-bubble chat-bubble--loading">Đang tra cứu dữ liệu...</div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <form className="chat-input-row" onSubmit={handleChatSubmit}>
+              {chatMessages.length > 0 && (
+                <ConfigProvider 
+                  theme={{ 
+                    algorithm: theme.defaultAlgorithm,
+                    token: {
+                      colorBgElevated: '#ffffff',
+                      colorBgContainer: '#ffffff',
+                      colorText: 'rgba(0, 0, 0, 0.88)',
+                      colorTextHeading: 'rgba(0, 0, 0, 0.88)'
+                    }
+                  }}
+                >
+                  <Popconfirm
+                    title="Xóa lịch sử"
+                    description="Bạn có chắc muốn xóa toàn bộ lịch sử trò chuyện?"
+                    onConfirm={clearChatHistory}
+                    okText="Xóa"
+                    cancelText="Hủy"
+                    placement="topRight"
+                  >
+                    <button
+                      type="button"
+                      className="btn-generate"
+                      style={{ backgroundColor: '#ff4d4f', padding: '0 12px' }}
+                      title="Xóa lịch sử"
+                      disabled={chatSending}
+                    >
+                      <Ico d={TRASH} size={16} />
+                    </button>
+                  </Popconfirm>
+                </ConfigProvider>
+              )}
+              <input
+                className="chat-input"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="VD: Cuộc thi X có bao nhiêu người? Khi nào bắt đầu?"
+                disabled={chatSending}
+              />
+              <button type="submit" className="btn-generate" disabled={chatSending || !chatInput.trim()}>
+                <Ico d={SEND} size={16} />
+                <span>Gửi</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'email' && (
         <div className="ai-content">
           <div className="email-generator">

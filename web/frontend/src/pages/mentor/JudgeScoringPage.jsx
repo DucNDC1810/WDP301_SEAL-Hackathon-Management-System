@@ -49,9 +49,14 @@ export default function JudgeDashboardPage() {
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [contestData, myAssignmentsData, subsData, myScoresData] = await Promise.all([
+        const [contestData, poolsData, mentorAssignData, judgeAssignData, subsData, myScoresData] = await Promise.all([
           request(`/api/contests/${contestId}`),
-          request(`/api/judge-assignments/me?contest_id=${contestId}&round_id=${roundId}`),
+          // Round-scoped pools with full team data (the source of truth for teams).
+          request(`/api/pools/contests/${contestId}/pools?round_id=${roundId}`),
+          // Boards this mentor is assigned to (their mentee's pool → they cross-score it).
+          request(`/api/mentor-assignments/contests/${contestId}/rounds/${roundId}`).catch(() => []),
+          // Pools this mentor also judges (mentor acting as INTERNAL judge).
+          request(`/api/judge-assignments/me?contest_id=${contestId}&round_id=${roundId}`).catch(() => []),
           request(`/api/submissions?round_id=${roundId}`),
           request(`/api/scores/contests/${contestId}/rounds/${roundId}/my-scores`).catch(() => []),
         ]);
@@ -75,14 +80,29 @@ export default function JudgeDashboardPage() {
           setCriteria(crits);
         }
 
-        const myAssignments = Array.isArray(myAssignmentsData) ? myAssignmentsData : (myAssignmentsData?.data ?? []);
-        // Chỉ hiện (các) bảng mà mình thực sự được phân công làm giám khảo, không phải tất cả bảng của contest
-        const poolsMap = new Map();
-        myAssignments.forEach(a => {
-          const p = a.pool_id;
-          if (p && p._id) poolsMap.set(p._id.toString(), p);
+        const asArray = (d) => Array.isArray(d) ? d : (d?.data ?? []);
+        const mentorAssigns = asArray(mentorAssignData);
+        const judgeAssigns = asArray(judgeAssignData);
+
+        // Only show the board(s) this mentor is actually assigned to — either as the
+        // mentor of a team in it (board_id) or as an internal judge of it (pool_id).
+        const allowedPoolIds = new Set();
+        mentorAssigns.forEach(a => {
+          const b = (a.board_id?._id || a.board_id)?.toString();
+          if (b) allowedPoolIds.add(b);
         });
-        const allPools = Array.from(poolsMap.values());
+        judgeAssigns.forEach(a => {
+          const p = (a.pool_id?._id || a.pool_id)?.toString();
+          if (p) allowedPoolIds.add(p);
+        });
+
+        // Teams this mentor personally mentors — must not score them (conflict of interest).
+        const mentees = new Set(
+          mentorAssigns.map(a => (a.team_id?._id || a.team_id)?.toString()).filter(Boolean)
+        );
+
+        const allPoolsRaw = asArray(poolsData);
+        const allPools = allPoolsRaw.filter(p => allowedPoolIds.has(p._id?.toString()));
 
         // Build submission map: teamId → sub info
         const subList = Array.isArray(subsData) ? subsData : (subsData?.data ?? []);
@@ -93,6 +113,7 @@ export default function JudgeDashboardPage() {
             status: mapSubStatus(sub.status),
             repoUrl: sub.repo_url,
             slideUrl: sub.slide_url,
+            demoUrl: sub.demo_url,
           };
         });
 
@@ -127,7 +148,9 @@ export default function JudgeDashboardPage() {
               name: t?.team_name || tid,
               repoUrl: sub.repoUrl,
               slideUrl: sub.slideUrl,
+              demoUrl: sub.demoUrl,
               status: sub.status,
+              isMentee: mentees.has(tid),
             };
           }),
         }));
@@ -144,7 +167,8 @@ export default function JudgeDashboardPage() {
   }, [contestId, roundId]);
 
   const allTeams = pools.flatMap(p => p.teams);
-  const scorable = allTeams.filter(t => canScore(t.status));
+  // A mentor cannot score their own mentee — exclude those from the scorable set.
+  const scorable = allTeams.filter(t => !t.isMentee && canScore(t.status));
   const submittedCount = Object.values(scores).filter(s => s.status === 'submitted').length;
   const draftCount = Object.values(scores).filter(s => s.status === 'draft').length;
   const progress = scorable.length > 0 ? Math.round((submittedCount / scorable.length) * 100) : 0;
@@ -324,12 +348,12 @@ export default function JudgeDashboardPage() {
       <div className="jp-pools space-y-5">
         {pools.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-            Chưa có bảng đấu nào được tạo cho cuộc thi này.
+            Bạn chưa được phân công chấm bảng nào ở vòng thi này.
           </div>
         )}
         {pools.map(pool => {
-          const poolSubmitted = pool.teams.filter(t => scores[t.id]?.status === 'submitted').length;
-          const poolScorable = pool.teams.filter(t => canScore(t.status)).length;
+          const poolSubmitted = pool.teams.filter(t => !t.isMentee && scores[t.id]?.status === 'submitted').length;
+          const poolScorable = pool.teams.filter(t => !t.isMentee && canScore(t.status)).length;
           return (
             <div key={pool.id} className="jp-pool-card">
               <div className="jp-pool-header">
@@ -375,6 +399,9 @@ export default function JudgeDashboardPage() {
                             {team.slideUrl && (
                               <a href={team.slideUrl} target="_blank" rel="noreferrer" className="jp-link jp-link--slide">📊 Slide</a>
                             )}
+                            {team.demoUrl && (
+                              <a href={team.demoUrl} target="_blank" rel="noreferrer" className="jp-link jp-link--demo">🎥 Video</a>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -386,18 +413,24 @@ export default function JudgeDashboardPage() {
                             <span className="jp-score-denom">/10</span>
                           </div>
                         )}
-                        {myScore?.status === 'draft' && (
+                        {myScore?.status === 'draft' && !team.isMentee && (
                           <Tag color="orange" style={{ marginRight: 8 }}>Nháp</Tag>
                         )}
-                        <Button
-                          type={myScore?.status === 'submitted' ? 'default' : 'primary'}
-                          size="small"
-                          onClick={() => openForm(team)}
-                        >
-                          {myScore?.status === 'submitted' ? '✓ Xem / Sửa'
-                            : myScore?.status === 'draft' ? '📝 Tiếp tục'
-                            : '⚖ Chấm điểm'}
-                        </Button>
+                        {team.isMentee ? (
+                          <Tooltip title="Bạn là mentor của đội này nên không thể chấm (conflict of interest)">
+                            <Tag color="purple">Đội bạn dìu</Tag>
+                          </Tooltip>
+                        ) : (
+                          <Button
+                            type={myScore?.status === 'submitted' ? 'default' : 'primary'}
+                            size="small"
+                            onClick={() => openForm(team)}
+                          >
+                            {myScore?.status === 'submitted' ? '✓ Xem / Sửa'
+                              : myScore?.status === 'draft' ? '📝 Tiếp tục'
+                              : '⚖ Chấm điểm'}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
@@ -431,6 +464,9 @@ export default function JudgeDashboardPage() {
               {scoringTeam.slideUrl
                 ? <a href={scoringTeam.slideUrl} target="_blank" rel="noreferrer" className="jp-score-link jp-score-link--slide">📊 Mở Slide</a>
                 : <span className="jp-no-link">Không có slide</span>}
+              {scoringTeam.demoUrl && (
+                <a href={scoringTeam.demoUrl} target="_blank" rel="noreferrer" className="jp-score-link jp-score-link--demo" style={{ marginLeft: 8 }}>🎥 Mở Video</a>
+              )}
             </div>
 
             <div className="jp-crit-list">

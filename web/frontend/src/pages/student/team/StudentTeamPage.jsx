@@ -44,8 +44,8 @@ const statusDesc = {
   ELIMINATED:       'Đội đã bị loại khỏi cuộc thi.',
 };
 
-// Avatar with gradient background
-const Avatar = ({ name, size = 36, radius = '50%' }) => {
+// Avatar with gradient background or image
+const Avatar = ({ name, url, size = 36, radius = '50%' }) => {
   const letter = (name || '?')[0].toUpperCase();
   const palettes = [
     ['#0e7490', '#06b6d4'],
@@ -64,8 +64,18 @@ const Avatar = ({ name, size = 36, radius = '50%' }) => {
       fontWeight: 700, fontSize: size * 0.4, color: '#fff', flexShrink: 0,
       fontFamily: "'Space Grotesk', sans-serif",
       boxShadow: `0 0 12px ${from}55`,
+      overflow: 'hidden',
     }}>
-      {letter}
+      {url ? (
+        <img 
+          src={url} 
+          alt={name} 
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+      ) : (
+        letter
+      )}
     </div>
   );
 };
@@ -515,14 +525,15 @@ export const StudentTeamPage = () => {
   }
 
   // ── Has team ─────────────────────────────────────────────────────────────
-  const badge   = STATUS_BADGE[team.status] || STATUS_BADGE.ACTIVE;
-  const desc    = statusDesc[team.status] || '';
+  const hasContest = !!team.contest_id;
+  const isConfirmed = team.status === 'CONFIRMED' || (team.status === 'ACTIVE' && hasContest);
+  const badge   = isConfirmed ? STATUS_BADGE.CONFIRMED : (STATUS_BADGE[team.status] || STATUS_BADGE.ACTIVE);
+  const desc    = isConfirmed ? 'Đội đã được xác nhận tham gia cuộc thi. Chúc bạn thi đấu tốt!' : (statusDesc[team.status] || '');
   const pending = team.members?.filter(m => !m.user_id || m.user_id.profile_verify_status !== 'approved') ?? [];
 
   const contestCard = (() => {
-    if (team.status === 'CONFIRMED' || team.status === 'WAITING_APPROVAL') {
+    if (isConfirmed || team.status === 'WAITING_APPROVAL') {
       const contestTitle = team.contest_id?.title || 'Cuộc thi đã đăng ký';
-      const isConfirmed  = team.status === 'CONFIRMED';
       return (
         <div style={{ ...cardStyle, padding: 20 }}>
           <div style={labelStyle}>Cuộc thi đã đăng ký</div>
@@ -538,7 +549,7 @@ export const StudentTeamPage = () => {
         </div>
       );
     }
-    if (team.status === 'ACTIVE' || team.status === 'REJECTED') {
+    if ((team.status === 'ACTIVE' && !hasContest) || team.status === 'REJECTED') {
       const totalMembers  = team.members?.length ?? 0;
       const verifiedCount = team.members?.filter(m => m.user_id && m.user_id.profile_verify_status === 'approved').length ?? 0;
       const canRegister   = totalMembers >= 4 && verifiedCount === totalMembers;
@@ -617,7 +628,7 @@ export const StudentTeamPage = () => {
             Đội thi
           </h2>
         </div>
-        {team.status === 'CONFIRMED' && (
+        {isConfirmed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(34,197,94,.08)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 20, padding: '6px 14px', fontSize: 12, fontWeight: 700, color: C.green }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, display: 'inline-block', boxShadow: `0 0 6px ${C.green}` }} />
             Đã xác nhận
@@ -805,7 +816,7 @@ export const StudentTeamPage = () => {
                     display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px',
                     borderBottom: i < (team.members?.length ?? 0) - 1 ? `1px solid #0f1a2e` : 'none',
                   }}>
-                    <Avatar name={memberName} size={40} radius={11} />
+                    <Avatar name={memberName} url={m.user_id?.avatar_url} size={40} radius={11} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 2 }}>{memberName}</div>
                       <div style={{ fontSize: 12, color: C.dim }}>{m.email}</div>
@@ -870,7 +881,7 @@ export const StudentTeamPage = () => {
                     padding: '10px 0', borderBottom: `1px solid #0f1a2e`,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Avatar name={m.email} size={32} radius={9} />
+                      <Avatar name={m.email} url={m.user_id?.avatar_url} size={32} radius={9} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.email}</div>
                         <div style={{ fontSize: 11, color: C.dim }}>Sent {timeAgo(m.created_at || team.created_at)}</div>

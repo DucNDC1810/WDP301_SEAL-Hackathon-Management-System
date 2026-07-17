@@ -41,3 +41,12 @@ export const updateCriteria = (round_id, criteria_id, data) =>
 
 export const deleteCriteria = (round_id, criteria_id) =>
   api.delete(`/api/round/${round_id}/criteria/${criteria_id}`);
+
+export const getPools = (contest_id, round_id) =>
+  api.get(`/api/pools/contests/${contest_id}/pools?round_id=${round_id}`);
+
+export const updatePool = (pool_id, data) =>
+  api.put(`/api/pools/${pool_id}`, data);
+
+export const updateRound = (round_id, data) =>
+  api.patch(`/api/round/${round_id}`, data);

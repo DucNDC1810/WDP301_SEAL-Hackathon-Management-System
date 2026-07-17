@@ -64,6 +64,7 @@ import TeamVerifyPage from './pages/team-verify/TeamVerifyPage';
 import VerifyEmailPage from './pages/verify-email/VerifyEmailPage';
 import { StudentLayout }       from './layouts/StudentLayout';
 import { StudentOverviewPage } from './pages/student/overview/StudentOverviewPage';
+import { StudentResultsPage }  from './pages/student/results/StudentResultsPage';
 import { StudentTeamPage }     from './pages/student/team/StudentTeamPage';
 import { StudentSubmitPage }   from './pages/student/submit/StudentSubmitPage';
 
@@ -129,6 +130,8 @@ function App() {
                 <Route path="timeline/:contestId"              element={<HackathonFeaturePage feature="timeline" />} />
                 <Route path="presentation"                     element={<HackathonFeaturePage feature="presentation" />} />
                 <Route path="presentation/:contestId"          element={<HackathonFeaturePage feature="presentation" />} />
+                <Route path="awards"                           element={<HackathonFeaturePage feature="awards" />} />
+                <Route path="awards/:contestId"                element={<HackathonFeaturePage feature="awards" />} />
                 <Route path="users"                         element={<UserManagementPage />} />
                 <Route path="ranking-manager"              element={<AdminRankingManagerPage />} />
               </Route>
@@ -144,13 +147,14 @@ function App() {
               {/* Judge — chỉ chấm điểm sau khi vòng kết thúc */}
               <Route path="/judge/accept-invite"                           element={<JudgeAcceptInvitePage />} />
               <Route path="/judge/dashboard"                              element={<JudgeRoute><JudgeHomePage /></JudgeRoute>} />
-              <Route path="/judge/scoring/:contestId/rounds/:roundId/pools/:poolId" element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
+              <Route path="/judge/scoring/:contestId/rounds/:roundId/pools/:poolId?" element={<JudgeRoute><JudgeScoringPage /></JudgeRoute>} />
 
               {/* Student dashboard — sidebar layout, no Navbar/Footer */}
               <Route path="/dashboard" element={<AuthRoute><StudentLayout /></AuthRoute>}>
                 <Route index            element={<StudentOverviewPage />} />
                 <Route path="team"      element={<StudentTeamPage />} />
                 <Route path="submit"    element={<StudentSubmitPage />} />
+                <Route path="results"   element={<StudentResultsPage />} />
                 <Route path="profile"   element={<ProfilePage />} />
 
                 <Route path="chat"      element={<TeamChatPage />} />

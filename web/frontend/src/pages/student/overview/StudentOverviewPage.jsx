@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { OrderedListOutlined } from "@ant-design/icons";
 import { useAuth } from "../../../context/AuthContext";
 import { useApi } from "../../../hooks/useApi";
+import { getRoundStatusKey } from "../../../utils/roundStatus";
 import "../student.css";
 
 /* ─── Design tokens ────────────────────────────────────────────────────────── */
@@ -347,7 +348,8 @@ export const StudentOverviewPage = () => {
 
         const contestId = team.contest_id?._id ?? team.contest_id;
 
-        if (team.status?.toUpperCase() !== "CONFIRMED" || !contestId) {
+        const statusUpper = team.status?.toUpperCase();
+        if ((statusUpper !== "CONFIRMED" && !(statusUpper === "ACTIVE" && team.contest_id)) || !contestId) {
           setLoading(false);
           return;
         }
@@ -356,10 +358,14 @@ export const StudentOverviewPage = () => {
         const found = contestRes?.data ?? contestRes ?? null;
         setContest(found);
 
-        const activeRound = found?.rounds?.find((r) => r.is_active);
+        const activeRound = found?.rounds?.find((r) => getRoundStatusKey(r) === "active");
         if (!activeRound) {
           setLoading(false);
           return;
+        }
+
+        if (activeRound.drive_link) {
+          setPoolDriveLink(activeRound.drive_link);
         }
 
         await Promise.allSettled([
@@ -405,10 +411,13 @@ export const StudentOverviewPage = () => {
             })
             .catch(() => {}),
 
-          // Team score history across rounds — falls back to mock on failure
-          request(`/api/teams/${team._id}/score-history`)
+          // Team score history across rounds (only rounds with published results)
+          request(`/api/scores/contests/${contestId}/my-team-results`)
             .then((res) => {
-              const list = Array.isArray(res) ? res : (res?.data ?? []);
+              const rounds = Array.isArray(res?.results) ? res.results : [];
+              const list = rounds
+                .filter((r) => r.locked && r.total_score !== null && r.total_score !== undefined)
+                .map((r) => ({ label: r.round_name, score: r.total_score, rank: r.rank ?? null }));
               if (list.length) setScoreHistory(list);
             })
             .catch(() => {}),
@@ -541,7 +550,7 @@ export const StudentOverviewPage = () => {
   }
 
   /* ── Confirmed — redesign ─────────────────────────────────────────────────── */
-  const activeRound = contest?.rounds?.find((r) => r.is_active);
+  const activeRound = contest?.rounds?.find((r) => getRoundStatusKey(r) === "active");
 
   // If no active round, find the nearest upcoming one
   const nextRound = !activeRound
@@ -912,9 +921,9 @@ export const StudentOverviewPage = () => {
         const safeActiveIndex = activeIndex === -1 ? 0 : activeIndex;
 
         const getRoundStatus = (r) => {
-          if (r.is_active) return 'active';
-          if (r.submission_deadline && new Date(r.submission_deadline) < new Date() && !r.is_active) return 'done';
-          return 'upcoming';
+          // Shared logic; this view labels a finished round 'done' instead of 'ended'.
+          const key = getRoundStatusKey(r);
+          return key === 'ended' ? 'done' : key;
         };
 
         const fmtDate = (iso) => {
@@ -1664,9 +1673,9 @@ export const StudentOverviewPage = () => {
         const modalRounds = contest?.rounds ?? [];
 
         const getRoundStatus = (r) => {
-          if (r.is_active) return 'active';
-          if (r.submission_deadline && new Date(r.submission_deadline) < new Date() && !r.is_active) return 'done';
-          return 'upcoming';
+          // Shared logic; this view labels a finished round 'done' instead of 'ended'.
+          const key = getRoundStatusKey(r);
+          return key === 'ended' ? 'done' : key;
         };
         const dotBg = (st) => {
           if (st === 'done') return '#00d4ff';

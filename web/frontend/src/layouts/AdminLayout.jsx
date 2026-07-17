@@ -42,6 +42,7 @@ const HACKATHON_SUB_NAV = [
   { key: 'elimination', label: 'Loại Đội Vi Phạm', subPath: '/elimination', d: SHIELD_ALERT },
   { key: 'timeline', label: 'Lịch trình', subPath: '/timeline', d: TIMELINE },
   { key: 'presentation', label: 'Đặt lịch trình bày', subPath: '/presentation', d: CALENDAR },
+  { key: 'awards', label: 'Quản lý giải thưởng', subPath: '/awards', d: TROPHY },
 ];
 
 const NAV = [
@@ -51,7 +52,6 @@ const NAV = [
   { key: 'team', label: 'Team Registration', path: '/admin/team', d: USER },
   { key: 'users', label: 'Users', path: '/admin/users', d: USERS_D },
   { key: 'results', label: 'Results', path: '/admin/results', d: BAR },
-  { key: 'ranking-manager', label: 'Quản lý Ranking',   path: '/admin/ranking-manager', d: BAR },
 ];
 
 export default function AdminLayout() {
@@ -116,7 +116,8 @@ export default function AdminLayout() {
       /^\/admin\/scoring-lock\/([^/]+)/,
       /^\/admin\/elimination\/([^/]+)/,
       /^\/admin\/timeline\/([^/]+)/,
-      /^\/admin\/presentation\/([^/]+)/
+      /^\/admin\/presentation\/([^/]+)/,
+      /^\/admin\/awards\/([^/]+)/
     ];
     for (const regex of paths) {
       const match = location.pathname.match(regex);

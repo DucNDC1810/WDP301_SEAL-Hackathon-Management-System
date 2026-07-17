@@ -4,7 +4,7 @@ const rankingSchema = new mongoose.Schema(
   {
     contest_id:    { type: mongoose.Schema.Types.ObjectId, ref: "Contest", required: true },
     round_id:      { type: mongoose.Schema.Types.ObjectId, required: true },
-    board_id:      { type: mongoose.Schema.Types.ObjectId, ref: "Pool",    required: true },
+    board_id:      { type: mongoose.Schema.Types.ObjectId, ref: "Pool",    default: null },
     team_id:       { type: mongoose.Schema.Types.ObjectId, ref: "Team",    required: true },
     team_name:     { type: String, required: true },
     final_score:   { type: Number, default: 0 },

@@ -41,27 +41,52 @@ export default function TeamRegistrationPage() {
   const { contestId } = useParams();
   const navigate = useNavigate();
   const [contests, setContests] = useState([]);
+  const [pendingContestIds, setPendingContestIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  const fetchPendingData = () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+    fetch(`${API_URL}/api/teams/all-pending`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(dPending => {
+        if (dPending.success && Array.isArray(dPending.data)) {
+          const pendingIds = new Set(
+            dPending.data
+              .map(t => t.contest_id)
+              .filter(Boolean)
+          );
+          setPendingContestIds(pendingIds);
+        }
+      })
+      .catch((err) => console.error("Error loading pending teams:", err));
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) { setLoading(false); return; }
-    fetch(`${API_URL}/api/contests`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(d => { if (d.success) setContests(d.data || []); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
-  const handleContestChange = (e) => {
-    const newId = e.target.value;
-    if (newId) {
-      navigate(`/admin/team/${newId}`);
-    } else {
-      navigate(`/admin/team`);
-    }
-  };
+    Promise.all([
+      fetch(`${API_URL}/api/contests`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch(`${API_URL}/api/teams/all-pending`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+    ])
+      .then(([dContests, dPending]) => {
+        if (dContests.success) setContests(dContests.data || []);
+        if (dPending.success && Array.isArray(dPending.data)) {
+          const pendingIds = new Set(
+            dPending.data
+              .map(t => t.contest_id)
+              .filter(Boolean)
+          );
+          setPendingContestIds(pendingIds);
+        }
+      })
+      .catch((err) => console.error("Error loading team registration dashboard:", err))
+      .finally(() => setLoading(false));
+  }, [contestId]);
+
+
 
   const filtered = contests.filter(c =>
     getStatus(c) !== 'closed' &&
@@ -98,35 +123,22 @@ export default function TeamRegistrationPage() {
           )}
           <div>
             <h1 className="hfp-title">Duyệt Đội Thi & Bảng Đấu</h1>
-            <p className="hfp-subtitle">Lựa chọn giải đấu đang diễn ra để thực hiện duyệt đội thi và quản lý chia bảng đấu</p>
+            <p className="hfp-subtitle">
+              {contestId 
+                ? `Đang quản lý giải đấu: ${contests.find(c => c._id === contestId)?.title || '...'}`
+                : 'Lựa chọn giải đấu đang diễn ra để thực hiện duyệt đội thi và quản lý chia bảng đấu'
+              }
+            </p>
           </div>
         </div>
-        <div className="hfp-selector-wrap">
-          <label className="hfp-select-label">Chọn cuộc thi:</label>
-          {loading ? (
-            <div className="hfp-select-loader">Đang tải cuộc thi...</div>
-          ) : (
-            <select
-              className="hfp-select"
-              value={contestId || ''}
-              onChange={handleContestChange}
-            >
-              <option value="">-- Vui lòng chọn cuộc thi --</option>
-              {contests.filter(c => getStatus(c) !== 'closed').map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.title} {c.status === 'open' ? '🟢 (ONGOING)' : '⚪ (Draft)'}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+
       </div>
 
       {/* Content */}
       <div className="hfp-content">
         {contestId ? (
           <div className="hfp-feature-card" style={{ padding: '32px' }}>
-            <TeamDashboardPage isEmbedded={true} />
+            <TeamDashboardPage isEmbedded={true} onTeamsUpdated={fetchPendingData} />
           </div>
         ) : (
           <div className="str-page" style={{ padding: 0 }}>
@@ -167,7 +179,25 @@ export default function TeamRegistrationPage() {
                         <div className="str-card__icon-wrap">
                           <Ico d={TROPHY} size={22} sw={1.5} />
                         </div>
-                        <span className={`str-badge ${st.cls}`}>{st.label}</span>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {pendingContestIds.has(c._id) && (
+                            <span 
+                              className="str-badge" 
+                              style={{ 
+                                background: 'rgba(239, 68, 68, 0.12)', 
+                                color: '#ef4444', 
+                                border: '1px solid rgba(239, 68, 68, 0.3)', 
+                                display: 'inline-flex', 
+                                alignItems: 'center', 
+                                gap: '4px' 
+                              }}
+                            >
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+                              Chờ duyệt
+                            </span>
+                          )}
+                          <span className={`str-badge ${st.cls}`}>{st.label}</span>
+                        </div>
                       </div>
 
                       <h3 className="str-card__name">{c.title}</h3>

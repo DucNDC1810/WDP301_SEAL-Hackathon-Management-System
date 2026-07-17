@@ -225,7 +225,7 @@ export const JudgeScoringPage = () => {
   };
 
   const setScore = (critId, val) => {
-    if (selected?.score_status === 'submitted') return;
+    if (round?.scoring_locked) return;
     setDraft((p) => ({ ...p, criteria: { ...p.criteria, [critId]: val } }));
   };
 
@@ -480,7 +480,7 @@ export const JudgeScoringPage = () => {
                     <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
                       {selected.repo_url  && <a href={selected.repo_url}  target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>⛓ Repo</a>}
                       {selected.slide_url && <a href={selected.slide_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>🗒 Slide</a>}
-                      {selected.demo_url  && <a href={selected.demo_url}  target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>▶ Demo</a>}
+                      {selected.demo_url  && <a href={selected.demo_url}  target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>🎥 Video</a>}
                     </div>
                   </div>
 
@@ -556,7 +556,7 @@ export const JudgeScoringPage = () => {
                         c={c}
                         value={draft.criteria?.[c.id] ?? 0}
                         onChange={(v) => setScore(c.id, v)}
-                        readOnly={false}
+                        readOnly={round?.scoring_locked || false}
                       />
                     ))}
                   </div>
@@ -568,7 +568,8 @@ export const JudgeScoringPage = () => {
                   <textarea
                     value={draft.comment}
                     onChange={(e) => setDraft((p) => ({ ...p, comment: e.target.value }))}
-                    placeholder="Ghi nhận điểm mạnh, góp ý cho team..."
+                    readOnly={round?.scoring_locked || false}
+                    placeholder={round?.scoring_locked ? "Vòng thi đã khóa chấm điểm" : "Ghi nhận điểm mạnh, góp ý cho team..."}
                     style={{ width: '100%', minHeight: 92, background: '#0e151d', border: '1px solid #1c2632', borderRadius: 13, color: '#e8eef5', padding: '13px 15px', fontSize: 13, fontFamily: 'inherit', lineHeight: 1.5, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
@@ -637,30 +638,42 @@ export const JudgeScoringPage = () => {
                 <div style={{ textAlign: 'center', fontSize: 12, color: '#5f6f7e' }}>Chọn team để bắt đầu chấm</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  {isSubmitted && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 11, background: 'rgba(52,211,153,.10)', border: '1px solid rgba(52,211,153,.32)' }}>
-                      <span style={{ fontSize: 16 }}>✓</span>
+                  {round?.scoring_locked ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 11, background: 'rgba(239,68,68,.10)', border: '1px solid rgba(239,68,68,.32)' }}>
+                      <span style={{ fontSize: 16 }}>🔒</span>
                       <div style={{ lineHeight: 1.25 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#6ee7b7' }}>Đã nộp điểm chính thức</div>
-                        <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#5a8a76' }}>Tổng {selected.total_score?.toFixed(1) ?? total.toFixed(1)} / 10 — vẫn có thể sửa cho đến khi Admin khóa chấm điểm</div>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#f87171' }}>Vòng thi đã khóa chấm điểm</div>
+                        <div style={{ fontSize: 11, color: '#aebccb', marginTop: 2 }}>Bạn không thể chỉnh sửa hoặc nộp điểm lúc này.</div>
                       </div>
                     </div>
+                  ) : (
+                    <>
+                      {isSubmitted && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 11, background: 'rgba(52,211,153,.10)', border: '1px solid rgba(52,211,153,.32)' }}>
+                          <span style={{ fontSize: 16 }}>✓</span>
+                          <div style={{ lineHeight: 1.25 }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#6ee7b7' }}>Đã nộp điểm chính thức</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#5a8a76' }}>Tổng {selected.total_score?.toFixed(1) ?? total.toFixed(1)} / 10 — vẫn có thể sửa cho đến khi Admin khóa chấm điểm</div>
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => saveScore(true)}
+                        disabled={submitting}
+                        style={{ width: '100%', padding: 13, borderRadius: 11, border: 'none', background: submitting ? '#0e3a47' : 'linear-gradient(135deg,#00e5ff,#00a3c4)', color: '#04222a', fontSize: 14, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 18px rgba(0,229,255,.28)', letterSpacing: '.2px' }}
+                      >{submitting ? 'Đang nộp...' : isSubmitted ? 'Cập nhật điểm chính thức' : 'Nộp Điểm chính thức'}</button>
+                      <button
+                        onClick={() => saveScore(false)}
+                        disabled={submitting}
+                        style={{ width: '100%', padding: 11, borderRadius: 11, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 13, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
+                      >Lưu nháp</button>
+                      <div style={{ textAlign: 'center', fontSize: 11, color: '#5a6675', marginTop: 2 }}>
+                        {filledCount === criteria.length && criteria.length > 0
+                          ? 'Tất cả tiêu chí đã sẵn sàng'
+                          : `Cần chấm đủ ${criteria.length} tiêu chí trước khi nộp`}
+                      </div>
+                    </>
                   )}
-                  <button
-                    onClick={() => saveScore(true)}
-                    disabled={submitting}
-                    style={{ width: '100%', padding: 13, borderRadius: 11, border: 'none', background: submitting ? '#0e3a47' : 'linear-gradient(135deg,#00e5ff,#00a3c4)', color: '#04222a', fontSize: 14, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 18px rgba(0,229,255,.28)', letterSpacing: '.2px' }}
-                  >{submitting ? 'Đang nộp...' : isSubmitted ? 'Cập nhật điểm chính thức' : 'Nộp Điểm chính thức'}</button>
-                  <button
-                    onClick={() => saveScore(false)}
-                    disabled={submitting}
-                    style={{ width: '100%', padding: 11, borderRadius: 11, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 13, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
-                  >Lưu nháp</button>
-                  <div style={{ textAlign: 'center', fontSize: 11, color: '#5a6675', marginTop: 2 }}>
-                    {filledCount === criteria.length && criteria.length > 0
-                      ? 'Tất cả tiêu chí đã sẵn sàng'
-                      : `Cần chấm đủ ${criteria.length} tiêu chí trước khi nộp`}
-                  </div>
                 </div>
               )}
             </div>

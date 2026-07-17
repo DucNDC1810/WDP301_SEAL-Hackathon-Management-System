@@ -61,6 +61,11 @@ const roundSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    drive_link: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     force_lock_reason: {
       type: String,
       default: null,

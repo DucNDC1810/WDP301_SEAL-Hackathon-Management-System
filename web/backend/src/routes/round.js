@@ -8,6 +8,7 @@ import Score from "../models/Score.js";
 import Team from "../models/Team.js";
 import { sendNotification } from "../services/notification.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
+import { notifyJudgeAssignedToRound } from "../services/notificationService.js";
 
 const router = Router();
 
@@ -141,13 +142,17 @@ router.post("/:round_id/judges", authenticate, authorize("admin"), async (req, r
 
     // Accept both standalone Round and embedded Contest round
     let roundExists = await Round.findById(round_id);
+    let contest = null;
     if (!roundExists) {
       const Contest = (await import("../models/Contest.js")).default;
-      const contest = await Contest.findOne({ "rounds._id": round_id });
+      contest = await Contest.findOne({ "rounds._id": round_id });
       if (!contest) {
         return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
       }
       roundExists = contest.rounds.find(r => r._id.toString() === round_id);
+    } else {
+      const Contest = (await import("../models/Contest.js")).default;
+      contest = await Contest.findById(roundExists.contest_id);
     }
 
     if (!Array.isArray(judge_ids)) {
@@ -183,7 +188,7 @@ router.post("/:round_id/judges", authenticate, authorize("admin"), async (req, r
     }
 
     // Add new assignments
-    const contest_id = roundExists.contest_id || null;
+    const contest_id = roundExists.contest_id || (contest ? contest._id : null);
     for (const judge_id of judge_ids) {
       const existing = await JudgeAssignment.findOne({ judge_id, round_id });
       if (!existing) {
@@ -193,6 +198,16 @@ router.post("/:round_id/judges", authenticate, authorize("admin"), async (req, r
           contest_id,
           assigned_by: req.user?._id || null
         });
+
+        // Notify judge
+        if (contest && roundExists) {
+          notifyJudgeAssignedToRound({
+            user_id: judge_id,
+            contestTitle: contest.title,
+            roundName: roundExists.name,
+            ref_id: contest._id
+          }).catch(err => console.error("[notifyJudgeAssignedToRound error]", err));
+        }
       }
     }
 
@@ -406,6 +421,35 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
       round_id,
       is_active: true
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/round/:round_id
+router.patch("/:round_id", authenticate, authorize("admin"), async (req, res, next) => {
+  try {
+    const { round_id } = req.params;
+    const { drive_link } = req.body;
+
+    const round = await Round.findById(round_id);
+    if (round) {
+      round.drive_link = drive_link || "";
+      await round.save();
+    }
+
+    // Also find and update the embedded round in Contest
+    const Contest = (await import("../models/Contest.js")).default;
+    const contest = await Contest.findOne({ "rounds._id": round_id });
+    if (contest) {
+      const embeddedRound = contest.rounds.id(round_id);
+      if (embeddedRound) {
+        embeddedRound.drive_link = drive_link || "";
+        await contest.save();
+      }
+    }
+
+    return res.json({ success: true, message: "Đã cập nhật link đề bài thành công" });
   } catch (error) {
     next(error);
   }

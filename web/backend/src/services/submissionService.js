@@ -72,7 +72,7 @@ export const createSubmission = async ({ repo_url, demo_url, slide_url, team_id,
     throw err;
   }
 
-  if (team.status !== 'CONFIRMED') {
+  if (team.status !== 'CONFIRMED' && !(team.status === 'ACTIVE' && team.contest_id)) {
     const err = new Error("Đội thi của bạn chưa được admin phê duyệt, không thể nộp bài");
     err.statusCode = 403;
     throw err;
@@ -89,6 +89,12 @@ export const createSubmission = async ({ repo_url, demo_url, slide_url, team_id,
   if (!round) {
     const err = new Error("Không tìm thấy vòng thi");
     err.statusCode = 404;
+    throw err;
+  }
+
+  if (round.scoring_locked) {
+    const err = new Error("Vòng thi đã khóa chấm điểm, không thể cập nhật bài nộp");
+    err.statusCode = 400;
     throw err;
   }
 
@@ -196,7 +202,14 @@ export const getSubmissions = async ({ round_id, status }) => {
   if (status) query.status = status;
 
   return await Submission.find(query)
-    .populate("team_id", "team_name contest_id")
+    .populate({
+      path: "team_id",
+      select: "team_name contest_id pool_id",
+      populate: {
+        path: "pool_id",
+        select: "pool_name name"
+      }
+    })
     .sort({ submitted_at: -1 });
 };
 

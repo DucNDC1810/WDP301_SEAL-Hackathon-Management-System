@@ -8,6 +8,7 @@ import TeamEliminationTab from './tabs/TeamEliminationTab';
 import PresentationScheduleTab from './tabs/PresentationScheduleTab';
 import LeaderboardTable from '../../../components/LeaderboardTable';
 import TiebreakAlert from '../../../components/TiebreakAlert';
+import { getRoundStatus } from '../../../utils/roundStatus';
 import './HackathonDetailPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -32,6 +33,9 @@ const CROSS      = ['M18 6L6 18M6 6l12 12'];
 const ALERT      = ['M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'];
 const ROCKET     = ['M4.5 16.5c-1.5 1.5-2.5 3.5-2.5 5.5 2 0 4-1 5.5-2.5L22 5.5c.5-.5.5-1.5 0-2s-1.5-.5-2 0L4.5 16.5z', 'M12 12l2.5-2.5', 'M9 15l2.5-2.5'];
 const COPY       = ['M9 15H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2', 'M13 9h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z'];
+const CHEVRON_LEFT  = ['M15 18l-6-6 6-6'];
+const CHEVRON_RIGHT = ['M9 18l6-6-6-6'];
+
 
 const MAIN_TABS = [
   { id: 0, label: 'Tổng quan' },
@@ -57,6 +61,8 @@ export default function HackathonDetailPage({ defaultTab }) {
     return defaultTab !== undefined ? defaultTab : 0;
   })();
   const [tab, setTab]         = useState(initialTab);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
 
   useEffect(() => {
     if (defaultTab !== undefined) {
@@ -596,6 +602,25 @@ export default function HackathonDetailPage({ defaultTab }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
+          if (parsed.tracks?.length > 0) {
+            parsed.tracks = parsed.tracks.map(t => ({
+              ...t,
+              rounds: t.rounds.map(r => {
+                const dbRound = contest.rounds?.find(dr => dr.round_number === Number(r.sequence_order));
+                if (dbRound) {
+                  return {
+                    ...r,
+                    coding_duration_hours: dbRound.coding_duration_hours !== undefined ? dbRound.coding_duration_hours : r.coding_duration_hours,
+                    top_n_advance: dbRound.top_n_advance !== undefined ? dbRound.top_n_advance : r.top_n_advance,
+                    wildcard_enabled: dbRound.wildcard_enabled !== undefined ? dbRound.wildcard_enabled : r.wildcard_enabled,
+                    name: dbRound.name || r.name,
+                    submission_deadline: dbRound.submission_deadline || r.submission_deadline
+                  };
+                }
+                return r;
+              })
+            }));
+          }
           setConfig(parsed);
           setGeneralForm({
             title: contest.title || '',
@@ -724,6 +749,9 @@ export default function HackathonDetailPage({ defaultTab }) {
           name: r.name,
           submission_deadline: r.submission_deadline || null,
           is_active: dbRound ? dbRound.is_active : false,
+          coding_duration_hours: Number(r.coding_duration_hours) || 24,
+          top_n_advance: Number(r.top_n_advance) || 10,
+          wildcard_enabled: r.wildcard_enabled || false,
           score_criteria: (r.criteria || []).map(c => ({
             name: c.name,
             max_score: Number(c.max_score) || 10,
@@ -1426,18 +1454,25 @@ export default function HackathonDetailPage({ defaultTab }) {
   const step1Ok = !!(contest.title && config.season && config.year && config.registration_open_date && config.registration_deadline && config.start_date && config.end_date && config.kickoff_date && config.rules?.trim());
   const step2Ok = config.tracks.length >= 1 && config.tracks.every(t => t.rounds && t.rounds.length >= 2);
   const step3Ok = config.tracks.length > 0 && config.tracks.every(t => t.rounds.length > 0 && t.rounds.every(r => r.criteria && r.criteria.length >= 1 && Math.abs(r.criteria.reduce((s, c) => s + c.weight, 0) - 1.0) < 0.001));
-  const step4Ok = pools.length > 0 && pools.some(p => p.teams && p.teams.length > 0);
+  const selectedRound = contest?.rounds?.find(r => r._id === selectedPoolRoundId);
+  const isFinalRound = selectedRound && (
+    selectedRound.name?.toLowerCase().includes("chung kết") || 
+    selectedRound.name?.toLowerCase().includes("final") ||
+    selectedRound.name?.toLowerCase().includes("chung cuộc") ||
+    (contest?.rounds && selectedRound.round_number === Math.max(...contest.rounds.map(r => r.round_number)))
+  );
+
+  const step4Ok = isFinalRound ? true : (pools.length > 0 && pools.some(p => p.teams && p.teams.length > 0));
   const step5Ok = !!config.mentors_assigned;
-  const step6Ok = pools.length > 0 && pools.every(p => p.drive_link && p.drive_link.trim() !== '');
+  const step6Ok = isFinalRound ? true : (pools.length > 0 && pools.every(p => p.drive_link && p.drive_link.trim() !== ''));
   const step7Ok = contest.status === 'open';
 
   const checklistSteps = [
-    { id: 1, label: 'Thông tin tổng quan', desc: 'Thiết lập tên, mùa giải, thể lệ, banner & ngày giờ sự kiện.', ok: step1Ok, tabId: 0 },
     { id: 2, label: 'Cấu hình vòng thi', desc: 'Thiết lập tối thiểu 1 bảng thi (Track) và 2 vòng đấu (Rounds).', ok: step2Ok, tabId: 1 },
     { id: 3, label: 'Tiêu chí chấm điểm', desc: 'Phân bổ ít nhất 1 tiêu chí & đảm bảo tổng trọng số bằng 1.0 mỗi vòng.', ok: step3Ok, tabId: 2 },
-    { id: 4, label: 'Chia bảng đấu & Đội thi', desc: 'Khởi tạo danh sách bảng đấu (Pools) & xếp các đội thi vào bảng.', ok: step4Ok, tabId: 3 },
+    { id: 4, label: 'Chia bảng đấu & Đội thi', desc: isFinalRound ? 'Không yêu cầu chia bảng đối với vòng chung kết.' : 'Khởi tạo danh sách bảng đấu (Pools) & xếp các đội thi vào bảng.', ok: step4Ok, tabId: 3, isNotRequired: isFinalRound },
     { id: 5, label: 'Phân công Judge & Mentor', desc: 'Phân công Giám khảo & Người hướng dẫn chấm điểm các bảng.', ok: step5Ok, tabId: 4 },
-    { id: 6, label: 'Cấu hình đề bài', desc: 'Cập nhật link Google Drive đề bài thi cho tất cả bảng đấu.', ok: step6Ok, tabId: 3 },
+    { id: 6, label: 'Cấu hình đề bài', desc: isFinalRound ? 'link đề bài đã được cho ngay khi kích hoạt chung kết.' : 'Cập nhật link Google Drive đề bài thi cho tất cả bảng đấu.', ok: step6Ok, tabId: 3, isNotRequired: isFinalRound },
     { id: 7, label: 'Kích hoạt giải đấu', desc: 'Chuyển trạng thái Hackathon sang ONGOING để bắt đầu thi đấu.', ok: step7Ok, tabId: 9 }
   ];
 
@@ -1476,6 +1511,7 @@ export default function HackathonDetailPage({ defaultTab }) {
             {t.label}
           </button>
         ))}
+
       </div>
 
       {/* ─── TAB 0: TỔNG QUAN ─── */}
@@ -1522,7 +1558,7 @@ export default function HackathonDetailPage({ defaultTab }) {
               </div>
             </form>
           ) : (
-            <div className="hd-overview-layout">
+            <div className="hd-overview-layout" style={{ gridTemplateColumns: '1fr' }}>
               {/* Left Column: Banner, overview, rules */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {config.banner && (
@@ -1544,48 +1580,8 @@ export default function HackathonDetailPage({ defaultTab }) {
                   <div className="hd-rules-content">{config.rules || 'Chưa thiết lập thể lệ giải đấu.'}</div>
                 </div>
               </div>
-
-              {/* Right Column: Setup Checklist & Progress Tracker */}
-              <div className="hd-checklist-container">
-                <div className="hd-checklist-header">
-                  <h3 className="hd-checklist-title">
-                    📋 Checklist Chuẩn Bị Giải Đấu
-                  </h3>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 650 }}>
-                    {completedCount}/7 hoàn thành
-                  </span>
-                </div>
-
-                <div className="hd-progress-wrapper">
-                  <div className="hd-progress-info">
-                    <span>Mức độ hoàn thiện</span>
-                    <strong style={{ color: 'var(--cyan)' }}>{checklistPct}%</strong>
-                  </div>
-                  <div className="hd-progress-bar-bg">
-                    <div className="hd-progress-bar-fill" style={{ width: `${checklistPct}%` }}></div>
-                  </div>
-                </div>
-
-                <div className="hd-checklist-steps">
-                  {checklistSteps.map(s => (
-                    <div key={s.id} className="hd-checklist-step">
-                      <div className={`hd-step-icon ${s.ok ? 'hd-step-icon--success' : 'hd-step-icon--pending'}`}>
-                        {s.ok ? <Ico d={CHECK} size={10}/> : <span style={{ fontSize: '12px', lineHeight: 1 }}>●</span>}
-                      </div>
-                      <div className="hd-step-content">
-                        <div className="hd-step-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ color: s.ok ? '#a7f3d0' : '#fbd38d' }}>{s.label}</span>
-                        </div>
-                        <div className="hd-step-desc">{s.desc}</div>
-                      </div>
-                      <button className="hd-step-action" onClick={() => setTab(s.tabId)}>
-                        Thiết lập
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
+
           )}
         </div>
       )}
@@ -1604,20 +1600,33 @@ export default function HackathonDetailPage({ defaultTab }) {
                   ? contest?.rounds?.find(x => x.round_number === Number(activeRound.sequence_order))
                   : null;
                 if (!activeRound || !activeDbRound?.submission_deadline) return null;
+                const isLocked = activeDbRound?.scoring_locked;
                 return (
                   <div className="hd-round-countdown-banner">
                     <div className="hd-round-countdown-banner-info">
-                      <span className="hd-round-countdown-banner-status">
-                        <span className="hd-round-countdown-banner-status-dot" />
-                        Đang thi
+                      <span 
+                        className="hd-round-countdown-banner-status"
+                        style={isLocked ? { color: 'var(--cyan)', background: 'rgba(0, 240, 255, 0.1)', borderColor: 'rgba(0, 240, 255, 0.4)', boxShadow: '0 0 16px rgba(0, 240, 255, 0.15)' } : {}}
+                      >
+                        <span className={`hd-round-countdown-banner-status-dot ${isLocked ? 'hd-round-countdown-banner-status-dot--completed' : ''}`} />
+                        {isLocked ? 'Đã hoàn thành' : 'Đang thi'}
                       </span>
-                      <span className="hd-round-countdown-banner-eyebrow">Vòng thi đang kích hoạt</span>
+                      <span className="hd-round-countdown-banner-eyebrow">
+                        {isLocked ? 'Vòng thi đã kết thúc' : 'Vòng thi đang kích hoạt'}
+                      </span>
                       <span className="hd-round-countdown-banner-title">{activeRound.name}</span>
                       <div className="hd-round-countdown-banner-dates">
                         <span>📅 Hạn nộp bài: <strong style={{ color: '#ffffff' }}>{fmtDate(activeDbRound.submission_deadline)}</strong></span>
                       </div>
                     </div>
-                    <RoundCountdownBox deadline={activeDbRound.submission_deadline} />
+                    {isLocked ? (
+                      <div className="hd-round-completed-box">
+                        <span className="hd-round-completed-icon">✓</span>
+                        <span>Đã hoàn thành</span>
+                      </div>
+                    ) : (
+                      <RoundCountdownBox deadline={activeDbRound.submission_deadline} codingHours={activeRound.coding_duration_hours || activeDbRound.coding_duration_hours} />
+                    )}
                   </div>
                 );
               })()}
@@ -1681,8 +1690,10 @@ export default function HackathonDetailPage({ defaultTab }) {
                   const ws = round.criteria?.reduce((s, c) => s + c.weight, 0) || 0;
                   const ok = Math.abs(ws - 1.0) < 0.001;
                   const isOfficialActive = dbRound ? dbRound.is_active : (round.is_official_active || false);
+                  const isLocked = dbRound?.scoring_locked;
                   const valid = ok && (round.criteria?.length || 0) > 0;
-                  const tip = isOfficialActive ? 'Vòng thi đang kích hoạt chấm điểm chính thức'
+                  const tip = isLocked ? 'Vòng thi đã kết thúc và khóa chấm điểm'
+                    : isOfficialActive ? 'Vòng thi đang kích hoạt chấm điểm chính thức'
                     : !valid ? `Tổng trọng số = ${ws.toFixed(2)} ≠ 1.0 (Hoặc chưa có tiêu chí) — thêm/sửa tiêu chí để kích hoạt`
                     : 'Kích hoạt làm Vòng thi chính thức';
 
@@ -1707,9 +1718,23 @@ export default function HackathonDetailPage({ defaultTab }) {
                             )}
                           </div>
                           <div className="hd-round-status-badges">
-                            <span className={`hd-round-status-tag ${round.active ? 'active' : ''}`}>
-                              {round.active ? 'Đang bật' : 'Đang tắt'}
-                            </span>
+                            {(() => {
+                              // Prefer the DB round's real state; a locked round must read
+                              // as "Đã kết thúc" instead of staying "Đang bật" forever.
+                              const st = dbRound ? getRoundStatus(dbRound) : null;
+                              if (st) {
+                                return (
+                                  <span className={`hd-round-status-tag ${st.key === 'active' ? 'active' : ''} ${st.key === 'ended' ? 'ended' : ''}`}>
+                                    {st.label}
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className={`hd-round-status-tag ${round.active ? 'active' : ''}`}>
+                                  {round.active ? 'Đang bật' : 'Đang tắt'}
+                                </span>
+                              );
+                            })()}
                             {round.wildcard_enabled && !isLastRoundInList && (
                               <span className="hd-round-status-tag wildcard">Wildcard</span>
                             )}
@@ -1770,6 +1795,14 @@ export default function HackathonDetailPage({ defaultTab }) {
                               disabled={!valid || isOfficialActive}
                               onClick={() => {
                                 if (contest?.status === 'open' && dbRound?._id) {
+                                  const seq = Number(round.sequence_order);
+                                  if (seq > 1) {
+                                    const prevDbRound = contest?.rounds?.find(dr => dr.round_number === seq - 1);
+                                    if (prevDbRound?._id) {
+                                      navigate(`/finalist/${prevDbRound._id}/confirm`);
+                                      return;
+                                    }
+                                  }
                                   navigate(`/round/${dbRound._id}/activate`);
                                 } else {
                                   AntModal.confirm({
@@ -1781,9 +1814,9 @@ export default function HackathonDetailPage({ defaultTab }) {
                                   });
                                 }
                               }}
-                              className={`hd-btn-official ${isOfficialActive ? 'active' : ''}`}
+                              className={`hd-btn-official ${isLocked ? 'completed' : isOfficialActive ? 'active' : ''}`}
                             >
-                              {isOfficialActive ? '✓ Đang chạy' : '▷ Kích hoạt'}
+                              {isLocked ? '🔒 Đã khóa' : isOfficialActive ? '✓ Đang chạy' : '▷ Kích hoạt'}
                             </button>
                           </Tooltip>
 
@@ -1796,6 +1829,41 @@ export default function HackathonDetailPage({ defaultTab }) {
                           </button>
                         </div>
                       </div>
+                      {/* ── Phát đề: hiển thị khi vòng đang active hoặc đã khóa ── */}
+                      {(isOfficialActive || isLocked) && (
+                        <div className="hd-problem-release-row">
+                          <div className="hd-problem-release-left">
+                            <span className="hd-problem-release-icon">📂</span>
+                            <div>
+                              <span className="hd-problem-release-title">Phát đề</span>
+                              <span className="hd-problem-release-time">
+                                {dbRound?.problem_released_at
+                                  ? `Đã phát lúc ${fmtDate(dbRound.problem_released_at)}`
+                                  : 'Chưa phát đề'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="hd-problem-release-pools">
+                            {pools.filter(p => p.round_number === (dbRound?.round_number ?? Number(round.sequence_order))).length > 0
+                              ? pools
+                                  .filter(p => p.round_number === (dbRound?.round_number ?? Number(round.sequence_order)))
+                                  .map(pool => (
+                                    <div key={pool._id} className="hd-problem-pool-chip">
+                                      <span className="hd-problem-pool-name">{pool.pool_name || pool.name}</span>
+                                      {pool.drive_link ? (
+                                        <a href={pool.drive_link} target="_blank" rel="noreferrer" className="hd-problem-pool-link">
+                                          🔗 Xem đề
+                                        </a>
+                                      ) : (
+                                        <span className="hd-problem-pool-no-link">Chưa có link</span>
+                                      )}
+                                    </div>
+                                  ))
+                              : <span className="hd-problem-pool-no-link">Chưa cấu hình bảng đấu</span>
+                            }
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -2595,7 +2663,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                 ) : (
                   leaderboardRounds.map(r => (
                     <option key={r._id} value={r._id}>
-                      {r.name} {!r.is_active ? '(Chưa kích hoạt)' : '(Đang chạy)'}
+                      {r.name} ({getRoundStatus(r).label})
                     </option>
                   ))
                 )}
@@ -2775,12 +2843,132 @@ export default function HackathonDetailPage({ defaultTab }) {
           )}
         </div>
       )}
+      {/* Floating Trigger on the right edge of the screen */}
+      <button 
+        className="hd-drawer-trigger" 
+        onClick={() => setIsDrawerOpen(prev => !prev)}
+        style={{
+          position: 'fixed',
+          right: 0,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 1000,
+          background: 'linear-gradient(135deg, rgba(0, 240, 255, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
+          border: '1px solid rgba(0, 240, 255, 0.3)',
+          borderRight: 'none',
+          borderRadius: '16px 0 0 16px',
+          width: '36px',
+          padding: '16px 4px',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          color: 'var(--cyan)',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '-4px 0 20px rgba(0, 240, 255, 0.15)',
+          transition: 'all 0.2s ease-in-out'
+        }}
+      >
+        <span 
+          style={{ 
+            writingMode: 'vertical-rl', 
+            textTransform: 'uppercase', 
+            fontSize: '0.68rem', 
+            letterSpacing: '1px', 
+            fontWeight: 700
+          }}
+        >
+          Tiến độ
+        </span>
+        <Ico d={isDrawerOpen ? CHEVRON_RIGHT : CHEVRON_LEFT} size={18} />
+      </button>
+
+      {/* Slide-out Progress Drawer */}
+      <div className={`hd-progress-drawer ${isDrawerOpen ? 'hd-progress-drawer--open' : ''}`}>
+        <div className="hd-drawer-overlay" onClick={() => setIsDrawerOpen(false)} />
+        <div className="hd-drawer-content">
+          {/* Drawer Header */}
+          <div className="hd-drawer-header">
+            <button className="hd-drawer-close" onClick={() => setIsDrawerOpen(false)}>
+              <Ico d={CROSS} size={20} />
+            </button>
+            <h3 className="hd-drawer-title">Tiến độ chuẩn bị giải đấu</h3>
+            <div className="hd-drawer-rocket">
+              <Ico d={ROCKET} size={24} />
+            </div>
+          </div>
+
+          {/* Drawer Body */}
+          <div className="hd-drawer-body">
+            {/* Progress Card */}
+            <div className="hd-drawer-progress-card">
+              <div className="hd-drawer-progress-info">
+                <div>
+                  <span className="hd-drawer-progress-label">Tổng tiến độ</span>
+                  <div className="hd-drawer-progress-pct">{checklistPct}%</div>
+                </div>
+                <span className="hd-drawer-progress-count">
+                  {completedCount}/{checklistSteps.length} bước hoàn thành
+                </span>
+              </div>
+              <div className="hd-progress-bar-bg">
+                <div className="hd-progress-bar-fill" style={{ width: `${checklistPct}%` }}></div>
+              </div>
+            </div>
+
+            {/* Checklist Steps */}
+            <div className="hd-drawer-steps">
+              {checklistSteps.map((s, idx) => (
+                <div key={s.id} className="hd-drawer-step-item">
+                  <div className="hd-drawer-step-timeline">
+                    <div className={`hd-drawer-step-bullet ${s.ok ? 'hd-drawer-step-bullet--success' : 'hd-drawer-step-bullet--pending'}`}>
+                      {s.ok ? <Ico d={CHECK} size={8}/> : <span className="hd-drawer-bullet-dot" />}
+                    </div>
+                    {idx < checklistSteps.length - 1 && <div className="hd-drawer-step-line" />}
+                  </div>
+                  
+                  <div className="hd-drawer-step-details">
+                    <div className="hd-drawer-step-main">
+                      <span className={`hd-drawer-step-label ${s.ok ? 'hd-drawer-step-label--ok' : 'hd-drawer-step-label--pending'}`}>
+                        {s.label}
+                      </span>
+                      <span className={`hd-drawer-step-status ${s.ok ? 'hd-drawer-step-status--ok' : 'hd-drawer-step-status--pending'}`}>
+                        {s.isNotRequired ? 'Không yêu cầu' : s.ok ? 'Hoàn thành' : 'Chưa xong'}
+                      </span>
+                    </div>
+                    <p className="hd-drawer-step-desc">{s.desc}</p>
+                    {!s.ok && (
+                      <button className="hd-drawer-step-btn" onClick={() => { setTab(s.tabId); setIsDrawerOpen(false); }}>
+                        Thiết lập <Ico d={CHEVRON_RIGHT} size={10} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Suggestions / Gợi ý card */}
+            <div className="hd-drawer-suggestions">
+              <div className="hd-suggestions-header">
+                <span className="hd-suggestions-icon">💡</span>
+                <span className="hd-suggestions-title">Gợi ý thiết lập</span>
+              </div>
+              <p className="hd-suggestions-text">
+                Lần lượt: tạo vòng thi → bảng đấu → tiêu chí chấm → gán mentor & giám khảo → lên lịch sự kiện → kiểm tra điều kiện → mở đăng ký.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 // Đếm ngược thời gian còn lại tới hạn nộp bài của vòng thi đang active (dạng GIỜ:PHÚT:GIÂY)
-function RoundCountdownBox({ deadline }) {
+// codingHours: tổng thời gian làm bài đã cấu hình cho vòng thi
+function RoundCountdownBox({ deadline, codingHours }) {
   const calcRemaining = () => Math.max(0, new Date(deadline).getTime() - Date.now());
   const [remaining, setRemaining] = useState(calcRemaining());
 
@@ -2789,6 +2977,10 @@ function RoundCountdownBox({ deadline }) {
     return () => clearInterval(timerId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deadline]);
+
+  const totalMs   = (codingHours || 24) * 3600 * 1000;
+  const elapsed   = Math.max(0, totalMs - remaining);
+  const progress  = Math.min(100, Math.round((elapsed / totalMs) * 100));
 
   const totalSeconds = Math.floor(remaining / 1000);
   const hours   = Math.floor(totalSeconds / 3600);
@@ -2820,6 +3012,13 @@ function RoundCountdownBox({ deadline }) {
           </div>
         </div>
       )}
+      {/* Progress bar: thời gian đã trôi qua / tổng thời gian làm bài */}
+      <div className="hd-round-countdown-progress-wrap">
+        <div className="hd-round-countdown-progress-bar" style={{ width: `${progress}%` }} />
+      </div>
+      <span className="hd-round-countdown-total-lbl">
+        Tổng thời gian làm bài: <strong>{codingHours || 24}h</strong> &nbsp;·&nbsp; Đã qua: <strong>{progress}%</strong>
+      </span>
     </div>
   );
 }

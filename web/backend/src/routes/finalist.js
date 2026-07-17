@@ -16,14 +16,31 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
   try {
     const { round_id } = req.params;
 
-    const round = await Round.findById(round_id);
+    let round = await Round.findById(round_id);
+    let contest;
     if (!round) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
-    }
-
-    const contest = await Contest.findById(round.contest_id);
-    if (!contest) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy giải đấu" });
+      contest = await Contest.findOne({ "rounds._id": round_id });
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      const embeddedRound = contest.rounds.id(round_id);
+      if (!embeddedRound) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      round = {
+        _id: embeddedRound._id,
+        contest_id: contest._id,
+        name: embeddedRound.name,
+        type: embeddedRound.round_number === 2 || embeddedRound.name.toLowerCase().includes("chung kết") || embeddedRound.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
+        top_n: embeddedRound.top_n_advance || 6,
+        wildcard_count: embeddedRound.wildcard_count || 1,
+        wildcard_enabled: embeddedRound.wildcard_enabled || false
+      };
+    } else {
+      contest = await Contest.findById(round.contest_id);
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy giải đấu" });
+      }
     }
 
     const boundary = round.top_n || 6;
@@ -59,6 +76,9 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
       scoreMap[teamIdStr].push(score.weighted_avg_score || 0);
     }
 
+    const isFinalRound = round.type === "FINAL" || round.name?.toLowerCase().includes("chung kết") || round.name?.toLowerCase().includes("final");
+    const fallbackGroupName = isFinalRound ? "Kết quả chung cuộc" : "Chưa phân bảng";
+
     const teamList = [];
     for (const team of teams) {
       const teamScores = scoreMap[team._id.toString()];
@@ -69,7 +89,7 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
       teamList.push({
         team_id: team._id,
         team_name: team.name || team.team_name || "Unknown Team",
-        assigned_group: teamPoolMap[team._id.toString()] || team.assigned_group || "Chưa phân bảng",
+        assigned_group: teamPoolMap[team._id.toString()] || team.assigned_group || fallbackGroupName,
         status: team.status || "ACTIVE",
         weighted_avg_score: Math.round(avgScore * 100) / 100,
       });
@@ -78,7 +98,7 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
     // Group by assigned_group to find Top N
     const groupsMap = {};
     for (const team of teamList) {
-      const groupName = team.assigned_group || "Chưa phân bảng";
+      const groupName = team.assigned_group || fallbackGroupName;
       if (!groupsMap[groupName]) {
         groupsMap[groupName] = [];
       }
@@ -247,9 +267,20 @@ router.get("/:round_id/audit-log", authenticate, async (req, res, next) => {
   try {
     const { round_id } = req.params;
 
-    const round = await Round.findById(round_id);
+    let round = await Round.findById(round_id);
     if (!round) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      const contest = await Contest.findOne({ "rounds._id": round_id });
+      if (!contest) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      const embeddedRound = contest.rounds.id(round_id);
+      if (!embeddedRound) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
+      }
+      round = {
+        _id: embeddedRound._id,
+        contest_id: contest._id
+      };
     }
 
     // Find all teams in this contest to filter audit logs

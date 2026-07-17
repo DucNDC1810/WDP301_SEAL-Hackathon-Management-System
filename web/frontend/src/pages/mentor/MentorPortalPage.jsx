@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Tag, Progress, Modal, message, Tooltip, Spin } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
+import { ROUND_STATUS, getRoundStatusKey } from '../../utils/roundStatus';
 import './MentorPortalPage.css';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -14,11 +15,6 @@ const STATUS_CFG = {
   rejected:      { label: 'Bị từ chối',      color: 'red' },
 };
 
-const ROUND_STATUS = {
-  active:   { label: 'Đang diễn ra', color: 'green' },
-  upcoming: { label: 'Sắp tới',      color: 'blue' },
-  ended:    { label: 'Đã kết thúc',  color: 'default' },
-};
 
 // Map backend submission statuses (UPPERCASE) → frontend keys
 const mapSubStatus = (s) => {
@@ -26,7 +22,6 @@ const mapSubStatus = (s) => {
   return m[s] || 'not_submitted';
 };
 
-const mapRoundStatus = (r) => r.is_active ? 'active' : (r.scoring_locked ? 'ended' : 'upcoming');
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -61,16 +56,20 @@ export default function MentorPortalPage() {
         const data = await request(`/api/contests/${contestId}`);
         const c = data?.data ?? data;
         setContest(c);
-        const rs = (c.rounds || []).filter(r => r.is_active).map(r => ({
+        // Show every round on the timeline — a locked/finished round must remain
+        // visible so it can display "Đã kết thúc". Filtering by is_active hid them.
+        const rs = (c.rounds || []).map(r => ({
           id: r._id,
           name: r.name,
           sequence: r.round_number,
           deadline: r.submission_deadline,
-          status: mapRoundStatus(r),
+          status: getRoundStatusKey(r),
         }));
         setRounds(rs);
         if (!activeRoundId && rs.length > 0) {
-          setActiveRoundId(rs[0].id);
+          // Default to the round in progress; fall back to the first one.
+          const current = rs.find(r => r.status === 'active') || rs[0];
+          setActiveRoundId(current.id);
         }
       } catch {
         messageApi.error('Không thể tải thông tin cuộc thi');
@@ -113,6 +112,7 @@ export default function MentorPortalPage() {
           status: mapSubStatus(sub.status),
           repoUrl: sub.repo_url,
           slideUrl: sub.slide_url,
+          demoUrl: sub.demo_url,
           submittedAt: sub.submitted_at,
         };
       });
@@ -349,13 +349,16 @@ export default function MentorPortalPage() {
                             <Tag color={sc.color} style={{ marginLeft: 8 }}>{sc.label}</Tag>
                           </div>
                           <div className="mp-sub-links">
-                            {sub.repoUrl
-                              ? <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--repo">🔗 Xem Repo</a>
-                              : <span className="mp-no-link">Chưa có repo</span>}
-                            {sub.slideUrl
-                              ? <a href={sub.slideUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--slide">📊 Xem Slide</a>
-                              : <span className="mp-no-link">Chưa có slide</span>}
-                          </div>
+                             {sub.repoUrl
+                               ? <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--repo">🔗 Xem Repo</a>
+                               : <span className="mp-no-link">Chưa có repo</span>}
+                             {sub.slideUrl
+                               ? <a href={sub.slideUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--slide">📊 Xem Slide</a>
+                               : <span className="mp-no-link">Chưa có slide</span>}
+                             {sub.demoUrl && (
+                               <a href={sub.demoUrl} target="_blank" rel="noreferrer" className="mp-link mp-link--demo" style={{ marginLeft: 8 }}>🎥 Xem Demo</a>
+                             )}
+                           </div>
                         </div>
                       )}
                     </div>

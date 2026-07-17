@@ -173,6 +173,21 @@ export const notifyJudgeAssignedToPool = async ({ user_id, contestTitle, poolNam
 };
 
 /**
+ * Thông báo cho Giám khảo khi được phân công chấm điểm một vòng thi.
+ */
+export const notifyJudgeAssignedToRound = async ({ user_id, contestTitle, roundName, ref_id }) => {
+  return createNotification({
+    user_id,
+    type: "judge_assigned",
+    title: "Bạn được phân công làm Giám khảo",
+    message: `Bạn đã được phân công làm Giám khảo chấm điểm cho vòng "${roundName}" trong cuộc thi "${contestTitle}".`,
+    ref_id,
+    ref_type: "Contest",
+  });
+};
+
+
+/**
  * Thông báo thành viên đã xác nhận email tham gia đội.
  */
 export const notifyTeamMemberVerified = async ({ user_id, memberName, teamName, ref_id }) => {

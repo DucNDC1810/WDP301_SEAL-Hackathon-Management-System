@@ -146,6 +146,32 @@ export const lockScoring = async (contestId, roundId, { force = false, force_loc
     { is_final: true }
   );
 
+  // Thông báo cho các đội thi: kết quả vòng này đã công bố, có thể xem breakdown điểm.
+  try {
+    const teams = await Team.find({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } })
+      .select("leader_id members.user_id")
+      .lean();
+    const recipientIds = new Set();
+    for (const t of teams) {
+      if (t.leader_id) recipientIds.add(t.leader_id.toString());
+      for (const m of t.members || []) {
+        if (m.user_id) recipientIds.add(m.user_id.toString());
+      }
+    }
+    if (recipientIds.size > 0) {
+      await createBulkNotifications({
+        user_ids: [...recipientIds],
+        type: "results_published",
+        title: `Kết quả vòng "${round.name}" đã được công bố`,
+        message: `Cuộc thi "${contest.title}" — kết quả chấm điểm vòng "${round.name}" đã công bố. Xem chi tiết điểm số của đội bạn ngay.`,
+        ref_id: contestId,
+        ref_type: "Contest",
+      });
+    }
+  } catch (e) {
+    console.error("[lockScoring notify]", e);
+  }
+
   return round;
 };
 
@@ -373,6 +399,9 @@ export const checkJudgeCompletion = async (roundId) => {
     .populate("judge_id", "full_name email")
     .populate("pool_id");
 
+  const contest = await Contest.findOne({ "rounds._id": roundId }).select("_id").lean();
+  const contestId = contest?._id;
+
   // Get unique judges from assignments
   const judgeMap = {};
   for (const assign of assignments) {
@@ -398,15 +427,19 @@ export const checkJudgeCompletion = async (roundId) => {
   for (const judgeId of Object.keys(judgeMap)) {
     const judgeInfo = judgeMap[judgeId];
 
-    // Thu thập tất cả team_id từ các pool mà judge được phân công
-    const teamIds = [];
-    for (const pool of judgeInfo.pools) {
-      if (pool.teams && Array.isArray(pool.teams)) {
-        teamIds.push(...pool.teams.map((t) => t.toString()));
+    let uniqueTeamIds = [];
+    if (judgeInfo.pools.length > 0) {
+      const teamIds = [];
+      for (const pool of judgeInfo.pools) {
+        if (pool.teams && Array.isArray(pool.teams)) {
+          teamIds.push(...pool.teams.map((t) => t.toString()));
+        }
       }
+      uniqueTeamIds = [...new Set(teamIds)];
+    } else if (contestId) {
+      const activeTeams = await Team.find({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } }).select("_id").lean();
+      uniqueTeamIds = activeTeams.map((t) => t._id.toString());
     }
-
-    const uniqueTeamIds = [...new Set(teamIds)];
 
     // Số lượng đội có bài nộp trong vòng này trong pool của judge
     const expectedCount = await Submission.countDocuments({

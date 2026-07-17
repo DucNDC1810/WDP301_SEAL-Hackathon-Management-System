@@ -129,3 +129,13 @@ export const handleGetJudgeSchedule = async (req, res) => {
     res.status(err.statusCode || 500).json({ message: err.message });
   }
 };
+
+export const handleGetMyTeamResults = async (req, res) => {
+  try {
+    const { contestId } = req.params;
+    const data = await service.getMyTeamResults(contestId, req.user._id);
+    res.json(data);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ message: err.message });
+  }
+};

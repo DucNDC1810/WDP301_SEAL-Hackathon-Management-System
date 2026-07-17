@@ -66,12 +66,13 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
       setSubmissions(list.map(s => ({
         id: s._id,
         teamId: (s.team_id?._id || s.team_id)?.toString(),
-        teamName: s.team_id?.team_name || s.team_id?.name || '—',
-        poolName: s.pool_id?.pool_name || s.pool_id?.name || '—',
+        teamName: s.team_name || s.team_id?.team_name || s.team_id?.name || '—',
+        poolName: s.pool_name || s.pool_id?.pool_name || s.pool_id?.name || '—',
         status: mapStatus(s.status),
         lateBy: s.late_by_minutes || 0,
         repoUrl: s.repo_url || s.github_url || null,
         slideUrl: s.slide_url || null,
+        demoUrl: s.demo_url || null,
         note: s.note || s.reason || '',
         submittedAt: s.submitted_at || s.createdAt,
       })));
@@ -172,44 +173,162 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
       )}
 
       {!loading && filtered.length > 0 && (
-        <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="space-y-3">
           {filtered.map((sub, idx) => {
             const sc = STATUS_CFG[sub.status] || { label: sub.status, color: 'default' };
             const isPending = sub.status === 'late_pending' || sub.status === 'late';
+            const firstLetter = sub.teamName ? sub.teamName.trim().charAt(0).toUpperCase() : '?';
+            
+            const colors = [
+              'linear-gradient(135deg, #00f0ff, #0072ff)',
+              'linear-gradient(135deg, #d300c5, #0072ff)',
+              'linear-gradient(135deg, #ff007f, #7f00ff)',
+              'linear-gradient(135deg, #00f0ff, #7f00ff)',
+              'linear-gradient(135deg, #ff8a00, #da1b60)',
+            ];
+            const colorIdx = firstLetter.charCodeAt(0) % colors.length;
+            const avatarBg = colors[colorIdx];
+
             return (
-              <div key={sub.id} className="px-5 py-4 flex items-start gap-4 flex-wrap"
-                style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
-                <div className="flex-1 min-w-0 space-y-1">
+              <div key={sub.id} className="p-5 flex items-start gap-4 flex-wrap rounded-xl border transition-all duration-200"
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.02)', 
+                  borderColor: 'var(--border)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--cyan)';
+                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 240, 255, 0.08)';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                }}
+              >
+                {/* Avatar */}
+                <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg shadow-md"
+                  style={{ background: avatarBg }}>
+                  {firstLetter}
+                </div>
+
+                {/* Info and Content */}
+                <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{sub.teamName}</span>
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{sub.poolName}</span>
-                    <Tag color={sc.color} style={{ fontSize: '0.65rem' }}>{sc.label}</Tag>
+                    <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>{sub.teamName}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-md" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
+                      {sub.poolName}
+                    </span>
+                    <Tag color={sc.color} style={{ fontSize: '0.7rem', padding: '1px 8px', borderRadius: 4 }}>{sc.label}</Tag>
                     {sub.lateBy > 0 && (
-                      <Tag color="red" style={{ fontSize: '0.65rem' }}>
-                        +{sub.lateBy < 60 ? `${sub.lateBy}p` : `${Math.floor(sub.lateBy / 60)}g${sub.lateBy % 60 ? sub.lateBy % 60 + 'p' : ''}`}
+                      <Tag color="red" style={{ fontSize: '0.7rem', padding: '1px 8px', borderRadius: 4 }}>
+                        Nộp trễ: {sub.lateBy < 60 ? `${sub.lateBy} phút` : `${Math.floor(sub.lateBy / 60)}g${sub.lateBy % 60 ? sub.lateBy % 60 + 'p' : ''}`}
                       </Tag>
                     )}
                   </div>
+
+                  {/* Links as styled badges */}
                   <div className="flex items-center gap-3 flex-wrap">
                     {sub.repoUrl && (
                       <a href={sub.repoUrl} target="_blank" rel="noreferrer"
-                        className="text-xs underline" style={{ color: 'var(--cyan)' }}>📁 Repo</a>
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150"
+                        style={{ 
+                          color: 'var(--cyan)', 
+                          borderColor: 'rgba(0, 240, 255, 0.3)', 
+                          background: 'rgba(0, 240, 255, 0.05)',
+                          textDecoration: 'none'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(0, 240, 255, 0.15)';
+                          e.currentTarget.style.borderColor = 'var(--cyan)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(0, 240, 255, 0.05)';
+                          e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.3)';
+                        }}
+                      >
+                        📁 Repository
+                      </a>
                     )}
                     {sub.slideUrl && (
                       <a href={sub.slideUrl} target="_blank" rel="noreferrer"
-                        className="text-xs underline" style={{ color: 'var(--cyan)' }}>📊 Slide</a>
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150"
+                        style={{ 
+                          color: '#ff8a00', 
+                          borderColor: 'rgba(255, 138, 0, 0.3)', 
+                          background: 'rgba(255, 138, 0, 0.05)',
+                          textDecoration: 'none'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(255, 138, 0, 0.15)';
+                          e.currentTarget.style.borderColor = '#ff8a00';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(255, 138, 0, 0.05)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 138, 0, 0.3)';
+                        }}
+                      >
+                        📊 Presentation Slide
+                      </a>
+                    )}
+                    {sub.demoUrl && (
+                      <a href={sub.demoUrl} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150"
+                        style={{ 
+                          color: '#d300c5', 
+                          borderColor: 'rgba(211, 0, 197, 0.3)', 
+                          background: 'rgba(211, 0, 197, 0.05)',
+                          textDecoration: 'none'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(211, 0, 197, 0.15)';
+                          e.currentTarget.style.borderColor = '#d300c5';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(211, 0, 197, 0.05)';
+                          e.currentTarget.style.borderColor = 'rgba(211, 0, 197, 0.3)';
+                        }}
+                      >
+                        🎥 Demo Video
+                      </a>
                     )}
                     {sub.submittedAt && (
                       <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {new Date(sub.submittedAt).toLocaleString('vi-VN')}
+                        ⏰ Nộp lúc: {new Date(sub.submittedAt).toLocaleString('vi-VN')}
                       </span>
                     )}
                   </div>
-                  {sub.note && <p className="text-xs italic m-0" style={{ color: 'var(--text-muted)' }}>"{sub.note}"</p>}
+
+                  {sub.note && (
+                    <div className="p-3 rounded-lg text-xs italic border-l-2" 
+                      style={{ 
+                        background: 'rgba(255, 255, 255, 0.01)', 
+                        borderColor: 'var(--cyan)', 
+                        color: 'var(--text-secondary)' 
+                      }}>
+                      "{sub.note}"
+                    </div>
+                  )}
                 </div>
+
+                {/* Actions */}
                 {isPending && (
-                  <div className="flex gap-2 flex-shrink-0">
-                    <Button size="small" type="primary" onClick={() => { setSelected(sub); setReason(''); }}>Duyệt / Từ chối</Button>
+                  <div className="flex items-center self-center flex-shrink-0">
+                    <Button 
+                      type="primary" 
+                      onClick={() => { setSelected(sub); setReason(''); }}
+                      style={{
+                        background: 'linear-gradient(135deg, var(--cyan), #0072ff)',
+                        border: 'none',
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        height: 36,
+                        boxShadow: '0 4px 10px rgba(0, 240, 255, 0.2)',
+                      }}
+                    >
+                      Duyệt / Từ chối
+                    </Button>
                   </div>
                 )}
               </div>
@@ -228,15 +347,41 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
       >
         {selected && (
           <div className="space-y-4 py-2">
-            <div className="p-3 rounded-lg text-sm space-y-1" style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <div><span style={{ color: 'var(--text-muted)' }}>Bảng: </span>{selected.poolName}</div>
-              <div><span style={{ color: 'var(--text-muted)' }}>Trễ: </span>
-                {selected.lateBy > 0
-                  ? `${selected.lateBy < 60 ? selected.lateBy + ' phút' : Math.floor(selected.lateBy / 60) + ' giờ ' + (selected.lateBy % 60 || '') + (selected.lateBy % 60 ? ' phút' : '')}`
-                  : 'Đúng giờ'}
+            <div className="p-4 rounded-xl text-sm space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+              <div className="flex justify-between"><span style={{ color: 'var(--text-muted)' }}>Bảng:</span> <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{selected.poolName}</span></div>
+              <div className="flex justify-between"><span style={{ color: 'var(--text-muted)' }}>Trễ:</span> 
+                <span className="font-semibold" style={{ color: selected.lateBy > 0 ? '#ff4d4f' : '#52c41a' }}>
+                  {selected.lateBy > 0
+                    ? `${selected.lateBy < 60 ? selected.lateBy + ' phút' : Math.floor(selected.lateBy / 60) + ' giờ ' + (selected.lateBy % 60 || '') + (selected.lateBy % 60 ? ' phút' : '')}`
+                    : 'Đúng giờ'}
+                </span>
               </div>
-              {selected.repoUrl && <div><a href={selected.repoUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>📁 Xem Repo</a></div>}
-              {selected.slideUrl && <div><a href={selected.slideUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>📊 Xem Slide</a></div>}
+              <div className="border-t pt-3 flex gap-2 flex-wrap" style={{ borderColor: 'var(--border)' }}>
+                {selected.repoUrl && (
+                  <a href={selected.repoUrl} target="_blank" rel="noreferrer" className="flex-1 text-center py-2 px-3 rounded-lg text-xs font-semibold border transition-all"
+                     style={{ color: 'var(--cyan)', borderColor: 'rgba(0, 240, 255, 0.3)', background: 'rgba(0, 240, 255, 0.04)', textDecoration: 'none' }}
+                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.1)'}
+                     onMouseLeave={e => e.currentTarget.style.background = 'rgba(0, 240, 255, 0.04)'}>
+                    📁 Repo
+                  </a>
+                )}
+                {selected.slideUrl && (
+                  <a href={selected.slideUrl} target="_blank" rel="noreferrer" className="flex-1 text-center py-2 px-3 rounded-lg text-xs font-semibold border transition-all"
+                     style={{ color: '#ff8a00', borderColor: 'rgba(255, 138, 0, 0.3)', background: 'rgba(255, 138, 0, 0.04)', textDecoration: 'none' }}
+                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 138, 0, 0.1)'}
+                     onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 138, 0, 0.04)'}>
+                    📊 Slide
+                  </a>
+                )}
+                {selected.demoUrl && (
+                  <a href={selected.demoUrl} target="_blank" rel="noreferrer" className="flex-1 text-center py-2 px-3 rounded-lg text-xs font-semibold border transition-all"
+                     style={{ color: '#d300c5', borderColor: 'rgba(211, 0, 197, 0.3)', background: 'rgba(211, 0, 197, 0.04)', textDecoration: 'none' }}
+                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(211, 0, 197, 0.1)'}
+                     onMouseLeave={e => e.currentTarget.style.background = 'rgba(211, 0, 197, 0.04)'}>
+                    🎥 Demo
+                  </a>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>

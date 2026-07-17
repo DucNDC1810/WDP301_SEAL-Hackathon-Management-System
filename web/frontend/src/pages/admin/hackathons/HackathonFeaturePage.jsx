@@ -4,6 +4,7 @@ import SubmissionReviewTab from './tabs/SubmissionReviewTab';
 import ScoringLockTab from './tabs/ScoringLockTab';
 import TeamEliminationTab from './tabs/TeamEliminationTab';
 import PresentationScheduleTab from './tabs/PresentationScheduleTab';
+import AwardManagementTab from './tabs/AwardManagementTab';
 import './HackathonFeaturePage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -25,6 +26,7 @@ const FEATURE_TITLES = {
   'elimination': 'Loại Đội Vi Phạm Quy Chế',
   'timeline': 'Lịch Trình Thời Gian Chi Tiết',
   'presentation': 'Đặt Lịch Trình Bày & Vấn Đáp',
+  'awards': 'Quản Lý Giải Thưởng',
 };
 
 export default function HackathonFeaturePage({ feature }) {
@@ -216,6 +218,10 @@ export default function HackathonFeaturePage({ feature }) {
 
             {feature === 'presentation' && (
               <PresentationScheduleTab contestId={selectedContestId} contest={contest} />
+            )}
+
+            {feature === 'awards' && (
+              <AwardManagementTab contestId={selectedContestId} />
             )}
 
             {feature === 'timeline' && config && (

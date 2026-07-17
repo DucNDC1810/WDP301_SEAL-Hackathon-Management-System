@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { message, Modal, Empty } from 'antd';
 import { useApi } from '../../../hooks/useApi';
-import { getRoundStatus } from '../../../utils/roundStatus';
+import { getRoundStatus, getRoundStatusKey } from '../../../utils/roundStatus';
 import '../student.css';
 
 const Ico = ({ d, size = 14, sw = 1.8 }) => (
@@ -160,8 +160,10 @@ export const StudentSubmitPage = () => {
         const contestData = contest?.data ?? contest;
         const allRounds = contestData?.rounds ?? [];
         setRounds(allRounds);
-        // Only default to an actually active round — no fallback to latest
-        const active = allRounds.find((r) => r.is_active) ?? null;
+        // Only default to an actually active round — no fallback to latest.
+        // A round stays `is_active: true` after scoring is locked, so checking that
+        // flag alone would keep showing an ended round as submittable forever.
+        const active = allRounds.find((r) => getRoundStatusKey(r) === 'active') ?? null;
         setSelectedRound(active);
       } catch {
         // ignore
@@ -429,7 +431,7 @@ export const StudentSubmitPage = () => {
               outline: 'none', cursor: 'pointer',
             }}
           >
-            {rounds.filter(r => r.is_active).map((r) => (
+            {rounds.filter(r => getRoundStatusKey(r) === 'active').map((r) => (
               <option key={r._id} value={r._id}>
                 {r.name} ({getRoundStatus(r).label})
               </option>

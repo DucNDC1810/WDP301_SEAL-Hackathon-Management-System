@@ -358,7 +358,7 @@ export const StudentOverviewPage = () => {
         const found = contestRes?.data ?? contestRes ?? null;
         setContest(found);
 
-        const activeRound = found?.rounds?.find((r) => r.is_active);
+        const activeRound = found?.rounds?.find((r) => getRoundStatusKey(r) === "active");
         if (!activeRound) {
           setLoading(false);
           return;
@@ -411,10 +411,13 @@ export const StudentOverviewPage = () => {
             })
             .catch(() => {}),
 
-          // Team score history across rounds — falls back to mock on failure
-          request(`/api/teams/${team._id}/score-history`)
+          // Team score history across rounds (only rounds with published results)
+          request(`/api/scores/contests/${contestId}/my-team-results`)
             .then((res) => {
-              const list = Array.isArray(res) ? res : (res?.data ?? []);
+              const rounds = Array.isArray(res?.results) ? res.results : [];
+              const list = rounds
+                .filter((r) => r.locked && r.total_score !== null && r.total_score !== undefined)
+                .map((r) => ({ label: r.round_name, score: r.total_score, rank: r.rank ?? null }));
               if (list.length) setScoreHistory(list);
             })
             .catch(() => {}),
@@ -547,7 +550,7 @@ export const StudentOverviewPage = () => {
   }
 
   /* ── Confirmed — redesign ─────────────────────────────────────────────────── */
-  const activeRound = contest?.rounds?.find((r) => r.is_active);
+  const activeRound = contest?.rounds?.find((r) => getRoundStatusKey(r) === "active");
 
   // If no active round, find the nearest upcoming one
   const nextRound = !activeRound

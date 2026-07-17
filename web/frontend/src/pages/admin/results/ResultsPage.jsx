@@ -30,6 +30,8 @@ export default function ResultsPage() {
   const [contests, setContests] = useState([]);
   const [selectedRoundId, setSelectedRoundId] = useState('');
   const [rounds, setRounds] = useState([]);
+  const [pools, setPools] = useState([]);
+  const [selectedPoolId, setSelectedPoolId] = useState('');
 
   const [data, setData] = useState({
     metrics: {
@@ -106,24 +108,51 @@ export default function ResultsPage() {
     fetchContestDetails();
   }, [contestId]);
 
-  // 3. Tải kết quả khi cả contestId và selectedRoundId sẵn sàng
+  // 3. Tải danh sách bảng đấu (pool) của vòng thi khi selectedRoundId thay đổi
   useEffect(() => {
-    if (contestId && selectedRoundId) {
-      fetchResultsData(contestId, selectedRoundId);
+    if (!contestId || !selectedRoundId) {
+      setPools([]);
+      setSelectedPoolId('');
+      return;
     }
+    const fetchPools = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const res = await fetch(
+          `${API_URL}/api/pools/contests/${contestId}/pools?round_id=${selectedRoundId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (res.ok) {
+          const d = await res.json();
+          const list = Array.isArray(d) ? d : (d.data || []);
+          setPools(list);
+          setSelectedPoolId(list.length > 0 ? list[0]._id : '');
+        }
+      } catch (e) {
+        console.error('Error fetching pools:', e);
+      }
+    };
+    fetchPools();
   }, [contestId, selectedRoundId]);
 
-  const fetchResultsData = async (cid, rid) => {
+  // 4. Tải kết quả khi contestId, selectedRoundId và selectedPoolId sẵn sàng
+  useEffect(() => {
+    if (contestId && selectedRoundId) {
+      fetchResultsData(contestId, selectedRoundId, selectedPoolId);
+    }
+  }, [contestId, selectedRoundId, selectedPoolId]);
+
+  const fetchResultsData = async (cid, rid, poolId) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      // Tải bảng xếp hạng: GET /api/contests/:contestId/rounds/:roundId/rankings
-      const rankRes = await fetch(
-        `${API_URL}/api/contests/${cid}/rounds/${rid}/rankings`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // Tải bảng xếp hạng: GET /api/contests/:contestId/rounds/:roundId/rankings?pool_id=...
+      const rankUrl = poolId
+        ? `${API_URL}/api/contests/${cid}/rounds/${rid}/rankings?pool_id=${poolId}`
+        : `${API_URL}/api/contests/${cid}/rounds/${rid}/rankings`;
+      const rankRes = await fetch(rankUrl, { headers: { Authorization: `Bearer ${token}` } });
 
       let leaderboard = [];
       let totalTeams = 0;
@@ -135,7 +164,9 @@ export default function ResultsPage() {
         const allRankings = Array.isArray(rankings) ? rankings : rankings.data || [];
         totalTeams = allRankings.length;
 
-        leaderboard = allRankings.slice(0, 5).map((r, i) => ({
+        // Xếp hạng lại trong phạm vi bảng đã lọc (rank_position lưu trong DB là rank toàn vòng)
+        const sortedByPool = [...allRankings].sort((a, b) => (b.final_score || 0) - (a.final_score || 0));
+        leaderboard = sortedByPool.map((r, i) => ({
           rank: i + 1,
           name: r.team_name,
           score: r.final_score || 0,
@@ -285,6 +316,21 @@ export default function ResultsPage() {
               </select>
             </div>
           )}
+
+          {pools.length > 1 && (
+            <div className="results-select-group">
+              <span className="results-select-label">Bảng:</span>
+              <select
+                className="results-select"
+                value={selectedPoolId}
+                onChange={e => setSelectedPoolId(e.target.value)}
+              >
+                {pools.map(p => (
+                  <option key={p._id} value={p._id}>{p.pool_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       {loading ? (
         <div style={{ textAlign: 'center', padding: '100px 0', color: '#7f9bb3' }}>
@@ -329,7 +375,9 @@ export default function ResultsPage() {
 
           {/* Leaderboard */}
           <div className="results-panel">
-            <h2 className="panel-title">BẢNG XẾP HẠNG VÒNG ĐẤU (LEADERBOARD)</h2>
+            <h2 className="panel-title">
+              BẢNG XẾP HẠNG {pools.length > 1 ? `— ${pools.find(p => p._id === selectedPoolId)?.pool_name || ''}` : 'VÒNG ĐẤU'} (LEADERBOARD)
+            </h2>
             <div className="leaderboard">
               {data.leaderboard.length > 0 ? (
                 data.leaderboard.map((team, idx) => (

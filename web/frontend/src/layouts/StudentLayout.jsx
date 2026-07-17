@@ -34,6 +34,7 @@ const TEAM   = [
   'M16 3.13a4 4 0 0 1 0 7.75',
 ];
 const UPLOAD = ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'M17 8l-5-5-5 5', 'M12 3v12'];
+const RESULTS = ['M18 20V10', 'M12 20V4', 'M6 20v-6'];
 const USER   = ['M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2', 'M12 3a4 4 0 0 0 0 8'];
 const MAIL   = ['M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z', 'M22 6l-10 7L2 6'];
 const CHAT   = ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'];
@@ -48,6 +49,7 @@ const GROUP1 = [
   { key: 'overview', label: 'Tổng quan', path: '/dashboard',         d: HOUSE,  exact: true },
   { key: 'team',     label: 'Đội thi',   path: '/dashboard/team',    d: TEAM  },
   { key: 'submit',   label: 'Nộp bài',   path: '/dashboard/submit',  d: UPLOAD, badge: { type: 'amber', text: '7d' } },
+  { key: 'results',  label: 'Kết quả',   path: '/dashboard/results', d: RESULTS },
   { key: 'profile',  label: 'Hồ sơ',     path: '/dashboard/profile', d: USER  },
 ];
 

@@ -9,6 +9,7 @@ import User from "../models/User.js";
 import PresentationSlot from "../models/PresentationSlot.js";
 import Submission from "../models/Submission.js";
 import Team from "../models/Team.js";
+import Ranking from "../models/Ranking.js";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -366,4 +367,83 @@ export const getScoresByRound = async (contestId, roundId, { score_type } = {}) 
     .populate("judge_id", "full_name email")
     .populate("team_id",  "team_name")
     .sort({ created_at: -1 });
+};
+
+// ─── getMyTeamResults ──────────────────────────────────────────────────────────
+
+/**
+ * Kết quả điểm số của đội thi hiện tại (theo user) cho từng vòng của contest.
+ * Chỉ trả breakdown điểm khi round đã `scoring_locked` (kết quả đã công bố),
+ * điểm từng tiêu chí là TRUNG BÌNH giữa các giám khảo — không lộ danh tính
+ * hay điểm riêng lẻ của từng giám khảo.
+ */
+export const getMyTeamResults = async (contestId, userId) => {
+  const contest = await Contest.findById(contestId).lean();
+  if (!contest) {
+    const err = new Error("Không tìm thấy cuộc thi"); err.statusCode = 404; throw err;
+  }
+
+  const team = await Team.findOne({
+    contest_id: contestId,
+    $or: [{ leader_id: userId }, { "members.user_id": userId }],
+  }).select("_id team_name").lean();
+
+  if (!team) {
+    const err = new Error("Bạn chưa có đội thi trong cuộc thi này"); err.statusCode = 404; throw err;
+  }
+
+  const rounds = [...(contest.rounds || [])].sort((a, b) => a.round_number - b.round_number);
+
+  const results = await Promise.all(rounds.map(async (round) => {
+    const base = {
+      round_id: round._id,
+      round_name: round.name,
+      round_number: round.round_number,
+      locked: !!round.scoring_locked,
+    };
+    if (!round.scoring_locked) return base;
+
+    const scores = await Score.find({
+      contest_id: contestId,
+      round_id: round._id,
+      team_id: team._id,
+      status: "submitted",
+      score_type: "NORMAL",
+    }).select("_id").lean();
+
+    if (!scores.length) return { ...base, no_scores: true };
+
+    const details = await ScoreDetail.find({ score_id: { $in: scores.map((s) => s._id) } }).lean();
+
+    const byCriteria = {};
+    for (const d of details) {
+      if (!byCriteria[d.criteria_name]) {
+        byCriteria[d.criteria_name] = { values: [], weight: d.weight, max_score: d.max_score };
+      }
+      byCriteria[d.criteria_name].values.push(d.score_value);
+    }
+
+    const criteria = Object.entries(byCriteria).map(([name, d]) => ({
+      criteria_name: name,
+      weight: d.weight,
+      max_score: d.max_score,
+      avg_score: Math.round((d.values.reduce((a, b) => a + b, 0) / d.values.length) * 100) / 100,
+    }));
+
+    const ranking = await Ranking.findOne({ contest_id: contestId, round_id: round._id, team_id: team._id })
+      .populate("board_id", "pool_name")
+      .lean();
+
+    return {
+      ...base,
+      judge_count: scores.length,
+      total_score: ranking?.final_score ?? null,
+      rank: ranking?.rank_position ?? null,
+      qualified: ranking?.qualified ?? null,
+      pool_name: ranking?.board_id?.pool_name ?? null,
+      criteria,
+    };
+  }));
+
+  return { team_id: team._id, team_name: team.team_name, results };
 };

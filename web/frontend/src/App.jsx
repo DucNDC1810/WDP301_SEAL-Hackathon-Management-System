@@ -64,6 +64,7 @@ import TeamVerifyPage from './pages/team-verify/TeamVerifyPage';
 import VerifyEmailPage from './pages/verify-email/VerifyEmailPage';
 import { StudentLayout }       from './layouts/StudentLayout';
 import { StudentOverviewPage } from './pages/student/overview/StudentOverviewPage';
+import { StudentResultsPage }  from './pages/student/results/StudentResultsPage';
 import { StudentTeamPage }     from './pages/student/team/StudentTeamPage';
 import { StudentSubmitPage }   from './pages/student/submit/StudentSubmitPage';
 
@@ -153,6 +154,7 @@ function App() {
                 <Route index            element={<StudentOverviewPage />} />
                 <Route path="team"      element={<StudentTeamPage />} />
                 <Route path="submit"    element={<StudentSubmitPage />} />
+                <Route path="results"   element={<StudentResultsPage />} />
                 <Route path="profile"   element={<ProfilePage />} />
 
                 <Route path="chat"      element={<TeamChatPage />} />

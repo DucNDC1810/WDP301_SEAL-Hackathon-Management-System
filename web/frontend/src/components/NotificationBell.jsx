@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { getNotifications, markAsRead, markAllAsRead, deleteNotification } from '../api/notification';
@@ -6,8 +7,21 @@ import './NotificationBell.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+// Only maps notification types we know the destination for — unmapped types
+// just mark as read, same as before, instead of risking a wrong navigation.
+const NOTIFICATION_ROUTES = {
+  results_published: '/dashboard/results',
+  SCORE_SUBMITTED: '/dashboard',
+  finalist_announcement: '/dashboard',
+  deadline_reminder: '/dashboard/submit',
+  missing_submission: '/dashboard/submit',
+  team_mentor_assigned: '/dashboard/team',
+  team_member_verified: '/dashboard/team',
+};
+
 export default function NotificationBell() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -79,6 +93,15 @@ export default function NotificationBell() {
     }
   };
 
+  const handleItemClick = (n) => {
+    if (!n.is_read) handleMarkAsRead(n._id);
+    const path = NOTIFICATION_ROUTES[n.type];
+    if (path) {
+      setShowDropdown(false);
+      navigate(path);
+    }
+  };
+
   const handleDeleteNotification = async (e, id) => {
     e.stopPropagation();
     try {
@@ -138,7 +161,7 @@ export default function NotificationBell() {
                   <div
                     key={n._id}
                     className={`bell-dropdown__item ${!n.is_read ? 'bell-dropdown__item--unread' : ''}`}
-                    onClick={() => handleMarkAsRead(n._id)}
+                    onClick={() => handleItemClick(n)}
                   >
                     <div className="bell-dropdown__item-content">
                       <h4 className="bell-dropdown__item-title">{n.title}</h4>

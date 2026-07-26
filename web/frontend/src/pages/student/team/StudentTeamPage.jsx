@@ -13,10 +13,10 @@ const Ico = ({ d, size = 18, sw = 1.8 }) => (
     {(Array.isArray(d) ? d : [d]).map((p, i) => <path key={i} d={p} />)}
   </svg>
 );
-const MAIL_D  = 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6';
-const SETTINGS_D = ['M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z','M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'];
-const TEAM_D  = ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2','M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z','M23 21v-2a4 4 0 0 0-3-3.87','M16 3.13a4 4 0 0 1 0 7.75'];
-const PLUS_D  = ['M12 5v14','M5 12h14'];
+const MAIL_D = 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6';
+const SETTINGS_D = ['M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'];
+const TEAM_D = ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M23 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'];
+const PLUS_D = ['M12 5v14', 'M5 12h14'];
 
 const C = {
   bg: '#070b14', card: '#0c1524', line: '#1b2740', line2: '#131d31',
@@ -26,22 +26,22 @@ const C = {
 };
 
 const STATUS_BADGE = {
-  PENDING_MEMBERS:  { label: 'Chờ xác thực',  bg: '#7c3a00', color: '#f97316' },
-  WAITING_APPROVAL: { label: 'Chờ duyệt',      bg: '#1e3a5f', color: '#60a5fa' },
-  CONFIRMED:        { label: 'Đã xác nhận',    bg: '#064e3b', color: '#34d399' },
-  REJECTED:         { label: 'Bị từ chối',     bg: '#3f1010', color: '#f87171' },
-  DISQUALIFIED:     { label: 'Bị loại',        bg: '#3f1010', color: '#f87171' },
-  ELIMINATED:       { label: 'Bị loại',        bg: '#3f1010', color: '#f87171' },
-  ACTIVE:           { label: 'Đang hoạt động', bg: '#064e3b', color: '#34d399' },
+  PENDING_MEMBERS: { label: 'Chờ xác thực', bg: '#7c3a00', color: '#f97316' },
+  WAITING_APPROVAL: { label: 'Chờ duyệt', bg: '#1e3a5f', color: '#60a5fa' },
+  CONFIRMED: { label: 'Đã xác nhận', bg: '#064e3b', color: '#34d399' },
+  REJECTED: { label: 'Bị từ chối', bg: '#3f1010', color: '#f87171' },
+  DISQUALIFIED: { label: 'Bị loại', bg: '#3f1010', color: '#f87171' },
+  ELIMINATED: { label: 'Bị loại', bg: '#3f1010', color: '#f87171' },
+  ACTIVE: { label: 'Đang hoạt động', bg: '#064e3b', color: '#34d399' },
 };
 
 const statusDesc = {
   WAITING_APPROVAL: 'Đội đang chờ Ban tổ chức phê duyệt. Hãy đảm bảo tất cả thành viên đã xác thực email.',
-  REJECTED:         'Đội của bạn hiện đang bị từ chối. Trưởng nhóm có thể chỉnh sửa thông tin đội, thay đổi thành viên và bấm "Gửi yêu cầu tham gia" bên dưới để gửi yêu cầu duyệt lại.',
-  ACTIVE:           'Đội đã sẵn sàng. Hãy đăng ký tham gia một cuộc thi để bắt đầu thi đấu.',
-  CONFIRMED:        'Đội đã được xác nhận tham gia cuộc thi. Chúc bạn thi đấu tốt!',
-  DISQUALIFIED:     'Đội đã bị loại khỏi cuộc thi.',
-  ELIMINATED:       'Đội đã bị loại khỏi cuộc thi.',
+  REJECTED: 'Đội của bạn hiện đang bị từ chối. Trưởng nhóm có thể chỉnh sửa thông tin đội, thay đổi thành viên và bấm "Gửi yêu cầu tham gia" bên dưới để gửi yêu cầu duyệt lại.',
+  ACTIVE: 'Đội đã sẵn sàng. Hãy đăng ký tham gia một cuộc thi để bắt đầu thi đấu.',
+  CONFIRMED: 'Đội đã được xác nhận tham gia cuộc thi. Chúc bạn thi đấu tốt!',
+  DISQUALIFIED: 'Đội đã bị loại khỏi cuộc thi.',
+  ELIMINATED: 'Đội đã bị loại khỏi cuộc thi.',
 };
 
 // Avatar with gradient background or image
@@ -67,9 +67,9 @@ const Avatar = ({ name, url, size = 36, radius = '50%' }) => {
       overflow: 'hidden',
     }}>
       {url ? (
-        <img 
-          src={url} 
-          alt={name} 
+        <img
+          src={url}
+          alt={name}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           onError={(e) => { e.target.style.display = 'none'; }}
         />
@@ -114,35 +114,35 @@ const labelStyle = {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 export const StudentTeamPage = () => {
-  const { user }    = useAuth();
+  const { user } = useAuth();
   const { request } = useApi();
 
-  const [team,          setTeam]          = useState(null);
-  const [contests,      setContests]      = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [refreshKey,    setRefreshKey]    = useState(0);
+  const [team, setTeam] = useState(null);
+  const [contests, setContests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Modals
-  const [createOpen,    setCreateOpen]    = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
-  const [createForm]  = Form.useForm();
+  const [createForm] = Form.useForm();
 
-  const [joinOpen,      setJoinOpen]      = useState(false);
-  const [joinLoading,   setJoinLoading]   = useState(false);
-  const [joinForm]    = Form.useForm();
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinForm] = Form.useForm();
 
-  const [inviteOpen,    setInviteOpen]    = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteForm]  = Form.useForm();
+  const [inviteForm] = Form.useForm();
 
   // Team settings
   const [settingsLoading, setSettingsLoading] = useState(false);
-  const [teamName,  setTeamName]  = useState('');
-  const [teamDesc,  setTeamDesc]  = useState('');
+  const [teamName, setTeamName] = useState('');
+  const [teamDesc, setTeamDesc] = useState('');
   const [teamField, setTeamField] = useState('Web Development');
 
   const [registerLoading, setRegisterLoading] = useState(false);
-  const [registerForm]  = Form.useForm();
+  const [registerForm] = Form.useForm();
 
   // Đánh giá đóng góp thành viên
   const [evalOpen, setEvalOpen] = useState(false);
@@ -170,9 +170,9 @@ export const StudentTeamPage = () => {
           request('/api/contests?status=open'),
           request('/api/invitations/me').catch(() => ({ data: [] })),
         ]);
-        const teams = Array.isArray(teamsRes)    ? teamsRes    : teamsRes?.data    ?? [];
-        const open  = Array.isArray(contestsRes) ? contestsRes : contestsRes?.data ?? [];
-        const invs  = Array.isArray(invitesRes)  ? invitesRes  : invitesRes?.data  ?? [];
+        const teams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.data ?? [];
+        const open = Array.isArray(contestsRes) ? contestsRes : contestsRes?.data ?? [];
+        const invs = Array.isArray(invitesRes) ? invitesRes : invitesRes?.data ?? [];
         setContests(open);
         setInvitations(invs.filter(i => i.status === 'pending'));
         const found = teams.find(t => open.some(c => (c._id ?? c) === (t.contest_id?._id ?? t.contest_id))) ?? teams[0] ?? null;
@@ -465,7 +465,7 @@ export const StudentTeamPage = () => {
         {invitations.length > 0 && (
           <div style={{ marginTop: 22 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.cyan} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.cyan} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
               <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Lời mời đang chờ</span>
               <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.25)', color: C.cyan }}>{invitations.length}</span>
             </div>
@@ -527,8 +527,8 @@ export const StudentTeamPage = () => {
   // ── Has team ─────────────────────────────────────────────────────────────
   const hasContest = !!team.contest_id;
   const isConfirmed = team.status === 'CONFIRMED' || (team.status === 'ACTIVE' && hasContest);
-  const badge   = isConfirmed ? STATUS_BADGE.CONFIRMED : (STATUS_BADGE[team.status] || STATUS_BADGE.ACTIVE);
-  const desc    = isConfirmed ? 'Đội đã được xác nhận tham gia cuộc thi. Chúc bạn thi đấu tốt!' : (statusDesc[team.status] || '');
+  const badge = isConfirmed ? STATUS_BADGE.CONFIRMED : (STATUS_BADGE[team.status] || STATUS_BADGE.ACTIVE);
+  const desc = isConfirmed ? 'Đội đã được xác nhận tham gia cuộc thi. Chúc bạn thi đấu tốt!' : (statusDesc[team.status] || '');
   const pending = team.members?.filter(m => !m.user_id || m.user_id.profile_verify_status !== 'approved') ?? [];
 
   const contestCard = (() => {
@@ -550,9 +550,9 @@ export const StudentTeamPage = () => {
       );
     }
     if ((team.status === 'ACTIVE' && !hasContest) || team.status === 'REJECTED') {
-      const totalMembers  = team.members?.length ?? 0;
+      const totalMembers = team.members?.length ?? 0;
       const verifiedCount = team.members?.filter(m => m.user_id && m.user_id.profile_verify_status === 'approved').length ?? 0;
-      const canRegister   = totalMembers >= 4 && verifiedCount === totalMembers;
+      const canRegister = totalMembers >= 4 && verifiedCount === totalMembers;
       return (
         <div style={{ ...cardStyle, padding: 20 }}>
           <div style={labelStyle}>Đăng ký cuộc thi</div>
@@ -806,9 +806,9 @@ export const StudentTeamPage = () => {
             <div>
               {(team.members ?? []).map((m, i) => {
                 const isTeamLeader = (m.user_id?._id ?? m.user_id) === (team.leader_id?._id ?? team.leader_id);
-                const isSelf       = (m.user_id?._id ?? m.user_id) === user._id;
-                const memberName   = m.full_name || m.user_id?.full_name || '—';
-                const verified     = m.user_id && m.user_id.profile_verify_status === 'approved';
+                const isSelf = (m.user_id?._id ?? m.user_id) === user._id;
+                const memberName = m.full_name || m.user_id?.full_name || '—';
+                const verified = m.user_id && m.user_id.profile_verify_status === 'approved';
                 const pendingVerify = m.user_id && m.user_id.profile_verify_status === 'pending';
 
                 return (
@@ -942,10 +942,10 @@ export const StudentTeamPage = () => {
             ) : (
               <div>
                 {(team.members ?? []).map((m, i) => {
-                  const pct    = m.contribution_percentage ?? 0;
+                  const pct = m.contribution_percentage ?? 0;
                   const rating = m.contribution_rating ?? 5;
-                  const note   = m.contribution_note || 'Chưa có nhận xét';
-                  const name   = m.full_name || m.user_id?.full_name || m.email;
+                  const note = m.contribution_note || 'Chưa có nhận xét';
+                  const name = m.full_name || m.user_id?.full_name || m.email;
                   return (
                     <div key={m.email} style={{
                       borderBottom: i < (team.members?.length ?? 0) - 1 ? `1px solid #0f1a2e` : 'none',

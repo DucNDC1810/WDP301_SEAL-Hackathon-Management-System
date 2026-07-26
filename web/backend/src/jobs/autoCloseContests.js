@@ -39,3 +39,6 @@ export const autoCloseContests = async () => {
     console.error('[AutoClose] Lỗi:', err.message);
   }
 };
+console.error('[AutoClose] Lỗi:', err.message);
+  }
+};

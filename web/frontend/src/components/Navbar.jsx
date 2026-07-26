@@ -68,6 +68,41 @@ function Navbar() {
               </a>
             </li>
           ))}
+
+          <li className="navbar__links-actions">
+            {user ? (
+              <>
+                <button
+                  className="navbar__btn navbar__btn--ghost"
+                  onClick={() => { setMobileOpen(false); navigate(isAdmin ? '/admin/dashboard' : '/dashboard'); }}
+                  id="btn-dashboard-mobile"
+                >
+                  Dashboard
+                </button>
+                <button
+                  className="navbar__btn navbar__btn--primary"
+                  onClick={async () => {
+                    setMobileOpen(false);
+                    await fetch(`${API_URL}/api/auth/signout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+                    logout();
+                    navigate('/login');
+                  }}
+                  id="btn-signout-mobile"
+                >
+                  Đăng Xuất
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="navbar__btn navbar__btn--primary"
+                id="btn-signin-mobile"
+                onClick={() => setMobileOpen(false)}
+              >
+                Đăng Nhập
+              </Link>
+            )}
+          </li>
         </ul>
 
         <div className="navbar__actions">

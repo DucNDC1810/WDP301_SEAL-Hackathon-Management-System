@@ -2234,6 +2234,30 @@ input:checked + .hd-switch-slider:before {
   box-shadow: -4px 0 25px rgba(0, 240, 255, 0.3) !important;
 }
 
+/* ─── Responsive (mobile) ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .hd-page {
+    padding: 14px;
+    gap: 16px;
+  }
+  .hd-header {
+    padding: 16px;
+    gap: 12px;
+  }
+  .hd-title {
+    font-size: 1.3rem;
+  }
+  .hd-back-btn {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  .hd-tab {
+    padding: 10px 14px;
+    font-size: 0.82rem;
+  }
+}
+
 
 
 

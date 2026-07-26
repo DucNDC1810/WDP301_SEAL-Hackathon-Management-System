@@ -415,3 +415,60 @@
   --pg-thead: #0a1220;
   --pg-input-bg: #080e1a;
 }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .sl-sidebar {
+    width: 64px;
+  }
+  .sl-logo-txt,
+  .sl-nav-group-label,
+  .sl-nav-label,
+  .sl-badge,
+  .sl-user-info {
+    display: none;
+  }
+  .sl-logo-area {
+    padding: 16px 0;
+    justify-content: center;
+  }
+  .sl-nav-item {
+    justify-content: center;
+    padding: 11px 0;
+  }
+  .sl-user-row {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 4px;
+  }
+  .sl-topbar {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sl-status-label {
+    display: none;
+  }
+  .sl-status-sep {
+    display: none;
+  }
+  .sl-content {
+    padding: 18px 16px 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sl-sidebar {
+    width: 56px;
+  }
+  .sl-clock {
+    font-size: 11px;
+  }
+  .sl-bxh-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .sl-content {
+    padding: 14px 12px 28px;
+  }
+}

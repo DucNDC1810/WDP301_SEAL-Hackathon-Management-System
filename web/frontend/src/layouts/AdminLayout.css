@@ -298,3 +298,45 @@
   top: 10px;
   right: 10px;
 }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .al-sidebar {
+    width: 60px;
+  }
+  .al-logo-txt,
+  .al-nav-label,
+  .al-user-info,
+  .al-nav-section-title {
+    display: none;
+  }
+  .al-toggle {
+    display: none;
+  }
+  .al-topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .al-profile-info {
+    display: none;
+  }
+  .al-profile-chip {
+    padding: 5px;
+  }
+  .al-content {
+    padding: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .al-sidebar {
+    width: 52px;
+  }
+  .al-nav-item {
+    padding: 9px 6px;
+    justify-content: center;
+  }
+  .al-topbar {
+    height: 50px;
+  }
+}

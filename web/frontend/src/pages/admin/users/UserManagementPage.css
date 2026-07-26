@@ -16,8 +16,8 @@
 .um-loading { display: flex; align-items: center; gap: 10px; padding: 40px; color: #4a6080; }
 .um-spinner { width: 18px; height: 18px; border: 2px solid #162036; border-top-color: #00d4ff; border-radius: 50%; animation: um-spin .7s linear infinite; }
 @keyframes um-spin { to { transform: rotate(360deg); } }
-.um-table-wrap { background: #0c1524; border: 1px solid #162036; border-radius: 12px; overflow: hidden; }
-.um-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+.um-table-wrap { background: #0c1524; border: 1px solid #162036; border-radius: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.um-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 0.83rem; }
 .um-table thead tr { background: #0a1220; border-bottom: 1px solid #162036; }
 .um-table th { padding: 12px 16px; text-align: left; font-size: 0.72rem; font-weight: 700; color: #3a5068; text-transform: uppercase; letter-spacing: .5px; }
 .um-row { border-bottom: 1px solid #0f1a2e; transition: background .15s; }
@@ -44,3 +44,13 @@
 .um-verified     { font-size: 0.75rem; font-weight: 600; }
 .um-verified--yes { color: #22c55e; }
 .um-verified--no  { color: #f87171; }
+
+@media (max-width: 768px) {
+  .um-page { padding: 18px 16px; }
+  .um-header { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 480px) {
+  .um-search-wrap { min-width: 0; width: 100%; }
+  .um-toolbar { flex-direction: column; align-items: stretch; }
+}

@@ -189,3 +189,12 @@
   border-color: rgba(0, 240, 255, 0.3);
   color: var(--text-primary, #f1f5f9);
 }
+
+@media (max-width: 480px) {
+  .verify-container {
+    padding: 14px;
+  }
+  .verify-card {
+    padding: 28px 22px;
+  }
+}

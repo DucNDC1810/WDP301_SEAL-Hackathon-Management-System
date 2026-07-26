@@ -919,3 +919,10 @@ input:checked + .slider:before {
   color: var(--purple);
   background: rgba(168, 85, 247, 0.15);
 }
+
+@media (max-width: 480px) {
+  .members-grid,
+  .pools-grid {
+    grid-template-columns: 1fr;
+  }
+}

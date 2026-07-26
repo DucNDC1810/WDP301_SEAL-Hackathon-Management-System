@@ -273,6 +273,7 @@ export default function ScoringLockTab({ config, contestId, contest }) {
               dataSource={teamAverages}
               pagination={false}
               style={{ fontSize: 13 }}
+              scroll={{ x: 'max-content' }}
               columns={[
                 {
                   title: 'Đội thi', dataIndex: 'name', key: 'name',
@@ -323,6 +324,7 @@ export default function ScoringLockTab({ config, contestId, contest }) {
               dataSource={scores}
               pagination={{ pageSize: 10, size: 'small' }}
               style={{ fontSize: 13 }}
+              scroll={{ x: 'max-content' }}
               expandable={{
                 expandedRowRender: (record) => (
                   <div style={{ padding: '8px 16px' }}>

@@ -380,3 +380,17 @@
   background: #00d4ff;
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
 }
+
+@media (max-width: 480px) {
+  .stp-tabs-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+  .stp-tab-btn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}

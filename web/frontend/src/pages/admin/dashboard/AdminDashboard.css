@@ -8,6 +8,7 @@
   background: linear-gradient(180deg, rgba(8, 18, 35, 0.95), rgba(9, 23, 45, 0.9));
   padding: 2rem;
   color: #ffffff;
+  font-family: var(--font-body);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -416,7 +417,7 @@
 
 .feed-content p {
   font-size: 0.85rem;
-  color: #ffffff;
+  color: var(--text-primary);
   margin: 0 0 0.3rem 0;
   line-height: 1.4;
 }
@@ -476,7 +477,7 @@
 
 .announcement-content p {
   font-size: 0.85rem;
-  color: #ffffff;
+  color: var(--text-primary);
   margin: 0 0 0.3rem 0;
   line-height: 1.4;
 }
@@ -612,4 +613,72 @@
     flex-direction: column;
     gap: 0.5rem;
   }
+}
+
+/* ===== Broadcast Modal ===== */
+.broadcast-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeInModal 0.25s ease-out;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.broadcast-modal {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+  border-radius: 16px;
+  width: 500px;
+  max-width: 90%;
+  padding: 24px;
+  color: #fff;
+  animation: slideUpModal 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpModal {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.broadcast-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
+}
+
+.broadcast-modal__header h2 {
+  font-size: 1.25rem;
+  margin: 0;
+  color: #00f0ff;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+}
+
+.broadcast-modal__close {
+  background: transparent;
+  border: none;
+  color: #a0aec0;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.broadcast-modal__close:hover {
+  color: #fff;
 }

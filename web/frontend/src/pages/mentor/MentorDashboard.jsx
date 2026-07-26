@@ -1,9 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { Progress, Spin, Tooltip, message, Tag } from 'antd';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useApi } from '../../hooks/useApi';
+import { getRoundStatusKey } from '../../utils/roundStatus';
 import './MentorDashboard.css';
+
+const SOCKET_URL = import.meta.env.VITE_API_URL || '';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso) {
@@ -36,7 +41,7 @@ function buildScheduleEvents(contests) {
   const events = [];
   contests.forEach((c, ci) => {
     const color = ACCENT_COLORS[ci % ACCENT_COLORS.length];
-    (c.rounds || []).forEach(r => {
+    (c.rounds || []).filter(r => r.is_active).forEach(r => {
       const dateStr = r.start_date || r.end_date;
       if (dateStr) {
         events.push({
@@ -46,8 +51,9 @@ function buildScheduleEvents(contests) {
           time: fmtDate(dateStr),
           rawDate: dateStr,
           color,
-          type: r.is_active ? 'active' : (new Date(dateStr) > new Date() ? 'upcoming' : 'ended'),
-          icon: r.is_active ? '▶' : '📅',
+          // A locked round is over even though is_active stays true — check it first.
+          type: r.scoring_locked ? 'ended' : (r.is_active ? 'active' : (new Date(dateStr) > new Date() ? 'upcoming' : 'ended')),
+          icon: (r.is_active && !r.scoring_locked) ? '▶' : '📅',
         });
       }
     });
@@ -61,8 +67,8 @@ function buildScheduleEvents(contests) {
 // ─── Enrich raw assignments from /api/mentor-assignments/me ──────────────────
 function enrichAssignment(a, idx) {
   const contest = a.contest_id || {};
-  const rounds  = contest.rounds || [];
-  const round   = rounds.find(r => r._id?.toString() === a.round_id?.toString()) || {};
+  const allRounds = contest.rounds || [];
+  const round   = allRounds.find(r => r._id?.toString() === a.round_id?.toString()) || {};
   const pool    = a.board_id || {};
   const team    = a.team_id  || {};
 
@@ -73,7 +79,7 @@ function enrichAssignment(a, idx) {
     contestStart:  contest.start_date,
     contestEnd:    contest.end_date,
     contestStatus: statusMap[contest.status] || 'upcoming',
-    rounds:        rounds,
+    rounds:        allRounds.filter(r => r.is_active),
     roundId:       round._id?.toString() || a.round_id?.toString() || '',
     roundName:     round.name || '—',
     roundIsActive: !!round.is_active,
@@ -105,7 +111,7 @@ const NAV_GROUPS = [
   ]},
   { items: [
     { id: 'scoring',  icon: '⚖',  label: 'Đội cần chấm' },
-    { id: 'chat',     icon: '💬', label: 'Nhóm chat',  badge: 3 },
+    { id: 'chat',     icon: '💬', label: 'Nhóm chat' },
     { id: 'schedule', icon: '📅', label: 'Lịch trình' },
     { id: 'eval',     icon: '📊',  label: 'Đánh giá' },
   ]},
@@ -114,25 +120,49 @@ const NAV_GROUPS = [
   ]},
 ];
 
-function Sidebar({ active, onChange, onNavigate }) {
+function Sidebar({ active, onChange, onNavigate, chatUnread, onLogout }) {
+  const { theme, toggleTheme } = useTheme();
   return (
-    <aside className="md-sidebar" style={{ padding: '8px 12px' }}>
-      {NAV_GROUPS.map((g, gi) => (
-        <div key={g.section}>
-          {gi > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
-          {g.items.map(item => (
-            <div
-              key={item.id}
-              className={`md-nav-item ${active === item.id ? 'active' : ''}`}
-              onClick={() => item.id === 'chat' ? onNavigate('/mentor/chat') : onChange(item.id)}
-            >
-              <span className="md-nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-              {item.badge ? <span className="md-nav-badge">{item.badge}</span> : null}
-            </div>
-          ))}
-        </div>
-      ))}
+    <aside className="md-sidebar">
+      <div className="md-sidebar-nav" style={{ padding: '8px 12px' }}>
+        {NAV_GROUPS.map((g, gi) => (
+          <div key={gi}>
+            {gi > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 0' }} />}
+            {g.items.map(item => {
+              const badge = item.id === 'chat' ? chatUnread : 0;
+              return (
+                <div
+                  key={item.id}
+                  className={`md-nav-item ${active === item.id ? 'active' : ''}`}
+                  onClick={() => item.id === 'chat' ? onNavigate('/mentor/chat') : onChange(item.id)}
+                >
+                  <span className="md-nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                  {badge > 0 ? <span className="md-nav-badge">{badge > 99 ? '99+' : badge}</span> : null}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="md-sidebar-foot">
+        <button
+          className="md-nav-item"
+          style={{ color: '#ef4444', border: 'none', background: 'transparent', width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+          onClick={onLogout}
+          title="Đăng xuất"
+        >
+          <span className="md-nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5" />
+              <path d="M21 12H9" />
+            </svg>
+          </span>
+          <span>Đăng xuất</span>
+        </button>
+      </div>
     </aside>
   );
 }
@@ -285,10 +315,12 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
             <div className="md-stat-icon-wrap" style={{ background: s.iconBg, border: `1px solid ${s.iconBorder}` }}>
               {s.icon}
             </div>
-            <div className="md-stat-num" style={{ color: s.color }}>
-              {loading ? <Spin size="small" /> : s.value}
+            <div className="md-stat-body">
+              <div className="md-stat-num" style={{ color: s.color }}>
+                {loading ? <Spin size="small" /> : s.value}
+              </div>
+              <div className="md-stat-label">{s.label}</div>
             </div>
-            <div className="md-stat-label">{s.label}</div>
             <div className="md-stat-glow" style={{ background: s.glow }} />
           </div>
         ))}
@@ -319,18 +351,19 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
           return (
             <div key={h.id} style={{
               borderRadius:16, overflow:'hidden',
-              background:'rgba(255,255,255,0.025)',
-              border:'1px solid rgba(255,255,255,0.07)',
+              background:'rgba(255,255,255,0.03)',
+              border:`1px solid rgba(255,255,255,0.09)`,
+              borderLeft:`3px solid ${h.accentColor}`,
             }}>
               <div style={{
                 padding:'16px 20px',
-                background:`linear-gradient(135deg,${h.accentColor}08,${h.accentColor}03)`,
-                borderBottom:'1px solid rgba(255,255,255,0.06)',
+                background:`linear-gradient(135deg,${h.accentColor}12,${h.accentColor}05)`,
+                borderBottom:'1px solid rgba(255,255,255,0.07)',
                 display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12,
               }}>
                 <div>
                   <div style={{ fontWeight:800, fontSize:'1rem', color:'#fff', marginBottom:4 }}>{h.name}</div>
-                  <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.4)' }}>
+                  <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)' }}>
                     {fmtDate(h.startDate)} → {fmtDate(h.endDate)}
                   </div>
                   <div style={{ marginTop:6, fontSize:'0.72rem', color:'rgba(255,255,255,0.35)' }}>
@@ -376,8 +409,10 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
               {h.rounds.length > 0 && (
                 <div style={{ padding:'10px 20px 14px' }}>
                   {h.rounds.map((r, ri) => {
-                    const rColor = r.is_active ? '#10b981' : '#6b7280';
-                    const rLabel = r.is_active ? 'Đang mở' : (r.scoring_locked ? 'Đã đóng' : 'Sắp tới');
+                    // Locked round must read as closed even though is_active stays true.
+                    const rKey = getRoundStatusKey(r);
+                    const rColor = rKey === 'active' ? '#10b981' : '#6b7280';
+                    const rLabel = rKey === 'active' ? 'Đang mở' : (rKey === 'ended' ? 'Đã đóng' : 'Sắp tới');
                     return (
                       <div key={r._id} style={{
                         display:'flex', alignItems:'center', gap:10, padding:'6px 0',
@@ -751,28 +786,66 @@ function SectionEval({ enriched, scores, navigate }) {
 }
 
 // ─── Section: Scoring (teams to score — not own mentees) ─────────────────────
-function SectionScoring({ enriched, judgeMap, navigate }) {
-  // Deduplicate by (contestId, roundId) — each unique round the mentor is assigned to
+function SectionScoring({ enriched, judgeMap, rawJudge, navigate }) {
+  // Deduplicate by (contestId, roundId) — each unique round the mentor/judge is assigned to
   const seen = new Set();
-  const rounds = enriched.reduce((acc, a) => {
-    const key = `${a.contestId}___${a.roundId}`;
-    if (!seen.has(key) && a.contestId && a.roundId) {
+  const rounds = [];
+
+  const addRound = (r) => {
+    const key = `${r.contestId}___${r.roundId}`;
+    if (!seen.has(key) && r.contestId && r.roundId) {
       seen.add(key);
-      // If mentor also has a judge assignment for this round → use judge URL (pool-scoped)
+      rounds.push(r);
+    }
+  };
+
+  // 1. Add rounds from mentor assignments (enriched)
+  if (Array.isArray(enriched)) {
+    enriched.forEach(a => {
+      const key = `${a.contestId}___${a.roundId}`;
       const judgePoolId = judgeMap[key];
-      acc.push({
+      addRound({
         key,
         contestId:    a.contestId,
         roundId:      a.roundId,
         contestName:  a.contestName,
         roundName:    a.roundName,
         roundIsActive: a.roundIsActive,
-        accentColor:  a.accentColor,
-        judgePoolId,  // defined → navigate to judge URL; undefined → mentor URL (all pools)
+        accentColor:  a.accentColor || '#00d4ff',
+        judgePoolId,
       });
-    }
-    return acc;
-  }, []);
+    });
+  }
+
+  // 2. Add rounds from judge assignments (rawJudge)
+  if (Array.isArray(rawJudge)) {
+    rawJudge.forEach((ja, idx) => {
+      const contest = ja.contest_id || {};
+      const contestId = (contest._id || contest).toString();
+      const roundId = ja.round_id?.toString();
+      if (!contestId || !roundId) return;
+
+      const key = `${contestId}___${roundId}`;
+      if (seen.has(key)) return;
+
+      // Find round details from contest
+      const roundsArr = contest.rounds || [];
+      const round = roundsArr.find(r => r._id?.toString() === roundId) || {};
+      
+      const ACCENT_COLORS = ['#00d4ff', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
+
+      addRound({
+        key,
+        contestId,
+        roundId,
+        contestName:  contest.title || '—',
+        roundName:    round.name || '—',
+        roundIsActive: !!round.is_active,
+        accentColor:  ACCENT_COLORS[idx % ACCENT_COLORS.length],
+        judgePoolId:  ja.pool_id?._id || ja.pool_id,
+      });
+    });
+  }
 
   const endedRounds  = rounds.filter(r => !r.roundIsActive);
   const activeRounds = rounds.filter(r => r.roundIsActive);
@@ -963,12 +1036,59 @@ export default function MentorDashboard() {
   const [messageApi, contextHolder] = message.useMessage();
 
   const [activeView, setActiveView] = useState('dashboard');
+
+  const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [contests, setContests]     = useState([]);
   const [enriched, setEnriched]     = useState([]); // processed mentor assignments
   const [judgeMap, setJudgeMap]     = useState({}); // "contestId___roundId" → poolId
+  const [rawJudge, setRawJudge]     = useState([]);
   const [scores, setScores]         = useState({});  // { "contestId___roundId": [score,...] }
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatSocketRef = useRef(null);
+  const chatConvsRef  = useRef([]);
+
+  // Fetch unread count and set up global socket for realtime badge
+  useEffect(() => {
+    let cancelled = false;
+    const init = async () => {
+      try {
+        const res = await request('/api/chat/conversations');
+        const convs = res?.data || [];
+        if (cancelled) return;
+        chatConvsRef.current = convs;
+        const total = convs.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        setChatUnread(total);
+
+        // Connect socket and join all rooms
+        const token = localStorage.getItem('accessToken') || '';
+        const socket = io(SOCKET_URL, { withCredentials: true, auth: { token } });
+        chatSocketRef.current = socket;
+
+        convs.forEach(({ contestId, roundId, teamId, mentorId }) => {
+          socket.emit('join_chat_room', { contestId, roundId, teamId, mentorId });
+        });
+
+        socket.on('chat:message', () => {
+          // Increment badge — will reset to 0 when user navigates to /mentor/chat
+          setChatUnread((prev) => prev + 1);
+        });
+      } catch {
+        // non-critical, ignore
+      }
+    };
+    init();
+    return () => {
+      cancelled = true;
+      if (chatSocketRef.current) {
+        chatConvsRef.current.forEach(({ contestId, roundId, teamId, mentorId }) => {
+          chatSocketRef.current.emit('leave_chat_room', { contestId, roundId, teamId, mentorId });
+        });
+        chatSocketRef.current.disconnect();
+      }
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -992,6 +1112,7 @@ export default function MentorDashboard() {
         if (cid && rid && pid) jMap[`${cid}___${rid}`] = pid;
       });
       setJudgeMap(jMap);
+      setRawJudge(rawJudge);
 
       // 2. Enrich each mentor assignment with flat data
       const enrichedList = rawAssignments.map((a, idx) => enrichAssignment(a, idx));
@@ -1042,7 +1163,7 @@ export default function MentorDashboard() {
     switch (activeView) {
       case 'dashboard': return <SectionDashboard contests={contests} enriched={enriched} loading={loading} navigate={navigate} />;
       case 'teams':     return <SectionTeams     enriched={enriched} onOpenTeam={setSelectedTeam} navigate={navigate} />;
-      case 'scoring':   return <SectionScoring   enriched={enriched} judgeMap={judgeMap} navigate={navigate} />;
+      case 'scoring':   return <SectionScoring   enriched={enriched} judgeMap={judgeMap} rawJudge={rawJudge} navigate={navigate} />;
       case 'schedule':  return <SectionSchedule  contests={contests} enriched={enriched} />;
       case 'eval':      return <SectionEval      enriched={enriched} scores={scores} navigate={navigate} />;
       case 'settings':  return <SectionSettings  user={user} />;
@@ -1067,20 +1188,43 @@ export default function MentorDashboard() {
           </span>
         </div>
         <div className="md-topbar-right">
+          <button
+            className="md-theme-toggle"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+              {theme === 'dark' ? (
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z" />
+              ) : (
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              )}
+            </svg>
+          </button>
           <div className="md-notif-btn">🔔<div className="md-notif-dot" /></div>
           <div className="md-profile-chip">
             <div className="md-avatar">{userInitials}</div>
             <div>
               <div className="md-profile-name">{user?.full_name || 'Mentor'}</div>
-              <span className="md-role-badge">🎯 Mentor</span>
+              <span className="md-role-badge">👥 Mentor</span>
             </div>
           </div>
-          <button className="md-logout-btn" onClick={logout}>Đăng xuất</button>
         </div>
       </header>
 
       {/* Sidebar */}
-      <Sidebar active={activeView} onChange={setActiveView} onNavigate={navigate} />
+      <Sidebar
+        active={activeView}
+        onChange={setActiveView}
+        onNavigate={(path) => {
+          if (path === '/mentor/chat') setChatUnread(0);
+          navigate(path);
+        }}
+        chatUnread={chatUnread}
+        onLogout={logout}
+      />
 
       {/* Main content */}
       <main className="md-main">

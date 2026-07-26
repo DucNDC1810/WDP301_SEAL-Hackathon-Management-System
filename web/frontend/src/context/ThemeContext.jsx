@@ -9,7 +9,7 @@ export function ThemeProvider({ children }) {
   );
 
   useEffect(() => {
-    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
 

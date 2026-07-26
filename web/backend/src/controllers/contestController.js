@@ -7,6 +7,7 @@ import {
   addRound,
   addScoreCriteria,
 } from "../services/contestService.js";
+import { sendNotification } from "../services/notification.js";
 
 /**
  * POST /
@@ -44,6 +45,21 @@ export const handleCreateContest = async (req, res) => {
       max_teams_per_pool,
       created_by,
     });
+
+    if (created_by) {
+      await sendNotification({
+        recipientIds: [created_by],
+        type: "contest_created",
+        payload: {
+          title: "Khởi tạo cuộc thi thành công",
+          message: `Cuộc thi "${title}" đã được tạo thành công! Hãy tiếp tục cấu hình các bảng thi, vòng thi và tiêu chí chấm điểm.`,
+          ref_id: contest._id,
+          ref_type: "Contest",
+        },
+      }).catch((err) => {
+        console.error("Lỗi khi tạo thông báo khởi tạo cuộc thi:", err);
+      });
+    }
 
     res.status(201).json({
       success: true,

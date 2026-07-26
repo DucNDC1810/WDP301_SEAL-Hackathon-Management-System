@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Score from "../models/Score.js";
 import ScoreDetail from "../models/ScoreDetail.js";
 import MentorAssignment from "../models/MentorAssignment.js";
@@ -5,6 +6,10 @@ import JudgeAssignment from "../models/JudgeAssignment.js";
 import Contest from "../models/Contest.js";
 import Pool from "../models/Pool.js";
 import User from "../models/User.js";
+import PresentationSlot from "../models/PresentationSlot.js";
+import Submission from "../models/Submission.js";
+import Team from "../models/Team.js";
+import Ranking from "../models/Ranking.js";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -43,6 +48,12 @@ export const createScore = async ({
 
   const round = await getRound(contest_id, round_id);
 
+  // Block scoring after admin locks the round
+  if (round.scoring_locked) {
+    const err = new Error("Vòng thi đã khóa chấm điểm");
+    err.statusCode = 403; throw err;
+  }
+
   // Conflict of interest: mentor không được chấm team mình đang hướng dẫn
   const isMentorOfThisTeam = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id });
   if (isMentorOfThisTeam) {
@@ -50,24 +61,36 @@ export const createScore = async ({
     err.statusCode = 403; throw err;
   }
 
-  // Timing check: judge-role user chỉ chấm được sau khi vòng kết thúc
+  // Timing check: nếu team có lịch trình bày (PresentationSlot), judge-role user
+  // chỉ chấm được sau khi slot bắt đầu. Team chưa có lịch (contest không dùng lịch
+  // trình bày) thì chấm được ngay — không chặn.
   const actor = await User.findById(actorId).select("roles").lean();
   const actorRoles = (actor?.roles || []).map(r => r.role_name);
-  if (actorRoles.includes("judge") && !actorRoles.includes("mentor") && round.is_active) {
-    const err = new Error("Giám khảo chỉ có thể chấm điểm sau khi vòng thi kết thúc");
-    err.statusCode = 403; throw err;
+  if (actorRoles.includes("judge") && !actorRoles.includes("mentor")) {
+    const slot = await PresentationSlot.findOne({
+      round_id,
+      booked_team_id: team_id,
+      status: { $in: ["booked", "completed"] },
+    }).select("start_time").lean();
+    if (slot && slot.start_time > new Date()) {
+      const err = new Error("Chưa đến giờ trình bày của team này");
+      err.statusCode = 403; throw err;
+    }
   }
 
   // Kiểm tra assignment
   // Mentor: round-level — any mentor assignment in this round grants scoring rights for OTHER teams
   // (conflict check above already blocks scoring own mentees)
   const mentorAssigned = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id });
-  // Judge: pool-level — find which pool contains this team, then check judge assignment
+  // Judge: pool-level or round-level — find which pool contains this team, then check judge assignment
   let judgeAssigned = false;
   if (!mentorAssigned) {
-    const pool = await Pool.findOne({ contest_id, teams: team_id }).select("_id").lean();
+    const pool = await Pool.findOne({ contest_id, round_id, teams: team_id }).select("_id").lean();
     if (pool) {
       judgeAssigned = !!(await JudgeAssignment.exists({ judge_id: actorId, contest_id, round_id, pool_id: pool._id }));
+    } else {
+      // Direct round assignment (e.g. final round where pools are not created)
+      judgeAssigned = !!(await JudgeAssignment.exists({ judge_id: actorId, contest_id, round_id }));
     }
   }
   if (!judgeAssigned && !mentorAssigned) {
@@ -88,7 +111,13 @@ export const createScore = async ({
     mentor_id: actorId,
     contest_id,
     round_id,
+    criteria_scores: score_details.map(d => ({
+      criteria_name: d.criteria_name,
+      weight: d.weight,
+      score: d.score_value,
+    })),
     total_score,
+    weighted_avg_score: total_score,
     comment,
     score_type,
     status: submit ? "submitted" : "draft",
@@ -106,6 +135,17 @@ export const createScore = async ({
     }))
   );
 
+  if (submit) {
+    try {
+      const { triggerReRank } = await import("./roundService.js");
+      const Pool = mongoose.models.Pool || mongoose.model("Pool");
+      const pool = await Pool.findOne({ contest_id, round_id, teams: team_id }).select("_id").lean();
+      await triggerReRank(contest_id, round_id, pool?._id);
+    } catch (e) {
+      console.error("Error triggering rerank on score submit:", e);
+    }
+  }
+
   return score;
 };
 
@@ -120,17 +160,38 @@ export const updateScore = async (scoreId, judgeId, { comment, score_details, su
       score.mentor_id?.toString() !== judgeId.toString()) {
     const err = new Error("Không có quyền chỉnh sửa"); err.statusCode = 403; throw err;
   }
-  if (score.status === "submitted") {
-    const err = new Error("Không thể chỉnh sửa điểm đã nộp"); err.statusCode = 400; throw err;
+
+  const round = await getRound(score.contest_id.toString(), score.round_id.toString());
+  if (round.scoring_locked) {
+    const err = new Error("Vòng thi đã khóa chấm điểm");
+    err.statusCode = 403; throw err;
   }
 
-  score.total_score = calcWeightedTotal(score_details);
+  const total = calcWeightedTotal(score_details);
+  score.total_score = total;
+  score.weighted_avg_score = total;
   score.comment = comment;
+  score.criteria_scores = score_details.map(d => ({
+    criteria_name: d.criteria_name,
+    weight: d.weight,
+    score: d.score_value,
+  }));
   if (submit) { score.status = "submitted"; score.submitted_at = new Date(); }
   await score.save();
 
   await ScoreDetail.deleteMany({ score_id: scoreId });
   await ScoreDetail.insertMany(score_details.map((d) => ({ score_id: scoreId, ...d })));
+
+  if (submit) {
+    try {
+      const { triggerReRank } = await import("./roundService.js");
+      const Pool = mongoose.models.Pool || mongoose.model("Pool");
+      const pool = await Pool.findOne({ contest_id: score.contest_id, round_id: score.round_id, teams: score.team_id }).select("_id").lean();
+      await triggerReRank(score.contest_id, score.round_id, pool?._id);
+    } catch (e) {
+      console.error("Error triggering rerank on score update submit:", e);
+    }
+  }
 
   return score;
 };
@@ -138,15 +199,49 @@ export const updateScore = async (scoreId, judgeId, { comment, score_details, su
 // ─── getScoringProgress ───────────────────────────────────────────────────────
 
 export const getScoringProgress = async (contestId, roundId) => {
-  const [judgeTotal, mentorTotal, judgeSubmitted, mentorSubmitted] = await Promise.all([
-    JudgeAssignment.countDocuments({ contest_id: contestId, round_id: roundId }),
-    MentorAssignment.countDocuments({ contest_id: contestId, round_id: roundId }),
-    Score.countDocuments({ contest_id: contestId, round_id: roundId, status: "submitted", score_type: "NORMAL" }),
-    Score.countDocuments({ contest_id: contestId, round_id: roundId, status: "submitted", score_type: "NORMAL" }),
-  ]);
+  const Team = mongoose.models.Team || mongoose.model("Team");
 
-  const total = judgeTotal + mentorTotal;
-  const done  = Math.max(judgeSubmitted, mentorSubmitted);
+  // Tìm tất cả các phân công giám khảo cho vòng thi này
+  const judgeAssignments = await JudgeAssignment.find({ contest_id: contestId, round_id: roundId })
+    .populate("pool_id")
+    .lean();
+
+  const activeTeamsCount = await Team.countDocuments({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } });
+
+  let judgeExpectedScores = 0;
+  for (const ja of judgeAssignments) {
+    if (ja.pool_id && Array.isArray(ja.pool_id.teams)) {
+      judgeExpectedScores += ja.pool_id.teams.length;
+    } else {
+      judgeExpectedScores += activeTeamsCount;
+    }
+  }
+
+  // Tìm tất cả các phân công mentor cho vòng thi này
+  const mentorAssignments = await MentorAssignment.find({ contest_id: contestId, round_id: roundId }).lean();
+  const totalTeams = await Team.countDocuments({ contest_id: contestId, status: { $in: ["CONFIRMED", "confirmed"] } });
+
+  // Group by mentor — each mentor scores (totalTeams - their mentee count) teams
+  let mentorExpectedScores = 0;
+  if (totalTeams > 0 && mentorAssignments.length > 0) {
+    const menteesByMentor = new Map();
+    for (const ma of mentorAssignments) {
+      const mid = ma.mentor_id.toString();
+      menteesByMentor.set(mid, (menteesByMentor.get(mid) ?? 0) + 1);
+    }
+    for (const menteesCount of menteesByMentor.values()) {
+      mentorExpectedScores += Math.max(0, totalTeams - menteesCount);
+    }
+  }
+
+  const total = judgeExpectedScores + mentorExpectedScores;
+  const done = await Score.countDocuments({
+    contest_id: contestId,
+    round_id: roundId,
+    status: "submitted",
+    score_type: "NORMAL"
+  });
+
   return { total, done, remaining: Math.max(0, total - done) };
 };
 
@@ -162,6 +257,106 @@ export const getMyScores = async (contestId, roundId, judgeId) => {
   }));
 };
 
+// ─── getJudgeSchedule ────────────────────────────────────────────────────────
+
+export const getJudgeSchedule = async (contestId, roundId, judgeId) => {
+  const assignment = await JudgeAssignment.findOne({ judge_id: judgeId, contest_id: contestId, round_id: roundId })
+    .populate("pool_id", "pool_name teams")
+    .lean();
+
+  if (!assignment) return { pool_id: null, pool_name: null, slots: [] };
+
+  const poolId   = assignment.pool_id?._id || null;
+  const poolName = assignment.pool_id?.pool_name || "Chung kết";
+  
+  let poolTeamIds = [];
+  if (assignment.pool_id) {
+    poolTeamIds = (assignment.pool_id.teams || []).map((t) => t.toString());
+  } else {
+    // If no pool is assigned (e.g. final round), fetch all active/confirmed teams in the contest
+    const activeTeams = await Team.find({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } }).select("_id").lean();
+    poolTeamIds = activeTeams.map((t) => t._id.toString());
+  }
+
+  const slots = await PresentationSlot.find({
+    contest_id: contestId,
+    round_id:   roundId,
+    ...(poolId ? { pool_id: poolId } : {}),
+    status:     { $in: ["booked", "completed"] },
+  })
+    .populate("booked_team_id", "team_name")
+    .sort({ start_time: 1 })
+    .lean();
+
+  // Teams trong bảng chưa có slot trình bày (hoặc contest này không dùng lịch trình bày)
+  // vẫn phải xuất hiện để judge chấm được ngay — không phụ thuộc PresentationSlot.
+  const scheduledTeamIds = new Set(slots.map((s) => s.booked_team_id?._id?.toString()).filter(Boolean));
+  const unscheduledTeamIds = poolTeamIds.filter((id) => !scheduledTeamIds.has(id));
+
+  const allTeamIds = [...scheduledTeamIds, ...unscheduledTeamIds];
+  if (!allTeamIds.length) return { pool_id: poolId, pool_name: poolName, slots: [] };
+
+  const [scores, submissions, unscheduledTeams] = await Promise.all([
+    Score.find({ judge_id: judgeId, round_id: roundId, team_id: { $in: allTeamIds } }).lean(),
+    Submission.find({ round_id: roundId, team_id: { $in: allTeamIds } }).select("team_id repo_url slide_url demo_url").lean(),
+    unscheduledTeamIds.length
+      ? Team.find({ _id: { $in: unscheduledTeamIds } }).select("team_name").lean()
+      : [],
+  ]);
+
+  const scoreDetails = await ScoreDetail.find({ score_id: { $in: scores.map((s) => s._id) } }).lean();
+
+  const scoreByTeam = {};
+  for (const sc of scores) {
+    scoreByTeam[String(sc.team_id)] = {
+      score_id:     sc._id,
+      score_status: sc.status,
+      total_score:  sc.total_score,
+      score_details: scoreDetails
+        .filter((d) => String(d.score_id) === String(sc._id))
+        .map((d) => ({ criteria_name: d.criteria_name, score_value: d.score_value, weight: d.weight, max_score: d.max_score })),
+    };
+  }
+
+  const subByTeam = {};
+  for (const sub of submissions) {
+    subByTeam[String(sub.team_id)] = { repo_url: sub.repo_url, slide_url: sub.slide_url, demo_url: sub.demo_url };
+  }
+
+  const buildEntry = (teamId, teamName, slot) => {
+    const sc  = scoreByTeam[teamId] || {};
+    const sub = subByTeam[teamId]   || {};
+    return {
+      slot_id:      slot?._id ?? null,
+      team_id:      teamId,
+      team_name:    teamName ?? "—",
+      start_time:   slot?.start_time ?? null,
+      end_time:     slot?.end_time ?? null,
+      room:         slot?.room ?? null,
+      repo_url:     sub.repo_url  ?? null,
+      slide_url:    sub.slide_url ?? null,
+      demo_url:     sub.demo_url  ?? null,
+      score_status: sc.score_status  ?? null,
+      score_id:     sc.score_id      ?? null,
+      total_score:  sc.total_score   ?? null,
+      score_details: sc.score_details ?? [],
+    };
+  };
+
+  const scheduledEntries = slots.map((slot) =>
+    buildEntry(String(slot.booked_team_id?._id), slot.booked_team_id?.team_name, slot)
+  );
+  const unscheduledEntries = unscheduledTeams.map((t) =>
+    buildEntry(String(t._id), t.team_name, null)
+  );
+
+  return {
+    pool_id:   poolId,
+    pool_name: poolName,
+    slots: [...scheduledEntries, ...unscheduledEntries],
+  };
+};
+
 // ─── getScoresByRound ─────────────────────────────────────────────────────────
 
 export const getScoresByRound = async (contestId, roundId, { score_type } = {}) => {
@@ -172,4 +367,83 @@ export const getScoresByRound = async (contestId, roundId, { score_type } = {}) 
     .populate("judge_id", "full_name email")
     .populate("team_id",  "team_name")
     .sort({ created_at: -1 });
+};
+
+// ─── getMyTeamResults ──────────────────────────────────────────────────────────
+
+/**
+ * Kết quả điểm số của đội thi hiện tại (theo user) cho từng vòng của contest.
+ * Chỉ trả breakdown điểm khi round đã `scoring_locked` (kết quả đã công bố),
+ * điểm từng tiêu chí là TRUNG BÌNH giữa các giám khảo — không lộ danh tính
+ * hay điểm riêng lẻ của từng giám khảo.
+ */
+export const getMyTeamResults = async (contestId, userId) => {
+  const contest = await Contest.findById(contestId).lean();
+  if (!contest) {
+    const err = new Error("Không tìm thấy cuộc thi"); err.statusCode = 404; throw err;
+  }
+
+  const team = await Team.findOne({
+    contest_id: contestId,
+    $or: [{ leader_id: userId }, { "members.user_id": userId }],
+  }).select("_id team_name").lean();
+
+  if (!team) {
+    const err = new Error("Bạn chưa có đội thi trong cuộc thi này"); err.statusCode = 404; throw err;
+  }
+
+  const rounds = [...(contest.rounds || [])].sort((a, b) => a.round_number - b.round_number);
+
+  const results = await Promise.all(rounds.map(async (round) => {
+    const base = {
+      round_id: round._id,
+      round_name: round.name,
+      round_number: round.round_number,
+      locked: !!round.scoring_locked,
+    };
+    if (!round.scoring_locked) return base;
+
+    const scores = await Score.find({
+      contest_id: contestId,
+      round_id: round._id,
+      team_id: team._id,
+      status: "submitted",
+      score_type: "NORMAL",
+    }).select("_id").lean();
+
+    if (!scores.length) return { ...base, no_scores: true };
+
+    const details = await ScoreDetail.find({ score_id: { $in: scores.map((s) => s._id) } }).lean();
+
+    const byCriteria = {};
+    for (const d of details) {
+      if (!byCriteria[d.criteria_name]) {
+        byCriteria[d.criteria_name] = { values: [], weight: d.weight, max_score: d.max_score };
+      }
+      byCriteria[d.criteria_name].values.push(d.score_value);
+    }
+
+    const criteria = Object.entries(byCriteria).map(([name, d]) => ({
+      criteria_name: name,
+      weight: d.weight,
+      max_score: d.max_score,
+      avg_score: Math.round((d.values.reduce((a, b) => a + b, 0) / d.values.length) * 100) / 100,
+    }));
+
+    const ranking = await Ranking.findOne({ contest_id: contestId, round_id: round._id, team_id: team._id })
+      .populate("board_id", "pool_name")
+      .lean();
+
+    return {
+      ...base,
+      judge_count: scores.length,
+      total_score: ranking?.final_score ?? null,
+      rank: ranking?.rank_position ?? null,
+      qualified: ranking?.qualified ?? null,
+      pool_name: ranking?.board_id?.pool_name ?? null,
+      criteria,
+    };
+  }));
+
+  return { team_id: team._id, team_name: team.team_name, results };
 };

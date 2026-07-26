@@ -234,6 +234,10 @@ function ContestFormPage() {
 
       const contestId = data.data._id;
 
+      const baseTime = contestData.start_date ? new Date(contestData.start_date).getTime() : Date.now();
+      const deadline1 = new Date(baseTime + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+      const deadline2 = new Date(new Date(deadline1).getTime() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16);
+
       const customConfig = {
         season: contestData.season,
         year: Number(contestData.year),
@@ -244,10 +248,41 @@ function ContestFormPage() {
           contestData.registration_deadline.getTime() + 12 * 60 * 60 * 1000
         ).toISOString().slice(0, 16),
         mentors_assigned: false,
-        tracks: [],
+        tracks: [
+          {
+            id: 'track-default',
+            name: 'Mặc định',
+            description: 'Bảng thi mặc định',
+            rounds: [
+              {
+                id: `round-${Date.now()}-1`,
+                name: 'Vòng sơ loại',
+                sequence_order: 1,
+                submission_deadline: deadline1,
+                coding_duration_hours: 24,
+                top_n_advance: 10,
+                wildcard_enabled: true,
+                active: true,
+                criteria: []
+              },
+              {
+                id: `round-${Date.now()}-2`,
+                name: 'Vòng chung kết',
+                sequence_order: 2,
+                submission_deadline: deadline2,
+                coding_duration_hours: 48,
+                top_n_advance: 3,
+                wildcard_enabled: false,
+                active: true,
+                criteria: []
+              }
+            ]
+          }
+        ],
       };
 
       localStorage.setItem(`hackathon_config_${contestId}`, JSON.stringify(customConfig));
+      localStorage.setItem('hackathon_just_created', 'true');
 
       setSuccess('Tạo Hackathon thành công! Đang chuyển hướng đến trang quản lý...');
       setCurrentStepText('Đang chuyển hướng...');

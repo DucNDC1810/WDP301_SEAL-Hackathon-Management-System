@@ -1,20 +1,27 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Layout, Avatar, Badge, Typography, Input, Button, Spin,
-  Empty, Tag, Tooltip, Upload, message as antMessage,
-} from "antd";
-import {
-  SendOutlined, MessageOutlined, LockOutlined,
-  ArrowLeftOutlined, LoadingOutlined, UserOutlined, PaperClipOutlined,
-} from "@ant-design/icons";
+// useNavigate removed — page renders inside StudentLayout (no standalone nav)
+import { Spin, Upload, message as antMessage } from "antd";
 import { useAuth } from "../../../context/AuthContext";
 import { useApi } from "../../../hooks/useApi";
 import { useChatSocket } from "../../../hooks/useChatSocket";
 import AttachmentBubble from "../../../components/chat/AttachmentBubble";
+import "./TeamChatPage.css";
 
-const { Sider, Content } = Layout;
-const { Text } = Typography;
+// Deterministic color from name string
+const AVATAR_COLORS = [
+  ["#7c3aed", "#4f46e5"], ["#0ea5e9", "#0284c7"], ["#10b981", "#059669"],
+  ["#f59e0b", "#d97706"], ["#ef4444", "#dc2626"], ["#ec4899", "#db2777"],
+  ["#8b5cf6", "#7c3aed"], ["#06b6d4", "#0891b2"],
+];
+function avatarGradient(name = "") {
+  const i = [...name].reduce((s, c) => s + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
+  return `linear-gradient(135deg, ${AVATAR_COLORS[i][0]}, ${AVATAR_COLORS[i][1]})`;
+}
+function initials(name = "") {
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase() || "?";
+}
 
 function fmtTime(iso) {
   if (!iso) return "";
@@ -22,101 +29,160 @@ function fmtTime(iso) {
   const now = new Date();
   if (d.toDateString() === now.toDateString())
     return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return "Hôm qua";
+  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+}
+
+function fmtDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return "Hôm nay";
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return "Hôm qua";
+  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+// ─── Avatar component ─────────────────────────────────────────────────────────
+function Avatar({ name = "", url = "", size = 40, closed = false, className = "" }) {
+  const style = closed
+    ? { width: size, height: size, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.25)" }
+    : { width: size, height: size, background: avatarGradient(name), border: "none", color: "#fff" };
   return (
-    d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }) +
-    " " +
-    d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+    <div className={`tc-avatar ${className}`} style={{ ...style, fontSize: size * 0.36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, flexShrink: 0, letterSpacing: "-0.5px", overflow: "hidden" }}>
+      {closed ? (
+        "🔒"
+      ) : url ? (
+        <img 
+          src={url} 
+          alt={name} 
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          onError={(e) => { e.target.style.display = "none"; }}
+        />
+      ) : (
+        initials(name)
+      )}
+    </div>
   );
 }
 
+// ─── Mentor item in sidebar ───────────────────────────────────────────────────
 function MentorItem({ conv, selected, onClick }) {
   return (
     <div
+      className={`tc-mentor-item${selected ? " tc-mentor-item--selected" : ""}`}
       onClick={onClick}
-      className={`cursor-pointer px-4 py-3 border-b border-white/5 transition-all hover:bg-white/5
-        ${selected ? "bg-white/10 border-l-2 border-l-cyan-400" : ""}`}
     >
-      <div className="flex items-center gap-3">
-        <Avatar
-          size={40}
-          icon={<UserOutlined />}
-          style={{ background: conv.chatOpen ? "linear-gradient(135deg,#a855f7,#6366f1)" : "#374151" }}
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-1">
-            <Text strong className="truncate text-sm text-white">{conv.mentorName}</Text>
-            {!conv.chatOpen && (
-              <Tooltip title="Kỳ thi đã kết thúc, chat đã đóng">
-                <LockOutlined className="text-gray-500 text-xs flex-shrink-0" />
-              </Tooltip>
-            )}
-          </div>
-          <Text className="text-xs text-gray-500 truncate block">
-            {conv.contestTitle} · {conv.roundName}
-          </Text>
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <Avatar name={conv.mentorName} url={conv.mentorAvatar} size={42} closed={!conv.chatOpen} />
+        {conv.chatOpen && <span className="tc-online-dot" />}
+      </div>
+      <div className="tc-mentor-info">
+        <div className="tc-mentor-row1">
+          <span className={`tc-mentor-name${selected ? " tc-mentor-name--selected" : ""}`}>
+            {conv.mentorName}
+          </span>
           {conv.lastMessage && (
-            <Text className="text-xs text-gray-500 truncate block mt-0.5">
-              {conv.lastMessage.content}
-            </Text>
+            <span className="tc-mentor-time">{fmtTime(conv.lastMessage.created_at)}</span>
           )}
         </div>
+        <div className="tc-mentor-sub">{conv.roundName}</div>
         {conv.lastMessage && (
-          <Text className="text-gray-600 text-xs flex-shrink-0">
-            {fmtTime(conv.lastMessage.created_at)}
-          </Text>
+          <div className="tc-mentor-last">
+            {conv.lastMessage.content || "📎 Tệp đính kèm"}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function MessageBubble({ msg, isMe }) {
-  const hasText = !!msg.content;
-  const hasAttachments = msg.attachments?.length > 0;
+// ─── Day separator ────────────────────────────────────────────────────────────
+function DaySeparator({ label }) {
   return (
-    <div className={`flex mb-3 ${isMe ? "justify-end" : "justify-start"}`}>
+    <div className="tc-day-sep">
+      <div className="tc-day-sep-line" />
+      <span className="tc-day-sep-label">{label}</span>
+      <div className="tc-day-sep-line" />
+    </div>
+  );
+}
+
+// ─── Message bubble ───────────────────────────────────────────────────────────
+function MsgBubble({ msg, isMe, showAvatar, showName }) {
+  const senderName = msg.sender_id?.full_name || (isMe ? "Bạn" : "Mentor");
+  return (
+    <div className={`tc-msg${isMe ? " tc-msg--me" : " tc-msg--other"}`}>
       {!isMe && (
-        <Avatar
-          size={28}
-          className="mr-2 flex-shrink-0 mt-1"
-          style={{ background: "linear-gradient(135deg,#a855f7,#6366f1)", fontSize: 12 }}
-        >
-          {(msg.sender_id?.full_name || "M")[0].toUpperCase()}
-        </Avatar>
+        <div style={{ width: 32, flexShrink: 0, alignSelf: "flex-end" }}>
+          {showAvatar && <Avatar name={senderName} url={msg.sender_id?.avatar_url} size={32} />}
+        </div>
       )}
-      <div className={`max-w-[70%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-        {!isMe && (
-          <Text className="text-xs text-gray-400 mb-1 px-1">{msg.sender_id?.full_name}</Text>
+      <div className="tc-msg-content">
+        {!isMe && showName && (
+          <span className="tc-msg-sender">{senderName}</span>
         )}
-        {hasText && (
-          <div
-            className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words
-              ${isMe
-                ? "bg-gradient-to-br from-cyan-500 to-blue-600 text-white rounded-tr-sm"
-                : "bg-white/10 text-gray-100 rounded-tl-sm"
-              }`}
-          >
+        {msg.content && (
+          <div className={`tc-msg-bubble${isMe ? " tc-msg-bubble--me" : " tc-msg-bubble--other"}`}>
             {msg.content}
           </div>
         )}
-        {hasAttachments && (
+        {msg.attachments?.length > 0 && (
           <AttachmentBubble attachments={msg.attachments} isMe={isMe} />
         )}
-        <Text className="text-gray-600 text-xs mt-1 px-1">{fmtTime(msg.created_at)}</Text>
+        <span className={`tc-msg-time${isMe ? " tc-msg-time--me" : ""}`}>
+          {new Date(msg.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+        </span>
       </div>
       {isMe && (
-        <Avatar
-          size={28}
-          className="ml-2 flex-shrink-0 mt-1"
-          style={{ background: "linear-gradient(135deg,#00d4ff,#0ea5e9)", fontSize: 12 }}
-        >
-          {(msg.sender_id?.full_name || "T")[0].toUpperCase()}
-        </Avatar>
+        <div style={{ width: 32, flexShrink: 0, alignSelf: "flex-end" }}>
+          {showAvatar && <Avatar name={senderName} url={msg.sender_id?.avatar_url} size={32} />}
+        </div>
       )}
     </div>
   );
 }
 
+// ─── Grouped messages with day separators ─────────────────────────────────────
+function MessageList({ messages, userId }) {
+  const rendered = [];
+  let lastDate = null;
+  let lastSenderId = null;
+
+  messages.forEach((msg, idx) => {
+    const dateLabel = fmtDate(msg.created_at);
+    if (dateLabel !== lastDate) {
+      rendered.push(<DaySeparator key={`d-${msg._id}`} label={dateLabel} />);
+      lastDate = dateLabel;
+      lastSenderId = null;
+    }
+
+    const isMe = msg.sender_id?._id === userId || msg.sender_id === userId;
+    const senderId = msg.sender_id?._id || msg.sender_id;
+    const nextMsg = messages[idx + 1];
+    const nextSenderId = nextMsg?.sender_id?._id || nextMsg?.sender_id;
+    const showAvatar = nextSenderId !== senderId;
+    const showName = senderId !== lastSenderId;
+    lastSenderId = senderId;
+
+    rendered.push(
+      <MsgBubble
+        key={msg._id}
+        msg={msg}
+        isMe={isMe}
+        showAvatar={showAvatar}
+        showName={showName}
+      />
+    );
+  });
+
+  return <>{rendered}</>;
+}
+
+// ─── Chat window ──────────────────────────────────────────────────────────────
 function ChatWindow({ conv, userId, request }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +193,7 @@ function ChatWindow({ conv, userId, request }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const bottomRef = useRef(null);
+  const textareaRef = useRef(null);
   const typingTimeoutRef = useRef({});
 
   const msgPath = `/api/chat/${conv.contestId}/${conv.roundId}/${conv.teamId}/${conv.mentorId}/messages`;
@@ -136,7 +203,7 @@ function ChatWindow({ conv, userId, request }) {
       if (prev.some((m) => m._id === msg._id)) return prev;
       return [...prev, msg];
     });
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }, []);
 
   const handleTyping = useCallback((uid, isTyping) => {
@@ -190,11 +257,15 @@ function ChatWindow({ conv, userId, request }) {
     if (sending) return;
     setSending(true);
     setInputVal("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     emitTyping(false);
     try {
       const formData = new FormData();
       if (content) formData.append("content", content);
-      fileList.forEach((f) => formData.append("files", f.originFileObj));
+      fileList.forEach((f) => {
+        const file = f.originFileObj ?? f;
+        if (file instanceof File) formData.append("files", file);
+      });
       await request(msgPath, { method: "POST", formData });
       setFileList([]);
     } catch (e) {
@@ -214,202 +285,186 @@ function ChatWindow({ conv, userId, request }) {
 
   const handleInputChange = (e) => {
     setInputVal(e.target.value);
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 140) + "px";
     emitTyping(true);
     clearTimeout(typingTimeoutRef.current["self"]);
     typingTimeoutRef.current["self"] = setTimeout(() => emitTyping(false), 2000);
   };
 
   const someoneTyping = Object.values(typingUsers).some(Boolean);
+  const typingName = conv.mentorName;
 
   return (
-    <div className="flex flex-col h-full">
+    <>
       {/* Header */}
-      <div
-        className="px-5 py-3 border-b border-white/10 flex items-center gap-3 flex-shrink-0"
-        style={{ background: "rgba(17,24,39,0.8)" }}
-      >
-        <Avatar
-          size={36}
-          icon={<UserOutlined />}
-          style={{ background: conv.chatOpen ? "linear-gradient(135deg,#a855f7,#6366f1)" : "#374151" }}
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <Text strong className="text-white text-base">Mentor: {conv.mentorName}</Text>
+      <div className="tc-chat-header">
+        <div style={{ position: "relative" }}>
+          <Avatar name={conv.mentorName} url={conv.mentorAvatar} size={40} closed={!conv.chatOpen} />
+          {conv.chatOpen && <span className="tc-online-dot" />}
+        </div>
+        <div className="tc-chat-header-info">
+          <div className="tc-chat-header-name">
+            {conv.mentorName}
+            <span className="tc-role-badge">Mentor</span>
             {conv.chatOpen
-              ? <Tag color="green" className="text-xs">Đang mở</Tag>
-              : <Tag icon={<LockOutlined />} color="default" className="text-xs">Đã đóng</Tag>
+              ? <span className="tc-status-open"><i />Đang hoạt động</span>
+              : <span className="tc-status-closed">Đã đóng</span>
             }
           </div>
-          <Text className="text-xs text-gray-400">
-            {conv.contestTitle} · {conv.roundName}
-          </Text>
+          <div className="tc-chat-header-sub">{conv.contestTitle} · {conv.roundName}</div>
+        </div>
+        <div className="tc-chat-header-actions">
+          {conv.chatOpen && (
+            <span className="tc-header-hint">Enter để gửi · Shift+Enter xuống dòng</span>
+          )}
         </div>
       </div>
 
       {/* Closed banner */}
       {!conv.chatOpen && (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-yellow-500/10 border-b border-yellow-500/20">
-          <LockOutlined className="text-yellow-400" />
-          <Text className="text-yellow-300 text-sm">
-            Kỳ thi đã kết thúc — cuộc trò chuyện đã đóng. Bạn chỉ có thể xem lại lịch sử.
-          </Text>
+        <div className="tc-closed-banner">
+          <span className="tc-closed-icon">🔒</span>
+          <span>Kỳ thi đã kết thúc — cuộc trò chuyện đã đóng. Bạn chỉ có thể xem lại lịch sử.</span>
         </div>
       )}
 
       {/* Messages */}
-      <div
-        className="flex-1 overflow-y-auto px-5 py-4"
-        style={{ background: "rgba(10,15,25,0.5)" }}
-      >
+      <div className="tc-messages">
         {hasMore && (
-          <div className="text-center mb-4">
-            <Button size="small" type="text" className="text-gray-400"
-              onClick={() => loadMessages(page + 1)}>
-              Tải thêm tin nhắn cũ
-            </Button>
-          </div>
+          <button className="tc-load-more-btn" onClick={() => loadMessages(page + 1)}>
+            ↑ Tải thêm tin nhắn cũ
+          </button>
         )}
-
         {loading ? (
-          <div className="flex justify-center items-center h-32">
-            <Spin indicator={<LoadingOutlined style={{ fontSize: 28, color: "#00d4ff" }} spin />} />
-          </div>
+          <div className="tc-msg-loading"><Spin size="large" /></div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-gray-500">
-            <MessageOutlined style={{ fontSize: 40, marginBottom: 12 }} />
-            <Text className="text-gray-500">Chưa có tin nhắn. Hãy đặt câu hỏi cho mentor!</Text>
+          <div className="tc-empty-chat">
+            <div className="tc-empty-chat-icon-wrap">
+              <Avatar name={conv.mentorName} url={conv.mentorAvatar} size={64} />
+            </div>
+            <div className="tc-empty-chat-title">Bắt đầu cuộc trò chuyện</div>
+            <div className="tc-empty-chat-sub">
+              Đây là kênh chat riêng với <strong>{conv.mentorName}</strong>.<br />
+              Hãy đặt câu hỏi, chia sẻ tiến độ hoặc xin lời khuyên!
+            </div>
           </div>
         ) : (
-          messages.map((msg) => (
-            <MessageBubble
-              key={msg._id}
-              msg={msg}
-              isMe={msg.sender_id?._id === userId || msg.sender_id === userId}
-            />
-          ))
+          <MessageList messages={messages} userId={userId} />
         )}
 
         {someoneTyping && (
-          <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-            <div className="flex gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+          <div className="tc-typing">
+            <Avatar name={typingName} url={conv.mentorAvatar} size={24} />
+            <div className="tc-typing-bubble">
+              <span className="tc-typing-dot" />
+              <span className="tc-typing-dot" />
+              <span className="tc-typing-dot" />
             </div>
-            <span>Mentor đang nhập...</span>
+            <span className="tc-typing-label">{typingName} đang nhập...</span>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      {conv.chatOpen && (
-        <div
-          className="px-4 py-3 border-t border-white/10 flex-shrink-0"
-          style={{ background: "rgba(17,24,39,0.9)" }}
-        >
+      {conv.chatOpen ? (
+        <div className="tc-input-area">
           {fileList.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
+            <div className="tc-file-previews">
               {fileList.map((f) => (
-                <span
-                  key={f.uid}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs text-gray-300"
-                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
-                >
-                  <PaperClipOutlined />
-                  <span className="max-w-[120px] truncate">{f.name}</span>
+                <span key={f.uid} className="tc-file-chip">
+                  📎
+                  <span className="tc-file-chip-name">{f.name}</span>
                   <button
-                    className="text-gray-500 hover:text-red-400 ml-1"
+                    className="tc-file-chip-remove"
                     onClick={() => setFileList((prev) => prev.filter((x) => x.uid !== f.uid))}
                   >×</button>
                 </span>
               ))}
             </div>
           )}
-          <div className="flex gap-2 items-end">
+          <div className="tc-input-box">
             <Upload
-              multiple
-              maxCount={5}
-              showUploadList={false}
+              multiple maxCount={5} showUploadList={false}
               beforeUpload={(file) => {
-                const MAX = 10 * 1024 * 1024;
-                if (file.size > MAX) { antMessage.error(`${file.name} vượt quá 10MB`); return Upload.LIST_IGNORE; }
+                if (file.size > 10 * 1024 * 1024) {
+                  antMessage.error(`${file.name} vượt quá 10MB`);
+                  return Upload.LIST_IGNORE;
+                }
                 setFileList((prev) => [...prev, { uid: file.uid, name: file.name, originFileObj: file }]);
                 return false;
               }}
             >
-              <Button
-                icon={<PaperClipOutlined />}
-                type="text"
-                style={{ color: "rgba(255,255,255,0.4)", height: 40, width: 40 }}
-                className="flex-shrink-0 rounded-xl hover:text-cyan-400"
-              />
+              <button className="tc-attach-btn" type="button" title="Đính kèm tệp">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                </svg>
+              </button>
             </Upload>
-            <Input.TextArea
+            <textarea
+              ref={textareaRef}
+              className="tc-text-input"
               value={inputVal}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Nhập câu hỏi cho mentor… (Enter để gửi)"
-              autoSize={{ minRows: 1, maxRows: 4 }}
-              style={{
-                background: "rgba(255,255,255,0.07)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "#fff",
-                resize: "none",
-              }}
-              className="flex-1 rounded-xl"
+              placeholder={`Nhắn tin cho ${conv.mentorName}...`}
+              disabled={sending}
+              rows={1}
             />
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
+            <button
+              className={`tc-send-btn${(inputVal.trim() || fileList.length > 0) && !sending ? " tc-send-btn--active" : ""}`}
               onClick={handleSend}
-              loading={sending}
-              disabled={!inputVal.trim() && fileList.length === 0}
-              style={{ background: "linear-gradient(135deg,#00d4ff,#0ea5e9)", border: "none", height: 40, width: 44 }}
-              className="flex-shrink-0 rounded-xl"
-            />
+              disabled={sending || (!inputVal.trim() && fileList.length === 0)}
+              title="Gửi (Enter)"
+            >
+              {sending ? (
+                <Spin size="small" />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+              )}
+            </button>
           </div>
         </div>
+      ) : (
+        <div className="tc-closed-input-hint">
+          <span>🔒 Chat đã đóng — bạn không thể gửi tin nhắn mới</span>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
-export default function TeamChatPage() {
+// ─── Page ─────────────────────────────────────────────────────────────────────
+export function TeamChatPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { request } = useApi();
   const [mentors, setMentors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [teamId, setTeamId] = useState(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const load = async () => {
       try {
-        // Lấy team của user hiện tại
         const teamRes = await request("/api/teams/me");
-        const teams = Array.isArray(teamRes) ? teamRes : teamRes?.data ?? [];
+        const teams = Array.isArray(teamRes) ? teamRes : (teamRes?.data ?? []);
         const team = teams[0];
-        if (!team) {
-          setLoading(false);
-          return;
-        }
+        if (!team) { setLoading(false); return; }
         setTeamId(team._id);
 
-        // Lấy mentor được phân công cho team
         const res = await request(`/api/chat/team/${team._id}/mentors`);
         const list = res?.data || [];
-
-        // Sort: open first, then by last message
         list.sort((a, b) => {
           if (a.chatOpen !== b.chatOpen) return b.chatOpen - a.chatOpen;
           const ta = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at).getTime() : 0;
           const tb = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at).getTime() : 0;
           return tb - ta;
         });
-
         setMentors(list);
         if (list.length > 0) setSelected(list[0]);
       } catch {
@@ -421,91 +476,91 @@ export default function TeamChatPage() {
     load();
   }, []);
 
-  // Group by contest
-  const grouped = mentors.reduce((acc, m) => {
+  const filtered = mentors.filter((m) =>
+    search
+      ? (m.mentorName || "").toLowerCase().includes(search.toLowerCase()) ||
+        (m.contestTitle || "").toLowerCase().includes(search.toLowerCase())
+      : true
+  );
+
+  const grouped = filtered.reduce((acc, m) => {
     const key = m.contestId;
     if (!acc[key]) acc[key] = { title: m.contestTitle, status: m.contestStatus, items: [] };
     acc[key].items.push(m);
     return acc;
   }, {});
 
+  const openCount = mentors.filter((m) => m.chatOpen).length;
+
   return (
-    <div
-      className="h-screen flex flex-col"
-      style={{ background: "linear-gradient(135deg,#0a0f19,#111827,#0d1b2a)" }}
-    >
-      {/* Topbar */}
-      <div
-        className="flex items-center gap-3 px-5 py-3 border-b border-white/10 flex-shrink-0"
-        style={{ background: "rgba(17,24,39,0.95)" }}
-      >
-        <Button
-          icon={<ArrowLeftOutlined />}
-          type="text"
-          className="text-gray-400 hover:text-white"
-          onClick={() => navigate("/dashboard")}
-        />
-        <div className="w-0.5 h-5 bg-white/20" />
-        <span className="font-bold text-cyan-400 text-lg tracking-wide">SEAL</span>
-        <span className="text-gray-500 text-sm">/ Chat với Mentor</span>
-        <div className="ml-auto flex items-center gap-2">
-          <Avatar
-            size={32}
-            style={{ background: "linear-gradient(135deg,#00d4ff,#0ea5e9)", fontSize: 13 }}
-          >
-            {(user?.full_name || "T")[0].toUpperCase()}
-          </Avatar>
-          <Text className="text-gray-300 text-sm hidden sm:block">{user?.full_name}</Text>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: "'Manrope', sans-serif", color: "#c9d6e8" }}>
+      {/* Page header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1.4px", color: "#5a708f", textTransform: "uppercase", marginBottom: 7 }}>
+            Kênh hỗ trợ
+          </div>
+          <h1 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: "-.5px", color: "#e6eef9" }}>
+            Chat với Mentor
+          </h1>
         </div>
+        {openCount > 0 && (
+          <span className="tc-topbar-live-badge">
+            <span className="tc-live-dot" />
+            {openCount} phiên đang mở
+          </span>
+        )}
       </div>
 
-      {/* Body */}
-      <Layout className="flex-1 overflow-hidden" style={{ background: "transparent" }}>
+      {/* Chat area */}
+      <div style={{ display: "flex", height: "calc(100vh - 220px)", minHeight: 480, border: "1px solid rgba(255,255,255,0.065)", borderRadius: 14, overflow: "hidden" }}>
         {/* Sidebar */}
-        <Sider
-          width={280}
-          className="overflow-hidden flex flex-col"
-          style={{
-            background: "rgba(17,24,39,0.7)",
-            borderRight: "1px solid rgba(255,255,255,0.07)",
-          }}
-        >
-          <div className="px-4 py-3 border-b border-white/5">
-            <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Mentor của tôi
-            </Text>
+        <div className="tc-sidebar">
+          <div className="tc-sidebar-search-wrap">
+            <div className="tc-search-box">
+              <svg className="tc-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                className="tc-search-input"
+                placeholder="Tìm mentor hoặc hackathon..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="tc-search-clear" onClick={() => setSearch("")}>×</button>
+              )}
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="tc-sidebar-list">
             {loading ? (
-              <div className="flex justify-center py-10">
-                <Spin indicator={<LoadingOutlined style={{ fontSize: 24, color: "#00d4ff" }} spin />} />
-              </div>
+              <div className="tc-sidebar-empty"><Spin /></div>
             ) : !teamId ? (
-              <div className="px-4 py-8 text-center">
-                <Text className="text-gray-500 text-sm">
-                  Bạn chưa thuộc nhóm nào. Hãy tham gia hoặc tạo nhóm trước.
-                </Text>
+              <div className="tc-sidebar-empty">
+                <div className="tc-sidebar-empty-icon">👥</div>
+                <div className="tc-sidebar-empty-title">Chưa có nhóm</div>
+                <div className="tc-sidebar-empty-sub">Hãy tham gia hoặc tạo nhóm để chat với mentor</div>
               </div>
             ) : mentors.length === 0 ? (
-              <Empty
-                description={<Text className="text-gray-500">Chưa có mentor được phân công</Text>}
-                className="py-10"
-              />
+              <div className="tc-sidebar-empty">
+                <div className="tc-sidebar-empty-icon">💬</div>
+                <div className="tc-sidebar-empty-title">Chưa có mentor</div>
+                <div className="tc-sidebar-empty-sub">Ban tổ chức chưa phân công mentor cho nhóm bạn</div>
+              </div>
+            ) : Object.keys(grouped).length === 0 ? (
+              <div className="tc-sidebar-empty">
+                <div className="tc-sidebar-empty-icon">🔍</div>
+                <div className="tc-sidebar-empty-sub">Không tìm thấy kết quả</div>
+              </div>
             ) : (
               Object.values(grouped).map((group) => (
-                <div key={group.title}>
-                  <div className="px-4 pt-3 pb-1">
-                    <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {group.title}
-                      <Tag
-                        color={group.status === "open" ? "green" : "default"}
-                        className="ml-2"
-                        style={{ fontSize: "10px" }}
-                      >
-                        {group.status === "open" ? "Đang mở" : "Đã đóng"}
-                      </Tag>
-                    </Text>
+                <div key={group.title} className="tc-group">
+                  <div className="tc-group-header">
+                    <span className="tc-group-title">{group.title}</span>
+                    <span className={`tc-group-badge${group.status === "open" ? " tc-group-badge--open" : ""}`}>
+                      {group.status === "open" ? "Đang mở" : "Đã đóng"}
+                    </span>
                   </div>
                   {group.items.map((conv) => (
                     <MentorItem
@@ -523,10 +578,10 @@ export default function TeamChatPage() {
               ))
             )}
           </div>
-        </Sider>
+        </div>
 
-        {/* Chat area */}
-        <Content className="overflow-hidden" style={{ background: "transparent" }}>
+        {/* Chat panel */}
+        <div className="tc-chat-area">
           {selected ? (
             <ChatWindow
               key={`${selected.contestId}-${selected.roundId}-${selected.mentorId}`}
@@ -535,15 +590,24 @@ export default function TeamChatPage() {
               request={request}
             />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-4">
-              <MessageOutlined style={{ fontSize: 56, color: "#374151" }} />
-              <Text className="text-gray-500 text-base">
-                {loading ? "Đang tải..." : "Chọn mentor để bắt đầu chat"}
-              </Text>
+            <div className="tc-no-conv">
+              <div className="tc-no-conv-illustration">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+              <div className="tc-no-conv-title">
+                {loading ? "Đang tải..." : "Chọn mentor để bắt đầu"}
+              </div>
+              <div className="tc-no-conv-sub">
+                Nhấn vào một mentor bên trái để mở cuộc trò chuyện
+              </div>
             </div>
           )}
-        </Content>
-      </Layout>
+        </div>
+      </div>
     </div>
   );
 }
+
+export default TeamChatPage;

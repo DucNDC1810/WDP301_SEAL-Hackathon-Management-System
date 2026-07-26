@@ -10,11 +10,12 @@ const doFetch = async (path, options = {}) => {
   };
   if (!isFormData) headers['Content-Type'] = 'application/json';
 
+  const { formData, body, headers: _h, ...fetchOptions } = options;
   const res = await fetch(`${API}${path}`, {
-    ...options,
+    ...fetchOptions,
     credentials: 'include',
     headers,
-    body: isFormData ? options.formData : options.body ? JSON.stringify(options.body) : undefined,
+    body: isFormData ? formData : body ? JSON.stringify(body) : undefined,
   });
 
   let data;

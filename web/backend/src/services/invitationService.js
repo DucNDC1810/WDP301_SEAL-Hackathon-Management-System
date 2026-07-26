@@ -6,6 +6,7 @@ import JudgeAssignment from "../models/JudgeAssignment.js";
 import Contest from "../models/Contest.js";
 import User from "../models/User.js";
 import { sendInvitationEmail } from "./emailService.js";
+import { notifyJudgeAssignedToPool } from "./notificationService.js";
 
 const FPT_EMAIL_DOMAINS = ["@fpt.edu.vn", "@fe.edu.vn", "@fpt.com.vn"];
 
@@ -293,15 +294,30 @@ export const completeJudgeRegistration = async ({ token, full_name, password }) 
     }
   } else {
     // Tạo tài khoản mới
-    const password_hash = await bcrypt.hash(password, 10);
-    user = await User.create({
-      full_name: full_name.trim(),
-      email: invitation.email,
-      password_hash,
-      provider: "local",
-      is_verified: true,
-      roles: [{ role_id: new mongoose.Types.ObjectId(), role_name: "judge" }],
-    });
+    try {
+      const password_hash = await bcrypt.hash(password, 10);
+      user = await User.create({
+        full_name: full_name.trim(),
+        email: invitation.email,
+        password_hash,
+        provider: "local",
+        is_verified: true,
+        roles: [{ role_id: new mongoose.Types.ObjectId(), role_name: "judge" }],
+      });
+    } catch (createErr) {
+      if (createErr.code === 11000) {
+        // Nếu bị trùng do race condition, lấy lại user đã được tạo
+        user = await User.findOne({ email: invitation.email });
+        if (!user) throw createErr;
+        const hasJudge = user.roles.some(r => r.role_name === "judge");
+        if (!hasJudge) {
+          user.roles.push({ role_id: new mongoose.Types.ObjectId(), role_name: "judge" });
+          await user.save();
+        }
+      } else {
+        throw createErr;
+      }
+    }
   }
 
   // Cập nhật tất cả JudgeAssignment pending của invitation này
@@ -316,6 +332,28 @@ export const completeJudgeRegistration = async ({ token, full_name, password }) 
   invitation.token_expires = null;
   invitation.accepted_at = new Date();
   await invitation.save();
+
+  // Tìm các phân công vừa được kích hoạt để gửi thông báo in-app cho Giám khảo ngoại
+  try {
+    const activatedAssignments = await JudgeAssignment.find({
+      invitation_id: invitation._id,
+    })
+      .populate("contest_id", "title")
+      .populate("pool_id", "pool_name");
+
+    for (const assign of activatedAssignments) {
+      const contestTitle = assign.contest_id?.title || "Cuộc thi";
+      const poolName = assign.pool_id?.pool_name || "Bảng đấu";
+      await notifyJudgeAssignedToPool({
+        user_id: user._id,
+        contestTitle,
+        poolName,
+        ref_id: assign.contest_id?._id || null,
+      });
+    }
+  } catch (notifErr) {
+    console.error("[completeJudgeRegistration notification error]", notifErr);
+  }
 
   return { user: { _id: user._id, full_name: user.full_name, email: user.email } };
 };

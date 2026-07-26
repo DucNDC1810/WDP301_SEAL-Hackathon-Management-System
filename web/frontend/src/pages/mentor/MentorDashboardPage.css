@@ -1,13 +1,101 @@
-.mentor-dashboard {
-  max-width: 960px;
-  margin: 32px auto;
-  padding: 0 16px;
+.mdp-page {
+  min-height: 100vh;
+  background: var(--bg-primary, #060b16);
+  padding: 32px 40px 60px;
+  font-family: var(--font-body);
 }
-.mentor-dashboard__progress {
-  margin-bottom: 24px;
+
+.mdp-header {
+  margin-bottom: 28px;
 }
-.mentor-dashboard__progress span {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
+
+.mdp-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-primary, #f1f5f9);
+  margin: 0 0 4px;
+}
+
+.mdp-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+  margin: 0;
+}
+
+/* ─── Progress Card ─── */
+.mdp-progress-card {
+  background: var(--bg-card, rgba(17,24,39,0.7));
+  border: 1px solid var(--border, rgba(0,240,255,0.15));
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.mdp-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.mdp-progress-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.mdp-progress-count {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--cyan, #00f0ff);
+}
+
+/* ─── Table Card ─── */
+.mdp-table-card {
+  background: var(--bg-card, rgba(17,24,39,0.7));
+  border: 1px solid var(--border, rgba(0,240,255,0.15));
+  border-radius: 14px;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+/* Ant Table dark overrides */
+.mdp-table-card .ant-table {
+  background: transparent;
+  color: var(--text-primary, #f1f5f9);
+}
+.mdp-table-card .ant-table-thead > tr > th {
+  background: rgba(0, 240, 255, 0.04);
+  border-bottom: 1px solid var(--border, rgba(0,240,255,0.15));
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-family: var(--font-body);
+}
+.mdp-table-card .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: var(--text-primary, #f1f5f9);
+  font-family: var(--font-body);
+}
+.mdp-table-card .ant-table-tbody > tr:hover > td {
+  background: rgba(0, 240, 255, 0.03) !important;
+}
+.mdp-table-card .ant-table-tbody > tr:last-child > td {
+  border-bottom: none;
+}
+.mdp-table-card .ant-spin-container::after {
+  background: var(--bg-primary);
+}
+
+/* Ant Progress override */
+.mdp-progress-card .ant-progress-bg {
+  background: linear-gradient(90deg, var(--cyan, #00f0ff), #a855f7);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .mdp-page { padding: 20px 16px 48px; }
 }

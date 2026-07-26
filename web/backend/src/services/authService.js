@@ -12,7 +12,7 @@ import {
 
 const generateAccessToken = (userId) =>
   jwt.sign({ id: userId }, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "7d",
+    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "24h",
   });
 
 const generateRefreshToken = (userId) =>

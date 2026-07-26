@@ -227,7 +227,18 @@ export const updateProfile = async (userId, { full_name, phone, avatar_url, stud
 
   if (full_name !== undefined) user.full_name = full_name.trim();
   if (phone !== undefined) user.phone = phone.trim();
-  if (student_id !== undefined) user.student_id = student_id.trim();
+  if (student_id !== undefined) {
+    const trimmed = student_id.trim();
+    if (trimmed && trimmed !== user.student_id) {
+      const conflict = await User.findOne({ student_id: trimmed, _id: { $ne: user._id } });
+      if (conflict) {
+        const err = new Error("Mã số sinh viên này đã được đăng ký bởi tài khoản khác");
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+    user.student_id = trimmed;
+  }
 
   // Upload avatar to Cloudinary if it is a base64 string
   if (avatar_url !== undefined) {

@@ -28,6 +28,11 @@ const hasValidToken = () => {
   return !!(token && isTokenValid(token));
 };
 
+const ROLE_POLL_INTERVAL = 30000;
+
+const rolesKey = (roles) =>
+  (roles || []).map((r) => r.role_name).sort().join(',');
+
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   // Start loading only when there is a valid token that needs verifying
@@ -82,6 +87,28 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('accessToken');
     setUser(null);
   }, []);
+
+  // Poll for role changes made server-side (e.g. admin edits a role in the DB).
+  // If the current user's roles no longer match what we hold, force logout.
+  useEffect(() => {
+    if (!user) return;
+    const intervalId = setInterval(async () => {
+      const token = localStorage.getItem('accessToken');
+      if (!token || !isTokenValid(token)) {
+        logout();
+        return;
+      }
+      try {
+        const fresh = await fetchMe(token);
+        if (rolesKey(fresh.roles) !== rolesKey(user.roles)) {
+          logout();
+        }
+      } catch {
+        logout();
+      }
+    }, ROLE_POLL_INTERVAL);
+    return () => clearInterval(intervalId);
+  }, [user, logout]);
 
   const isAdmin = user?.roles?.some((r) => r.role_name === 'admin') ?? false;
 

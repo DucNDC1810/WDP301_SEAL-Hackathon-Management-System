@@ -3,6 +3,11 @@ import {
   handleDrawPools,
   handleGetPoolsByContest,
   handleResetPools,
+  handleCreateEmptyPools,
+  handleAssignTeams,
+  handleAddSinglePool,
+  handleUpdatePool,
+  handleDeleteSinglePool,
 } from "../controllers/poolController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
@@ -14,6 +19,46 @@ router.post(
   authenticate,
   authorize("admin"),
   handleDrawPools
+);
+
+// POST /api/pools/contests/:contestId/create-empty - Tạo bảng đấu trống (Chỉ Admin)
+router.post(
+  "/contests/:contestId/create-empty",
+  authenticate,
+  authorize("admin"),
+  handleCreateEmptyPools
+);
+
+// POST /api/pools/contests/:contestId/add-single - Thêm một bảng đấu đơn lẻ (Chỉ Admin)
+router.post(
+  "/contests/:contestId/add-single",
+  authenticate,
+  authorize("admin"),
+  handleAddSinglePool
+);
+
+// PUT /api/pools/:poolId - Cập nhật bảng đấu (Chỉ Admin)
+router.put(
+  "/:poolId",
+  authenticate,
+  authorize("admin"),
+  handleUpdatePool
+);
+
+// DELETE /api/pools/:poolId - Xóa một bảng đấu cụ thể (Chỉ Admin)
+router.delete(
+  "/:poolId",
+  authenticate,
+  authorize("admin"),
+  handleDeleteSinglePool
+);
+
+// POST /api/pools/contests/:contestId/assign-teams - Xếp các đội vào bảng đấu ngẫu nhiên (Chỉ Admin)
+router.post(
+  "/contests/:contestId/assign-teams",
+  authenticate,
+  authorize("admin"),
+  handleAssignTeams
 );
 
 // GET /api/pools/contests/:contestId/pools - Xem danh sách bảng đấu của cuộc thi (Đã đăng nhập)

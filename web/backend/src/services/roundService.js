@@ -1,4 +1,5 @@
 import Contest from "../models/Contest.js";
+import Pool from "../models/Pool.js";
 import Score from "../models/Score.js";
 import JudgeAssignment from "../models/JudgeAssignment.js";
 import MentorAssignment from "../models/MentorAssignment.js";
@@ -56,6 +57,13 @@ export const activateRound = async (contestId, roundId, actorId) => {
   }
 
   round.is_active = true;
+  
+  // Auto-release problem when activated
+  const now = new Date();
+  round.problem_released_at = now;
+  const durationHours = round.coding_duration_hours || 24;
+  round.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+
   await contest.save();
 
   // Gửi notification cho tất cả judges được assign trong round
@@ -112,19 +120,12 @@ export const lockScoring = async (contestId, roundId, { force = false, force_loc
     const err = new Error("Vòng thi này đã bị khóa chấm điểm"); err.statusCode = 409; throw err;
   }
 
-  // Kiểm tra judge chưa chấm đủ
-  const totalAssignments = await JudgeAssignment.countDocuments({ contest_id: contestId, round_id: roundId });
-  const submittedScores = await Score.countDocuments({
-    contest_id: contestId,
-    round_id: roundId,
-    status: "submitted",
-    score_type: "NORMAL",
-  });
-
-  const incomplete = totalAssignments - submittedScores;
+  // Kiểm tra judge chưa chấm đủ bằng cách gọi checkJudgeCompletion
+  const completion = await checkJudgeCompletion(roundId);
+  const incomplete = completion.summary.incomplete_count;
   if (incomplete > 0 && !force) {
     const err = new Error(
-      `Còn ${incomplete} judge chưa chấm đủ. Dùng force_lock=true và nhập force_lock_reason để buộc khóa.`
+      `Còn ${incomplete} giám khảo chưa chấm đủ. Dùng force_lock=true và nhập force_lock_reason để buộc khóa.`
     );
     err.statusCode = 400; throw err;
   }
@@ -144,6 +145,32 @@ export const lockScoring = async (contestId, roundId, { force = false, force_loc
     { contest_id: contestId, round_id: roundId, score_type: "NORMAL", status: "submitted" },
     { is_final: true }
   );
+
+  // Thông báo cho các đội thi: kết quả vòng này đã công bố, có thể xem breakdown điểm.
+  try {
+    const teams = await Team.find({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } })
+      .select("leader_id members.user_id")
+      .lean();
+    const recipientIds = new Set();
+    for (const t of teams) {
+      if (t.leader_id) recipientIds.add(t.leader_id.toString());
+      for (const m of t.members || []) {
+        if (m.user_id) recipientIds.add(m.user_id.toString());
+      }
+    }
+    if (recipientIds.size > 0) {
+      await createBulkNotifications({
+        user_ids: [...recipientIds],
+        type: "results_published",
+        title: `Kết quả vòng "${round.name}" đã được công bố`,
+        message: `Cuộc thi "${contest.title}" — kết quả chấm điểm vòng "${round.name}" đã công bố. Xem chi tiết điểm số của đội bạn ngay.`,
+        ref_id: contestId,
+        ref_type: "Contest",
+      });
+    }
+  } catch (e) {
+    console.error("[lockScoring notify]", e);
+  }
 
   return round;
 };
@@ -228,6 +255,22 @@ export const releaseProblem = async (roundId, actorId) => {
   if (!round) {
     const err = new Error("Không tìm thấy vòng thi");
     err.statusCode = 404;
+    throw err;
+  }
+
+
+  // Kiểm tra tất cả pool trong vòng này đã có drive_link chưa
+  const pools = await Pool.find({ contest_id: contest._id, round_id: roundId });
+  if (pools.length === 0) {
+    const err = new Error("Vòng thi chưa có bảng đấu nào. Vui lòng tạo bảng đấu và nhập link Google Drive trước khi phát đề.");
+    err.statusCode = 400;
+    throw err;
+  }
+  const missingLink = pools.filter(p => !p.drive_link || !p.drive_link.trim());
+  if (missingLink.length > 0) {
+    const names = missingLink.map(p => p.pool_name).join(", ");
+    const err = new Error(`Các bảng đấu sau chưa có link Google Drive đề bài: ${names}. Vui lòng nhập link trước khi phát đề.`);
+    err.statusCode = 400;
     throw err;
   }
 
@@ -352,8 +395,12 @@ export const flagLateTeam = async (roundId, { team_id, reason, check_in_time }, 
  * @returns {Promise<Object>} The summary and judge statistics array
  */
 export const checkJudgeCompletion = async (roundId) => {
-  const assignments = await JudgeAssignment.find({ round_id: roundId }).populate("judge_id", "full_name email");
-  const totalSubmissions = await Submission.countDocuments({ round_id: roundId });
+  const assignments = await JudgeAssignment.find({ round_id: roundId })
+    .populate("judge_id", "full_name email")
+    .populate("pool_id");
+
+  const contest = await Contest.findOne({ "rounds._id": roundId }).select("_id").lean();
+  const contestId = contest?._id;
 
   // Get unique judges from assignments
   const judgeMap = {};
@@ -366,7 +413,11 @@ export const checkJudgeCompletion = async (roundId) => {
       judgeMap[judgeId] = {
         judge_id: judgeId,
         judge_name: judge.full_name || judge.email || "Unknown Judge",
+        pools: [],
       };
+    }
+    if (assign.pool_id) {
+      judgeMap[judgeId].pools.push(assign.pool_id);
     }
   }
 
@@ -376,15 +427,37 @@ export const checkJudgeCompletion = async (roundId) => {
   for (const judgeId of Object.keys(judgeMap)) {
     const judgeInfo = judgeMap[judgeId];
 
+    let uniqueTeamIds = [];
+    if (judgeInfo.pools.length > 0) {
+      const teamIds = [];
+      for (const pool of judgeInfo.pools) {
+        if (pool.teams && Array.isArray(pool.teams)) {
+          teamIds.push(...pool.teams.map((t) => t.toString()));
+        }
+      }
+      uniqueTeamIds = [...new Set(teamIds)];
+    } else if (contestId) {
+      const activeTeams = await Team.find({ contest_id: contestId, status: { $in: ["ACTIVE", "CONFIRMED"] } }).select("_id").lean();
+      uniqueTeamIds = activeTeams.map((t) => t._id.toString());
+    }
+
+    // Số lượng đội có bài nộp trong vòng này trong pool của judge
+    const expectedCount = await Submission.countDocuments({
+      round_id: roundId,
+      team_id: { $in: uniqueTeamIds },
+      status: { $in: ["SUBMITTED", "LATE_APPROVED"] },
+    });
+
     const scoredCount = await Score.countDocuments({
       round_id: roundId,
       judge_id: judgeId,
+      team_id: { $in: uniqueTeamIds },
       score_type: "NORMAL",
       status: "submitted",
     });
 
-    const missing = Math.max(0, totalSubmissions - scoredCount);
-    const complete = scoredCount >= totalSubmissions;
+    const missing = Math.max(0, expectedCount - scoredCount);
+    const complete = scoredCount >= expectedCount;
 
     if (!complete) {
       incompleteCount++;
@@ -394,7 +467,7 @@ export const checkJudgeCompletion = async (roundId) => {
       judge_id: judgeInfo.judge_id,
       judge_name: judgeInfo.judge_name,
       scored: scoredCount,
-      total: totalSubmissions,
+      total: expectedCount,
       missing,
       complete,
     });

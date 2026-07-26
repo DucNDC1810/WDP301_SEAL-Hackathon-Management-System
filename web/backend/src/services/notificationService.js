@@ -131,6 +131,63 @@ export const notifyMentorAssigned = async ({ user_id, contestTitle, poolName, re
 };
 
 /**
+ * Thông báo cho Mentor khi được phân công hỗ trợ một đội thi.
+ */
+export const notifyMentorAssignedToTeam = async ({ user_id, contestTitle, poolName, teamName, ref_id }) => {
+  return createNotification({
+    user_id,
+    type: "mentor_assigned",
+    title: "Bạn được phân công làm Mentor",
+    message: `Bạn đã được phân công làm Mentor hỗ trợ cho đội "${teamName}" thuộc bảng "${poolName}" trong cuộc thi "${contestTitle}".`,
+    ref_id,
+    ref_type: "Team",
+  });
+};
+
+/**
+ * Thông báo cho các thành viên trong đội khi đội được gán Mentor.
+ */
+export const notifyTeamMentorAssigned = async ({ user_ids, contestTitle, mentorName, ref_id }) => {
+  return createBulkNotifications({
+    user_ids,
+    type: "team_mentor_assigned",
+    title: "Đội thi của bạn đã có Mentor",
+    message: `Mentor "${mentorName}" đã được phân công hỗ trợ đội bạn trong cuộc thi "${contestTitle}".`,
+    ref_id,
+    ref_type: "Team",
+  });
+};
+
+/**
+ * Thông báo cho Giám khảo khi được phân công chấm điểm một bảng đấu.
+ */
+export const notifyJudgeAssignedToPool = async ({ user_id, contestTitle, poolName, ref_id }) => {
+  return createNotification({
+    user_id,
+    type: "judge_assigned",
+    title: "Bạn được phân công làm Giám khảo",
+    message: `Bạn đã được phân công làm Giám khảo chấm điểm cho bảng "${poolName}" trong cuộc thi "${contestTitle}".`,
+    ref_id,
+    ref_type: "Contest",
+  });
+};
+
+/**
+ * Thông báo cho Giám khảo khi được phân công chấm điểm một vòng thi.
+ */
+export const notifyJudgeAssignedToRound = async ({ user_id, contestTitle, roundName, ref_id }) => {
+  return createNotification({
+    user_id,
+    type: "judge_assigned",
+    title: "Bạn được phân công làm Giám khảo",
+    message: `Bạn đã được phân công làm Giám khảo chấm điểm cho vòng "${roundName}" trong cuộc thi "${contestTitle}".`,
+    ref_id,
+    ref_type: "Contest",
+  });
+};
+
+
+/**
  * Thông báo thành viên đã xác nhận email tham gia đội.
  */
 export const notifyTeamMemberVerified = async ({ user_id, memberName, teamName, ref_id }) => {

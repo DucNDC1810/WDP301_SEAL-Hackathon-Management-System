@@ -59,19 +59,54 @@ export const sendJudgeInvitationEmail = async (to, contestTitle, token) => {
     to,
     subject: `[SEAL Hackathon] Lời mời làm Giám khảo - ${contestTitle}`,
     html: `
-      <div style="font-family:sans-serif;max-width:560px;margin:auto">
-        <h2 style="color:#1a1a2e">SEAL Hackathon — Lời mời làm Giám khảo</h2>
-        <p>Xin chào,</p>
-        <p>Bạn được mời tham gia với vai trò <strong>Giám khảo (Judge)</strong> cho cuộc thi
-           <strong>${contestTitle}</strong> trên nền tảng SEAL Hackathon.</p>
-        <p>Nhấn vào nút bên dưới để xác nhận và kích hoạt tài khoản của bạn
-           (liên kết có hiệu lực trong <strong>7 ngày</strong>):</p>
-        <p style="text-align:center;margin:24px 0">
-          <a href="${link}" style="background:#4f46e5;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600">
-            Xác nhận tham gia
-          </a>
-        </p>
-        <p style="color:#666;font-size:0.85em">Nếu bạn không muốn tham gia, hãy bỏ qua email này.</p>
+      <div style="background-color:#f6f9fc;padding:40px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+        <div style="max-width:540px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #e2e8f0">
+          <!-- Header Gradient -->
+          <div style="background:linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);padding:35px 30px;text-align:center">
+            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.5px">SEAL Hackathon</h1>
+            <p style="color:rgba(255,255,255,0.85);margin:5px 0 0 0;font-size:14px">Thư mời tham gia Ban Giám Khảo</p>
+          </div>
+          
+          <!-- Body Content -->
+          <div style="padding:40px 30px;color:#334155;line-height:1.6">
+            <p style="margin-top:0;font-size:16px;font-weight:600;color:#1e293b">Xin chào,</p>
+            <p style="font-size:15px;margin:0 0 16px 0">Bạn nhận được thư mời tham gia với tư cách là <strong>Giám khảo ngoài (External Judge)</strong> cho cuộc thi trên nền tảng của chúng tôi.</p>
+            
+            <!-- Details Card -->
+            <div style="background-color:#f8fafc;border-left:4px solid #4f46e5;padding:16px 20px;margin:24px 0;border-radius:0 8px 8px 0">
+              <table style="width:100%;border-collapse:collapse">
+                <tr>
+                  <td style="width:110px;font-size:14px;color:#64748b;padding:4px 0"><strong>Cuộc thi:</strong></td>
+                  <td style="font-size:14px;color:#1e293b;padding:4px 0;font-weight:600">${contestTitle}</td>
+                </tr>
+                <tr>
+                  <td style="font-size:14px;color:#64748b;padding:4px 0"><strong>Vai trò:</strong></td>
+                  <td style="font-size:14px;color:#1e293b;padding:4px 0"><span style="background-color:#e0e7ff;color:#4338ca;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600">Giám khảo (Judge)</span></td>
+                </tr>
+                <tr>
+                  <td style="font-size:14px;color:#64748b;padding:4px 0"><strong>Hạn kích hoạt:</strong></td>
+                  <td style="font-size:14px;color:#ef4444;padding:4px 0;font-weight:600">7 ngày (kể từ hôm nay)</td>
+                </tr>
+              </table>
+            </div>
+            
+            <p style="font-size:15px;margin:0 0 30px 0">Để kích hoạt tài khoản giám khảo của bạn và xác nhận tham gia chấm điểm, vui lòng nhấn vào nút bên dưới (hệ thống sẽ tự động tạo tài khoản cho bạn):</p>
+            
+            <!-- CTA Button -->
+            <div style="text-align:center;margin:35px 0">
+              <a href="${link}" style="display:inline-block;background-color:#4f46e5;color:#ffffff;padding:14px 35px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 4px 6px rgba(79,70,229,0.2)">
+                Xác Nhận & Kích Hoạt
+              </a>
+            </div>
+            
+            <p style="font-size:13px;color:#64748b;margin:0">Nếu bạn không yêu cầu thư mời này hoặc không muốn tham gia, bạn có thể yên tâm bỏ qua email này.</p>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color:#f8fafc;padding:20px 30px;text-align:center;border-top:1px solid #e2e8f0">
+            <p style="margin:0;font-size:12px;color:#94a3b8">© ${new Date().getFullYear()} SEAL Hackathon. All rights reserved.</p>
+          </div>
+        </div>
       </div>
     `,
   });
@@ -91,6 +126,24 @@ export const sendMemberInviteEmail = async (to, full_name, token) => {
       <p>Nhấn vào liên kết bên dưới để xác nhận tham gia (có hiệu lực trong <strong>24 giờ</strong>):</p>
       <p><a href="${link}">${link}</a></p>
       <p>Nếu bạn không biết về lời mời này, hãy bỏ qua email này.</p>
+    `,
+  });
+};
+
+// ─── sendTeamInvitationEmail — new invitation flow (accept/reject in dashboard) ─
+
+export const sendTeamInvitationEmail = async (to, full_name, teamName) => {
+  const link = `${CLIENT_URL}/dashboard/team`;
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `[SEAL Hackathon] Bạn được mời vào đội "${teamName}"`,
+    html: `
+      <p>Chào <strong>${full_name || to}</strong>,</p>
+      <p>Bạn vừa nhận được lời mời tham gia đội <strong>${teamName}</strong> trên SEAL Hackathon.</p>
+      <p>Đăng nhập vào hệ thống và vào mục <strong>Lời mời</strong> để chấp nhận hoặc từ chối (có hiệu lực trong <strong>7 ngày</strong>):</p>
+      <p><a href="${link}">${link}</a></p>
+      <p>Nếu bạn không muốn tham gia, bạn có thể từ chối trong hệ thống.</p>
     `,
   });
 };
@@ -145,15 +198,31 @@ export const sendMissingSubmissionEmail = async (to, fullName, contestTitle) => 
 
 // ─── sendMentorAssignedEmail ──────────────────────────────────────────────────
 
-export const sendMentorAssignedEmail = async (to, fullName, contestTitle, poolName) => {
+export const sendMentorAssignedEmail = async (to, fullName, contestTitle, teamName) => {
   await transporter.sendMail({
     from: FROM,
     to,
-    subject: `[SEAL Hackathon] Bạn được phân công làm giám khảo - ${contestTitle}`,
+    subject: `[SEAL Hackathon] Bạn được phân công làm Mentor - ${contestTitle}`,
     html: `
       <p>Chào <strong>${fullName}</strong>,</p>
-      <p>Bạn đã được phân công làm <strong>giám khảo</strong> cho bảng <strong>${poolName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
-      <p>Vui lòng đăng nhập vào hệ thống để xem danh sách đội thi được phân công.</p>
+      <p>Bạn đã được phân công làm <strong>Mentor</strong> hỗ trợ cho đội <strong>${teamName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
+      <p>Vui lòng đăng nhập vào hệ thống để xem thông tin đội thi và bắt đầu hỗ trợ.</p>
+      <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
+    `,
+  });
+};
+
+// ─── sendJudgeAssignedEmail ───────────────────────────────────────────────────
+
+export const sendJudgeAssignedEmail = async (to, fullName, contestTitle, poolName) => {
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `[SEAL Hackathon] Bạn được phân công làm Giám khảo - ${contestTitle}`,
+    html: `
+      <p>Chào <strong>${fullName}</strong>,</p>
+      <p>Bạn đã được phân công làm <strong>Giám khảo</strong> cho bảng <strong>${poolName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
+      <p>Vui lòng đăng nhập vào hệ thống để xem danh sách đội thi được phân công chấm điểm.</p>
       <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
     `,
   });

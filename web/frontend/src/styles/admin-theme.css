@@ -27,6 +27,7 @@
   --pg-input-bg:  #080e1a;
   --pg-row-hover: #0f1e30;
   --pg-thead:     #0a1220;
+  font-family: var(--font-body);
 }
 
 .al-root[data-theme="light"] .al-content {
@@ -149,6 +150,13 @@
 .um-role-add-btn   { border-color: var(--pg-muted2); color: var(--pg-muted); }
 .um-role-add-btn:hover { border-color: var(--pg-accent); color: var(--pg-accent); }
 .um-role-select    { background: var(--pg-input-bg); border-color: var(--pg-border); color: var(--pg-text); }
+.um-role--red      { background: color-mix(in srgb, var(--pg-red) 15%, transparent);   color: var(--pg-red);    border-color: color-mix(in srgb, var(--pg-red) 30%, transparent); }
+.um-role--blue     { background: color-mix(in srgb, var(--pg-accent) 15%, transparent); color: var(--pg-accent); border-color: color-mix(in srgb, var(--pg-accent) 30%, transparent); }
+.um-role--green    { background: color-mix(in srgb, var(--pg-green) 15%, transparent); color: var(--pg-green);  border-color: color-mix(in srgb, var(--pg-green) 30%, transparent); }
+.um-role-confirm   { background: color-mix(in srgb, var(--pg-accent) 15%, transparent); color: var(--pg-accent); }
+.um-role-cancel    { background: color-mix(in srgb, var(--pg-red) 15%, transparent);   color: var(--pg-red); }
+.um-verified--yes  { color: var(--pg-green); }
+.um-verified--no   { color: var(--pg-red); }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    TEAM REGISTRATION PAGE

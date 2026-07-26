@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Table, Progress, Tag, Button, Typography, message } from 'antd';
+import { Table, Progress, Tag, Button, message } from 'antd';
 import './MentorDashboardPage.css';
 
-const { Title } = Typography;
 const API = import.meta.env.VITE_API_URL || '';
 
 export default function MentorDashboardPage() {
@@ -35,14 +34,24 @@ export default function MentorDashboardPage() {
     fetchData();
   }, [contestId, roundId]);
 
+  const percent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+
   const columns = [
-    { title: 'Đội thi', dataIndex: ['team_id', 'team_name'], key: 'team_name' },
-    { title: 'Bảng', dataIndex: ['board_id', 'pool_name'], key: 'pool_name' },
+    {
+      title: 'Đội thi',
+      dataIndex: ['team_id', 'team_name'],
+      key: 'team_name',
+    },
+    {
+      title: 'Bảng',
+      dataIndex: ['board_id', 'pool_name'],
+      key: 'pool_name',
+    },
     {
       title: 'Trạng thái',
       key: 'status',
       render: (_, record) => (
-        <Tag color={record.scored ? 'green' : 'orange'}>
+        <Tag color={record.scored ? 'success' : 'warning'}>
           {record.scored ? 'Đã chấm' : 'Chưa chấm'}
         </Tag>
       ),
@@ -51,30 +60,46 @@ export default function MentorDashboardPage() {
       title: '',
       key: 'action',
       render: (_, record) => (
-        <Button type="primary" size="small"
-          onClick={() => navigate(`/mentor/score/${record._id}?contestId=${contestId}&roundId=${roundId}&teamId=${record.team_id?._id}`)}>
+        <Button
+          type="primary"
+          size="small"
+          onClick={() => navigate(`/mentor/score/${record._id}?contestId=${contestId}&roundId=${roundId}&teamId=${record.team_id?._id}`)}
+        >
           Chấm điểm
         </Button>
       ),
     },
   ];
 
-  const percent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
-
   return (
-    <div className="mentor-dashboard">
-      <Title level={3}>Dashboard Chấm điểm</Title>
-      <div className="mentor-dashboard__progress">
-        <span>Tiến độ: {progress.done}/{progress.total} đội đã chấm</span>
-        <Progress percent={percent} status={percent === 100 ? 'success' : 'active'} />
+    <div className="mdp-page">
+      <div className="mdp-header">
+        <h1 className="mdp-title">Dashboard Chấm điểm</h1>
+        <p className="mdp-subtitle">Quản lý và theo dõi tiến độ chấm điểm các đội thi</p>
       </div>
-      <Table
-        rowKey="_id"
-        dataSource={assignments}
-        columns={columns}
-        loading={loading}
-        pagination={false}
-      />
+
+      <div className="mdp-progress-card">
+        <div className="mdp-progress-label">
+          <span className="mdp-progress-text">Tiến độ chấm điểm</span>
+          <span className="mdp-progress-count">{progress.done}/{progress.total} đội đã chấm</span>
+        </div>
+        <Progress
+          percent={percent}
+          status={percent === 100 ? 'success' : 'active'}
+          strokeColor={{ from: '#00f0ff', to: '#a855f7' }}
+        />
+      </div>
+
+      <div className="mdp-table-card">
+        <Table
+          rowKey="_id"
+          dataSource={assignments}
+          columns={columns}
+          loading={loading}
+          pagination={false}
+          locale={{ emptyText: 'Chưa có đội thi nào được phân công' }}
+        />
+      </div>
     </div>
   );
 }

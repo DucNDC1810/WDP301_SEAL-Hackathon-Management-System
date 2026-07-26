@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './UserManagementPage.css';
+import { notification, Modal, Input } from 'antd';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const tok  = () => localStorage.getItem('accessToken');
@@ -24,6 +25,8 @@ const ROLE_CFG = {
 
 const ROLES = ['admin','mentor','contestant'];
 
+const PAGE_LIMIT = 20;
+
 export default function UserManagementPage() {
   const [users,  setUsers]  = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,21 +36,29 @@ export default function UserManagementPage() {
   const [addingRole, setAddingRole] = useState(null);
   const [newRole, setNewRole] = useState('contestant');
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
 
   // Verification request states
   const [activeTab, setActiveTab] = useState('users'); // 'users' or 'verifications'
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [rejectUserId, setRejectUserId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (p = page, role = filterRole, q = search) => {
     setLoading(true);
     setError('');
     try {
-      const r = await fetch(`${API_URL}/api/users`, { headers: hdrs() });
+      const params = new URLSearchParams({ page: p, limit: PAGE_LIMIT });
+      if (role && role !== 'all') params.set('role', role);
+      if (q) params.set('search', q);
+      const r = await fetch(`${API_URL}/api/users?${params}`, { headers: hdrs() });
       const d = await r.json();
       if (d.success) {
         setUsers(d.data || []);
+        setTotalUsers(d.total ?? (d.data?.length ?? 0));
       } else {
         setError(d.message || 'Không thể tải danh sách users');
       }
@@ -69,9 +80,24 @@ export default function UserManagementPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(1, filterRole, search);
     fetchPendingVerifications();
   }, []);
+
+  const searchTimer = useRef(null);
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setPage(1);
+      fetchUsers(1, filterRole, search);
+    }, 400);
+    return () => clearTimeout(searchTimer.current);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+    fetchUsers(1, filterRole, search);
+  }, [filterRole]);
 
   const handleAddRole = async (userId) => {
     setSaving(true);
@@ -82,19 +108,45 @@ export default function UserManagementPage() {
     } finally { setSaving(false); }
   };
 
-  const handleRemoveRole = async (userId, roleName) => {
-    if (!window.confirm(`Xóa role "${roleName}" của user này?`)) return;
-    const r = await fetch(`${API_URL}/api/users/${userId}/roles/${roleName}`, { method:'DELETE', headers: hdrs() });
-    const d = await r.json();
-    if (d.success) setUsers(prev => prev.map(u => u._id === userId ? d.data : u));
+  const handleRemoveRole = (userId, roleName) => {
+    Modal.confirm({
+      title: 'Xác nhận xóa vai trò?',
+      content: `Bạn có chắc chắn muốn xóa role "${roleName}" của người dùng này?`,
+      okText: 'Xóa',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          const r = await fetch(`${API_URL}/api/users/${userId}/roles/${roleName}`, { method:'DELETE', headers: hdrs() });
+          const d = await r.json();
+          if (d.success) {
+            setUsers(prev => prev.map(u => u._id === userId ? d.data : u));
+            notification.success({ message: 'Thành công', description: `Đã xóa role ${roleName}` });
+          } else {
+            notification.error({ message: 'Lỗi', description: d.message || 'Không thể xóa role' });
+          }
+        } catch {
+          notification.error({ message: 'Lỗi', description: 'Có lỗi xảy ra' });
+        }
+      }
+    });
   };
 
-  const handleReviewVerify = async (userId, action) => {
-    let note = '';
+  const handleReviewVerify = (userId, action) => {
     if (action === 'reject') {
-      note = window.prompt('Nhập lý do từ chối:');
-      if (note === null) return; // cancel
+      setRejectUserId(userId);
+    } else {
+      Modal.confirm({
+        title: 'Xác nhận phê duyệt?',
+        content: 'Bạn có chắc chắn muốn phê duyệt yêu cầu xác thực này?',
+        okText: 'Phê duyệt',
+        cancelText: 'Hủy',
+        onOk: () => submitReviewVerify(userId, 'approve', '')
+      });
     }
+  };
+
+  const submitReviewVerify = async (userId, action, note) => {
     setReviewLoading(true);
     try {
       const r = await fetch(`${API_URL}/api/users/${userId}/verify-review`, {
@@ -104,31 +156,42 @@ export default function UserManagementPage() {
       });
       const d = await r.json();
       if (d.success) {
-        alert(action === 'approve' ? 'Phê duyệt thành công!' : 'Từ chối thành công!');
+        notification.success({
+          message: 'Thành công',
+          description: action === 'approve' ? 'Phê duyệt thành công!' : 'Từ chối thành công!',
+        });
         fetchPendingVerifications();
         fetchUsers();
       } else {
-        alert(d.message || 'Lỗi xử lý');
+        notification.error({
+          message: 'Lỗi',
+          description: d.message || 'Lỗi xử lý',
+        });
       }
     } catch (err) {
-      alert('Không thể kết nối đến server');
+      notification.error({
+        message: 'Lỗi kết nối',
+        description: 'Không thể kết nối đến server',
+      });
     } finally {
       setReviewLoading(false);
     }
   };
 
-  const filtered = users.filter(u => {
-    const matchSearch = u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase());
-    const matchRole = filterRole === 'all' || u.roles?.some(r => r.role_name === filterRole);
-    return matchSearch && matchRole;
-  });
+  const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_LIMIT));
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+    fetchUsers(newPage, filterRole, search);
+  };
 
   return (
     <div className="um-page">
       <div className="um-header">
         <div>
           <h1 className="um-title">Quản lý Users</h1>
-          <p className="um-subtitle">{users.length} tài khoản trong hệ thống</p>
+          <p className="um-subtitle">{totalUsers} tài khoản trong hệ thống</p>
         </div>
       </div>
 
@@ -202,7 +265,7 @@ export default function UserManagementPage() {
                   <tr><th>Tên</th><th>Email</th><th>Roles</th><th>Thông tin</th><th>Xác thực</th><th>Ngày tạo</th></tr>
                 </thead>
                 <tbody>
-                  {filtered.map(u => (
+                  {users.map(u => (
                     <tr key={u._id} className="um-row">
                       <td className="um-col-name">
                         <div className="um-avatar">{(u.full_name?.[0]||'?').toUpperCase()}</div>
@@ -250,6 +313,59 @@ export default function UserManagementPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {!loading && !error && totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 16 }}>
+              <button
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page === 1}
+                style={{
+                  background: page === 1 ? '#0d1526' : '#162036', border: '1px solid #1e3050',
+                  color: page === 1 ? '#2a4060' : '#c9d6e8', borderRadius: 6, padding: '6px 14px',
+                  cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '.82rem', fontWeight: 600
+                }}
+              >← Trước</button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                .reduce((acc, p, idx, arr) => {
+                  if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) => p === '...' ? (
+                  <span key={`dot-${i}`} style={{ color: '#4a6080', padding: '0 4px' }}>…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => handlePageChange(p)}
+                    style={{
+                      background: p === page ? '#00d4ff20' : '#162036',
+                      border: `1px solid ${p === page ? '#00d4ff60' : '#1e3050'}`,
+                      color: p === page ? '#00d4ff' : '#c9d6e8',
+                      borderRadius: 6, padding: '6px 12px',
+                      cursor: 'pointer', fontSize: '.82rem', fontWeight: p === page ? 700 : 400,
+                      minWidth: 36
+                    }}
+                  >{p}</button>
+                ))
+              }
+
+              <button
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page === totalPages}
+                style={{
+                  background: page === totalPages ? '#0d1526' : '#162036', border: '1px solid #1e3050',
+                  color: page === totalPages ? '#2a4060' : '#c9d6e8', borderRadius: 6, padding: '6px 14px',
+                  cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: '.82rem', fontWeight: 600
+                }}
+              >Sau →</button>
+
+              <span style={{ color: '#4a6080', fontSize: '.78rem', marginLeft: 8 }}>
+                Trang {page}/{totalPages} · {totalUsers} users
+              </span>
             </div>
           )}
         </>
@@ -354,6 +470,38 @@ export default function UserManagementPage() {
           />
         </div>
       )}
+
+      {/* Reject Verification Modal */}
+      <Modal
+        title="Từ chối yêu cầu xác thực"
+        open={!!rejectUserId}
+        onOk={() => {
+          if (!rejectReason.trim()) {
+            notification.error({ message: 'Lỗi', description: 'Vui lòng nhập lý do từ chối!' });
+            return;
+          }
+          submitReviewVerify(rejectUserId, 'reject', rejectReason);
+          setRejectUserId(null);
+          setRejectReason('');
+        }}
+        onCancel={() => {
+          setRejectUserId(null);
+          setRejectReason('');
+        }}
+        okText="Từ chối"
+        okButtonProps={{ danger: true }}
+        cancelText="Hủy"
+      >
+        <div style={{ padding: '10px 0' }}>
+          <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Lý do từ chối *</label>
+          <Input.TextArea
+            rows={3}
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Nhập lý do từ chối xác thực..."
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

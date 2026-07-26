@@ -339,6 +339,24 @@
   text-transform: uppercase;
 }
 
+.login-card__remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  margin-top: -6px;
+}
+
+.login-card__remember input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: #00f0ff;
+  cursor: pointer;
+}
+
 .login-card__input-wrap {
   position: relative;
   display: flex;

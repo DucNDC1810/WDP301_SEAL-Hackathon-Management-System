@@ -14,10 +14,14 @@ function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [searchParams] = useSearchParams();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({
+    email: localStorage.getItem('rememberedEmail') || '',
+    password: '',
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(!!localStorage.getItem('rememberedEmail'));
 
   useEffect(() => {
     const errorKey = searchParams.get('error');
@@ -49,6 +53,12 @@ function LoginPage() {
       if (!data.success) {
         setError(data.message);
         return;
+      }
+
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', formData.email);
+      } else {
+        localStorage.removeItem('rememberedEmail');
       }
 
       login(data.data);
@@ -221,6 +231,16 @@ function LoginPage() {
                   </button>
                 </div>
               </div>
+
+              <label className="login-card__remember" htmlFor="remember-me">
+                <input
+                  type="checkbox"
+                  id="remember-me"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
+                <span>Ghi nhớ đăng nhập</span>
+              </label>
 
               <button
                 type="submit"

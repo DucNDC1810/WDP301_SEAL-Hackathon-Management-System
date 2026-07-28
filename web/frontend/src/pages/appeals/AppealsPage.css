@@ -4,3 +4,10 @@
   padding: 0 16px;
   font-family: var(--font-body);
 }
+
+@media (max-width: 480px) {
+  .appeals {
+    margin: 20px auto;
+    padding: 0 10px;
+  }
+}

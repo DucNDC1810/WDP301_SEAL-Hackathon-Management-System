@@ -313,6 +313,18 @@
   }
 }
 
+@media (max-width: 640px) {
+  .sp-row {
+    flex-direction: column;
+  }
+  .sp-stat-grid {
+    grid-template-columns: 1fr;
+  }
+  .sp-contest-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Custom Password Modal Glassmorphism Design */
 .custom-pw-modal-overlay {
   position: fixed;

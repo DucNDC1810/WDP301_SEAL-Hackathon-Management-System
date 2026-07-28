@@ -151,6 +151,29 @@ export default function PresentationScheduleTab({ contestId, contest }) {
     }
   };
 
+  const handleRandomAssign = () => {
+    Modal.confirm({
+      title: 'Random thứ tự thuyết trình?',
+      content: 'Hệ thống sẽ xáo ngẫu nhiên toàn bộ đội vào các slot còn trống/đã đặt của vòng này. Nếu đã có đội đặt lịch trước đó, lịch cũ sẽ bị ghi đè.',
+      okText: 'Random ngay', cancelText: 'Thôi',
+      onOk: async () => {
+        setSubmitting(true);
+        try {
+          const res = await request('/api/presentation-slots/random-assign', {
+            method: 'POST',
+            body: { contest_id: contestId, round_id: selectedRound },
+          });
+          messageApi.success(`Đã random xếp lịch cho ${res.assigned} đội`);
+          loadSlots();
+        } catch (err) {
+          messageApi.error(err.message || 'Lỗi random xếp lịch');
+        } finally {
+          setSubmitting(false);
+        }
+      },
+    });
+  };
+
   const handleCancel = async (slotId) => {
     Modal.confirm({
       title: 'Huỷ slot này?',
@@ -202,6 +225,13 @@ export default function PresentationScheduleTab({ contestId, contest }) {
             disabled={!selectedRound}
           >
             Tạo nhiều slot
+          </Button>
+          <Button
+            onClick={handleRandomAssign}
+            disabled={!selectedRound || !slots.length}
+            loading={submitting}
+          >
+            🎲 Random thứ tự thuyết trình
           </Button>
           <Button
             type="primary"

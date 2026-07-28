@@ -13,3 +13,15 @@
 .leaderboard__qualified-row {
   background: #f6ffed;
 }
+
+@media (max-width: 480px) {
+  .leaderboard {
+    margin: 16px auto;
+    padding: 0 10px;
+  }
+  .leaderboard__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

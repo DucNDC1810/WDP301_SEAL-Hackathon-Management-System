@@ -58,7 +58,7 @@ export default function ContestHistoryPage() {
   return (
     <div className="contest-history">
       <Title level={3}>Lịch sử giải đấu</Title>
-      <Table rowKey="_id" dataSource={contests} columns={columns} loading={loading} pagination={{ pageSize: 10 }} />
+      <Table rowKey="_id" dataSource={contests} columns={columns} loading={loading} pagination={{ pageSize: 10 }} scroll={{ x: 'max-content' }} />
     </div>
   );
 }

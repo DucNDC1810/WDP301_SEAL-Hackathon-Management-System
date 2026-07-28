@@ -205,3 +205,14 @@
   margin-top: auto;
 }
 .str-card__btn:hover { background: var(--al-accent-bg); border-color: var(--al-accent); }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .str-page { padding: 18px 16px; }
+}
+
+@media (max-width: 480px) {
+  .str-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -471,3 +471,13 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 400px) {
+  .signup-card {
+    padding: 22px 16px;
+  }
+
+  .signup-card__title {
+    font-size: 18px;
+  }
+}

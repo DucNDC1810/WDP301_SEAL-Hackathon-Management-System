@@ -66,6 +66,7 @@ export default function LeaderboardPage() {
         loading={loading}
         pagination={false}
         rowClassName={(r) => r.qualified ? 'leaderboard__qualified-row' : ''}
+        scroll={{ x: 'max-content' }}
       />
     </div>
   );

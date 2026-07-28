@@ -109,11 +109,11 @@ export default function AppealsPage() {
           {
             key: 'list',
             label: 'Khiếu nại của tôi',
-            children: <Table rowKey="_id" dataSource={appeals} columns={contestantColumns} loading={loading} />,
+            children: <Table rowKey="_id" dataSource={appeals} columns={contestantColumns} loading={loading} scroll={{ x: 'max-content' }} />,
           },
         ]} />
       ) : (
-        <Table rowKey="_id" dataSource={appeals} columns={adminColumns} loading={loading} />
+        <Table rowKey="_id" dataSource={appeals} columns={adminColumns} loading={loading} scroll={{ x: 'max-content' }} />
       )}
     </div>
   );

@@ -161,3 +161,23 @@
   padding: 0;
   margin: 0;
 }
+
+@media (max-width: 480px) {
+  .hfp-page {
+    padding: 14px;
+    gap: 16px;
+  }
+  .hfp-title {
+    font-size: 1.3rem;
+  }
+  .hfp-selector-wrap {
+    width: 100%;
+  }
+  .hfp-select {
+    min-width: 0;
+    flex: 1;
+  }
+  .hfp-feature-card {
+    padding: 16px;
+  }
+}

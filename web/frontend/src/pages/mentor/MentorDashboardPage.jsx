@@ -98,6 +98,7 @@ export default function MentorDashboardPage() {
           loading={loading}
           pagination={false}
           locale={{ emptyText: 'Chưa có đội thi nào được phân công' }}
+          scroll={{ x: 'max-content' }}
         />
       </div>
     </div>

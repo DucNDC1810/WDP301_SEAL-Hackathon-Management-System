@@ -265,6 +265,7 @@ function ContestListPage() {
                 rowKey="_id"
                 pagination={{ pageSize: 10 }}
                 className="contest-list-table"
+                scroll={{ x: 'max-content' }}
               />
             </div>
           )}

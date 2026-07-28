@@ -348,3 +348,16 @@
   color: var(--red);
   border-color: var(--red);
 }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .hl-page { padding: 18px; }
+  .hl-title { font-size: 1.5rem; }
+}
+
+@media (max-width: 480px) {
+  .hl-page { padding: 14px; gap: 16px; }
+  .hl-grid {
+    grid-template-columns: 1fr;
+  }
+}

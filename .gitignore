@@ -143,3 +143,8 @@ vite.config.ts.timestamp-*
 .vite/
 
 .CLAUDE.md
+
+# Local slide/doc drafts (not for commit)
+/.vscode/
+/SCENARIOS_SLIDE.md
+/docs/

@@ -258,3 +258,25 @@
 .jp-comment-textarea::placeholder { color: var(--text-muted, #4a6a86); }
 
 .jp-form-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .jp-topbar { padding: 12px 16px; }
+  .jp-round-header,
+  .jp-criteria-ref,
+  .jp-pools { margin: 0 16px; }
+  .jp-judge-email { display: none; }
+}
+
+@media (max-width: 480px) {
+  .jp-topbar { flex-wrap: wrap; gap: 10px; }
+  .jp-round-header { padding: 18px; }
+  .jp-round-name { font-size: 1.2rem; }
+  .jp-stat-box { min-width: 70px; padding: 10px 12px; }
+  .jp-team-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .jp-team-right { width: 100%; justify-content: space-between; }
+}

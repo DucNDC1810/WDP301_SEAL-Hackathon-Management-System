@@ -560,15 +560,6 @@ export const StudentSubmitPage = () => {
                     <Ico d={LINK} size={12} /> {submission.slide_url}
                   </a>
                 </div>
-                {submission.demo_url && (
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <span style={{ fontSize: 12, color: C.dim, minWidth: 80, flexShrink: 0 }}>Demo</span>
-                    <a href={submission.demo_url} target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: 13, color: C.cyan, wordBreak: 'break-all', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Ico d={LINK} size={12} /> {submission.demo_url}
-                    </a>
-                  </div>
-                )}
                 <div style={{ display: 'flex', gap: 10 }}>
                   <span style={{ fontSize: 12, color: C.dim, minWidth: 80, flexShrink: 0 }}>Nộp lúc</span>
                   <span style={{ fontSize: 13, color: C.text2 }}>{fmtDate(submission.submitted_at)}</span>
@@ -649,23 +640,6 @@ export const StudentSubmitPage = () => {
                   style={{ ...inputStyle, borderColor: errors.slide_url ? C.red : C.line }}
                 />
                 {errors.slide_url && <div style={{ marginTop: 4, fontSize: 12, color: C.red }}>{errors.slide_url}</div>}
-              </div>
-
-              {/* demo_url */}
-              <div>
-                <label style={labelStyle}>
-                  Link Demo
-                  <span style={{ fontWeight: 400, textTransform: 'none', color: C.muted, marginLeft: 8, letterSpacing: 0 }}>
-                    Tùy chọn – YouTube, Loom
-                  </span>
-                </label>
-                <input
-                  value={form.demo_url}
-                  placeholder="https://youtube.com/..."
-                  disabled={selectedRound?.scoring_locked || false}
-                  onChange={(e) => setForm(f => ({ ...f, demo_url: e.target.value }))}
-                  style={inputStyle}
-                />
               </div>
 
               {/* is_accessible checkbox */}
@@ -943,12 +917,6 @@ export const StudentSubmitPage = () => {
               <span style={{ color: C.dim, minWidth: 80 }}>Slide</span>
               <span style={{ color: C.text2, wordBreak: 'break-all' }}>{form.slide_url}</span>
             </div>
-            {form.demo_url && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <span style={{ color: C.dim, minWidth: 80 }}>Demo</span>
-                <span style={{ color: C.text2, wordBreak: 'break-all' }}>{form.demo_url}</span>
-              </div>
-            )}
           </div>
         </div>
       </Modal>

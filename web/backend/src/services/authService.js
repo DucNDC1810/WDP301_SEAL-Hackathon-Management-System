@@ -23,6 +23,17 @@ const generateRefreshToken = (userId) =>
 // ─── signUp ─────────────────────────────────────────────────────────────────
 
 /**
+ * Check if email already exists in system.
+ * @param {string} email
+ * @returns {Promise<boolean>}
+ */
+export const checkEmailExists = async (email) => {
+  if (!email) return false;
+  const user = await User.findOne({ email: email.toLowerCase() });
+  return !!user;
+};
+
+/**
  * Tạo user mới với role "contestant" mặc định.
  * @returns {Object} user document (không có password_hash)
  * @throws {Error} với message nếu email trùng
@@ -31,7 +42,7 @@ export const createUser = async ({ full_name, email, password, phone }) => {
   // check duplicate
   const duplicate = await User.findOne({ email: email.toLowerCase() });
   if (duplicate) {
-    const err = new Error("Email đã tồn tại");
+    const err = new Error(`Email ${email} đã được tạo tài khoản trong hệ thống`);
     err.statusCode = 409;
     throw err;
   }

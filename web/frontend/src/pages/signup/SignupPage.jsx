@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './SignupPage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:5001');
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[0-9]{10}$/;
 
 function SignupPage() {
   const navigate = useNavigate();
@@ -13,12 +16,55 @@ function SignupPage() {
     password: '',
     confirmPassword: '',
   });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'full_name':
+        return value.trim() ? '' : 'Vui lòng nhập họ và tên';
+      case 'email':
+        if (!value.trim()) return 'Vui lòng nhập email';
+        return EMAIL_REGEX.test(value.trim()) ? '' : 'Email không hợp lệ';
+      case 'phone':
+        if (!value.trim()) return '';
+        return PHONE_REGEX.test(value.trim()) ? '' : 'Số điện thoại phải có đúng 10 chữ số';
+      case 'password':
+        return value.length >= 6 ? '' : 'Mật khẩu phải có ít nhất 6 ký tự';
+      case 'confirmPassword':
+        return value === formData.password ? '' : 'Mật khẩu xác nhận không khớp';
+      default:
+        return '';
+    }
+  };
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (error) setError('');
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleBlur = async (e) => {
+    const { name, value } = e.target;
+    const fieldErr = validateField(name, value);
+    setFieldErrors((prev) => ({ ...prev, [name]: fieldErr }));
+
+    if (name === 'email' && !fieldErr && value.trim()) {
+      try {
+        const res = await fetch(`${API_URL}/api/auth/check-email?email=${encodeURIComponent(value.trim())}`);
+        const data = await res.json();
+        if (data.success && data.exists) {
+          const msg = data.message || `Email ${value.trim()} đã được tạo tài khoản trong hệ thống`;
+          setFieldErrors((prev) => ({ ...prev, email: msg }));
+        }
+      } catch {
+        // ignore network error during blur check
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -26,18 +72,35 @@ function SignupPage() {
     setError('');
 
     // Client-side validations
-    if (!formData.full_name || !formData.email || !formData.password) {
-      setError('Vui lòng điền đầy đủ thông tin bắt buộc');
-      return;
+    const errors = {
+      full_name: validateField('full_name', formData.full_name),
+      email: validateField('email', formData.email),
+      phone: validateField('phone', formData.phone),
+      password: validateField('password', formData.password),
+      confirmPassword: validateField('confirmPassword', formData.confirmPassword),
+    };
+
+    // If email format is valid, verify if email already exists in DB
+    if (!errors.email && formData.email.trim()) {
+      try {
+        const checkRes = await fetch(`${API_URL}/api/auth/check-email?email=${encodeURIComponent(formData.email.trim())}`);
+        const checkData = await checkRes.json();
+        if (checkData.success && checkData.exists) {
+          const msg = checkData.message || `Email ${formData.email.trim()} đã được tạo tài khoản trong hệ thống`;
+          errors.email = msg;
+        }
+      } catch {
+        // ignore network error
+      }
+    } else if (fieldErrors.email && fieldErrors.email.includes('đã được tạo')) {
+      errors.email = fieldErrors.email;
     }
 
-    if (formData.password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
-      return;
-    }
+    setFieldErrors(errors);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
+    const firstError = Object.values(errors).find(Boolean);
+    if (firstError) {
+      setError(firstError);
       return;
     }
 
@@ -49,8 +112,8 @@ function SignupPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          full_name: formData.full_name,
-          email: formData.email,
+          full_name: formData.full_name.trim(),
+          email: formData.email.trim(),
           password: formData.password,
           phone: formData.phone,
         }),
@@ -59,7 +122,11 @@ function SignupPage() {
       const data = await res.json();
 
       if (!data.success) {
-        setError(data.message);
+        const errMsg = data.message || 'Đăng ký thất bại';
+        setError(errMsg);
+        if (res.status === 409 || errMsg.toLowerCase().includes('email') || errMsg.toLowerCase().includes('tồn tại')) {
+          setFieldErrors((prev) => ({ ...prev, email: errMsg }));
+        }
         return;
       }
 
@@ -145,14 +212,18 @@ function SignupPage() {
                   type="text"
                   id="full_name"
                   name="full_name"
-                  className="signup-card__input"
+                  className={`signup-card__input ${fieldErrors.full_name ? 'has-error' : ''}`}
                   placeholder="Nguyễn Văn A"
                   value={formData.full_name}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   required
                   autoComplete="name"
                 />
               </div>
+              {fieldErrors.full_name && (
+                <span className="signup-card__field-error">{fieldErrors.full_name}</span>
+              )}
             </div>
 
             {/* Email */}
@@ -169,14 +240,18 @@ function SignupPage() {
                   type="email"
                   id="email"
                   name="email"
-                  className="signup-card__input"
+                  className={`signup-card__input ${fieldErrors.email ? 'has-error' : ''}`}
                   placeholder="your@email.com"
                   value={formData.email}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   required
                   autoComplete="email"
                 />
               </div>
+              {fieldErrors.email && (
+                <span className="signup-card__field-error">{fieldErrors.email}</span>
+              )}
             </div>
 
             {/* Phone */}
@@ -192,13 +267,17 @@ function SignupPage() {
                   type="tel"
                   id="phone"
                   name="phone"
-                  className="signup-card__input"
+                  className={`signup-card__input ${fieldErrors.phone ? 'has-error' : ''}`}
                   placeholder="0912 345 678"
                   value={formData.phone}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   autoComplete="tel"
                 />
               </div>
+              {fieldErrors.phone && (
+                <span className="signup-card__field-error">{fieldErrors.phone}</span>
+              )}
             </div>
 
             {/* Password Row */}
@@ -216,15 +295,19 @@ function SignupPage() {
                     type="password"
                     id="password"
                     name="password"
-                    className="signup-card__input"
+                    className={`signup-card__input ${fieldErrors.password ? 'has-error' : ''}`}
                     placeholder="••••••••"
                     value={formData.password}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     required
                     minLength={6}
                     autoComplete="new-password"
                   />
                 </div>
+                {fieldErrors.password && (
+                  <span className="signup-card__field-error">{fieldErrors.password}</span>
+                )}
               </div>
 
               <div className="signup-card__field">
@@ -239,15 +322,19 @@ function SignupPage() {
                     type="password"
                     id="confirmPassword"
                     name="confirmPassword"
-                    className="signup-card__input"
+                    className={`signup-card__input ${fieldErrors.confirmPassword ? 'has-error' : ''}`}
                     placeholder="••••••••"
                     value={formData.confirmPassword}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     required
                     minLength={6}
                     autoComplete="new-password"
                   />
                 </div>
+                {fieldErrors.confirmPassword && (
+                  <span className="signup-card__field-error">{fieldErrors.confirmPassword}</span>
+                )}
               </div>
             </div>
 
@@ -284,16 +371,6 @@ function SignupPage() {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
               Google
-            </a>
-            <a
-              href={`${API_URL}/api/auth/github`}
-              className="signup-card__social"
-              id="btn-github-signup"
-            >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
-              GitHub
             </a>
           </div>
 

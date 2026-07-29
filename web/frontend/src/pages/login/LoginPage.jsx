@@ -19,6 +19,7 @@ function LoginPage() {
     password: '',
   });
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(!!localStorage.getItem('rememberedEmail'));
@@ -28,11 +29,15 @@ function LoginPage() {
     if (errorKey && OAUTH_ERRORS[errorKey]) {
       setError(OAUTH_ERRORS[errorKey]);
     }
+    if (searchParams.get('registered') === 'true') {
+      setInfo('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản, sau đó đăng nhập.');
+    }
   }, [searchParams]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (error) setError('');
+    if (info) setInfo('');
   };
 
   const handleSubmit = async (e) => {
@@ -61,6 +66,7 @@ function LoginPage() {
         localStorage.removeItem('rememberedEmail');
       }
 
+      setInfo('');
       login(data.data);
 
       const isAdmin = data.data.roles?.some((r) => r.role_name === 'admin');
@@ -151,6 +157,18 @@ function LoginPage() {
               <h1 className="login-card__title">Đăng Nhập</h1>
               <p className="login-card__subtitle">Chào mừng bạn quay trở lại</p>
             </div>
+
+            {/* Info */}
+            {info && (
+              <div className="login-card__info" id="login-info">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                {info}
+              </div>
+            )}
 
             {/* Error */}
             {error && (

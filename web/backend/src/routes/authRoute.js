@@ -1,6 +1,7 @@
 import express from "express";
 import {
   signUp,
+  checkEmail,
   signIn,
   signOut,
   refresh,
@@ -14,6 +15,9 @@ import {
 import { authenticate } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
+
+// GET  /api/auth/check-email           — kiểm tra email tồn tại trong DB
+router.get("/check-email", checkEmail);
 
 // POST /api/auth/signup                — đăng ký
 router.post("/signup", signUp);

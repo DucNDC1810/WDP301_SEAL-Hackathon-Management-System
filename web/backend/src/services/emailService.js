@@ -1,16 +1,22 @@
 import nodemailer from "nodemailer";
 
+const port = Number(process.env.EMAIL_PORT) || 465;
+const secure = port === 465;
+
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: Number(process.env.EMAIL_PORT) || 587,
-  secure: false,
+  port: port,
+  secure: secure, // true for 465, false for 587
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  tls: {
+    rejectUnauthorized: false, // Ngăn lỗi tự ký SSL hoặc nghẽn TLS trên Cloud server
+  },
 });
 
-const FROM = process.env.EMAIL_FROM || "SEAL Hackathon <no-reply@sealhackathon.com>";
+const FROM = process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"SEAL Hackathon" <${process.env.EMAIL_USER}>` : "SEAL Hackathon <no-reply@sealhackathon.com>");
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
 // ─── sendVerificationEmail ───────────────────────────────────────────────────

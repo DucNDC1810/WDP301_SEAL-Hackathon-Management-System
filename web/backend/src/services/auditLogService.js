@@ -30,11 +30,15 @@ export const log = ({
   status = "success",
   error_message = null,
 }) => {
+  const normalizedResource = typeof resource === "string"
+    ? resource.replace(/([a-z])([A-Z])/g, "$1_$2").toUpperCase()
+    : resource;
+
   AuditLog.create({
     actor_id: actor?._id ?? null,
     actor_email: actor?.email ?? "system",
     action,
-    resource,
+    resource: normalizedResource,
     resource_id,
     before,
     after,

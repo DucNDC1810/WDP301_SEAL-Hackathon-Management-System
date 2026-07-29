@@ -263,3 +263,23 @@ export const refresh = async (req, res) => {
       .json({ success: false, message: error.message || "Lỗi máy chủ" });
   }
 };
+
+// ─── checkEmail ─────────────────────────────────────────────────────────────
+
+export const checkEmail = async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email query param is required" });
+    }
+    const user = await checkEmailExists(email);
+    return res.status(200).json({
+      success: true,
+      exists: !!user,
+      user: user ? { _id: user._id, full_name: user.full_name, email: user.email } : null,
+    });
+  } catch (error) {
+    console.error("[checkEmail]", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

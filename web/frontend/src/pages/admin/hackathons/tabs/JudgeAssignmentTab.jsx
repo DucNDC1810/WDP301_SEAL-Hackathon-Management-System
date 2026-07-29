@@ -38,6 +38,8 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   const [newJudgeExternalEmail, setNewJudgeExternalEmail] = useState('');
   const [newJudgePool, setNewJudgePool] = useState(null);
   const [newJudgeType, setNewJudgeType] = useState('INTERNAL');
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [foundInternalUser, setFoundInternalUser] = useState(null);
 
   // Mentor modal state
   const [showMentorModal, setShowMentorModal] = useState(false);
@@ -46,6 +48,35 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   const [newMentorTeams, setNewMentorTeams] = useState([]); // multi-select, có thể chọn đội từ nhiều bảng khác nhau
 
   const [saving, setSaving] = useState(false);
+
+  // Check real-time if entered external email belongs to an existing internal user
+  useEffect(() => {
+    if (newJudgeType !== 'EXTERNAL' || !newJudgeExternalEmail) {
+      setFoundInternalUser(null);
+      return;
+    }
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_REGEX.test(newJudgeExternalEmail.trim())) {
+      setFoundInternalUser(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setCheckingEmail(true);
+      try {
+        const res = await request(`/api/auth/check-email?email=${encodeURIComponent(newJudgeExternalEmail.trim())}`);
+        if (res?.exists && res?.user) {
+          setFoundInternalUser(res.user);
+        } else {
+          setFoundInternalUser(null);
+        }
+      } catch {
+        setFoundInternalUser(null);
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [newJudgeExternalEmail, newJudgeType, request]);
 
   // Fetch users + pools once
   useEffect(() => {
@@ -145,6 +176,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     setNewJudgeExternalEmail('');
     setNewJudgePool(null);
     setNewJudgeType('INTERNAL');
+    setFoundInternalUser(null);
   };
 
   const addJudge = async () => {
@@ -501,9 +533,32 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                 placeholder="vd: expert@company.com"
                 disabled={!newJudgePool}
               />
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                Hệ thống sẽ gửi email mời. Nếu email thuộc tài khoản đã đăng ký trên hệ thống, hệ thống sẽ tự động phân công trực tiếp.
-              </p>
+              {foundInternalUser ? (
+                <div
+                  className="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
+                  style={{
+                    backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                    border: '1px solid rgba(79, 70, 229, 0.25)',
+                    color: '#4f46e5',
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>ℹ️</span>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>
+                      Tài khoản nội bộ: {foundInternalUser.full_name || foundInternalUser.email}
+                    </div>
+                    <div style={{ opacity: 0.85, marginTop: 2 }}>
+                      Email này đã có tài khoản trên hệ thống. Khi bấm Phân công, hệ thống sẽ tự động gán trực tiếp làm Giám khảo.
+                    </div>
+                  </div>
+                </div>
+              ) : checkingEmail ? (
+                <p className="text-xs mt-1 text-gray-400">Đang kiểm tra tài khoản hệ thống...</p>
+              ) : (
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Hệ thống sẽ gửi email mời. Nếu email thuộc tài khoản đã đăng ký trên hệ thống, hệ thống sẽ tự động phân công trực tiếp.
+                </p>
+              )}
             </div>
           )}
         </div>

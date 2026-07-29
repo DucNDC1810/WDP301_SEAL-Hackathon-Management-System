@@ -364,3 +364,9 @@ export const refreshAccessToken = async (token) => {
 
   return generateAccessToken(user._id);
 };
+
+// ─── checkEmailExists ───────────────────────────────────────────────────────
+export const checkEmailExists = async (email) => {
+  if (!email) return null;
+  return User.findOne({ email: email.toLowerCase().trim() }).select("full_name email roles");
+};

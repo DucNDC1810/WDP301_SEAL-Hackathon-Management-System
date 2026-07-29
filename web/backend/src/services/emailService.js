@@ -1,9 +1,71 @@
 import nodemailer from "nodemailer";
 
-const getTransporter = () => {
+const getClientUrl = () => process.env.CLIENT_URL || "http://localhost:5173";
+const getFrom = () => process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"SEAL Hackathon" <${process.env.EMAIL_USER}>` : "SEAL Hackathon <onboarding@resend.dev>");
+
+// Helper send function supporting HTTPS REST API (Resend / Brevo) and SMTP fallback
+const dispatchEmail = async (mailOptions) => {
+  const { to, subject, html } = mailOptions;
+  console.log(`[emailService] Attempting to send email to "${to}" | Subject: "${subject}"`);
+
+  // 1. Dùng Resend HTTPS REST API nếu khai báo RESEND_API_KEY (Hoạt động 100% trên Render, không bị chặn port)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM || "SEAL Hackathon <onboarding@resend.dev>",
+          to: [to],
+          subject,
+          html,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`[emailService] Successfully sent via Resend API to "${to}" | ID: ${data.id}`);
+        return data;
+      }
+      console.warn(`[emailService] Resend API warning: ${data.message || JSON.stringify(data)}, falling back to SMTP...`);
+    } catch (err) {
+      console.warn(`[emailService] Resend API error: ${err.message}, falling back to SMTP...`);
+    }
+  }
+
+  // 2. Dùng Brevo HTTPS REST API nếu khai báo BREVO_API_KEY
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: "SEAL Hackathon", email: process.env.EMAIL_USER || "no-reply@sealhackathon.com" },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`[emailService] Successfully sent via Brevo API to "${to}" | ID: ${data.messageId}`);
+        return data;
+      }
+      console.warn(`[emailService] Brevo API warning: ${JSON.stringify(data)}, falling back to SMTP...`);
+    } catch (err) {
+      console.warn(`[emailService] Brevo API error: ${err.message}, falling back to SMTP...`);
+    }
+  }
+
+  // 3. Fallback dùng Nodemailer SMTP (Localhost hoặc server mở port)
   const port = Number(process.env.EMAIL_PORT) || 465;
   const secure = port === 465;
-  return nodemailer.createTransport({
+  const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || "smtp.gmail.com",
     port: port,
     secure: secure,
@@ -11,25 +73,16 @@ const getTransporter = () => {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    tls: {
-      rejectUnauthorized: false,
-    },
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 10000,
   });
-};
 
-const getFrom = () => process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"SEAL Hackathon" <${process.env.EMAIL_USER}>` : "SEAL Hackathon <no-reply@sealhackathon.com>");
-const getClientUrl = () => process.env.CLIENT_URL || "http://localhost:5173";
-
-// Helper send function with logging
-const dispatchEmail = async (mailOptions) => {
-  const transporter = getTransporter();
   const options = {
     from: getFrom(),
     ...mailOptions,
   };
-  console.log(`[emailService] Attempting to send email to "${options.to}" | Subject: "${options.subject}"`);
   const info = await transporter.sendMail(options);
-  console.log(`[emailService] Successfully sent email to "${options.to}" | MessageId: ${info.messageId}`);
+  console.log(`[emailService] Successfully sent email via SMTP to "${options.to}" | MessageId: ${info.messageId}`);
   return info;
 };
 

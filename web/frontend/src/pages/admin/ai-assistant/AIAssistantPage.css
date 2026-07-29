@@ -313,6 +313,13 @@
   box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
 }
 
+.btn-generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Email Preview */
 .email-preview {
   flex: 1;
@@ -326,6 +333,52 @@
   justify-content: center;
   gap: 12px;
   min-height: 400px;
+}
+
+/* Email Draft (bản xem trước thật, AI Email Generator) */
+.email-draft {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  text-align: left;
+}
+
+.email-draft__meta {
+  display: flex;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #00d4ff;
+  font-weight: 600;
+}
+
+.email-draft__subject {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #dce8f5;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #162036;
+}
+
+.email-draft__body {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #b7c6da;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.email-draft__body p {
+  margin: 0 0 10px;
+}
+
+.email-draft__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: #3a5068;
 }
 
 .preview-icon {
@@ -416,6 +469,12 @@
   background: rgba(0, 212, 255, 0.1);
   color: #00d4ff;
   border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.history-status--failed {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 /* Responsive */

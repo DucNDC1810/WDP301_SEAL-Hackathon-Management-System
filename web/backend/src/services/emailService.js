@@ -246,3 +246,10 @@ export const sendPasswordResetEmail = async (to, token) => {
     `,
   });
 };
+
+// ─── sendCustomEmail ──────────────────────────────────────────────────────────
+// Dùng cho AI Email Generator: subject/html do admin duyệt từ nội dung AI soạn.
+
+export const sendCustomEmail = async (to, subject, html) => {
+  await transporter.sendMail({ from: FROM, to, subject, html });
+};

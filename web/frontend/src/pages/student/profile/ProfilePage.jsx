@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Form, Input, Button, message } from 'antd';
+import { App as AntdApp, Form, Input, Button } from 'antd';
 import {
   CameraOutlined,
   CheckCircleFilled,
@@ -66,6 +66,8 @@ export function ProfilePage() {
   const { request } = useApi();
   const { theme } = useTheme();
   const C = getStudentColors(theme);
+  // Context-aware message — the static antd API ignores ConfigProvider.
+  const { message } = AntdApp.useApp();
   const fileRef = useRef(null);
   const cardRef = useRef(null);
 
@@ -83,6 +85,36 @@ export function ProfilePage() {
   const [pwErrors, setPwErrors] = useState({});
 
   const [infoForm] = Form.useForm();
+
+  // Team + latest published result for the activity card. /api/users/me does not
+  // embed a team, so both come from their own endpoints.
+  const [team, setTeam] = useState(null);
+  const [latestResult, setLatestResult] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadActivity = async () => {
+      try {
+        const teamsRes = await request('/api/teams/me');
+        const teams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.data ?? [];
+        const mine = teams.find((t) => t.contest_id) ?? teams[0] ?? null;
+        if (cancelled) return;
+        setTeam(mine);
+        if (!mine?.contest_id) return;
+
+        const contestId = mine.contest_id?._id ?? mine.contest_id;
+        const res = await request(`/api/scores/contests/${contestId}/my-team-results`);
+        const rounds = Array.isArray(res?.results) ? res.results : [];
+        // Latest round whose scores are published — anything else has no rank yet.
+        const published = rounds.filter((r) => r.locked && r.total_score != null);
+        if (!cancelled) setLatestResult(published[published.length - 1] ?? null);
+      } catch {
+        // leave the card on its em-dash placeholders
+      }
+    };
+    loadActivity();
+    return () => { cancelled = true; };
+  }, [request]);
 
   // Check if profile is complete
   const isProfileComplete = !!(user?.phone && user?.student_id && user?.student_card);
@@ -206,8 +238,8 @@ export function ProfilePage() {
   const verifyStatus = user?.profile_verify_status;
 
   // Determine team/role display
-  const teamName = user?.team?.name || null;
-  const isLeader = user?.team?.leader_id === user?._id;
+  const teamName = team?.team_name || null;
+  const isLeader = !!team && (team.leader_id?._id ?? team.leader_id) === user?._id;
 
   return (
     <div style={{
@@ -549,7 +581,7 @@ export function ProfilePage() {
                   <div
                     onClick={() => cardRef.current?.click()}
                     style={{
-                      border: '2px dashed #1e3a54', borderRadius: 8, padding: '24px 16px',
+                      border: `2px dashed ${C.line}`, borderRadius: 8, padding: '24px 16px',
                       cursor: 'pointer', textAlign: 'center', transition: 'border-color .2s',
                       background: 'rgba(0,212,255,.02)',
                     }}
@@ -802,10 +834,10 @@ export function ProfilePage() {
             <SectionLabel C={C}>HOẠT ĐỘNG</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {[
-                { label: 'Đội thi', value: user?.team?.name || '—', color: C.cyan },
-                { label: 'Vai trò', value: isLeader ? 'Trưởng nhóm' : (user?.team ? 'Thành viên' : '—') },
-                { label: 'Hạng hiện tại', value: '#14', color: '#f5c80b' },
-                { label: 'Tổng điểm', value: user?.team?.score ?? '—' },
+                { label: 'Đội thi', value: teamName || '—', color: C.cyan },
+                { label: 'Vai trò', value: team ? (isLeader ? 'Trưởng nhóm' : 'Thành viên') : '—' },
+                { label: 'Hạng hiện tại', value: latestResult?.rank ? `#${latestResult.rank}` : '—', color: C.gold },
+                { label: 'Tổng điểm', value: latestResult?.total_score ?? '—' },
                 {
                   label: 'Ngày tham gia',
                   value: user?.created_at
@@ -819,7 +851,7 @@ export function ProfilePage() {
                   style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '11px 0',
-                    borderBottom: last ? 'none' : `1px solid #0f1a2e`,
+                    borderBottom: last ? 'none' : `1px solid ${C.line2}`,
                     fontSize: 13,
                   }}
                 >

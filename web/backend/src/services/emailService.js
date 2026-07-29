@@ -1,30 +1,43 @@
 import nodemailer from "nodemailer";
 
-const port = Number(process.env.EMAIL_PORT) || 465;
-const secure = port === 465;
+const getTransporter = () => {
+  const port = Number(process.env.EMAIL_PORT) || 465;
+  const secure = port === 465;
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: port,
+    secure: secure,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+};
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: port,
-  secure: secure, // true for 465, false for 587
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false, // Ngăn lỗi tự ký SSL hoặc nghẽn TLS trên Cloud server
-  },
-});
+const getFrom = () => process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"SEAL Hackathon" <${process.env.EMAIL_USER}>` : "SEAL Hackathon <no-reply@sealhackathon.com>");
+const getClientUrl = () => process.env.CLIENT_URL || "http://localhost:5173";
 
-const FROM = process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"SEAL Hackathon" <${process.env.EMAIL_USER}>` : "SEAL Hackathon <no-reply@sealhackathon.com>");
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+// Helper send function with logging
+const dispatchEmail = async (mailOptions) => {
+  const transporter = getTransporter();
+  const options = {
+    from: getFrom(),
+    ...mailOptions,
+  };
+  console.log(`[emailService] Attempting to send email to "${options.to}" | Subject: "${options.subject}"`);
+  const info = await transporter.sendMail(options);
+  console.log(`[emailService] Successfully sent email to "${options.to}" | MessageId: ${info.messageId}`);
+  return info;
+};
 
 // ─── sendVerificationEmail ───────────────────────────────────────────────────
 
 export const sendVerificationEmail = async (to, token) => {
-  const link = `${CLIENT_URL}/verify-email?token=${token}`;
-  await transporter.sendMail({
-    from: FROM,
+  const link = `${getClientUrl()}/verify-email?token=${token}`;
+  return dispatchEmail({
     to,
     subject: "[SEAL Hackathon] Xác nhận địa chỉ email của bạn",
     html: `
@@ -40,9 +53,8 @@ export const sendVerificationEmail = async (to, token) => {
 // ─── sendInvitationEmail ─────────────────────────────────────────────────────
 
 export const sendInvitationEmail = async (to, contestTitle, token) => {
-  const link = `${CLIENT_URL}/invitation/accept?token=${token}`;
-  await transporter.sendMail({
-    from: FROM,
+  const link = `${getClientUrl()}/invitation/accept?token=${token}`;
+  return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Lời mời tham gia ban giám khảo - ${contestTitle}`,
     html: `
@@ -59,9 +71,8 @@ export const sendInvitationEmail = async (to, contestTitle, token) => {
 // ─── sendJudgeInvitationEmail ─────────────────────────────────────────────────
 
 export const sendJudgeInvitationEmail = async (to, contestTitle, token) => {
-  const link = `${CLIENT_URL}/judge/accept-invite?token=${token}`;
-  await transporter.sendMail({
-    from: FROM,
+  const link = `${getClientUrl()}/judge/accept-invite?token=${token}`;
+  return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Lời mời làm Giám khảo - ${contestTitle}`,
     html: `

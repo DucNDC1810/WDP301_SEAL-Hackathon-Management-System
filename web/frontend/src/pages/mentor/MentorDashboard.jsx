@@ -8,6 +8,7 @@ import { useApi } from '../../hooks/useApi';
 import { getRoundStatusKey } from '../../utils/roundStatus';
 import './MentorDashboard.css';
 import RefreshButton from '../../components/RefreshButton';
+import NotificationBell from '../../components/NotificationBell';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || '';
 
@@ -1204,7 +1205,7 @@ export default function MentorDashboard() {
               )}
             </svg>
           </button>
-          <div className="md-notif-btn">🔔<div className="md-notif-dot" /></div>
+          <NotificationBell />
           <div className="md-profile-chip">
             <div className="md-avatar">{userInitials}</div>
             <div>

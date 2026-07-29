@@ -493,14 +493,14 @@ export function TeamChatPage() {
   const openCount = mentors.filter((m) => m.chatOpen).length;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: "'Manrope', sans-serif", color: "#c9d6e8" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: "'Manrope', sans-serif", color: "var(--pg-text2, #c9d6e8)" }}>
       {/* Page header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1.4px", color: "#5a708f", textTransform: "uppercase", marginBottom: 7 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1.4px", color: "var(--pg-muted3, #5a708f)", textTransform: "uppercase", marginBottom: 7 }}>
             Kênh hỗ trợ
           </div>
-          <h1 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: "-.5px", color: "#e6eef9" }}>
+          <h1 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: "-.5px", color: "var(--pg-text, #e6eef9)" }}>
             Chat với Mentor
           </h1>
         </div>

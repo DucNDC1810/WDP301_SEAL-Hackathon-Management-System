@@ -3,23 +3,10 @@ import { Empty, Progress, Tag } from "antd";
 import { useApi } from "../../../hooks/useApi";
 import "../student.css";
 import RefreshButton from "../../../components/RefreshButton";
+import { useTheme } from "../../../context/ThemeContext";
+import { getStudentColors } from "../studentColors";
 
-const C = {
-  bg: "#070b14", card: "#0c1524", line: "#1b2740", line2: "#162036",
-  text: "#e6eef9", text2: "#c9d6e8", muted: "#7e90ab", dim: "#5a708f",
-  cyan: "#00d4ff", purple: "#7c3aed", purple2: "#a855f7",
-  green: "#22c55e", amber: "#f59e0b", gold: "#facc15", red: "#f87171",
-};
-
-const cardStyle = {
-  border: `1px solid ${C.line}`,
-  borderRadius: 14,
-  background: C.card,
-};
-
-const RANK_COLOR = { 1: C.gold, 2: "#94a3b8", 3: "#cd7f32" };
-
-const CriteriaRow = ({ c }) => {
+const CriteriaRow = ({ c, C }) => {
   const pct = c.max_score ? Math.round((c.avg_score / c.max_score) * 100) : 0;
   return (
     <div style={{ marginBottom: 14 }}>
@@ -45,7 +32,7 @@ const CriteriaRow = ({ c }) => {
   );
 };
 
-const RoundCard = ({ r }) => {
+const RoundCard = ({ r, C, cardStyle, RANK_COLOR }) => {
   if (!r.locked) {
     return (
       <div style={{ ...cardStyle, border: `1px dashed ${C.line}`, padding: "20px 24px", opacity: 0.75 }}>
@@ -132,7 +119,7 @@ const RoundCard = ({ r }) => {
           Điểm theo tiêu chí (trung bình các giám khảo)
         </div>
         {(r.criteria ?? []).map((c) => (
-          <CriteriaRow key={c.criteria_name} c={c} />
+          <CriteriaRow key={c.criteria_name} c={c} C={C} />
         ))}
       </div>
     </div>
@@ -141,6 +128,14 @@ const RoundCard = ({ r }) => {
 
 export const StudentResultsPage = () => {
   const { request } = useApi();
+  const { theme } = useTheme();
+  const C = getStudentColors(theme);
+  const cardStyle = {
+    border: `1px solid ${C.line}`,
+    borderRadius: 14,
+    background: C.card,
+  };
+  const RANK_COLOR = { 1: C.gold, 2: "#94a3b8", 3: "#cd7f32" };
   const [loading, setLoading] = useState(true);
   const [teamName, setTeamName] = useState(null);
   const [results, setResults] = useState(null);
@@ -203,9 +198,10 @@ export const StudentResultsPage = () => {
             fontSize: 27,
             fontWeight: 700,
             letterSpacing: "-.4px",
-            background: `linear-gradient(90deg, ${C.cyan}, ${C.purple2})`,
+            backgroundImage: `linear-gradient(90deg, ${C.cyan}, ${C.purple2})`,
             WebkitBackgroundClip: "text",
             backgroundClip: "text",
+            WebkitTextFillColor: "transparent",
             color: "transparent",
           }}
         >
@@ -228,7 +224,7 @@ export const StudentResultsPage = () => {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {results.map((r) => (
-            <RoundCard key={r.round_id} r={r} />
+            <RoundCard key={r.round_id} r={r} C={C} cardStyle={cardStyle} RANK_COLOR={RANK_COLOR} />
           ))}
         </div>
       )}

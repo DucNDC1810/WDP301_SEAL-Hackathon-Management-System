@@ -5,6 +5,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
 import '../student.css';
 import './StudentTeamPage.css';
+import { useTheme } from '../../../context/ThemeContext';
+import { getStudentColors } from '../studentColors';
 
 // ── SVG helpers ─────────────────────────────────────────────────────────────
 const Ico = ({ d, size = 18, sw = 1.8 }) => (
@@ -17,13 +19,6 @@ const MAIL_D = 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1
 const SETTINGS_D = ['M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'];
 const TEAM_D = ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M23 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'];
 const PLUS_D = ['M12 5v14', 'M5 12h14'];
-
-const C = {
-  bg: '#070b14', card: '#0c1524', line: '#1b2740', line2: '#131d31',
-  text: '#e6eef9', text2: '#c9d6e8', muted: '#7e90ab', dim: '#5a708f',
-  cyan: '#00d4ff', purple: '#7c3aed', purple2: '#a855f7',
-  green: '#22c55e', amber: '#f59e0b', gold: '#facc15', red: '#f87171',
-};
 
 const STATUS_BADGE = {
   PENDING_MEMBERS: { label: 'Chờ xác thực', bg: '#7c3a00', color: '#f97316' },
@@ -90,32 +85,34 @@ const timeAgo = (dateStr) => {
   return `${Math.floor(h / 24)} ngày trước`;
 };
 
-// Shared card style
-const cardStyle = {
-  border: `1px solid ${C.line}`,
-  borderRadius: 14,
-  background: C.card,
-  overflow: 'hidden',
-};
-
-// Shared input style
-const inputStyle = {
-  width: '100%', padding: '9px 12px', borderRadius: 8,
-  border: `1px solid ${C.line}`, background: '#080e1a',
-  color: C.text, fontFamily: 'inherit', fontSize: 13,
-  outline: 'none', boxSizing: 'border-box',
-};
-
-const labelStyle = {
-  display: 'block', fontSize: 11, fontWeight: 700,
-  textTransform: 'uppercase', letterSpacing: '.5px',
-  color: C.dim, marginBottom: 5,
-};
-
 // ── Main Component ───────────────────────────────────────────────────────────
 export const StudentTeamPage = () => {
   const { user } = useAuth();
   const { request } = useApi();
+  const { theme } = useTheme();
+  const C = getStudentColors(theme);
+
+  // Shared card style
+  const cardStyle = {
+    border: `1px solid ${C.line}`,
+    borderRadius: 14,
+    background: C.card,
+    overflow: 'hidden',
+  };
+
+  // Shared input style
+  const inputStyle = {
+    width: '100%', padding: '9px 12px', borderRadius: 8,
+    border: `1px solid ${C.line}`, background: C.card,
+    color: C.text, fontFamily: 'inherit', fontSize: 13,
+    outline: 'none', boxSizing: 'border-box',
+  };
+
+  const labelStyle = {
+    display: 'block', fontSize: 11, fontWeight: 700,
+    textTransform: 'uppercase', letterSpacing: '.5px',
+    color: C.dim, marginBottom: 5,
+  };
 
   const [team, setTeam] = useState(null);
   const [contests, setContests] = useState([]);

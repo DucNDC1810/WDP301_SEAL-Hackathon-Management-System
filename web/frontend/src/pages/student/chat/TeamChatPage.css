@@ -1,16 +1,82 @@
 /* ===== Team Chat Page — Professional Redesign ===== */
 
-:root {
+.sl-root,
+.sl-root[data-theme="dark"] {
   --tc-accent: #7c3aed;
   --tc-accent2: #4f46e5;
   --tc-cyan: #0ea5e9;
   --tc-bg: #080d1a;
   --tc-bg2: #0c1424;
   --tc-surface: #101828;
-  --tc-border: rgba(255,255,255,0.065);
-  --tc-text: rgba(255,255,255,0.88);
-  --tc-text2: rgba(255,255,255,0.45);
-  --tc-text3: rgba(255,255,255,0.22);
+  --tc-border: var(--tc-ov-065);
+  --tc-text: var(--tc-ov-88);
+  --tc-text2: var(--tc-ov-45);
+  --tc-text3: var(--tc-ov-22);
+  --tc-hover: var(--tc-ov-035);
+  --tc-surface-soft: var(--tc-ov-04);
+  --tc-surface-soft-border: var(--tc-ov-08);
+  --tc-bubble-other-bg: var(--tc-ov-06);
+  --tc-bubble-other-border: var(--tc-ov-08);
+  --tc-name-strong: #fff;
+  --tc-bg-solid: rgba(8,13,26,0.96);
+  --tc-bg2-solid: rgba(12,20,36,0.96);
+
+  --tc-ov-02: rgba(255,255,255,0.02);
+  --tc-ov-03: rgba(255,255,255,0.03);
+  --tc-ov-035: rgba(255,255,255,0.035);
+  --tc-ov-04: rgba(255,255,255,0.04);
+  --tc-ov-05: rgba(255,255,255,0.05);
+  --tc-ov-06: rgba(255,255,255,0.06);
+  --tc-ov-065: rgba(255,255,255,0.065);
+  --tc-ov-07: rgba(255,255,255,0.07);
+  --tc-ov-08: rgba(255,255,255,0.08);
+  --tc-ov-09: rgba(255,255,255,0.09);
+  --tc-ov-22: rgba(255,255,255,0.22);
+  --tc-ov-35: rgba(255,255,255,0.35);
+  --tc-ov-45: rgba(255,255,255,0.45);
+  --tc-ov-60: rgba(255,255,255,0.6);
+  --tc-ov-75: rgba(255,255,255,0.75);
+  --tc-ov-88: rgba(255,255,255,0.88);
+  --tc-ov-92: rgba(255,255,255,0.92);
+}
+
+.sl-root[data-theme="light"] {
+  --tc-accent: #7c3aed;
+  --tc-accent2: #4f46e5;
+  --tc-cyan: #0098b5;
+  --tc-bg: #ffffff;
+  --tc-bg2: #f8fafc;
+  --tc-surface: #f1f5f9;
+  --tc-border: #e2e8f0;
+  --tc-text: #0f172a;
+  --tc-text2: #64748b;
+  --tc-text3: #94a3b8;
+  --tc-hover: rgba(0,0,0,0.03);
+  --tc-surface-soft: #f1f5f9;
+  --tc-surface-soft-border: #e2e8f0;
+  --tc-bubble-other-bg: #f1f5f9;
+  --tc-bubble-other-border: #e2e8f0;
+  --tc-name-strong: #0f172a;
+  --tc-bg-solid: rgba(255,255,255,0.96);
+  --tc-bg2-solid: rgba(248,250,252,0.96);
+
+  --tc-ov-02: rgba(0,0,0,0.03);
+  --tc-ov-03: rgba(0,0,0,0.04);
+  --tc-ov-035: rgba(0,0,0,0.045);
+  --tc-ov-04: rgba(0,0,0,0.05);
+  --tc-ov-05: rgba(0,0,0,0.06);
+  --tc-ov-06: rgba(0,0,0,0.07);
+  --tc-ov-065: rgba(0,0,0,0.08);
+  --tc-ov-07: rgba(0,0,0,0.08);
+  --tc-ov-08: rgba(0,0,0,0.1);
+  --tc-ov-09: rgba(0,0,0,0.11);
+  --tc-ov-22: #94a3b8;
+  --tc-ov-35: #64748b;
+  --tc-ov-45: #475569;
+  --tc-ov-60: #334155;
+  --tc-ov-75: #1e293b;
+  --tc-ov-88: #0f172a;
+  --tc-ov-92: #0f172a;
 }
 
 .tc-page {
@@ -30,7 +96,7 @@
   gap: 16px;
   padding: 0 20px;
   height: 56px;
-  background: rgba(8,13,26,0.98);
+  background: var(--tc-bg-solid);
   border-bottom: 1px solid var(--tc-border);
   flex-shrink: 0;
   backdrop-filter: blur(20px);
@@ -45,7 +111,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--tc-ov-08);
   background: transparent;
   color: var(--tc-text2);
   cursor: pointer;
@@ -141,8 +207,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.07);
+  background: var(--tc-ov-04);
+  border: 1px solid var(--tc-ov-07);
   border-radius: 10px;
   padding: 0 12px;
   transition: border-color 0.15s;
@@ -179,11 +245,11 @@
   flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.07) transparent;
+  scrollbar-color: var(--tc-ov-07) transparent;
   padding: 6px 0;
 }
 .tc-sidebar-list::-webkit-scrollbar { width: 4px; }
-.tc-sidebar-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
+.tc-sidebar-list::-webkit-scrollbar-thumb { background: var(--tc-ov-07); border-radius: 2px; }
 
 /* Group */
 .tc-group { margin-bottom: 4px; }
@@ -194,7 +260,7 @@
   padding: 8px 14px 4px;
   position: sticky;
   top: 0;
-  background: rgba(12,20,36,0.97);
+  background: var(--tc-bg2-solid);
   backdrop-filter: blur(8px);
   z-index: 1;
 }
@@ -216,9 +282,9 @@
   padding: 1px 6px;
   border-radius: 4px;
   flex-shrink: 0;
-  background: rgba(255,255,255,0.04);
+  background: var(--tc-ov-04);
   color: var(--tc-text3);
-  border: 1px solid rgba(255,255,255,0.07);
+  border: 1px solid var(--tc-ov-07);
 }
 .tc-group-badge--open {
   background: rgba(16,185,129,0.08);
@@ -237,7 +303,7 @@
   transition: background 0.12s, border-color 0.12s;
   position: relative;
 }
-.tc-mentor-item:hover { background: rgba(255,255,255,0.035); }
+.tc-mentor-item:hover { background: var(--tc-ov-035); }
 .tc-mentor-item--selected {
   background: rgba(124,58,237,0.08);
   border-left-color: #7c3aed;
@@ -266,12 +332,12 @@
 .tc-mentor-name {
   font-size: 0.85rem;
   font-weight: 600;
-  color: rgba(255,255,255,0.75);
+  color: var(--tc-ov-75);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tc-mentor-name--selected { color: #fff; font-weight: 700; }
+.tc-mentor-name--selected { color: var(--tc-name-strong); font-weight: 700; }
 .tc-mentor-time {
   font-size: 0.65rem;
   color: var(--tc-text3);
@@ -323,7 +389,7 @@
   align-items: center;
   gap: 14px;
   padding: 12px 24px;
-  background: rgba(10,16,30,0.98);
+  background: var(--tc-bg-solid);
   border-bottom: 1px solid var(--tc-border);
   flex-shrink: 0;
   backdrop-filter: blur(12px);
@@ -332,7 +398,7 @@
 .tc-chat-header-name {
   font-size: 0.94rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--tc-name-strong);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -384,8 +450,8 @@
   font-size: 0.65rem;
   font-weight: 700;
   color: var(--tc-text3);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--tc-ov-04);
+  border: 1px solid var(--tc-ov-08);
   padding: 2px 8px;
   border-radius: 20px;
 }
@@ -412,17 +478,17 @@
   flex-direction: column;
   gap: 2px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.06) transparent;
+  scrollbar-color: var(--tc-ov-06) transparent;
 }
 .tc-messages::-webkit-scrollbar { width: 5px; }
-.tc-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 3px; }
+.tc-messages::-webkit-scrollbar-thumb { background: var(--tc-ov-07); border-radius: 3px; }
 
 .tc-load-more-btn {
   align-self: center;
   padding: 5px 16px;
   border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.07);
-  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--tc-ov-07);
+  background: var(--tc-ov-02);
   color: var(--tc-text3);
   font-size: 0.74rem;
   font-weight: 600;
@@ -431,7 +497,7 @@
   font-family: var(--font-body, inherit);
   transition: all 0.15s;
 }
-.tc-load-more-btn:hover { background: rgba(255,255,255,0.06); color: var(--tc-text2); }
+.tc-load-more-btn:hover { background: var(--tc-ov-06); color: var(--tc-text2); }
 
 .tc-msg-loading {
   display: flex;
@@ -459,14 +525,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
+  background: var(--tc-ov-03);
+  border: 1px solid var(--tc-ov-07);
   margin-bottom: 4px;
 }
 .tc-empty-chat-title {
   font-size: 1rem;
   font-weight: 700;
-  color: rgba(255,255,255,0.6);
+  color: var(--tc-ov-60);
 }
 .tc-empty-chat-sub {
   font-size: 0.82rem;
@@ -486,7 +552,7 @@
 .tc-day-sep-line {
   flex: 1;
   height: 1px;
-  background: rgba(255,255,255,0.06);
+  background: var(--tc-ov-06);
 }
 .tc-day-sep-label {
   font-size: 0.68rem;
@@ -497,8 +563,8 @@
   white-space: nowrap;
   padding: 2px 8px;
   border-radius: 10px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: var(--tc-ov-03);
+  border: 1px solid var(--tc-ov-05);
 }
 
 /* Message bubbles */
@@ -545,13 +611,13 @@
 .tc-msg-bubble--me {
   background: linear-gradient(135deg, rgba(14,165,233,0.22), rgba(56,189,248,0.16));
   border: 1px solid rgba(14,165,233,0.22);
-  color: rgba(255,255,255,0.92);
+  color: var(--tc-ov-92);
   border-bottom-right-radius: 4px;
 }
 .tc-msg-bubble--other {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.88);
+  background: var(--tc-ov-06);
+  border: 1px solid var(--tc-ov-08);
+  color: var(--tc-ov-88);
   border-bottom-left-radius: 4px;
 }
 
@@ -574,8 +640,8 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--tc-ov-06);
+  border: 1px solid var(--tc-ov-08);
   border-radius: 14px;
   padding: 8px 12px;
 }
@@ -602,7 +668,7 @@
 .tc-input-area {
   padding: 12px 20px 16px;
   border-top: 1px solid var(--tc-border);
-  background: rgba(8,13,26,0.9);
+  background: var(--tc-bg-solid);
   backdrop-filter: blur(12px);
   flex-shrink: 0;
 }
@@ -619,10 +685,10 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 8px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.09);
+  background: var(--tc-ov-05);
+  border: 1px solid var(--tc-ov-09);
   font-size: 0.74rem;
-  color: rgba(255,255,255,0.6);
+  color: var(--tc-ov-60);
   max-width: 200px;
 }
 .tc-file-chip-name {
@@ -649,8 +715,8 @@
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--tc-ov-04);
+  border: 1px solid var(--tc-ov-08);
   border-radius: 14px;
   padding: 6px 8px 6px 12px;
   transition: border-color 0.15s, background 0.15s;
@@ -703,7 +769,7 @@
   height: 36px;
   border-radius: 10px;
   border: none;
-  background: rgba(255,255,255,0.06);
+  background: var(--tc-ov-06);
   color: var(--tc-text3);
   cursor: pointer;
   display: flex;
@@ -728,7 +794,7 @@
   justify-content: center;
   padding: 14px 20px;
   border-top: 1px solid var(--tc-border);
-  background: rgba(8,13,26,0.9);
+  background: var(--tc-bg-solid);
   font-size: 0.8rem;
   color: var(--tc-text3);
   flex-shrink: 0;
@@ -752,14 +818,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.02);
-  border: 1px dashed rgba(255,255,255,0.07);
+  background: var(--tc-ov-02);
+  border: 1px dashed var(--tc-ov-07);
   margin-bottom: 4px;
 }
 .tc-no-conv-title {
   font-size: 0.94rem;
   font-weight: 700;
-  color: rgba(255,255,255,0.35);
+  color: var(--tc-ov-35);
 }
 .tc-no-conv-sub {
   font-size: 0.8rem;

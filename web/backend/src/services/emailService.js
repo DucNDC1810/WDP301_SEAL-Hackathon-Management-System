@@ -185,9 +185,8 @@ export const sendJudgeInvitationEmail = async (to, contestTitle, token) => {
 // ─── sendMemberInviteEmail ───────────────────────────────────────────────────
 
 export const sendMemberInviteEmail = async (to, full_name, token) => {
-  const link = `${CLIENT_URL}/team-verify?token=${token}`;
-  await transporter.sendMail({
-    from: FROM,
+  const link = `${getClientUrl()}/team-verify?token=${token}`;
+  return dispatchEmail({
     to,
     subject: "[SEAL Hackathon] Xác nhận tham gia đội thi",
     html: `
@@ -203,9 +202,8 @@ export const sendMemberInviteEmail = async (to, full_name, token) => {
 // ─── sendTeamInvitationEmail — new invitation flow (accept/reject in dashboard) ─
 
 export const sendTeamInvitationEmail = async (to, full_name, teamName) => {
-  const link = `${CLIENT_URL}/dashboard/team`;
-  await transporter.sendMail({
-    from: FROM,
+  const link = `${getClientUrl()}/dashboard/team`;
+  return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Bạn được mời vào đội "${teamName}"`,
     html: `
@@ -221,8 +219,7 @@ export const sendTeamInvitationEmail = async (to, full_name, teamName) => {
 // ─── sendFinalistEmail ────────────────────────────────────────────────────────
 
 export const sendFinalistEmail = async (to, fullName, contestTitle) => {
-  await transporter.sendMail({
-    from: FROM,
+  return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Chúc mừng! Đội bạn vào vòng chung kết - ${contestTitle}`,
     html: `
@@ -237,8 +234,7 @@ export const sendFinalistEmail = async (to, fullName, contestTitle) => {
 // ─── sendDeadlineReminderEmail ────────────────────────────────────────────────
 
 export const sendDeadlineReminderEmail = async (to, fullName, contestTitle, hoursLeft) => {
-  await transporter.sendMail({
-    from: FROM,
+  return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Nhắc nhở: Còn ${hoursLeft} giờ để nộp bài - ${contestTitle}`,
     html: `
@@ -253,8 +249,7 @@ export const sendDeadlineReminderEmail = async (to, fullName, contestTitle, hour
 // ─── sendMissingSubmissionEmail ───────────────────────────────────────────────
 
 export const sendMissingSubmissionEmail = async (to, fullName, contestTitle) => {
-  await transporter.sendMail({
-    from: FROM,
+  return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Cảnh báo: Đội bạn chưa nộp bài - ${contestTitle}`,
     html: `
@@ -269,8 +264,7 @@ export const sendMissingSubmissionEmail = async (to, fullName, contestTitle) => 
 // ─── sendMentorAssignedEmail ──────────────────────────────────────────────────
 
 export const sendMentorAssignedEmail = async (to, fullName, contestTitle, teamName) => {
-  await transporter.sendMail({
-    from: FROM,
+  return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Bạn được phân công làm Mentor - ${contestTitle}`,
     html: `
@@ -285,8 +279,7 @@ export const sendMentorAssignedEmail = async (to, fullName, contestTitle, teamNa
 // ─── sendJudgeAssignedEmail ───────────────────────────────────────────────────
 
 export const sendJudgeAssignedEmail = async (to, fullName, contestTitle, poolName) => {
-  await transporter.sendMail({
-    from: FROM,
+  return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Bạn được phân công làm Giám khảo - ${contestTitle}`,
     html: `
@@ -301,9 +294,8 @@ export const sendJudgeAssignedEmail = async (to, fullName, contestTitle, poolNam
 // ─── sendPasswordResetEmail ──────────────────────────────────────────────────
 
 export const sendPasswordResetEmail = async (to, token) => {
-  const link = `${CLIENT_URL}/reset-password?token=${token}`;
-  await transporter.sendMail({
-    from: FROM,
+  const link = `${getClientUrl()}/reset-password?token=${token}`;
+  return dispatchEmail({
     to,
     subject: "[SEAL Hackathon] Đặt lại mật khẩu",
     html: `
@@ -321,5 +313,5 @@ export const sendPasswordResetEmail = async (to, token) => {
 // Dùng cho AI Email Generator: subject/html do admin duyệt từ nội dung AI soạn.
 
 export const sendCustomEmail = async (to, subject, html) => {
-  await transporter.sendMail({ from: FROM, to, subject, html });
+  return dispatchEmail({ to, subject, html });
 };

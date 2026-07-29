@@ -25,7 +25,7 @@ const CriteriaRow = ({ c, C }) => {
         percent={pct}
         showInfo={false}
         strokeColor={{ "0%": C.cyan, "100%": C.purple2 }}
-        trailColor="#0a1322"
+        trailColor={C.card2}
         size="small"
       />
     </div>

@@ -187,7 +187,7 @@
   cursor: pointer;
   transition: border-color .2s, color .2s;
 }
-.stp-leave-btn:hover { border-color: #f87171; color: #f87171; }
+.stp-leave-btn:hover { border-color: var(--pg-red, #f87171); color: var(--pg-red, #f87171); }
 
 /* ── Team settings ──────────────────────────────────────────────────────── */
 .stp-settings-title {
@@ -268,8 +268,8 @@
   font-weight: 700;
   letter-spacing: .04em;
 }
-.stp-role-badge--leader { background: rgba(202,138,4,.2); color: #facc15; border: 1px solid rgba(202,138,4,.4); }
-.stp-role-badge--member { background: rgba(100,116,139,.15); color: #94a3b8; border: 1px solid rgba(100,116,139,.3); }
+.stp-role-badge--leader { background: rgba(202,138,4,.2); color: var(--pg-gold, #facc15); border: 1px solid rgba(202,138,4,.4); }
+.stp-role-badge--member { background: rgba(100,116,139,.15); color: var(--pg-muted, #94a3b8); border: 1px solid rgba(100,116,139,.3); }
 
 .stp-verify-badge {
   display: inline-block;
@@ -279,8 +279,8 @@
   font-weight: 700;
   letter-spacing: .03em;
 }
-.stp-verify-badge--ok      { background: rgba(52,211,153,.15); color: #34d399; border: 1px solid rgba(52,211,153,.3); }
-.stp-verify-badge--pending { background: rgba(251,146,60,.15); color: #fb923c; border: 1px solid rgba(251,146,60,.3); }
+.stp-verify-badge--ok      { background: rgba(52,211,153,.15); color: var(--pg-green, #34d399); border: 1px solid rgba(52,211,153,.3); }
+.stp-verify-badge--pending { background: rgba(251,146,60,.15); color: var(--pg-amber, #fb923c); border: 1px solid rgba(251,146,60,.3); }
 
 /* ── Pending invitations ────────────────────────────────────────────────── */
 .stp-pending-title {
@@ -316,7 +316,7 @@
 .stp-cancel-invite {
   background: rgba(239,68,68,.1);
   border: 1px solid rgba(239,68,68,.3);
-  color: #f87171;
+  color: var(--pg-red, #f87171);
   border-radius: 50%;
   width: 24px;
   height: 24px;
@@ -376,7 +376,7 @@
   background: rgba(0, 212, 255, 0.05);
 }
 .stp-tab-btn.active {
-  color: #0a1929;
+  color: var(--pg-bg, #0a1929);
   background: var(--pg-accent, #00d4ff);
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
 }

@@ -1,548 +1,703 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Modal, InputNumber, Tag, Alert, Progress, Tooltip, message, Spin } from 'antd';
+import { Spin, message } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
-import './JudgeScoringPage.css';
 import RefreshButton from '../../components/RefreshButton';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-const TEAM_STATUS_CFG = {
-  submitted:     { label: 'Đã nộp',           color: 'green'   },
-  not_submitted: { label: 'Chưa nộp bài',     color: 'default' },
-  late_approved: { label: 'Trễ — Đã duyệt',   color: 'orange'  },
-  late_pending:  { label: 'Trễ — Chờ duyệt',  color: 'orange'  },
-  rejected:      { label: 'Bị từ chối',        color: 'red'     },
-};
+// ─── constants ────────────────────────────────────────────────────────────────
 
-const mapSubStatus = (s) => {
-  const m = { SUBMITTED: 'submitted', LATE: 'late_pending', LATE_PENDING: 'late_pending', APPROVED: 'late_approved', REJECTED: 'rejected' };
-  return m[s] || 'not_submitted';
-};
+const AVATAR_COLORS = [
+  { bg: '#06363f', fg: '#6fe9f7' },
+  { bg: '#10324d', fg: '#7db8f5' },
+  { bg: '#241f47', fg: '#b3a4f7' },
+  { bg: '#0d3a33', fg: '#67e7b8' },
+  { bg: '#3a2330', fg: '#f3a3c2' },
+];
 
-const canScore = (_status) => true;
+// ─── helpers ──────────────────────────────────────────────────────────────────
 
-function calcTotal(criteria, criteriaScores) {
-  const weightSum = criteria.reduce((s, c) => s + c.weight, 0);
-  if (weightSum === 0) return 0;
-  const raw = criteria.reduce((s, c) => s + ((criteriaScores[c.id] || 0) * c.weight), 0) / weightSum;
+const calcTotal = (criteria, vals) => {
+  const wSum = criteria.reduce((s, c) => s + c.weight, 0);
+  if (!wSum) return 0;
+  const raw = criteria.reduce((s, c) => s + (vals[c.id] ?? 0) * c.weight, 0) / wSum;
   return Math.round(raw * 100) / 100;
-}
+};
 
-// ─── Component ───────────────────────────────────────────────────────────────
-export default function JudgeDashboardPage() {
+const scoreColor = (v) => {
+  if (v >= 8.5) return '#34d399';
+  if (v >= 7)   return '#00e5ff';
+  if (v >= 5)   return '#fbbf24';
+  if (v > 0)    return '#f87171';
+  return '#5a6675';
+};
+
+const scoreStatus = (v) => {
+  if (v >= 8.5) return 'Xuất sắc';
+  if (v >= 7)   return 'Tốt';
+  if (v >= 5)   return 'Khá';
+  if (v > 0)    return 'Cần cải thiện';
+  return 'Chưa chấm';
+};
+
+const fmtTime = (iso) => {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+};
+
+const fmtClock = (d) =>
+  d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+const getInitials = (name = '') => {
+  const parts = name.trim().split(/\s+/);
+  return parts.slice(-2).map((w) => w[0] ?? '').join('').toUpperCase() || '?';
+};
+
+const getDiffStyle = (d) => {
+  if (d === 'easy') return { label: 'Dễ',        color: '#34d399', bg: 'rgba(52,211,153,.12)',  border: 'rgba(52,211,153,.3)'  };
+  if (d === 'hard') return { label: 'Khó',        color: '#f87171', bg: 'rgba(248,113,113,.12)', border: 'rgba(248,113,113,.3)' };
+  return             { label: 'Trung bình', color: '#fbbf24', bg: 'rgba(251,191,36,.12)',  border: 'rgba(251,191,36,.3)'  };
+};
+
+// ─── CriterionSlider ──────────────────────────────────────────────────────────
+
+const CriterionSlider = ({ c, value = 0, onChange, readOnly }) => {
+  const trackRef = useRef(null);
+  const dragging = useRef(false);
+  const pct      = `${(value / c.maxScore) * 100}%`;
+  const col      = scoreColor(value);
+
+  const fromPointer = useCallback((e) => {
+    if (!trackRef.current) return;
+    const rect  = trackRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    onChange(Math.round(ratio * c.maxScore * 2) / 2);
+  }, [c.maxScore, onChange]);
+
+  return (
+    <div style={{ position: 'relative', border: '1px solid #2e5580', borderRadius: 14, background: '#172d45', padding: '16px 18px', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: value > 0 ? col : 'transparent', transition: 'background .25s' }} />
+
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#dbe6f0' }}>{c.name}</span>
+            <span style={{ padding: '1px 7px', borderRadius: 6, background: '#16202b', border: '1px solid #233040', fontFamily: 'monospace', fontSize: 10, color: '#8a98a8' }}>×{Math.round(c.weight * 100)}%</span>
+          </div>
+          {c.description && (
+            <div style={{ fontSize: 12, color: '#7b8a9a', marginTop: 4, lineHeight: 1.45 }}>{c.description}</div>
+          )}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
+          <span style={{ fontFamily: 'monospace', fontSize: 26, fontWeight: 700, lineHeight: 1, color: col, minWidth: 48, textAlign: 'right' }}>
+            {value > 0 ? value.toFixed(1) : '—'}
+          </span>
+          <span style={{ fontSize: 10, color: '#5a6675', marginTop: 3 }}>+{(value * c.weight).toFixed(2)} điểm</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
+        <button
+          onClick={() => !readOnly && onChange(Math.max(0, Math.round((value - 0.5) * 2) / 2))}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, flexShrink: 0, borderRadius: 8, border: '1px solid #243140', background: '#0c1219', color: '#aebccb', fontSize: 18, cursor: readOnly ? 'not-allowed' : 'pointer', userSelect: 'none' }}
+        >−</button>
+
+        <div
+          ref={trackRef}
+          onPointerDown={(e) => {
+            if (readOnly) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            dragging.current = true;
+            fromPointer(e);
+          }}
+          onPointerMove={(e) => { if (dragging.current && !readOnly) fromPointer(e); }}
+          onPointerUp={(e) => {
+            dragging.current = false;
+            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+          }}
+          style={{ position: 'relative', flex: 1, height: 26, display: 'flex', alignItems: 'center', cursor: readOnly ? 'not-allowed' : 'ew-resize', touchAction: 'none', userSelect: 'none' }}
+        >
+          <div style={{ position: 'absolute', left: 0, right: 0, height: 7, borderRadius: 6, background: '#141d27', border: '1px solid #1c2733' }} />
+          <div style={{ position: 'absolute', left: 0, height: 7, borderRadius: 6, background: 'linear-gradient(90deg,#0098b3,#00e5ff)', boxShadow: '0 0 12px rgba(0,229,255,.45)', transition: 'width .08s linear', width: pct }} />
+          <div style={{ position: 'absolute', top: '50%', width: 17, height: 17, borderRadius: '50%', background: '#e8fbff', border: '2px solid #00e5ff', boxShadow: '0 0 10px rgba(0,229,255,.6)', transform: 'translate(-50%,-50%)', transition: 'left .08s linear', left: pct, pointerEvents: 'none' }} />
+        </div>
+
+        <button
+          onClick={() => !readOnly && onChange(Math.min(c.maxScore, Math.round((value + 0.5) * 2) / 2))}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, flexShrink: 0, borderRadius: 8, border: '1px solid #243140', background: '#0c1219', color: '#aebccb', fontSize: 18, cursor: readOnly ? 'not-allowed' : 'pointer', userSelect: 'none' }}
+        >+</button>
+
+        <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#5a6675', width: 28, textAlign: 'right' }}>/{c.maxScore}</span>
+      </div>
+    </div>
+  );
+};
+
+// ─── MentorScoringPage ────────────────────────────────────────────────────────
+// Cùng UI/UX chấm điểm live với Judge (JudgeScoringPage) — mentor có thể được
+// gán làm INTERNAL judge cho một board (JudgeAssignment) và dùng chung API
+// judge-schedule. Điểm khác biệt duy nhất: loại trừ đội mà mentor này đang
+// dìu dắt (MentorAssignment) khỏi danh sách để tránh xung đột lợi ích.
+
+export const MentorScoringPage = () => {
   const { contestId, roundId } = useParams();
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const navigate    = useNavigate();
+  const { user }    = useAuth();
   const { request } = useApi();
-  const [messageApi, contextHolder] = message.useMessage();
 
-  const [loading, setLoading] = useState(true);
-  const [round, setRound] = useState(null);
-  const [criteria, setCriteria] = useState([]);
-  const [pools, setPools] = useState([]);
-  const [scores, setScores] = useState({}); // teamId → { _id, status, criteria: {criteriaName: value}, comment }
-
-  const [scoringTeam, setScoringTeam] = useState(null);
-  const [draft, setDraft] = useState({ criteria: {}, comment: '' });
-  const [submitting, setSubmitting] = useState(false);
-
-  const fetchAll = useCallback(async () => {
-      try {
-        const [contestData, poolsData, mentorAssignData, judgeAssignData, subsData, myScoresData] = await Promise.all([
-          request(`/api/contests/${contestId}`),
-          // Round-scoped pools with full team data (the source of truth for teams).
-          request(`/api/pools/contests/${contestId}/pools?round_id=${roundId}`),
-          // Boards this mentor is assigned to (their mentee's pool → they cross-score it).
-          request(`/api/mentor-assignments/contests/${contestId}/rounds/${roundId}`).catch(() => []),
-          // Pools this mentor also judges (mentor acting as INTERNAL judge).
-          request(`/api/judge-assignments/me?contest_id=${contestId}&round_id=${roundId}`).catch(() => []),
-          request(`/api/submissions?round_id=${roundId}`),
-          request(`/api/scores/contests/${contestId}/rounds/${roundId}/my-scores`).catch(() => []),
-        ]);
-
-        const contest = contestData?.data ?? contestData;
-        const roundObj = (contest?.rounds || []).find(r => r._id === roundId || r._id?.toString() === roundId);
-        if (roundObj) {
-          setRound({
-            name: roundObj.name,
-            contestName: contest.title,
-            deadline: roundObj.submission_deadline,
-            sequence_order: roundObj.round_number,
-          });
-          const crits = (roundObj.score_criteria || []).map(c => ({
-            id: c._id,
-            name: c.name,
-            weight: c.weight,
-            maxScore: c.max_score,
-            description: c.description || '',
-          }));
-          setCriteria(crits);
-        }
-
-        const asArray = (d) => Array.isArray(d) ? d : (d?.data ?? []);
-        const mentorAssigns = asArray(mentorAssignData);
-        const judgeAssigns = asArray(judgeAssignData);
-
-        // Only show the board(s) this mentor is actually assigned to — either as the
-        // mentor of a team in it (board_id) or as an internal judge of it (pool_id).
-        const allowedPoolIds = new Set();
-        mentorAssigns.forEach(a => {
-          const b = (a.board_id?._id || a.board_id)?.toString();
-          if (b) allowedPoolIds.add(b);
-        });
-        judgeAssigns.forEach(a => {
-          const p = (a.pool_id?._id || a.pool_id)?.toString();
-          if (p) allowedPoolIds.add(p);
-        });
-
-        // Teams this mentor personally mentors — must not score them (conflict of interest).
-        const mentees = new Set(
-          mentorAssigns.map(a => (a.team_id?._id || a.team_id)?.toString()).filter(Boolean)
-        );
-
-        const allPoolsRaw = asArray(poolsData);
-        const allPools = allPoolsRaw.filter(p => allowedPoolIds.has(p._id?.toString()));
-
-        // Build submission map: teamId → sub info
-        const subList = Array.isArray(subsData) ? subsData : (subsData?.data ?? []);
-        const subMap = {};
-        subList.forEach(sub => {
-          const tid = (sub.team_id?._id || sub.team_id)?.toString();
-          if (tid) subMap[tid] = {
-            status: mapSubStatus(sub.status),
-            repoUrl: sub.repo_url,
-            slideUrl: sub.slide_url,
-            demoUrl: sub.demo_url,
-          };
-        });
-
-        // Build existing scores map: teamId → { _id, status, criteria: {criteriaName: value}, comment }
-        const myScoresList = Array.isArray(myScoresData) ? myScoresData : (myScoresData?.data ?? []);
-        const scoresMap = {};
-        myScoresList.forEach(sc => {
-          const tid = (sc.team_id?._id || sc.team_id)?.toString();
-          if (!tid) return;
-          const criteriaMap = {};
-          (sc.score_details || []).forEach(d => {
-            // map criteria_name → score_value, but we need to find the criteria id
-            criteriaMap[d.criteria_name] = d.score_value;
-          });
-          scoresMap[tid] = {
-            _id: sc._id,
-            status: sc.status, // 'draft' | 'submitted'
-            criteriaByName: criteriaMap,
-            comment: sc.comment || '',
-          };
-        });
-
-        // Build pools with teams + sub status
-        const poolsWithTeams = allPools.map(p => ({
-          id: p._id,
-          name: p.pool_name,
-          teams: (p.teams || []).map(t => {
-            const tid = (t?._id || t)?.toString();
-            const sub = subMap[tid] || { status: 'not_submitted' };
-            return {
-              id: tid,
-              name: t?.team_name || tid,
-              repoUrl: sub.repoUrl,
-              slideUrl: sub.slideUrl,
-              demoUrl: sub.demoUrl,
-              status: sub.status,
-              isMentee: mentees.has(tid),
-            };
-          }),
-        }));
-
-        setPools(poolsWithTeams);
-        setScores(scoresMap);
-      } catch (e) {
-        messageApi.error('Không thể tải dữ liệu chấm điểm');
-      } finally {
-        setLoading(false);
-      }
-  }, [contestId, roundId]);
+  const [loading,           setLoading]           = useState(true);
+  const [criteria,          setCriteria]          = useState([]);
+  const [schedule,          setSchedule]          = useState({ pool_name: '', slots: [] });
+  const [selected,          setSelected]          = useState(null);
+  const [draft,             setDraft]             = useState({ criteria: {}, comment: '' });
+  const [submitting,        setSubmitting]        = useState(false);
+  const [now,               setNow]               = useState(new Date());
+  const [contest,           setContest]           = useState(null);
+  const [round,             setRound]             = useState(null);
+  const [teamDetail,        setTeamDetail]        = useState(null);
+  const [teamDetailLoading, setTeamDetailLoading] = useState(false);
+  const intervalRef = useRef(null);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    intervalRef.current = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(intervalRef.current);
+  }, []);
 
-  const allTeams = pools.flatMap(p => p.teams);
-  // A mentor cannot score their own mentee — exclude those from the scorable set.
-  const scorable = allTeams.filter(t => !t.isMentee && canScore(t.status));
-  const submittedCount = Object.values(scores).filter(s => s.status === 'submitted').length;
-  const draftCount = Object.values(scores).filter(s => s.status === 'draft').length;
-  const progress = scorable.length > 0 ? Math.round((submittedCount / scorable.length) * 100) : 0;
-  const allDone = submittedCount >= scorable.length && scorable.length > 0;
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [contestData, scheduleData, mentorAssignData] = await Promise.all([
+        request(`/api/contests/${contestId}`),
+        request(`/api/scores/contests/${contestId}/rounds/${roundId}/judge-schedule`),
+        // Đội mentor này đang dìu — phải loại khỏi danh sách để tránh conflict of interest.
+        request(`/api/mentor-assignments/contests/${contestId}/rounds/${roundId}`).catch(() => []),
+      ]);
 
-  const openForm = (team) => {
-    const existing = scores[team.id];
-    if (existing) {
-      // Restore criteria values by matching criteria name
-      const restoredCriteria = {};
-      criteria.forEach(c => {
-        const v = existing.criteriaByName?.[c.name];
-        if (v !== undefined) restoredCriteria[c.id] = v;
-      });
-      setDraft({ criteria: restoredCriteria, comment: existing.comment || '' });
-    } else {
-      setDraft({ criteria: {}, comment: '' });
+      const contestObj  = contestData?.data ?? contestData;
+      const roundObj    = (contestObj?.rounds || []).find((r) => String(r._id) === String(roundId));
+      const rawCriteria = roundObj?.score_criteria ?? [];
+
+      const asArray = (d) => Array.isArray(d) ? d : (d?.data ?? []);
+      const mentees = new Set(
+        asArray(mentorAssignData).map((a) => (a.team_id?._id || a.team_id)?.toString()).filter(Boolean)
+      );
+
+      setContest(contestObj);
+      setRound(roundObj ?? null);
+      setCriteria(rawCriteria.map((c) => ({
+        id:          String(c._id ?? c.id),
+        name:        c.criteria_name ?? c.name,
+        weight:      c.weight ?? 1,
+        maxScore:    c.max_score ?? 10,
+        description: c.description ?? '',
+      })));
+      const filteredSlots = (scheduleData?.slots ?? []).filter((s) => !mentees.has(String(s.team_id)));
+      setSchedule({ ...(scheduleData ?? {}), slots: filteredSlots });
+    } catch {
+      message.error('Không thể tải dữ liệu chấm điểm');
+    } finally {
+      setLoading(false);
     }
-    setScoringTeam(team);
+  }, [contestId, roundId, request]);
+
+  const loadTeamDetail = useCallback(async (teamId) => {
+    if (!teamId) return;
+    setTeamDetail(null);
+    setTeamDetailLoading(true);
+    try {
+      const data = await request(`/api/teams/${teamId}`);
+      setTeamDetail(data?.data ?? data);
+    } catch {
+      // non-critical — team detail is supplementary info
+    } finally {
+      setTeamDetailLoading(false);
+    }
+  }, [request]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const openSlot = (slot, crit) => {
+    const usedCriteria = crit ?? criteria;
+    const prefill = {};
+    for (const d of slot.score_details ?? []) {
+      const c = usedCriteria.find((cr) => cr.name === d.criteria_name);
+      if (c) prefill[c.id] = d.score_value;
+    }
+    setSelected(slot);
+    setDraft({ criteria: prefill, comment: slot.comment ?? '' });
+    loadTeamDetail(slot.team_id);
   };
 
-  const saveScore = async (status) => {
-    if (status === 'submitted') {
-      const allFilled = criteria.every(c => draft.criteria[c.id] !== undefined && draft.criteria[c.id] > 0);
-      if (!allFilled) { messageApi.error('Vui lòng chấm đầy đủ tất cả tiêu chí trước khi nộp!'); return; }
-    }
+  // Team chưa có lịch trình bày (start_time null) luôn mở để chấm ngay
+  const isUnlocked = (slot) => !slot.start_time || new Date(slot.start_time) <= now;
+  const isLive     = (slot) => {
+    if (!slot.start_time || !slot.end_time) return false;
+    const start = new Date(slot.start_time);
+    const end   = new Date(slot.end_time);
+    return start <= now && now < end;
+  };
 
+  const setScore = (critId, val) => {
+    if (round?.scoring_locked) return;
+    setDraft((p) => ({ ...p, criteria: { ...p.criteria, [critId]: val } }));
+  };
+
+  const saveScore = async (submit) => {
+    if (submit) {
+      const allFilled = criteria.every((c) => (draft.criteria[c.id] ?? 0) > 0);
+      if (!allFilled) { message.error('Vui lòng nhập điểm cho tất cả tiêu chí'); return; }
+    }
     setSubmitting(true);
     try {
-      const scoreDetails = criteria.map(c => ({
+      const scoreDetails = criteria.map((c) => ({
         criteria_name: c.name,
-        score_value: draft.criteria[c.id] || 0,
-        weight: c.weight,
-        max_score: c.maxScore,
+        score_value:   draft.criteria[c.id] ?? 0,
+        weight:        c.weight,
+        max_score:     c.maxScore,
       }));
+      const body = { team_id: selected.team_id, contest_id: contestId, round_id: roundId, comment: draft.comment, score_details: scoreDetails, submit };
+      const url    = selected.score_id ? `/api/scores/${selected.score_id}` : `/api/scores`;
+      const method = selected.score_id ? 'PUT' : 'POST';
+      const saved  = await request(url, { method, body });
 
-      const payload = {
-        team_id: scoringTeam.id,
-        contest_id: contestId,
-        round_id: roundId,
-        comment: draft.comment,
-        score_details: scoreDetails,
-        submit: status === 'submitted',
-      };
+      message.success(submit ? 'Đã nộp điểm chính thức' : 'Đã lưu nháp');
 
-      const existing = scores[scoringTeam.id];
-      let result;
-      if (existing?._id) {
-        result = await request(`/api/scores/${existing._id}`, { method: 'PUT', body: payload });
-      } else {
-        result = await request('/api/scores', { method: 'POST', body: payload });
-      }
-
-      const scoreId = result?._id || existing?._id;
-      const criteriaByName = {};
-      criteria.forEach(c => { criteriaByName[c.name] = draft.criteria[c.id] || 0; });
-
-      setScores(prev => ({
-        ...prev,
-        [scoringTeam.id]: { _id: scoreId, status, criteriaByName, comment: draft.comment },
-      }));
-
-      setScoringTeam(null);
-      messageApi.success(status === 'submitted' ? '✓ Đã nộp điểm chính thức!' : '💾 Đã lưu bản nháp!');
+      await loadData();
+      const updated = (schedule.slots ?? []).find((s) => String(s.team_id) === String(selected.team_id));
+      if (updated) openSlot({ ...updated, score_id: saved?._id ?? updated.score_id }, criteria);
     } catch (e) {
-      messageApi.error(e.message || 'Không thể lưu điểm');
+      message.error(e.message || 'Đã xảy ra lỗi');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const weightedTotal = calcTotal(criteria, draft.criteria);
+  // ── loading ───────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <div className="jp-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#090c11' }}>
         <Spin size="large" />
       </div>
     );
   }
 
+  // ── derived ───────────────────────────────────────────────────────────────────
+
+  const total          = calcTotal(criteria, draft.criteria ?? {});
+  const submittedCount = schedule.slots.filter((s) => s.score_status === 'submitted').length;
+  const totalSlots     = schedule.slots.length;
+  const progPct        = totalSlots > 0 ? submittedCount / totalSlots : 0;
+  const gCirc          = 2 * Math.PI * 74;
+  const pCirc          = 2 * Math.PI * 11;
+  const isSubmitted    = selected?.score_status === 'submitted';
+  const filledCount    = criteria.filter((c) => (draft.criteria?.[c.id] ?? 0) > 0).length;
+
+  const roundLine = round
+    ? `Round ${round.round_number ?? ''}${round.name ? ` · ${round.name}` : ''}${round.start_time ? ` · ${fmtTime(round.start_time)}–${fmtTime(round.end_time)}` : ''}`
+    : (schedule.pool_name || 'Chấm điểm live');
+
+  const topic = selected && teamDetail?.topic_id && typeof teamDetail.topic_id === 'object'
+    ? teamDetail.topic_id
+    : null;
+  const diff    = getDiffStyle(topic?.difficulty);
+  const members = teamDetail?.members ?? [];
+
+  // ── render ────────────────────────────────────────────────────────────────────
+
   return (
-    <div className="jp-page">
-      {contextHolder}
+    <>
+      <style>{`
+        @keyframes jspPulseDot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.82)} }
+        @keyframes jspLiveRing  { 0%{box-shadow:0 0 0 0 rgba(0,229,255,.5)} 70%{box-shadow:0 0 0 7px rgba(0,229,255,0)} 100%{box-shadow:0 0 0 0 rgba(0,229,255,0)} }
+        .jsp-slot:hover { background: rgba(0,229,255,.04) !important; }
+      `}</style>
 
-      {/* ─── Top Bar ─── */}
-      <div className="jp-topbar">
-        <div className="jp-topbar-left">
-          <button className="jp-back-btn" onClick={() => navigate(-1)} title="Quay lại">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} width={18} height={18}>
-              <path d="M19 12H5M12 5l-7 7 7 7"/>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'radial-gradient(1200px 600px at 78% -10%, rgba(0,229,255,.04), transparent 60%), #090c11', color: '#e8eef5', fontFamily: "'Manrope',system-ui,sans-serif", overflow: 'hidden' }}>
+
+        {/* ── TOPBAR ── */}
+        <header style={{ display: 'flex', alignItems: 'center', gap: 14, height: 62, flexShrink: 0, padding: '0 18px 0 14px', borderBottom: '1px solid #18202b', background: 'linear-gradient(180deg,#0e141c,#0b1016)' }}>
+          <button onClick={() => navigate('/mentor/dashboard')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9, border: '1px solid #1f2a36', background: '#0e151d', color: '#9fb0c0', fontSize: 16, cursor: 'pointer' }}>←</button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(135deg,#00e5ff,#0098b3)', color: '#04222a', fontSize: 17, boxShadow: '0 0 18px rgba(0,229,255,.35)' }}>👥</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, lineHeight: 1.1 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: '.2px' }}>{contest?.title ?? 'Chấm điểm live'}</div>
+              <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#7b8a9a' }}>{roundLine}</div>
+            </div>
+          </div>
+
+          <div style={{ flex: 1 }} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 11px', borderRadius: 9, border: '1px solid #1f2a36', background: '#0d141c', fontFamily: 'monospace', fontSize: 12.5, color: '#aebccb' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#00e5ff', display: 'inline-block', animation: 'jspPulseDot 1.6s infinite' }} />
+            {fmtClock(now)}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 12px 5px 6px', borderRadius: 999, border: '1px solid #1f2a36', background: '#0d141c' }}>
+            <svg width="28" height="28" viewBox="0 0 28 28" style={{ flexShrink: 0 }}>
+              <circle cx="14" cy="14" r="11" fill="none" stroke="#1f2a36" strokeWidth="3" />
+              <circle cx="14" cy="14" r="11" fill="none" stroke="#00e5ff" strokeWidth="3" strokeLinecap="round"
+                strokeDasharray={pCirc} strokeDashoffset={pCirc * (1 - progPct)}
+                transform="rotate(-90 14 14)" style={{ transition: 'stroke-dashoffset .5s' }}
+              />
             </svg>
-          </button>
-          <div className="jp-brand">
-            <span className="jp-brand-icon">⚖</span>
-            <div>
-              <div className="jp-brand-title">Judge Portal</div>
-              <div className="jp-brand-sub">{round?.contestName || '...'}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+              <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>{submittedCount}/{totalSlots}</span>
+              <span style={{ fontSize: 10, color: '#6b7a8a', letterSpacing: '.03em' }}>đã nộp điểm</span>
             </div>
           </div>
-        </div>
-        <div className="jp-topbar-right">
-          <RefreshButton onRefresh={fetchAll} />
-          <div className="jp-judge-chip">
-            <div className="jp-judge-avatar">{(user?.full_name || 'J')[0]}</div>
-            <div>
-              <div className="jp-judge-name">{user?.full_name || 'Judge'}</div>
-              <div className="jp-judge-email">{user?.email || ''}</div>
+
+          <div style={{ width: 1, height: 26, background: '#1f2a36' }} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#13324a,#241f47)', color: '#9fc6f5', fontSize: 12, fontWeight: 700 }}>
+              {getInitials(user?.full_name)}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#dbe6f0' }}>{user?.full_name}</span>
+              <span style={{ fontSize: 10.5, color: '#6b7a8a' }}>Mentor</span>
             </div>
           </div>
-        </div>
-      </div>
+        </header>
 
-      {/* ─── Round Header ─── */}
-      <div className="jp-round-header">
-        <div className="jp-round-info">
-          <div className="jp-round-seq">ROUND {round?.sequence_order || ''}</div>
-          <h1 className="jp-round-name">{round?.name || 'Đang tải...'}</h1>
-          {round?.deadline && (
-            <div className="jp-deadline">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} width={14} height={14}>
-                <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-              </svg>
-              Deadline: {new Date(round.deadline).toLocaleString('vi-VN')}
-            </div>
-          )}
-        </div>
+        {/* ── BODY ── */}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-        <div className="jp-stats-row">
-          <div className="jp-stat-box">
-            <div className="jp-stat-num" style={{ color: '#10b981' }}>{submittedCount}</div>
-            <div className="jp-stat-lbl">Đã nộp điểm</div>
-          </div>
-          <div className="jp-stat-box">
-            <div className="jp-stat-num" style={{ color: '#f59e0b' }}>{draftCount}</div>
-            <div className="jp-stat-lbl">Bản nháp</div>
-          </div>
-          <div className="jp-stat-box">
-            <div className="jp-stat-num" style={{ color: '#94a3b8' }}>{scorable.length - submittedCount - draftCount}</div>
-            <div className="jp-stat-lbl">Chưa chấm</div>
-          </div>
-          <div className="jp-stat-box jp-stat-box--wide">
-            <div className="jp-stat-lbl" style={{ marginBottom: 6 }}>Tiến độ tổng: {submittedCount}/{scorable.length}</div>
-            <Progress
-              percent={progress}
-              strokeColor={allDone ? '#10b981' : '#00d4ff'}
-              trailColor="rgba(255,255,255,0.08)"
-              strokeWidth={8}
-            />
-          </div>
-        </div>
-      </div>
-
-      {allDone && scorable.length > 0 && (
-        <Alert
-          type="success" showIcon
-          message="Bạn đã hoàn thành chấm điểm tất cả đội được giao! Admin có thể tiến hành khóa chấm điểm."
-          style={{ borderRadius: 12 }}
-        />
-      )}
-
-      {/* ─── Criteria Reference ─── */}
-      {criteria.length > 0 && (
-        <div className="jp-criteria-ref">
-          <div className="jp-criteria-ref-title">Tiêu chí chấm điểm vòng này</div>
-          <div className="jp-criteria-ref-list">
-            {criteria.map(c => (
-              <div key={c.id} className="jp-crit-chip">
-                <span className="jp-crit-chip-name">{c.name}</span>
-                <span className="jp-crit-chip-w">×{(c.weight * 100).toFixed(0)}%</span>
+          {/* ── LEFT: TIMELINE ── */}
+          <aside style={{ width: 296, flexShrink: 0, borderRight: '1px solid #18202b', background: '#0b1016', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #141b24' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.13em', color: '#5f6f7e' }}>LỊCH TRÌNH BÀY</span>
+                <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#7b8a9a' }}>{schedule.pool_name}</span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ─── Pool Sections ─── */}
-      <div className="jp-pools space-y-5">
-        {pools.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-            Bạn chưa được phân công chấm bảng nào ở vòng thi này.
-          </div>
-        )}
-        {pools.map(pool => {
-          const poolSubmitted = pool.teams.filter(t => !t.isMentee && scores[t.id]?.status === 'submitted').length;
-          const poolScorable = pool.teams.filter(t => !t.isMentee && canScore(t.status)).length;
-          return (
-            <div key={pool.id} className="jp-pool-card">
-              <div className="jp-pool-header">
-                <div className="jp-pool-title-group">
-                  <h2 className="jp-pool-name">{pool.name}</h2>
-                  <Tag>{pool.teams.length} đội</Tag>
-                </div>
-                <div className="jp-pool-progress">
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    {poolSubmitted}/{poolScorable} đã nộp
-                  </span>
-                  <Progress
-                    percent={poolScorable > 0 ? Math.round((poolSubmitted / poolScorable) * 100) : 0}
-                    size="small" strokeColor="#00d4ff" trailColor="rgba(255,255,255,0.08)"
-                    showInfo={false} style={{ width: 100 }}
-                  />
-                </div>
+              <div style={{ marginBottom: 10 }}>
+                <RefreshButton onRefresh={loadData} size={12} style={{ padding: '5px 10px', fontSize: 11 }} />
               </div>
+              <div style={{ height: 5, borderRadius: 3, background: '#141b24', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 3, background: 'linear-gradient(90deg,#00e5ff,#34d399)', boxShadow: '0 0 10px rgba(0,229,255,.4)', transition: 'width .5s', width: `${progPct * 100}%` }} />
+              </div>
+            </div>
 
-              <div className="jp-team-list">
-                {pool.teams.map(team => {
-                  const sc = TEAM_STATUS_CFG[team.status] || TEAM_STATUS_CFG.not_submitted;
-                  const myScore = scores[team.id];
-                  const final = myScore?.status === 'submitted'
-                    ? calcTotal(criteria, (() => {
-                        const m = {};
-                        criteria.forEach(c => { m[c.id] = myScore.criteriaByName?.[c.name] || 0; });
-                        return m;
-                      })())
-                    : null;
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px 18px' }}>
+              {schedule.slots.length === 0 && (
+                <div style={{ padding: '32px 12px', fontSize: 13, color: '#5f6f7e', textAlign: 'center' }}>Chưa có team nào để chấm</div>
+              )}
 
-                  return (
-                    <div key={team.id} className="jp-team-row">
-                      <div className="jp-team-left">
-                        <div className="jp-team-avatar">{(team.name || '?').slice(-1)}</div>
-                        <div className="jp-team-info">
-                          <div className="jp-team-name">{team.name}</div>
-                          <div className="jp-team-links">
-                            <Tag color={sc.color} style={{ fontSize: '0.68rem' }}>{sc.label}</Tag>
-                            {team.repoUrl && (
-                              <a href={team.repoUrl} target="_blank" rel="noreferrer" className="jp-link jp-link--repo">🔗 Repo</a>
-                            )}
-                            {team.slideUrl && (
-                              <a href={team.slideUrl} target="_blank" rel="noreferrer" className="jp-link jp-link--slide">📊 Slide</a>
-                            )}
-                            {team.demoUrl && (
-                              <a href={team.demoUrl} target="_blank" rel="noreferrer" className="jp-link jp-link--demo">🎥 Video</a>
-                            )}
-                          </div>
-                        </div>
+              {schedule.slots.map((slot) => {
+                const unlocked      = isUnlocked(slot);
+                const live          = isLive(slot);
+                const isSelected    = selected && String(selected.team_id) === String(slot.team_id);
+                const done          = slot.score_status === 'submitted';
+                const isDraft       = slot.score_status === 'draft';
+                const remMs         = new Date(slot.start_time) - now;
+                const remMin        = Math.ceil(remMs / 60000);
+                const showCountdown = !unlocked && remMs > 0;
+
+                let dotColor = '#2a3543', dotGlow = 'none';
+                if (live)        { dotColor = '#00e5ff'; dotGlow = '0 0 8px rgba(0,229,255,.7)'; }
+                else if (done)   { dotColor = '#34d399'; }
+                else if (isDraft){ dotColor = '#fbbf24'; }
+
+                return (
+                  <div
+                    key={String(slot.slot_id ?? slot.team_id)}
+                    className="jsp-slot"
+                    onClick={() => unlocked && openSlot(slot, criteria)}
+                    style={{ position: 'relative', display: 'flex', gap: 11, padding: '11px 11px 11px 8px', borderRadius: 11, marginBottom: 4, cursor: unlocked ? 'pointer' : 'not-allowed', background: isSelected ? 'rgba(0,229,255,.07)' : 'transparent', opacity: unlocked ? 1 : 0.55, transition: 'background .15s' }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 3 }}>
+                      <span style={{ width: 11, height: 11, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
+                      <span style={{ flex: 1, width: 2, marginTop: 4, borderRadius: 2, background: '#1a232e' }} />
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <span style={{ fontSize: 13.5, fontWeight: isSelected ? 700 : 500, color: isSelected ? '#fff' : (unlocked ? '#cfd9e3' : '#6b7a8a'), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {slot.team_name}
+                        </span>
+                        <span style={{ flexShrink: 0 }}>
+                          {done     && <span style={{ color: '#34d399', fontSize: 13 }}>✓</span>}
+                          {isDraft && !done && <span style={{ color: '#fbbf24', fontSize: 12 }}>◐</span>}
+                          {!unlocked && <span style={{ color: '#3a4654', fontSize: 11 }}>🔒</span>}
+                        </span>
                       </div>
 
-                      <div className="jp-team-right">
-                        {myScore?.status === 'submitted' && final !== null && (
-                          <div className="jp-score-badge">
-                            <span className="jp-score-num">{final.toFixed(1)}</span>
-                            <span className="jp-score-denom">/10</span>
-                          </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: unlocked ? '#7fbfd0' : '#4a5663' }}>
+                          {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)}
+                        </span>
+                        {slot.room && <span style={{ fontSize: 10.5, color: '#5a6675' }}>· {slot.room}</span>}
+                      </div>
+
+                      {live && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 7, padding: '2px 8px', borderRadius: 999, background: 'rgba(0,229,255,.12)', border: '1px solid rgba(0,229,255,.35)' }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00e5ff', display: 'inline-block', animation: 'jspPulseDot 1.4s infinite' }} />
+                          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', color: '#7fe9f7' }}>ĐANG TRÌNH BÀY</span>
+                        </div>
+                      )}
+
+                      {done && (
+                        <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, marginTop: 7 }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: '#34d399' }}>{slot.total_score?.toFixed(1)}</span>
+                          <span style={{ fontSize: 10, color: '#5a6675' }}>/ 10</span>
+                        </div>
+                      )}
+
+                      {showCountdown && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7, fontSize: 11, color: remMs < 3600000 ? '#fbbf24' : '#5a6675' }}>
+                          <span>⏱</span>
+                          <span style={{ fontFamily: 'monospace' }}>
+                            {remMs < 3600000
+                              ? `Mở ${fmtTime(slot.start_time)} · còn ${remMin}m`
+                              : `Mở lúc ${fmtTime(slot.start_time)}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+
+          {/* ── MAIN: TEAM + CRITERIA ── */}
+          <div style={{ flex: '1 1 440px', minWidth: 440, minHeight: 0, overflowY: 'auto', padding: '24px 28px 40px', position: 'relative', zIndex: 1, background: '#080f1a' }}>
+            {!selected ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300, color: '#4b5563', fontSize: 14 }}>
+                Chọn team đang trình bày để bắt đầu chấm điểm
+              </div>
+            ) : (
+              <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+                {/* Team header card */}
+                <div style={{ position: 'relative', border: '1px solid #1c2d40', borderRadius: 16, background: '#111827', padding: '20px 22px', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', top: -40, right: -30, width: 170, height: 170, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,229,255,.10), transparent 70%)', pointerEvents: 'none' }} />
+
+                  {/* name + links */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, position: 'relative' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '.2px', color: '#e8eef5' }}>{selected.team_name}</h1>
+                        {isLive(selected) && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 999, background: 'rgba(0,229,255,.12)', border: '1px solid rgba(0,229,255,.4)', animation: 'jspLiveRing 2s infinite' }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00e5ff', display: 'inline-block' }} />
+                            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.07em', color: '#7fe9f7' }}>LIVE</span>
+                          </span>
                         )}
-                        {myScore?.status === 'draft' && !team.isMentee && (
-                          <Tag color="orange" style={{ marginRight: 8 }}>Nháp</Tag>
-                        )}
-                        {team.isMentee ? (
-                          <Tooltip title="Bạn là mentor của đội này nên không thể chấm (conflict of interest)">
-                            <Tag color="purple">Đội bạn dìu</Tag>
-                          </Tooltip>
-                        ) : (
-                          <Button
-                            type={myScore?.status === 'submitted' ? 'default' : 'primary'}
-                            size="small"
-                            onClick={() => openForm(team)}
-                          >
-                            {myScore?.status === 'submitted' ? '✓ Xem / Sửa'
-                              : myScore?.status === 'draft' ? '📝 Tiếp tục'
-                              : '⚖ Chấm điểm'}
-                          </Button>
-                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 7, fontFamily: 'monospace', fontSize: 12, color: '#8a98a8' }}>
+                        <span>🕐 {fmtTime(selected.start_time)}–{fmtTime(selected.end_time)}</span>
+                        {selected.room && <><span style={{ color: '#3a4654' }}>•</span><span>📍 {selected.room}</span></>}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                      {selected.repo_url  && <a href={selected.repo_url}  target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>⛓ Repo</a>}
+                      {selected.slide_url && <a href={selected.slide_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>🗒 Slide</a>}
+                      {selected.demo_url  && <a href={selected.demo_url}  target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>🎥 Video</a>}
+                    </div>
+                  </div>
+
+                  {/* Topic */}
+                  <div style={{ marginTop: 16, padding: '13px 15px', borderRadius: 12, background: '#0a1015', border: '1px solid #18222d' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: '#5f6f7e' }}>ĐỀ TÀI</span>
+                      {topic && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 9px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, color: diff.color, background: diff.bg, border: `1px solid ${diff.border}` }}>
+                          {diff.label}
+                        </span>
+                      )}
+                    </div>
+                    {topic ? (
+                      <>
+                        <div style={{ fontSize: 15, fontWeight: 600, color: '#dbe6f0' }}>{topic.title}</div>
+                        {topic.description && <div style={{ fontSize: 12.5, color: '#8a98a8', marginTop: 4, lineHeight: 1.5 }}>{topic.description}</div>}
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 13, color: '#5f6f7e', fontStyle: 'italic' }}>
+                        {teamDetailLoading ? 'Đang tải...' : 'Chưa có thông tin đề tài'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Members */}
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: '#5f6f7e', marginBottom: 9 }}>
+                      THÀNH VIÊN ({teamDetailLoading ? '...' : members.length})
+                    </div>
+                    {teamDetailLoading ? (
+                      <div style={{ fontSize: 12, color: '#5f6f7e' }}>Đang tải...</div>
+                    ) : members.length > 0 ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {members.map((m, i) => {
+                          const av       = AVATAR_COLORS[i % AVATAR_COLORS.length];
+                          const name     = m.full_name || m.email || 'Thành viên';
+                          const isLeader = String(m.user_id) === String(teamDetail?.leader_id);
+                          return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '6px 12px 6px 6px', borderRadius: 999, background: '#0e151d', border: '1px solid #1c2632' }}>
+                              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: '50%', fontSize: 11, fontWeight: 700, background: av.bg, color: av.fg, flexShrink: 0 }}>
+                                {getInitials(name)}
+                                {isLeader && <span style={{ position: 'absolute', top: -5, right: -5, fontSize: 11 }}>👑</span>}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                                <span style={{ fontSize: 12.5, fontWeight: 600, color: '#dbe6f0' }}>{name}</span>
+                                <span style={{ fontSize: 10.5, color: '#6b7a8a', fontFamily: 'monospace' }}>
+                                  {m.contribution_percentage ?? '—'}% đóng góp
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#5f6f7e', fontStyle: 'italic' }}>Không có thông tin thành viên</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Criteria */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 2px 12px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.13em', color: '#5f6f7e' }}>TIÊU CHÍ ĐÁNH GIÁ</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: 12, color: filledCount === criteria.length && criteria.length > 0 ? '#34d399' : '#fbbf24' }}>
+                      {filledCount}/{criteria.length} đã chấm
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {criteria.map((c) => (
+                      <CriterionSlider
+                        key={c.id}
+                        c={c}
+                        value={draft.criteria?.[c.id] ?? 0}
+                        onChange={(v) => setScore(c.id, v)}
+                        readOnly={round?.scoring_locked || false}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Comment */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.13em', color: '#5f6f7e', margin: '0 2px 10px' }}>NHẬN XÉT TỔNG QUAN</div>
+                  <textarea
+                    value={draft.comment}
+                    onChange={(e) => setDraft((p) => ({ ...p, comment: e.target.value }))}
+                    readOnly={round?.scoring_locked || false}
+                    placeholder={round?.scoring_locked ? "Vòng thi đã khóa chấm điểm" : "Ghi nhận điểm mạnh, góp ý cho team..."}
+                    style={{ width: '100%', minHeight: 92, background: '#0e151d', border: '1px solid #1c2632', borderRadius: 13, color: '#e8eef5', padding: '13px 15px', fontSize: 13, fontFamily: 'inherit', lineHeight: 1.5, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+              </div>
+            )}
+          </div>
+
+          {/* ── RIGHT: SUMMARY RAIL ── */}
+          <aside style={{ width: 340, flexShrink: 0, minHeight: 0, borderLeft: '1px solid #18202b', background: 'linear-gradient(180deg,#0b1016,#0a0d12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '22px 22px 10px' }}>
+
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.13em', color: '#5f6f7e', textAlign: 'center', marginBottom: 14 }}>TỔNG ĐIỂM</div>
+
+              {/* Gauge */}
+              <div style={{ position: 'relative', width: 178, height: 178, margin: '0 auto 6px' }}>
+                <svg width="178" height="178" viewBox="0 0 178 178">
+                  <circle cx="89" cy="89" r="74" fill="none" stroke="#16202b" strokeWidth="13" />
+                  <circle cx="89" cy="89" r="74" fill="none"
+                    stroke={selected ? scoreColor(total) : '#1f2a36'}
+                    strokeWidth="13" strokeLinecap="round"
+                    strokeDasharray={gCirc}
+                    strokeDashoffset={gCirc * (1 - (selected ? total / 10 : 0))}
+                    transform="rotate(-90 89 89)"
+                    style={{ transition: 'stroke-dashoffset .55s cubic-bezier(.22,1,.36,1), stroke .35s' }}
+                  />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 48, fontWeight: 700, lineHeight: 1, color: selected ? scoreColor(total) : '#5a6675', transition: 'color .35s' }}>
+                    {selected ? total.toFixed(1) : '—'}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#6b7a8a', marginTop: 2 }}>trên 10 điểm</span>
+                </div>
+              </div>
+              <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: selected ? scoreColor(total) : '#5a6675', marginBottom: 18 }}>
+                {selected ? scoreStatus(total) : 'Chọn team để chấm'}
+              </div>
+
+              <div style={{ height: 1, background: '#16202b', marginBottom: 16 }} />
+
+              {/* Breakdown */}
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em', color: '#5f6f7e', marginBottom: 12 }}>PHÂN TÍCH THEO TIÊU CHÍ</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+                {criteria.map((c) => {
+                  const v = draft.criteria?.[c.id] ?? 0;
+                  return (
+                    <div key={c.id}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
+                        <span style={{ fontSize: 12, color: '#aebccb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#8a98a8', flexShrink: 0 }}>
+                          {v > 0 ? v.toFixed(1) : '0'}×{Math.round(c.weight * 100)}% <span style={{ color: '#4a5663' }}>·</span> <span style={{ color: '#7fe9f7' }}>{(v * c.weight).toFixed(2)}</span>
+                        </span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 4, background: '#141d27', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 4, background: 'linear-gradient(90deg,#0098b3,#00e5ff)', transition: 'width .4s', width: `${(v / c.maxScore) * 100}%` }} />
                       </div>
                     </div>
                   );
                 })}
               </div>
             </div>
-          );
-        })}
-      </div>
 
-      {/* ─── Score Form Modal ─── */}
-      <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span>⚖ Chấm điểm:</span>
-            <span style={{ color: 'var(--cyan)' }}>{scoringTeam?.name}</span>
-          </div>
-        }
-        open={!!scoringTeam}
-        onCancel={() => setScoringTeam(null)}
-        width={620}
-        footer={null}
-        destroyOnClose
-      >
-        {scoringTeam && (
-          <div className="jp-score-form">
-            <div className="jp-score-links">
-              {scoringTeam.repoUrl
-                ? <a href={scoringTeam.repoUrl} target="_blank" rel="noreferrer" className="jp-score-link jp-score-link--repo">🔗 Mở Repo</a>
-                : <span className="jp-no-link">Không có link repo</span>}
-              {scoringTeam.slideUrl
-                ? <a href={scoringTeam.slideUrl} target="_blank" rel="noreferrer" className="jp-score-link jp-score-link--slide">📊 Mở Slide</a>
-                : <span className="jp-no-link">Không có slide</span>}
-              {scoringTeam.demoUrl && (
-                <a href={scoringTeam.demoUrl} target="_blank" rel="noreferrer" className="jp-score-link jp-score-link--demo" style={{ marginLeft: 8 }}>🎥 Mở Video</a>
+            {/* Actions */}
+            <div style={{ flexShrink: 0, padding: '16px 22px 20px', borderTop: '1px solid #16202b', background: '#0a0d12' }}>
+              {!selected ? (
+                <div style={{ textAlign: 'center', fontSize: 12, color: '#5f6f7e' }}>Chọn team để bắt đầu chấm</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                  {round?.scoring_locked ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 11, background: 'rgba(239,68,68,.10)', border: '1px solid rgba(239,68,68,.32)' }}>
+                      <span style={{ fontSize: 16 }}>🔒</span>
+                      <div style={{ lineHeight: 1.25 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#f87171' }}>Vòng thi đã khóa chấm điểm</div>
+                        <div style={{ fontSize: 11, color: '#aebccb', marginTop: 2 }}>Bạn không thể chỉnh sửa hoặc nộp điểm lúc này.</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {isSubmitted && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 11, background: 'rgba(52,211,153,.10)', border: '1px solid rgba(52,211,153,.32)' }}>
+                          <span style={{ fontSize: 16 }}>✓</span>
+                          <div style={{ lineHeight: 1.25 }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#6ee7b7' }}>Đã nộp điểm chính thức</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#5a8a76' }}>Tổng {selected.total_score?.toFixed(1) ?? total.toFixed(1)} / 10 — vẫn có thể sửa cho đến khi Admin khóa chấm điểm</div>
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => saveScore(true)}
+                        disabled={submitting}
+                        style={{ width: '100%', padding: 13, borderRadius: 11, border: 'none', background: submitting ? '#0e3a47' : 'linear-gradient(135deg,#00e5ff,#00a3c4)', color: '#04222a', fontSize: 14, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 18px rgba(0,229,255,.28)', letterSpacing: '.2px' }}
+                      >{submitting ? 'Đang nộp...' : isSubmitted ? 'Cập nhật điểm chính thức' : 'Nộp Điểm chính thức'}</button>
+                      <button
+                        onClick={() => saveScore(false)}
+                        disabled={submitting}
+                        style={{ width: '100%', padding: 11, borderRadius: 11, border: '1px solid #243140', background: '#0e151d', color: '#aebccb', fontSize: 13, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
+                      >Lưu nháp</button>
+                      <div style={{ textAlign: 'center', fontSize: 11, color: '#5a6675', marginTop: 2 }}>
+                        {filledCount === criteria.length && criteria.length > 0
+                          ? 'Tất cả tiêu chí đã sẵn sàng'
+                          : `Cần chấm đủ ${criteria.length} tiêu chí trước khi nộp`}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
+          </aside>
 
-            <div className="jp-crit-list">
-              {criteria.map(c => (
-                <div key={c.id} className="jp-crit-row">
-                  <div className="jp-crit-meta">
-                    <div className="jp-crit-header-row">
-                      <span className="jp-crit-name">{c.name}</span>
-                      <span className="jp-crit-weight-badge">×{(c.weight * 100).toFixed(0)}%</span>
-                    </div>
-                    {c.description && <div className="jp-crit-desc">{c.description}</div>}
-                  </div>
-                  <div className="jp-crit-input-row">
-                    <InputNumber
-                      min={0} max={c.maxScore} step={0.5} precision={1}
-                      value={draft.criteria[c.id] ?? null}
-                      onChange={v => setDraft(p => ({ ...p, criteria: { ...p.criteria, [c.id]: v } }))}
-                      style={{ width: 90 }}
-                      placeholder="0–10"
-                    />
-                    <span className="jp-crit-max">/ {c.maxScore}</span>
-                    {draft.criteria[c.id] !== undefined && draft.criteria[c.id] !== null && (
-                      <span className="jp-crit-contrib">
-                        → {(draft.criteria[c.id] * c.weight).toFixed(2)} điểm
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="jp-total-box">
-              <div className="jp-total-row">
-                <span className="jp-total-label">Điểm tổng (quy đổi):</span>
-                <span className="jp-total-value" style={{
-                  color: weightedTotal >= 8 ? '#10b981' : weightedTotal >= 6 ? '#f59e0b' : weightedTotal > 0 ? '#ef4444' : 'var(--text-muted)'
-                }}>
-                  {weightedTotal.toFixed(2)} / 10
-                </span>
-              </div>
-              <Progress
-                percent={Math.round(weightedTotal * 10)}
-                strokeColor={weightedTotal >= 8 ? '#10b981' : weightedTotal >= 6 ? '#f59e0b' : '#ef4444'}
-                trailColor="rgba(255,255,255,0.08)" size="small" showInfo={false}
-              />
-            </div>
-
-            <div className="jp-comment-box">
-              <label className="jp-comment-label">Nhận xét (không bắt buộc)</label>
-              <textarea
-                className="jp-comment-textarea" rows={3}
-                placeholder="Nhận xét tổng quan về đội thi..."
-                value={draft.comment}
-                onChange={e => setDraft(p => ({ ...p, comment: e.target.value }))}
-              />
-            </div>
-
-            <div className="jp-form-actions">
-              <Button onClick={() => saveScore('draft')} loading={submitting}>💾 Lưu nháp</Button>
-              <Button type="primary" onClick={() => saveScore('submitted')} loading={submitting} style={{ minWidth: 160 }}>
-                {scores[scoringTeam?.id]?.status === 'submitted' ? '✓ Cập nhật điểm chính thức' : '✓ Nộp điểm chính thức'}
-              </Button>
-            </div>
-
-            {scores[scoringTeam?.id]?.status === 'submitted' && (
-              <Alert type="success" showIcon
-                message="Đội này đã có điểm chính thức. Bạn vẫn có thể sửa trước khi Admin khóa chấm điểm."
-                style={{ marginTop: 8 }}
-              />
-            )}
-          </div>
-        )}
-      </Modal>
-    </div>
+        </div>
+      </div>
+    </>
   );
-}
+};
+
+export default MentorScoringPage;

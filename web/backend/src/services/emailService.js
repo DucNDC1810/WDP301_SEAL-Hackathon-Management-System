@@ -11,6 +11,7 @@ const dispatchEmail = async (mailOptions) => {
   // 1. Dùng Resend HTTPS REST API nếu khai báo RESEND_API_KEY (Hoạt động 100% trên Render, không bị chặn port)
   if (process.env.RESEND_API_KEY) {
     try {
+      const resendFrom = process.env.RESEND_FROM || "SEAL Hackathon <onboarding@resend.dev>";
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -18,7 +19,7 @@ const dispatchEmail = async (mailOptions) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || "SEAL Hackathon <onboarding@resend.dev>",
+          from: resendFrom,
           to: [to],
           subject,
           html,

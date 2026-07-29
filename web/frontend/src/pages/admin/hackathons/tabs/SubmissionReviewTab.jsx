@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Select, Button, Tag, Modal, Input, Alert, message, Spin } from 'antd';
 import { useApi } from '../../../../hooks/useApi';
+import RefreshButton from '../../../../components/RefreshButton';
 
 const { TextArea } = Input;
 
@@ -132,11 +133,14 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
             Duyệt bài nộp trễ, xác nhận hoặc từ chối theo từng vòng thi.
           </p>
         </div>
-        {pendingCount > 0 && (
-          <Tag color="orange" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>
-            {pendingCount} bài chờ duyệt
-          </Tag>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <RefreshButton onRefresh={() => fetchSubmissions(selectedRound)} />
+          {pendingCount > 0 && (
+            <Tag color="orange" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>
+              {pendingCount} bài chờ duyệt
+            </Tag>
+          )}
+        </div>
       </div>
 
       {/* Controls */}

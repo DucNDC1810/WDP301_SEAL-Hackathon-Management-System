@@ -4,6 +4,7 @@ import { getRoundSetup, assignJudges, activateRound } from '../api/round';
 import { useRoundStatus } from '../hooks/useRoundStatus';
 import { FrozenOverlay } from '../components/FrozenOverlay';
 import { notification, Modal } from 'antd';
+import RefreshButton from '../components/RefreshButton';
 
 export default function RoundActivatePage() {
   const { round_id } = useParams();
@@ -279,6 +280,9 @@ export default function RoundActivatePage() {
             }}>
               Trạng thái: {isActivated ? "ĐÃ KÍCH HOẠT (Đang chạy)" : "CHƯA KÍCH HOẠT (Đang chờ)"}
             </span>
+          </div>
+          <div style={{ marginTop: '14px' }}>
+            <RefreshButton onRefresh={loadSetup} />
           </div>
         </header>
 

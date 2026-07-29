@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Spin, message } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
+import RefreshButton from '../../components/RefreshButton';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -358,6 +359,9 @@ export const JudgeScoringPage = () => {
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.13em', color: '#5f6f7e' }}>LỊCH TRÌNH BÀY</span>
                 <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#7b8a9a' }}>{schedule.pool_name}</span>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <RefreshButton onRefresh={loadData} size={12} style={{ padding: '5px 10px', fontSize: 11 }} />
               </div>
               <div style={{ height: 5, borderRadius: 3, background: '#141b24', overflow: 'hidden' }}>
                 <div style={{ height: '100%', borderRadius: 3, background: 'linear-gradient(90deg,#00e5ff,#34d399)', boxShadow: '0 0 10px rgba(0,229,255,.4)', transition: 'width .5s', width: `${progPct * 100}%` }} />

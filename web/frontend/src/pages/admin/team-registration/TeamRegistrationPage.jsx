@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import TeamDashboardPage from '../team/TeamDashboardPage';
+import RefreshButton from '../../../components/RefreshButton';
 import './TeamRegistrationPage.css';
 import '../hackathons/HackathonFeaturePage.css';
 
@@ -63,28 +64,35 @@ export default function TeamRegistrationPage() {
       .catch((err) => console.error("Error loading pending teams:", err));
   };
 
-  useEffect(() => {
+  const fetchInitialData = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
     if (!token) { setLoading(false); return; }
 
-    Promise.all([
-      fetch(`${API_URL}/api/contests`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      fetch(`${API_URL}/api/teams/all-pending`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
-    ])
-      .then(([dContests, dPending]) => {
-        if (dContests.success) setContests(dContests.data || []);
-        if (dPending.success && Array.isArray(dPending.data)) {
-          const pendingIds = new Set(
-            dPending.data
-              .map(t => t.contest_id)
-              .filter(Boolean)
-          );
-          setPendingContestIds(pendingIds);
-        }
-      })
-      .catch((err) => console.error("Error loading team registration dashboard:", err))
-      .finally(() => setLoading(false));
+    setLoading(true);
+    try {
+      const [dContests, dPending] = await Promise.all([
+        fetch(`${API_URL}/api/contests`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+        fetch(`${API_URL}/api/teams/all-pending`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+      ]);
+      if (dContests.success) setContests(dContests.data || []);
+      if (dPending.success && Array.isArray(dPending.data)) {
+        const pendingIds = new Set(
+          dPending.data
+            .map(t => t.contest_id)
+            .filter(Boolean)
+        );
+        setPendingContestIds(pendingIds);
+      }
+    } catch (err) {
+      console.error("Error loading team registration dashboard:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [contestId]);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
 
 
 
@@ -131,6 +139,8 @@ export default function TeamRegistrationPage() {
             </p>
           </div>
         </div>
+
+        <RefreshButton onRefresh={fetchInitialData} />
 
       </div>
 

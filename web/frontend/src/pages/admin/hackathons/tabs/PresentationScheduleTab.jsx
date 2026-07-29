@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Select, Button, Tag, Modal, message, Spin, Tooltip } from 'antd';
 import { useApi } from '../../../../hooks/useApi';
+import RefreshButton from '../../../../components/RefreshButton';
 
 const API = import.meta.env.VITE_API_URL || '';
 const tok = () => localStorage.getItem('accessToken');
@@ -211,6 +212,7 @@ export default function PresentationScheduleTab({ contestId, contest }) {
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
+          <RefreshButton onRefresh={loadSlots} />
           <Button
             disabled={!slots.length}
             onClick={() => {

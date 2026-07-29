@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Select, Button, Tag, Modal, Input, Alert, Progress, message, Spin, Table } from 'antd';
 import { useApi } from '../../../../hooks/useApi';
+import RefreshButton from '../../../../components/RefreshButton';
 
 const { TextArea } = Input;
 
@@ -165,7 +166,10 @@ export default function ScoringLockTab({ config, contestId, contest }) {
             Lock bình thường chỉ khả dụng khi tất cả judge hoàn thành. Force-lock cho phép khóa sớm.
           </p>
         </div>
-        <Button size="small" onClick={() => setShowAudit(true)}>📋 Audit Log ({auditLog.length})</Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <RefreshButton onRefresh={async () => { await Promise.all([fetchProgress(selectedRound), fetchScores(selectedRound)]); }} />
+          <Button size="small" onClick={() => setShowAudit(true)}>📋 Audit Log ({auditLog.length})</Button>
+        </div>
       </div>
 
       {/* Round selector */}

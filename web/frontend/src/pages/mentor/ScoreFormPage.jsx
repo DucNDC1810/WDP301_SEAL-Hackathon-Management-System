@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Form, InputNumber, Input, Button, Card, Row, Col, Typography, Divider, message, Spin } from 'antd';
 import './ScoreFormPage.css';
+import RefreshButton from '../../components/RefreshButton';
 
 const { Title, Text } = Typography;
 const API = import.meta.env.VITE_API_URL || '';
@@ -23,8 +24,7 @@ export default function ScoreFormPage() {
   const token = localStorage.getItem('accessToken');
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = async () => {
       try {
         const cRes = await fetch(`${API}/api/contests/${contestId}`, { headers });
         const contest = await cRes.json();
@@ -40,7 +40,9 @@ export default function ScoreFormPage() {
       } finally {
         setLoading(false);
       }
-    };
+  };
+
+  useEffect(() => {
     fetchData();
   }, [contestId, roundId, teamId]);
 
@@ -76,7 +78,10 @@ export default function ScoreFormPage() {
 
   return (
     <div className="score-form">
-      <Title level={3}>Chấm điểm</Title>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Title level={3} style={{ margin: 0 }}>Chấm điểm</Title>
+        <RefreshButton onRefresh={fetchData} />
+      </div>
       <Row gutter={24}>
         <Col xs={24} md={14}>
           <Card title="Phiếu chấm điểm">

@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useApi } from '../../hooks/useApi';
 import '../mentor/MentorDashboard.css';
 import './JudgeDashboard.css';
+import RefreshButton from '../../components/RefreshButton';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso) {
@@ -921,13 +922,16 @@ export default function JudgeDashboard() {
       {/* Main */}
       <main className="md-main">
         {activeView === 'dashboard' && (
-          <div className="md-hero">
-            <h1 className="md-hero-greeting">
-              Xin chào, <span>{user?.full_name?.split(' ').pop() || 'Giám khảo'}</span> 👋
-            </h1>
-            <p className="md-hero-sub">
-              Theo dõi tiến độ chấm điểm và các vòng thi được phân công.
-            </p>
+          <div className="md-hero" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <h1 className="md-hero-greeting">
+                Xin chào, <span>{user?.full_name?.split(' ').pop() || 'Giám khảo'}</span> 👋
+              </h1>
+              <p className="md-hero-sub">
+                Theo dõi tiến độ chấm điểm và các vòng thi được phân công.
+              </p>
+            </div>
+            <RefreshButton onRefresh={fetchData} />
           </div>
         )}
         {renderSection()}

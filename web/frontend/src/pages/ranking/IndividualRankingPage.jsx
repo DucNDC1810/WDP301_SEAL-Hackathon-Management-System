@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getIndividualRanking } from '../../api/ranking';
 import FeatureGate from '../../components/FeatureGate';
+import RefreshButton from '../../components/RefreshButton';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const MEDAL_COLOR = {
@@ -18,29 +19,25 @@ export default function IndividualRankingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let mounted = true;
-    setLoading(true);
-    setError(null);
-
-    const fetchData = async () => {
+  const fetchData = async () => {
       try {
         const res = await getIndividualRanking(round_id);
-        if (mounted) setData(res.data);
+        setData(res.data);
       } catch (err) {
-        if (!mounted) return;
         if (err.response?.status === 403) {
           setError('unpublished');
         } else {
           setError(err.response?.data?.message || 'Lỗi tải dữ liệu');
         }
       } finally {
-        if (mounted) setLoading(false);
+        setLoading(false);
       }
-    };
+  };
 
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
     fetchData();
-    return () => { mounted = false; };
   }, [round_id]);
 
   if (loading) return (
@@ -101,6 +98,9 @@ export default function IndividualRankingPage() {
                 Xếp hạng cá nhân — {data.season_name}
               </p>
             )}
+            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'center' }}>
+              <RefreshButton onRefresh={fetchData} />
+            </div>
           </header>
 
           {/* Table */}

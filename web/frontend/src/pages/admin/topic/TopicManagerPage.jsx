@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import './TopicManagerPage.css';
+import RefreshButton from '../../../components/RefreshButton';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -33,25 +34,25 @@ function TopicManagerPage() {
   const token = localStorage.getItem('accessToken');
 
   // ─── Fetch Topics ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetchTopics = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`${API_URL}/api/topics/contests/${contestId}/topics`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message);
-        setTopics(data.data || []);
-      } catch (err) {
-        setError(err.message || 'Không thể lấy danh sách đề tài.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchTopics = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/topics/contests/${contestId}/topics`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      setTopics(data.data || []);
+    } catch (err) {
+      setError(err.message || 'Không thể lấy danh sách đề tài.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (contestId) fetchTopics();
   }, [contestId, token]);
 
@@ -274,7 +275,8 @@ function TopicManagerPage() {
             <h1 className="topic-title">Quản Lý Đề Tài</h1>
             <p className="topic-subtitle">Đăng tải, cập nhật đề bài và tài nguyên hỗ trợ cho cuộc thi</p>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <RefreshButton onRefresh={fetchTopics} />
             <button
               type="button"
               className="btn btn--outline"

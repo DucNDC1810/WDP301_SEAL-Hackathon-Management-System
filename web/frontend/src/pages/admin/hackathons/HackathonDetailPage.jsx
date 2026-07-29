@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Modal as AntModal, Tooltip, Select, notification } from 'antd';
 import JudgeAssignmentTab from './tabs/JudgeAssignmentTab';
@@ -8,6 +8,7 @@ import TeamEliminationTab from './tabs/TeamEliminationTab';
 import PresentationScheduleTab from './tabs/PresentationScheduleTab';
 import LeaderboardTable from '../../../components/LeaderboardTable';
 import TiebreakAlert from '../../../components/TiebreakAlert';
+import RefreshButton from '../../../components/RefreshButton';
 import { getRoundStatus } from '../../../utils/roundStatus';
 import './HackathonDetailPage.css';
 
@@ -492,85 +493,91 @@ export default function HackathonDetailPage({ defaultTab }) {
   }, []);
 
   // Fetch rounds for leaderboard tab
-  useEffect(() => {
-    if (tab === 12) {
-      setLoadingLeaderboard(true);
-      setLeaderboardError('');
-      fetch(`${API_URL}/api/leaderboard/contests/${id}/rounds`, { headers: hdrs() })
-        .then(res => res.json())
-        .then(res => {
-          if (res.success && res.data) {
-            setLeaderboardRounds(res.data);
-            if (res.data.length > 0) {
-              const defaultRound = res.data.find(r => r.is_active) || res.data[0];
-              setSelectedLeaderboardRoundId(defaultRound._id);
-            } else {
-              setLoadingLeaderboard(false);
-            }
+  const fetchLeaderboardRounds = useCallback(() => {
+    if (tab !== 12) return;
+    setLoadingLeaderboard(true);
+    setLeaderboardError('');
+    fetch(`${API_URL}/api/leaderboard/contests/${id}/rounds`, { headers: hdrs() })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success && res.data) {
+          setLeaderboardRounds(res.data);
+          if (res.data.length > 0) {
+            const defaultRound = res.data.find(r => r.is_active) || res.data[0];
+            setSelectedLeaderboardRoundId(defaultRound._id);
           } else {
-            throw new Error(res.message || 'Không thể tải danh sách vòng thi');
+            setLoadingLeaderboard(false);
           }
-        })
-        .catch(err => {
-          console.error(err);
-          setLeaderboardError(err.message || 'Lỗi khi tải danh sách vòng thi.');
-          setLoadingLeaderboard(false);
-        });
-    }
+        } else {
+          throw new Error(res.message || 'Không thể tải danh sách vòng thi');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        setLeaderboardError(err.message || 'Lỗi khi tải danh sách vòng thi.');
+        setLoadingLeaderboard(false);
+      });
   }, [tab, id]);
 
-  // Fetch leaderboard data when selected round changes
   useEffect(() => {
-    if (tab === 12 && selectedLeaderboardRoundId) {
-      setLoadingLeaderboard(true);
-      setLeaderboardError('');
-      fetch(`${API_URL}/api/leaderboard/${selectedLeaderboardRoundId}?admin=true`, { headers: hdrs() })
-        .then(async res => {
-          const data = await res.json();
-          if (!res.ok) {
-            throw new Error(data.message || 'Không thể tải kết quả xếp hạng.');
-          }
-          return data;
-        })
-        .then(data => {
-          setLeaderboardData(data);
-          if (data.groups && data.groups.length > 0) {
-            setActiveLeaderboardGroup(data.groups[0].group_name);
-          } else {
-            setActiveLeaderboardGroup('');
-          }
-          setLoadingLeaderboard(false);
-        })
-        .catch(err => {
-          console.error(err);
-          setLeaderboardError(err.message || 'Lỗi khi tải bảng xếp hạng.');
-          setLeaderboardData(null);
-          setLoadingLeaderboard(false);
-        });
+    fetchLeaderboardRounds();
+  }, [fetchLeaderboardRounds]);
 
-      // Fetch tiebreak details
-      fetch(`${API_URL}/api/leaderboard/${selectedLeaderboardRoundId}/tiebreak`, { headers: hdrs() })
-        .then(res => res.json())
-        .then(res => {
-          if (res.success) {
-            setLeaderboardTiebreakGroups(res.tiebreak_groups || []);
-          }
-        })
-        .catch(err => {
-          console.error("Lỗi khi tải trạng thái phân tranh (bỏ qua):", err);
-        });
+  // Fetch leaderboard data when selected round changes
+  const fetchLeaderboardData = useCallback(() => {
+    if (tab !== 12 || !selectedLeaderboardRoundId) return;
+    setLoadingLeaderboard(true);
+    setLeaderboardError('');
+    fetch(`${API_URL}/api/leaderboard/${selectedLeaderboardRoundId}?admin=true`, { headers: hdrs() })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Không thể tải kết quả xếp hạng.');
+        }
+        return data;
+      })
+      .then(data => {
+        setLeaderboardData(data);
+        if (data.groups && data.groups.length > 0) {
+          setActiveLeaderboardGroup(data.groups[0].group_name);
+        } else {
+          setActiveLeaderboardGroup('');
+        }
+        setLoadingLeaderboard(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLeaderboardError(err.message || 'Lỗi khi tải bảng xếp hạng.');
+        setLeaderboardData(null);
+        setLoadingLeaderboard(false);
+      });
 
-      // Fetch wildcard details
-      fetch(`${API_URL}/api/wildcard/${selectedLeaderboardRoundId}`, { headers: hdrs() })
-        .then(res => res.json())
-        .then(res => {
-          setLeaderboardWildcardEligible(res.eligible || false);
-        })
-        .catch(err => {
-          console.error("Lỗi khi tải trạng thái Wild Card (bỏ qua):", err);
-        });
-    }
+    // Fetch tiebreak details
+    fetch(`${API_URL}/api/leaderboard/${selectedLeaderboardRoundId}/tiebreak`, { headers: hdrs() })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          setLeaderboardTiebreakGroups(res.tiebreak_groups || []);
+        }
+      })
+      .catch(err => {
+        console.error("Lỗi khi tải trạng thái phân tranh (bỏ qua):", err);
+      });
+
+    // Fetch wildcard details
+    fetch(`${API_URL}/api/wildcard/${selectedLeaderboardRoundId}`, { headers: hdrs() })
+      .then(res => res.json())
+      .then(res => {
+        setLeaderboardWildcardEligible(res.eligible || false);
+      })
+      .catch(err => {
+        console.error("Lỗi khi tải trạng thái Wild Card (bỏ qua):", err);
+      });
   }, [tab, selectedLeaderboardRoundId]);
+
+  useEffect(() => {
+    fetchLeaderboardData();
+  }, [fetchLeaderboardData]);
 
   useEffect(() => {
     if (contest && contest.rounds && contest.rounds.length > 0 && !selectedPoolRoundId) {
@@ -2634,11 +2641,14 @@ export default function HackathonDetailPage({ defaultTab }) {
       {tab === 12 && (
         <div className="hd-section">
           <div className="hd-section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-            <div>
-              <h2 className="hd-section-title" style={{ fontSize: '1.8rem', fontWeight: '800', textShadow: '0 0 10px rgba(0, 240, 255, 0.2)', margin: 0 }}>Bảng Xếp Hạng Kết Quả</h2>
-              <p className="hd-section-desc" style={{ margin: '6px 0 0 0' }}>
-                Xem trực quan xếp hạng điểm số trung bình có trọng số của các đội thi theo từng bảng đấu và vòng thi
-              </p>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', gap: '16px', flexWrap: 'wrap' }}>
+              <div>
+                <h2 className="hd-section-title" style={{ fontSize: '1.8rem', fontWeight: '800', textShadow: '0 0 10px rgba(0, 240, 255, 0.2)', margin: 0 }}>Bảng Xếp Hạng Kết Quả</h2>
+                <p className="hd-section-desc" style={{ margin: '6px 0 0 0' }}>
+                  Xem trực quan xếp hạng điểm số trung bình có trọng số của các đội thi theo từng bảng đấu và vòng thi
+                </p>
+              </div>
+              <RefreshButton onRefresh={() => { fetchLeaderboardRounds(); fetchLeaderboardData(); }} />
             </div>
             {/* Dropdown selector for rounds */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: '100%' }}>

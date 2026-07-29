@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Select, Button, Tag, Modal, Alert, Tooltip, message, Spin, Input } from 'antd';
 import { useApi } from '../../../../hooks/useApi';
+import RefreshButton from '../../../../components/RefreshButton';
 
 export default function JudgeAssignmentTab({ config, contestId, contest }) {
   const { request } = useApi();
@@ -299,6 +300,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
           placeholder="Chọn vòng thi"
           options={rounds.map(r => ({ value: r.id, label: r.trackName ? `${r.trackName} — ${r.name}` : r.name }))}
         />
+        <RefreshButton onRefresh={() => fetchAssignments(selectedRound)} />
       </div>
 
       {loadingAssignments && <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>}

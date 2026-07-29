@@ -5,6 +5,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useApi } from "../../../hooks/useApi";
 import { getRoundStatusKey } from "../../../utils/roundStatus";
 import "../student.css";
+import RefreshButton from "../../../components/RefreshButton";
 
 /* ─── Design tokens ────────────────────────────────────────────────────────── */
 const C = {
@@ -317,8 +318,7 @@ export const StudentOverviewPage = () => {
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    const load = async () => {
+  const load = async () => {
       setLoading(true);
       try {
         const [contestsRes, teamsRes] = await Promise.all([
@@ -427,7 +427,9 @@ export const StudentOverviewPage = () => {
       } finally {
         setLoading(false);
       }
-    };
+  };
+
+  useEffect(() => {
     load();
   }, []);
 
@@ -713,29 +715,32 @@ export const StudentOverviewPage = () => {
         >
           Tổng quan
         </h2>
-        {activeRound && contest?._id && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              className="sp-btn sp-btn--sm"
-              onClick={() =>
-                navigate(`/leaderboard/${contest._id}/${activeRound._id}`)
-              }
-            >
-              <OrderedListOutlined /> Leaderboard
-            </button>
-            <button
-              className="sp-btn sp-btn--sm"
-              onClick={() => navigate(`/ranking?round=${activeRound._id}`)}
-              style={{
-                color: C.gold,
-                borderColor: "rgba(250,204,21,0.35)",
-                background: "rgba(250,204,21,0.07)",
-              }}
-            >
-              🏆 BXH & Giải thưởng
-            </button>
-          </div>
-        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <RefreshButton onRefresh={load} />
+          {activeRound && contest?._id && (
+            <>
+              <button
+                className="sp-btn sp-btn--sm"
+                onClick={() =>
+                  navigate(`/leaderboard/${contest._id}/${activeRound._id}`)
+                }
+              >
+                <OrderedListOutlined /> Leaderboard
+              </button>
+              <button
+                className="sp-btn sp-btn--sm"
+                onClick={() => navigate(`/ranking?round=${activeRound._id}`)}
+                style={{
+                  color: C.gold,
+                  borderColor: "rgba(250,204,21,0.35)",
+                  background: "rgba(250,204,21,0.07)",
+                }}
+              >
+                🏆 BXH & Giải thưởng
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Hero: countdown + progress ──────────────────────────────────────── */}

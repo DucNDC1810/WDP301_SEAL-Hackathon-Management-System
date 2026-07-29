@@ -3,6 +3,7 @@ import {
   adminGetContests, adminToggleIndividual,
   adminGetIndividuals, adminUpsertIndividual,
 } from '../../../api/adminRanking';
+import RefreshButton from '../../../components/RefreshButton';
 
 const TABS = [
   { key: 'individual', label: '👤 Điểm cá nhân' },
@@ -165,11 +166,14 @@ function IndividualTab({ contestId, contestTitle }) {
         <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
           {individuals.length} thành viên trong <strong style={{ color: 'var(--text-primary)' }}>{contestTitle}</strong>
         </p>
-        <input
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder="Tìm theo tên / email..."
-          style={s.searchInput}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <RefreshButton onRefresh={load} />
+          <input
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tìm theo tên / email..."
+            style={s.searchInput}
+          />
+        </div>
       </div>
 
       {msg && (

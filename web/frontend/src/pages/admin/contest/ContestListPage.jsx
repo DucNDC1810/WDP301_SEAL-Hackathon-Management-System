@@ -4,6 +4,7 @@ import { ConfigProvider, theme, Table, Button, Tag, Spin, Alert, Empty, Space, S
 import { PlusOutlined } from '@ant-design/icons';
 import { useTheme } from '../../../context/ThemeContext';
 import './ContestListPage.css';
+import RefreshButton from '../../../components/RefreshButton';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -14,8 +15,7 @@ function ContestListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchContests = async () => {
+  const fetchContests = async () => {
       try {
         setLoading(true);
         setError('');
@@ -35,8 +35,9 @@ function ContestListPage() {
       } finally {
         setLoading(false);
       }
-    };
+  };
 
+  useEffect(() => {
     fetchContests();
   }, []);
 
@@ -208,22 +209,25 @@ function ContestListPage() {
               <h1 className="contest-list-title">Danh Sách Cuộc Thi</h1>
               <p className="contest-list-subtitle">Quản lý và thiết lập các cuộc thi Hackathon</p>
             </div>
-            <Button
-              type="primary"
-              size="large"
-              icon={<PlusOutlined />}
-              onClick={() => navigate('/admin/contests/create')}
-              id="btn-create-contest"
-              style={{
-                background: 'linear-gradient(135deg, #00d4ff, #a855f7)',
-                border: 'none',
-                color: '#060b16',
-                fontWeight: 600,
-                boxShadow: '0 0 15px rgba(0, 212, 255, 0.3)',
-              }}
-            >
-              Tạo Cuộc Thi Mới
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <RefreshButton onRefresh={fetchContests} />
+              <Button
+                type="primary"
+                size="large"
+                icon={<PlusOutlined />}
+                onClick={() => navigate('/admin/contests/create')}
+                id="btn-create-contest"
+                style={{
+                  background: 'linear-gradient(135deg, #00d4ff, #a855f7)',
+                  border: 'none',
+                  color: '#060b16',
+                  fontWeight: 600,
+                  boxShadow: '0 0 15px rgba(0, 212, 255, 0.3)',
+                }}
+              >
+                Tạo Cuộc Thi Mới
+              </Button>
+            </div>
           </div>
 
           {/* Error State */}

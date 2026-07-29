@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Select, Input, Button, notification, Table, Tag } from 'antd';
+import RefreshButton from '../../../../components/RefreshButton';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const tok = () => localStorage.getItem('accessToken');
@@ -202,9 +203,12 @@ export default function AwardManagementTab({ contestId, teams: propTeams }) {
           </p>
         </div>
 
-        <button className="hd-btn-add" onClick={openCreateModal} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span>➕</span> Thêm giải thưởng
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <RefreshButton onRefresh={async () => { await Promise.all([fetchPrizes(), fetchClaims(), fetchTeams()]); }} />
+          <button className="hd-btn-add" onClick={openCreateModal} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>➕</span> Thêm giải thưởng
+          </button>
+        </div>
       </div>
 
       {/* Sub-tabs selector */}

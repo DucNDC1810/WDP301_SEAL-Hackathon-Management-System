@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, message } from 'antd';
 import './HackathonListPage.css';
+import RefreshButton from '../../../components/RefreshButton';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -101,9 +102,12 @@ export default function HackathonListPage() {
           <h1 className="hl-title">Hackathons</h1>
           <p className="hl-subtitle">Quản lý tất cả cuộc thi</p>
         </div>
-        <button className="hl-btn-create" onClick={() => navigate('/admin/contest/create')}>
-          <Ico d={PLUS} size={16} sw={2.5} /> Tạo cuộc thi
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <RefreshButton onRefresh={fetchContests} />
+          <button className="hl-btn-create" onClick={() => navigate('/admin/contest/create')}>
+            <Ico d={PLUS} size={16} sw={2.5} /> Tạo cuộc thi
+          </button>
+        </div>
       </div>
 
       <div className="hl-toolbar">

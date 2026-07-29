@@ -36,8 +36,12 @@ export const assignJudge = async ({
 
   // ── EXTERNAL flow ──────────────────────────────────────────────────────────
   if (judge_type === "EXTERNAL") {
-    if (!external_email) {
+    if (!external_email || !external_email.trim()) {
       const err = new Error("Vui lòng nhập email của giám khảo ngoài"); err.statusCode = 400; throw err;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(external_email.trim())) {
+      const err = new Error("Địa chỉ email của giám khảo ngoài không hợp lệ"); err.statusCode = 400; throw err;
     }
     const email = external_email.toLowerCase().trim();
 

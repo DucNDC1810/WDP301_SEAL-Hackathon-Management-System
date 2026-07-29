@@ -151,8 +151,14 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     if (newJudgeType === 'INTERNAL' && !newJudgeId) {
       messageApi.error('Vui lòng chọn giám khảo!'); return;
     }
-    if (newJudgeType === 'EXTERNAL' && !newJudgeExternalEmail) {
-      messageApi.error('Vui lòng nhập email của giám khảo ngoài!'); return;
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (newJudgeType === 'EXTERNAL') {
+      if (!newJudgeExternalEmail || !newJudgeExternalEmail.trim()) {
+        messageApi.error('Vui lòng nhập email của giám khảo ngoài!'); return;
+      }
+      if (!EMAIL_REGEX.test(newJudgeExternalEmail.trim())) {
+        messageApi.error('Địa chỉ email không hợp lệ!'); return;
+      }
     }
     if (!newJudgePool) {
       messageApi.error('Vui lòng chọn bảng đấu!'); return;

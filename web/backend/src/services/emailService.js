@@ -8,7 +8,34 @@ const dispatchEmail = async (mailOptions) => {
   const { to, subject, html } = mailOptions;
   console.log(`[emailService] Attempting to send email to "${to}" | Subject: "${subject}"`);
 
-  // 1. Dùng Resend HTTPS REST API nếu khai báo RESEND_API_KEY (Hoạt động 100% trên Render, không bị chặn port)
+  // 1. Dùng Brevo HTTPS REST API nếu khai báo BREVO_API_KEY (Gửi được cho tất cả người nhận, không bị hạn chế Domain)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: "SEAL Hackathon", email: process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || "damchanduc1810@gmail.com" },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`[emailService] Successfully sent via Brevo API to "${to}" | ID: ${data.messageId}`);
+        return data;
+      }
+      console.warn(`[emailService] Brevo API warning: ${JSON.stringify(data)}, falling back to Resend/SMTP...`);
+    } catch (err) {
+      console.warn(`[emailService] Brevo API error: ${err.message}, falling back to Resend/SMTP...`);
+    }
+  }
+
+  // 2. Dùng Resend HTTPS REST API nếu khai báo RESEND_API_KEY (Fallback 2)
   if (process.env.RESEND_API_KEY) {
     try {
       const resendFrom = process.env.RESEND_FROM || "SEAL Hackathon <onboarding@resend.dev>";
@@ -33,33 +60,6 @@ const dispatchEmail = async (mailOptions) => {
       console.warn(`[emailService] Resend API warning: ${data.message || JSON.stringify(data)}, falling back to SMTP...`);
     } catch (err) {
       console.warn(`[emailService] Resend API error: ${err.message}, falling back to SMTP...`);
-    }
-  }
-
-  // 2. Dùng Brevo HTTPS REST API nếu khai báo BREVO_API_KEY
-  if (process.env.BREVO_API_KEY) {
-    try {
-      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-        method: "POST",
-        headers: {
-          "api-key": process.env.BREVO_API_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sender: { name: "SEAL Hackathon", email: process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || "damchanduc1810@gmail.com" },
-          to: [{ email: to }],
-          subject,
-          htmlContent: html,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        console.log(`[emailService] Successfully sent via Brevo API to "${to}" | ID: ${data.messageId}`);
-        return data;
-      }
-      console.warn(`[emailService] Brevo API warning: ${JSON.stringify(data)}, falling back to SMTP...`);
-    } catch (err) {
-      console.warn(`[emailService] Brevo API error: ${err.message}, falling back to SMTP...`);
     }
   }
 

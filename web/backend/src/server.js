@@ -101,6 +101,16 @@ app.use("/api/admin/ranking", adminRankingRoute);
 app.use("/api/prize", prizeRoute);
 app.use("/api/ai", aiChatRoute);
 
+// Global Error Handler — đảm bảo mọi lỗi API luôn trả về JSON sạch thay vì HTML 500
+app.use((err, req, res, next) => {
+  console.error("[ServerError]", err);
+  const status = err.statusCode || err.status || 500;
+  res.status(status).json({
+    success: false,
+    message: err.message || "Lỗi máy chủ",
+  });
+});
+
 initSocket(httpServer);
 
 connectDB().then(() => {

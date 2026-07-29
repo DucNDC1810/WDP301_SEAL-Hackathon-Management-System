@@ -502,7 +502,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                 disabled={!newJudgePool}
               />
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                Hệ thống sẽ gửi email mời. Tài khoản tự tạo sau khi họ xác nhận.
+                Hệ thống sẽ gửi email mời. Nếu email thuộc tài khoản đã đăng ký trên hệ thống, hệ thống sẽ tự động phân công trực tiếp.
               </p>
             </div>
           )}

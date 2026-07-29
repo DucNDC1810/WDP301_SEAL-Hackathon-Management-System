@@ -5,6 +5,7 @@ import MentorAssignment from "../models/MentorAssignment.js";
 import Invitation from "../models/Invitation.js";
 import Contest from "../models/Contest.js";
 import User from "../models/User.js";
+import Pool from "../models/Pool.js";
 import { sendJudgeInvitationEmail, sendJudgeAssignedEmail } from "./emailService.js";
 import { notifyJudgeAssignedToPool } from "./notificationService.js";
 
@@ -98,7 +99,21 @@ export const assignJudge = async ({
         { path: "assigned_by", select: "full_name email" },
       ]);
 
-      return { assignment, warnings: [] };
+      // Gửi mail thông báo phân công cho thành viên nội bộ
+      const poolObj = await Pool.findById(pool_id).select("pool_name");
+      sendJudgeAssignedEmail(
+        email,
+        existingUser.full_name || email,
+        contest.title,
+        poolObj?.pool_name || "Bảng đấu"
+      ).catch(e => console.error("[sendJudgeAssignedEmail]", e));
+
+      return {
+        assignment,
+        warnings: [
+          `Email "${email}" thuộc tài khoản nội bộ (${existingUser.full_name || email}). Hệ thống đã tự động phân công trực tiếp!`
+        ],
+      };
     }
 
     const existingInv = await Invitation.findOne({ contest_id, email, role: "judge", status: "pending" });

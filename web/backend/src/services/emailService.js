@@ -46,7 +46,7 @@ const dispatchEmail = async (mailOptions) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sender: { name: "SEAL Hackathon", email: process.env.EMAIL_USER || "no-reply@sealhackathon.com" },
+          sender: { name: "SEAL Hackathon", email: process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || "damchanduc1810@gmail.com" },
           to: [{ email: to }],
           subject,
           htmlContent: html,

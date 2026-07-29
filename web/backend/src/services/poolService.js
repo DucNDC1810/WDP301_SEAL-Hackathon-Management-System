@@ -129,10 +129,12 @@ export const drawPools = async (contestId, { pool_count, round_id }) => {
 
 /**
  * Lấy danh sách bảng đấu của cuộc thi kèm đội.
+ * Nếu không truyền roundId, trả về bảng đấu của TẤT CẢ các vòng thuộc cuộc thi.
  */
 export const getPoolsByContest = async (contestId, roundId = null) => {
-  const targetRoundId = roundId || await getDefaultRoundId(contestId);
-  const pools = await Pool.find({ contest_id: contestId, round_id: targetRoundId })
+  const filter = { contest_id: contestId };
+  if (roundId) filter.round_id = roundId;
+  const pools = await Pool.find(filter)
     .populate("teams", "team_name status pool_id members");
 
   return pools;

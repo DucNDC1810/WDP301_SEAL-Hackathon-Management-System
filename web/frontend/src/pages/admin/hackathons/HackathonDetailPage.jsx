@@ -54,6 +54,8 @@ export default function HackathonDetailPage({ defaultTab }) {
   const location = useLocation();
   const [contest, setContest] = useState(null);
   const [pools, setPools]     = useState([]);
+  // Pools của toàn bộ contest (không lọc theo round) — dùng để hiển thị badge "bảng đấu" trong tab Quản lý Vòng Thi
+  const [allPools, setAllPools] = useState([]);
   const [teams, setTeams]     = useState([]);
   const [loading, setLoading] = useState(true);
   const initialTab = (() => {
@@ -160,6 +162,16 @@ export default function HackathonDetailPage({ defaultTab }) {
     }
   };
 
+  const fetchAllPools = async () => {
+    try {
+      const r = await fetch(`${API_URL}/api/pools/contests/${id}/pools`, { headers: hdrs() });
+      const d = await r.json();
+      if (d.success) setAllPools(d.data || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchTeams = async () => {
     try {
       const r = await fetch(`${API_URL}/api/teams/contests/${id}/teams`, { headers: hdrs() });
@@ -213,6 +225,7 @@ export default function HackathonDetailPage({ defaultTab }) {
         setSinglePoolForm({ pool_name: '', description: '', drive_link: '' });
         setShowSinglePoolModal(false);
         fetchPools();
+        fetchAllPools();
       } else {
         setPoolError(d.message || 'Lỗi khi thêm bảng đấu');
       }
@@ -257,6 +270,7 @@ export default function HackathonDetailPage({ defaultTab }) {
       if (!data.success) throw new Error(data.message);
 
       setPools(data.data || []);
+      fetchAllPools();
       setPoolSuccess('Đã tạo các bảng đấu trống thành công!');
     } catch (err) {
       setPoolError(err.message || 'Lỗi khi tạo bảng đấu trống.');
@@ -284,6 +298,7 @@ export default function HackathonDetailPage({ defaultTab }) {
       if (!data.success) throw new Error(data.message);
 
       setPools(data.data || []);
+      fetchAllPools();
       setPoolSuccess('Đã thực hiện xếp các đội vào các bảng đấu thành công!');
       fetchTeams();
     } catch (err) {
@@ -302,6 +317,7 @@ export default function HackathonDetailPage({ defaultTab }) {
       });
       const d = await res.json();
       if (d.success) {
+        setAllPools(prev => prev.map(pool => pool._id === poolId ? { ...pool, drive_link: driveLink || '' } : pool));
         setPoolSuccess('Đã lưu link Drive!');
         setTimeout(() => setPoolSuccess(''), 2000);
       } else {
@@ -336,6 +352,7 @@ export default function HackathonDetailPage({ defaultTab }) {
           if (!data.success) throw new Error(data.message);
 
           setPools([]);
+          fetchAllPools();
           setPoolSuccess('Đã reset bảng đấu và cấu hình đội thi về ban đầu.');
           fetchTeams();
         } catch (err) {
@@ -390,6 +407,7 @@ export default function HackathonDetailPage({ defaultTab }) {
       if (d.success) {
         setPoolSuccess('Đã xóa đội thi khỏi bảng đấu!');
         fetchPools();
+        fetchAllPools();
         fetchTeams();
       } else {
         setPoolError(d.message || 'Lỗi khi xóa đội thi');
@@ -419,6 +437,7 @@ export default function HackathonDetailPage({ defaultTab }) {
       if (d.success) {
         setPoolSuccess('Đã thêm đội thi vào bảng đấu!');
         fetchPools();
+        fetchAllPools();
         fetchTeams();
       } else {
         setPoolError(d.message || 'Lỗi khi thêm đội thi');
@@ -449,6 +468,7 @@ export default function HackathonDetailPage({ defaultTab }) {
           if (d.success) {
             setPoolSuccess('Đã xóa bảng đấu thành công!');
             fetchPools();
+            fetchAllPools();
             fetchTeams();
           } else {
             setPoolError(d.message || 'Lỗi khi xóa bảng đấu');
@@ -593,6 +613,7 @@ export default function HackathonDetailPage({ defaultTab }) {
   useEffect(() => {
     if (selectedPoolRoundId) {
       fetchPools();
+      fetchAllPools();
     }
   }, [selectedPoolRoundId]);
 
@@ -1851,9 +1872,9 @@ export default function HackathonDetailPage({ defaultTab }) {
                             </div>
                           </div>
                           <div className="hd-problem-release-pools">
-                            {pools.filter(p => p.round_number === (dbRound?.round_number ?? Number(round.sequence_order))).length > 0
-                              ? pools
-                                  .filter(p => p.round_number === (dbRound?.round_number ?? Number(round.sequence_order)))
+                            {allPools.filter(p => String(p.round_id) === String(dbRound?._id)).length > 0
+                              ? allPools
+                                  .filter(p => String(p.round_id) === String(dbRound?._id))
                                   .map(pool => (
                                     <div key={pool._id} className="hd-problem-pool-chip">
                                       <span className="hd-problem-pool-name">{pool.pool_name || pool.name}</span>

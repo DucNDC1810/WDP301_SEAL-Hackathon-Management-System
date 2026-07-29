@@ -57,7 +57,7 @@ const ScoreLineChart = ({ hist, w = 560, h = 210, id = "sc", C }) => {
               y1={yy}
               x2={w - padR}
               y2={yy}
-              stroke="#16223a"
+              stroke={C.line}
               strokeWidth={1}
               strokeDasharray="3 5"
             />
@@ -66,7 +66,7 @@ const ScoreLineChart = ({ hist, w = 560, h = 210, id = "sc", C }) => {
               y={yy + 3}
               textAnchor="end"
               fontSize={9}
-              fill="#46597a"
+              fill={C.dim}
               fontFamily="Space Grotesk, sans-serif"
             >
               {Math.round(max * (1 - g / 2))}
@@ -104,7 +104,7 @@ const ScoreLineChart = ({ hist, w = 560, h = 210, id = "sc", C }) => {
               textAnchor="middle"
               fontSize={10.5}
               fontWeight={700}
-              fill={last ? C.cyan : "#9fb2cc"}
+              fill={last ? C.cyan : C.text2}
               fontFamily="Space Grotesk, sans-serif"
             >
               {hist[i].score}
@@ -125,23 +125,6 @@ const ScoreLineChart = ({ hist, w = 560, h = 210, id = "sc", C }) => {
     </svg>
   );
 };
-
-/* ─── Mock fallbacks (replace with API — see notes at bottom) ───────────────── */
-const MOCK_SCORE_HISTORY = [
-  { label: "Đăng ký", score: 0, rank: null },
-  { label: "Tuần 1", score: 540, rank: 6 },
-  { label: "Tuần 2", score: 712, rank: 4 },
-  { label: "Tuần 3", score: 845, rank: 3 },
-  { label: "Hiện tại", score: 921, rank: 3 },
-];
-
-const MOCK_RANKING = [
-  { rank: 1, team: "Alpha Strike", score: 980, change: 12 },
-  { rank: 2, team: "Code Ninjas", score: 945, change: 8 },
-  { rank: 3, team: "DevStorm", score: 921, change: 5 },
-  { rank: 4, team: "ByteForce", score: 890, change: 0 },
-  { rank: 5, team: "NightOwls", score: 872, change: -3 },
-];
 
 /* ─── Tiny UI helpers ───────────────────────────────────────────────────────── */
 const SectionHead = ({ icon, title, right, C }) => (
@@ -175,8 +158,8 @@ const CdTile = ({ val, label, accent, C }) => (
     style={{
       textAlign: "center",
       minWidth: 66,
-      background: accent ? "rgba(0,212,255,.06)" : "rgba(8,13,22,.7)",
-      border: `1px solid ${accent ? "rgba(0,212,255,.28)" : "#1e2a44"}`,
+      background: accent ? "rgba(0,212,255,.06)" : C.card2,
+      border: `1px solid ${accent ? "rgba(0,212,255,.28)" : C.line}`,
       borderRadius: 12,
       padding: "12px 6px",
     }}
@@ -197,7 +180,7 @@ const CdTile = ({ val, label, accent, C }) => (
         fontSize: 10,
         fontWeight: 600,
         letterSpacing: 1,
-        color: accent ? "#4a8090" : C.dim,
+        color: accent ? C.cyan : C.dim,
         marginTop: 7,
         textTransform: "uppercase",
       }}
@@ -217,71 +200,6 @@ export const StudentOverviewPage = () => {
 
   const RANK_COLOR = { 1: C.gold, 2: "#94a3b8", 3: "#cd7f32" };
 
-  const MOCK_EVENTS = [
-    {
-      type: "Mentoring",
-      accent: C.purple2,
-      title: "Mentoring 1-1 với mentor Nguyễn Văn A",
-      where: "Google Meet",
-      datetime: "2026-06-25T15:00:00",
-    },
-    {
-      type: "Workshop",
-      accent: C.cyan,
-      title: "Workshop: Thiết kế API RESTful",
-      where: "Hội trường B · Online",
-      datetime: "2026-06-26T19:00:00",
-    },
-    {
-      type: "Deadline",
-      accent: C.amber,
-      title: "Hạn nộp bài Vòng 1 — Sơ loại",
-      where: "Nộp trên hệ thống",
-      datetime: "2026-06-28T23:59:00",
-    },
-    {
-      type: "Kết quả",
-      accent: C.green,
-      title: "Công bố kết quả Vòng 1",
-      where: "Trang Bảng xếp hạng",
-      datetime: "2026-07-01T10:00:00",
-    },
-    {
-      type: "Sự kiện",
-      accent: C.purple,
-      title: "Lễ khai mạc Vòng 2 — Bán kết",
-      where: "Trực tuyến",
-      datetime: "2026-07-03T09:00:00",
-    },
-  ];
-
-  const MOCK_NEWS = [
-    {
-      tag: "Thông báo",
-      accent: C.cyan,
-      bg: "rgba(0,212,255,.08)",
-      title: "Hạn nộp bài vòng 1 được gia hạn thêm 3 ngày",
-      body: "Ban tổ chức quyết định gia hạn do phản hồi từ các đội thi. Hạn mới: 28/06/2026.",
-      time: "2 giờ trước",
-    },
-    {
-      tag: "Kết quả",
-      accent: C.green,
-      bg: "rgba(34,197,94,.08)",
-      title: "Danh sách đội thi vào vòng 2 đã được công bố",
-      body: "32 đội xuất sắc từ vòng 1 đã được chọn để tham gia vòng 2 Hackathon SEAL 2026.",
-      time: "1 ngày trước",
-    },
-    {
-      tag: "Workshop",
-      accent: "#a78bfa",
-      bg: "rgba(167,139,250,.08)",
-      title: 'Workshop "Thiết kế API RESTful" — Thứ 6 tuần này',
-      body: "Mentor Nguyễn Văn A sẽ hướng dẫn thiết kế API chuẩn REST. Đăng ký trước 18/06.",
-      time: "2 ngày trước",
-    },
-  ];
-
   const [contests, setContests] = useState([]);
   const [myTeam, setMyTeam] = useState(null);
   const [contest, setContest] = useState(null);
@@ -292,8 +210,9 @@ export const StudentOverviewPage = () => {
   const [poolDriveLink, setPoolDriveLink] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const [events, setEvents] = useState(MOCK_EVENTS);
+  const [events, setEvents] = useState([]);
   const [scoreHistory, setScoreHistory] = useState([]);
+  const [news, setNews] = useState([]);
 
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
@@ -306,6 +225,16 @@ export const StudentOverviewPage = () => {
 
   const load = async () => {
       setLoading(true);
+
+      // Announcements — the notification feed is the only real source of
+      // broadcast news, so the card mirrors it instead of holding its own copy.
+      request("/api/notifications")
+        .then((res) => {
+          const list = Array.isArray(res) ? res : (res?.data ?? []);
+          setNews(list.slice(0, 3));
+        })
+        .catch(() => setNews([]));
+
       try {
         const [contestsRes, teamsRes] = await Promise.all([
           request("/api/contests?status=open"),
@@ -389,13 +318,14 @@ export const StudentOverviewPage = () => {
               }
             }),
 
-          // Upcoming events — falls back to mock on failure
+          // Upcoming events. The backend endpoint does not exist yet, so this
+          // resolves to an empty list and the section renders its empty state.
           request(`/api/contests/${contestId}/events?upcoming=true`)
             .then((res) => {
               const list = Array.isArray(res) ? res : (res?.data ?? []);
-              if (list.length) setEvents(list);
+              setEvents(list);
             })
-            .catch(() => {}),
+            .catch(() => setEvents([])),
 
           // Team score history across rounds (only rounds with published results)
           request(`/api/scores/contests/${contestId}/my-team-results`)
@@ -438,20 +368,20 @@ export const StudentOverviewPage = () => {
           <div style={{ position: 'absolute', top: -90, right: '4%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle,rgba(0,212,255,.15),transparent 70%)', pointerEvents: 'none' }} />
           {/* Content */}
           <div style={{ position: 'relative' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 700, letterSpacing: '1.4px', color: '#00d4ff', textTransform: 'uppercase', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.25)', padding: '5px 13px', borderRadius: 20, marginBottom: 16 }}>⚡ Bắt đầu hành trình</span>
-            <h1 style={{ margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, letterSpacing: -.6, color: '#e6eef9' }}>Chào mừng, {user?.full_name?.split(' ').pop() || 'bạn'} 👋</h1>
-            <p style={{ margin: 0, fontSize: 14.5, color: '#9fb2cc', lineHeight: 1.6, maxWidth: 560 }}>Bạn chưa tham gia cuộc thi nào. Hãy <strong style={{ color: C.text2 }}>chọn một cuộc thi và tạo đội</strong> để bắt đầu — hoặc tham gia một đội đã có lời mời cho bạn.</p>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 700, letterSpacing: '1.4px', color: C.cyan, textTransform: 'uppercase', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.25)', padding: '5px 13px', borderRadius: 20, marginBottom: 16 }}>⚡ Bắt đầu hành trình</span>
+            <h1 style={{ margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, letterSpacing: -.6, color: C.text }}>Chào mừng, {user?.full_name?.split(' ').pop() || 'bạn'} 👋</h1>
+            <p style={{ margin: 0, fontSize: 14.5, color: C.text2, lineHeight: 1.6, maxWidth: 560 }}>Bạn chưa tham gia cuộc thi nào. Hãy <strong style={{ color: C.text2 }}>chọn một cuộc thi và tạo đội</strong> để bắt đầu — hoặc tham gia một đội đã có lời mời cho bạn.</p>
             {/* 3 steps */}
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 24 }}>
               {[
-                ['1', 'Chọn cuộc thi & tạo đội', '#00d4ff', 'rgba(0,212,255,.1)', 'rgba(0,212,255,.3)'],
-                ['2', 'Mời đủ 4 thành viên & xác thực', '#a855f7', 'rgba(168,85,247,.1)', 'rgba(168,85,247,.3)'],
-                ['3', 'Nộp bài & thi đấu', '#22c55e', 'rgba(34,197,94,.1)', 'rgba(34,197,94,.3)'],
+                ['1', 'Chọn cuộc thi & tạo đội', C.cyan, 'rgba(0,212,255,.1)', 'rgba(0,212,255,.3)'],
+                ['2', 'Mời đủ 4 thành viên & xác thực', C.purple2, 'rgba(168,85,247,.1)', 'rgba(168,85,247,.3)'],
+                ['3', 'Nộp bài & thi đấu', C.green, 'rgba(34,197,94,.1)', 'rgba(34,197,94,.3)'],
               ].map(([num, label, color, bg, border], i, arr) => (
                 <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 11, flex: 1, minWidth: 200 }}>
                   <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 10, background: bg, border: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 15, color }}>{num}</div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: C.text2, lineHeight: 1.35 }}>{label}</span>
-                  {i < arr.length - 1 && <div style={{ color: '#2a3a55', flexShrink: 0 }}>→</div>}
+                  {i < arr.length - 1 && <div style={{ color: C.dim, flexShrink: 0 }}>→</div>}
                 </div>
               ))}
             </div>
@@ -462,33 +392,33 @@ export const StudentOverviewPage = () => {
         {myTeam ? (
           /* Has team but no active contest — guide to team page to register */
           <div onClick={() => navigate('/dashboard/team')} style={{ border: '1px dashed rgba(250,204,21,.35)', borderRadius: 16, background: C.card, padding: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 22 }}>
-            <div style={{ width: 54, height: 54, flexShrink: 0, borderRadius: 15, background: 'rgba(250,204,21,.1)', border: '1px solid rgba(250,204,21,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#facc15' }}>
+            <div style={{ width: 54, height: 54, flexShrink: 0, borderRadius: 15, background: 'rgba(250,204,21,.1)', border: '1px solid rgba(250,204,21,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
             </div>
             <div>
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: '#e6eef9', marginBottom: 5 }}>Đội <span style={{ color: '#facc15' }}>{myTeam.team_name}</span> chưa đăng ký cuộc thi nào</div>
-              <p style={{ margin: 0, fontSize: 13, color: '#7e90ab', lineHeight: 1.5 }}>Vào trang Đội thi để chọn cuộc thi và đăng ký tham gia.</p>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 5 }}>Đội <span style={{ color: C.gold }}>{myTeam.team_name}</span> chưa đăng ký cuộc thi nào</div>
+              <p style={{ margin: 0, fontSize: 13, color: C.muted, lineHeight: 1.5 }}>Vào trang Đội thi để chọn cuộc thi và đăng ký tham gia.</p>
             </div>
-            <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: 13.5, fontWeight: 700, color: '#facc15' }}>Đến Đội thi →</span>
+            <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: 13.5, fontWeight: 700, color: C.gold }}>Đến Đội thi →</span>
           </div>
         ) : (
           /* No team — show create / join options */
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div onClick={() => navigate('/dashboard/team')} style={{ border: '1px dashed rgba(0,212,255,.35)', borderRadius: 16, background: C.card, padding: 26, cursor: 'pointer' }}>
-              <div style={{ width: 54, height: 54, borderRadius: 15, background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00d4ff', marginBottom: 16 }}>
+              <div style={{ width: 54, height: 54, borderRadius: 15, background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, marginBottom: 16 }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
               </div>
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: '#e6eef9', marginBottom: 6 }}>Tạo đội mới</div>
-              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#7e90ab', lineHeight: 1.5 }}>Chọn cuộc thi và đặt tên đội, sau đó mời thành viên qua email.</p>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#00d4ff' }}>Tạo đội ngay →</span>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 6 }}>Tạo đội mới</div>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: C.muted, lineHeight: 1.5 }}>Chọn cuộc thi và đặt tên đội, sau đó mời thành viên qua email.</p>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: C.cyan }}>Tạo đội ngay →</span>
             </div>
             <div onClick={() => navigate('/dashboard/invites')} style={{ border: '1px dashed rgba(168,85,247,.35)', borderRadius: 16, background: C.card, padding: 26, cursor: 'pointer' }}>
-              <div style={{ width: 54, height: 54, borderRadius: 15, background: 'rgba(168,85,247,.1)', border: '1px solid rgba(168,85,247,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7', marginBottom: 16 }}>
+              <div style={{ width: 54, height: 54, borderRadius: 15, background: 'rgba(168,85,247,.1)', border: '1px solid rgba(168,85,247,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.purple2, marginBottom: 16 }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
               </div>
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: '#e6eef9', marginBottom: 6 }}>Tham gia đội</div>
-              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#7e90ab', lineHeight: 1.5 }}>Đã được mời? Nhập mã đội hoặc chấp nhận lời mời để tham gia.</p>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#a855f7' }}>Xem lời mời →</span>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 6 }}>Tham gia đội</div>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: C.muted, lineHeight: 1.5 }}>Đã được mời? Nhập mã đội hoặc chấp nhận lời mời để tham gia.</p>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: C.purple2 }}>Xem lời mời →</span>
             </div>
           </div>
         )}
@@ -497,20 +427,20 @@ export const StudentOverviewPage = () => {
         {contests.length > 0 && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#e6eef9' }}>Cuộc thi đang mở đăng ký</span>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+              <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Cuộc thi đang mở đăng ký</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 16 }}>
               {contests.map((c) => {
                 const reg = c.registration_deadline ? new Date(c.registration_deadline) : null;
                 const days = reg ? Math.max(0, Math.ceil((reg - now) / 86_400_000)) : null;
                 return (
-                  <div key={c._id} style={{ borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`, borderTop: '2px solid #00d4ff', borderRadius: 14, background: C.card, padding: '20px 22px', display: 'flex', flexDirection: 'column' }}>
+                  <div key={c._id} style={{ borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`, borderTop: `2px solid ${C.cyan}`, borderRadius: 14, background: C.card, padding: '20px 22px', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: .4, textTransform: 'uppercase', color: '#00d4ff', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.3)', padding: '3px 10px', borderRadius: 6 }}>Web · AI</span>
-                      {days !== null && <span style={{ fontSize: 11.5, fontWeight: 700, color: days <= 5 ? '#f59e0b' : '#7e90ab' }}>Còn {days} ngày</span>}
+                      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: .4, textTransform: 'uppercase', color: C.cyan, background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.3)', padding: '3px 10px', borderRadius: 6 }}>Web · AI</span>
+                      {days !== null && <span style={{ fontSize: 11.5, fontWeight: 700, color: days <= 5 ? C.amber : C.muted }}>Còn {days} ngày</span>}
                     </div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#e6eef9', lineHeight: 1.35, marginBottom: 14, minHeight: 44 }}>{c.title}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: C.text, lineHeight: 1.35, marginBottom: 14, minHeight: 44 }}>{c.title}</div>
                     <button onClick={() => navigate('/dashboard/team')} style={{ width: '100%', marginTop: 'auto', padding: 10, borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#00d4ff,#0099cc)', color: '#070b14', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Tạo đội tham gia</button>
                   </div>
                 );
@@ -584,7 +514,7 @@ export const StudentOverviewPage = () => {
   const deadlineStr = deadlineMs ? fmtTs(deadlineMs) : nextRoundMs ? fmtTs(nextRoundMs) : "—";
 
   const submitted = !!submission;
-  const pool = poolName ?? myTeam.pool_id?.pool_name ?? "Pool A";
+  const pool = poolName ?? myTeam.pool_id?.pool_name ?? null;
   const problemReleased = !!activeRound?.problem_released_at;
 
   // Score from ranking API; delta only when history has 2+ points
@@ -620,6 +550,37 @@ export const StudentOverviewPage = () => {
     return { ...e, when, chip, chipColor, chipBg };
   });
 
+  // Announcement cards, built from the notification feed
+  const NEWS_TAG = {
+    results_published:    { tag: "Kết quả",   accent: C.green },
+    finalist_announcement:{ tag: "Kết quả",   accent: C.green },
+    deadline_reminder:    { tag: "Hạn nộp",   accent: C.amber },
+    missing_submission:   { tag: "Hạn nộp",   accent: C.amber },
+    SCORE_SUBMITTED:      { tag: "Chấm điểm", accent: C.purple2 },
+    team_mentor_assigned: { tag: "Đội thi",   accent: C.cyan },
+    team_member_verified: { tag: "Đội thi",   accent: C.cyan },
+  };
+
+  const newsRows = news.map((n, i) => {
+    const meta = NEWS_TAG[n.type] ?? { tag: "Thông báo", accent: C.cyan };
+    const created = n.created_at ? new Date(n.created_at).getTime() : null;
+    let time = "";
+    if (created) {
+      const mins = Math.max(0, Math.round((now - created) / 60000));
+      if (mins < 60) time = `${mins || 1} phút trước`;
+      else if (mins < 1440) time = `${Math.floor(mins / 60)} giờ trước`;
+      else time = `${Math.floor(mins / 1440)} ngày trước`;
+    }
+    return {
+      id: n._id ?? i,
+      tag: meta.tag,
+      accent: meta.accent,
+      title: n.title || meta.tag,
+      body: n.message || "",
+      time,
+    };
+  });
+
   // Ranking rows — use real API list when available
   const rankingRows = rankingList.length
     ? rankingList.slice(0, 5).map((r, i) => ({
@@ -631,34 +592,22 @@ export const StudentOverviewPage = () => {
       }))
     : null;
 
-  const ranking = (rankingRows ?? MOCK_RANKING.map((r, i) =>
-    i === 2 ? { ...r, team: myTeam.team_name, isMine: true } : r,
-  )).map((r) => ({
+  const ranking = (rankingRows ?? []).map((r) => ({
     ...r,
-    rankColor: RANK_COLOR[r.rank] || "#56688a",
+    rankColor: RANK_COLOR[r.rank] || C.dim,
     changeStr: r.change > 0 ? `+${r.change}` : r.change === 0 ? "—" : String(r.change),
-    changeColor: r.change > 0 ? C.green : r.change < 0 ? C.red : "#56688a",
+    changeColor: r.change > 0 ? C.green : r.change < 0 ? C.red : C.dim,
   }));
 
-  // Member contributions (seeded — swap for real metrics endpoint)
-  const seeds = [
-    [72, 8, 3],
-    [58, 6, 2],
-    [45, 5, 4],
-    [31, 3, 1],
-    [20, 2, 2],
-  ];
-  const memberContribs = (myTeam.members ?? []).map((m, i) => {
-    const [commits, tasks, reviews] = seeds[i % seeds.length];
-    return {
-      member: m,
-      commits,
-      tasks,
-      reviews,
-      score: commits + tasks * 2 + reviews,
-    };
-  });
-  const maxScore = Math.max(...memberContribs.map((c) => c.score), 1);
+  // Member contributions — the leader records these on the Đội thi page, so this
+  // reads the same fields instead of inventing commit/task counts.
+  const memberContribs = (myTeam.members ?? []).map((m) => ({
+    member: m,
+    pct: m.contribution_percentage ?? 0,
+    rating: m.contribution_rating ?? null,
+    note: m.contribution_note || "",
+  }));
+  const hasContribs = memberContribs.some((c) => c.pct > 0);
 
   // Shared style helpers
   const card = {
@@ -826,7 +775,7 @@ export const StudentOverviewPage = () => {
               }}
             >
               <span
-                style={{ fontSize: 12.5, fontWeight: 600, color: "#9fb2cc" }}
+                style={{ fontSize: 12.5, fontWeight: 600, color: C.text2 }}
               >
                 Tiến độ vòng thi
               </span>
@@ -849,7 +798,7 @@ export const StudentOverviewPage = () => {
                 borderRadius: 6,
                 background: C.card,
                 overflow: "hidden",
-                border: "1px solid #16223a",
+                border: `1px solid ${C.line}`,
               }}
             >
               <div
@@ -901,10 +850,10 @@ export const StudentOverviewPage = () => {
           return (
             <div style={{ border: `1px solid ${C.line}`, borderRadius: 14, background: C.card, padding: '20px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.cyan} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.text2 }}>Lộ trình cuộc thi</span>
               </div>
-              <div style={{ fontSize: 13, color: '#5a708f' }}>Chưa có thông tin vòng thi.</div>
+              <div style={{ fontSize: 13, color: C.dim }}>Chưa có thông tin vòng thi.</div>
             </div>
           );
         }
@@ -929,19 +878,19 @@ export const StudentOverviewPage = () => {
           : '10%';
 
         const dotStyle = (status) => {
-          if (status === 'done') return { background: '#00d4ff', border: '2px solid #00d4ff', boxShadow: '0 0 8px rgba(0,212,255,.6)', color: '#070b14' };
-          if (status === 'active') return { background: C.card, border: '2px solid #00d4ff', boxShadow: '0 0 0 4px rgba(0,212,255,.15)', color: '#00d4ff' };
-          return { background: C.card, border: '2px solid #2a3a55', boxShadow: 'none', color: '#7e90ab' };
+          if (status === 'done') return { background: C.cyan, border: `2px solid ${C.cyan}`, boxShadow: '0 0 8px rgba(0,212,255,.6)', color: C.bg };
+          if (status === 'active') return { background: C.card, border: `2px solid ${C.cyan}`, boxShadow: '0 0 0 4px rgba(0,212,255,.15)', color: C.cyan };
+          return { background: C.card, border: `2px solid ${C.line}`, boxShadow: 'none', color: C.muted };
         };
         const nameStyle = (status) => {
           if (status === 'done') return C.text2;
-          if (status === 'active') return '#00d4ff';
-          return '#7e90ab';
+          if (status === 'active') return C.cyan;
+          return C.muted;
         };
         const chipStyle = (status) => {
-          if (status === 'done') return { color: '#22c55e', background: 'rgba(34,197,94,.12)', border: '1px solid rgba(34,197,94,.3)', label: 'Hoàn thành' };
-          if (status === 'active') return { color: '#00d4ff', background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.3)', label: 'Đang diễn ra' };
-          return { color: '#7e90ab', background: 'rgba(126,144,171,.1)', border: '1px solid rgba(126,144,171,.25)', label: 'Sắp tới' };
+          if (status === 'done') return { color: C.green, background: 'rgba(34,197,94,.12)', border: '1px solid rgba(34,197,94,.3)', label: 'Hoàn thành' };
+          if (status === 'active') return { color: C.cyan, background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.3)', label: 'Đang diễn ra' };
+          return { color: C.muted, background: 'rgba(126,144,171,.1)', border: '1px solid rgba(126,144,171,.25)', label: 'Sắp tới' };
         };
         const dotIcon = (status) => {
           if (status === 'done') return '✓';
@@ -954,9 +903,9 @@ export const StudentOverviewPage = () => {
             {/* Header row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.cyan} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.text2 }}>Lộ trình cuộc thi</span>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#a855f7', background: 'rgba(168,85,247,.12)', border: '1px solid rgba(168,85,247,.3)', padding: '2px 9px', borderRadius: 20 }}>{rounds.length} giai đoạn</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: C.purple2, background: 'rgba(168,85,247,.12)', border: '1px solid rgba(168,85,247,.3)', padding: '2px 9px', borderRadius: 20 }}>{rounds.length} giai đoạn</span>
               </div>
               <button
                 onClick={() => setScheduleOpen(true)}
@@ -988,7 +937,7 @@ export const StudentOverviewPage = () => {
                       {/* Name */}
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: nameStyle(st), lineHeight: 1.25, marginTop: 8 }}>{r.name}</div>
                       {/* Date range */}
-                      <div style={{ fontSize: 10.5, color: '#5a708f', fontFamily: "'JetBrains Mono', monospace", marginTop: 3 }}>{fmtDate(r.start_time)} – {fmtDate(r.submission_deadline)}</div>
+                      <div style={{ fontSize: 10.5, color: C.dim, fontFamily: "'JetBrains Mono', monospace", marginTop: 3 }}>{fmtDate(r.start_time)} – {fmtDate(r.submission_deadline)}</div>
                       {/* Chip */}
                       <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', padding: '2px 9px', borderRadius: 20, marginTop: 6, ...cs }}>{cs.label}</div>
                     </div>
@@ -1058,7 +1007,7 @@ export const StudentOverviewPage = () => {
               borderRadius: 6,
             }}
           >
-            {pool}
+            {pool ?? "Chưa phân bảng"}
           </span>
           {/* Drive link — chỉ hiện sau khi admin phát đề */}
           {problemReleased && poolDriveLink ? (
@@ -1119,8 +1068,12 @@ export const StudentOverviewPage = () => {
             </span>
           </div>
           <div style={{ marginTop: 10, fontSize: 12.5, color: C.muted }}>
-            Trong{" "}
-            <span style={{ color: C.text2, fontWeight: 600 }}>{pool}</span> ·{" "}
+            {pool && (
+              <>
+                Trong{" "}
+                <span style={{ color: C.text2, fontWeight: 600 }}>{pool}</span> ·{" "}
+              </>
+            )}
             <span style={{ color: C.text2, fontWeight: 600 }}>{scoreNow}</span>{" "}
             điểm
           </div>
@@ -1228,6 +1181,24 @@ export const StudentOverviewPage = () => {
             title="Sự kiện sắp tới"
             C={C}
           />
+          {evRows.length === 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                padding: "34px 0",
+                textAlign: "center",
+              }}
+            >
+              <span style={{ fontSize: 26, opacity: 0.35 }}>🗓️</span>
+              <span style={{ fontSize: 13, color: C.dim }}>
+                Chưa có sự kiện nào được công bố
+              </span>
+            </div>
+          ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
             {evRows.map((ev, i) => (
               <div
@@ -1298,13 +1269,14 @@ export const StudentOverviewPage = () => {
                   >
                     {ev.title}
                   </div>
-                  <div style={{ marginTop: 3, fontSize: 11, color: "#6b7e9c" }}>
+                  <div style={{ marginTop: 3, fontSize: 11, color: C.muted }}>
                     {ev.when} · {ev.where}
                   </div>
                 </div>
               </div>
             ))}
           </div>
+          )}
         </div>
       </div>
 
@@ -1325,12 +1297,32 @@ export const StudentOverviewPage = () => {
               fontWeight: 700,
               letterSpacing: ".8px",
               textTransform: "uppercase",
-              color: "#9fb2cc",
+              color: C.text2,
             }}
           >
             Tin tức & Thông báo
           </span>
         </div>
+        {newsRows.length === 0 ? (
+          <div
+            style={{
+              border: `1px solid ${C.line}`,
+              borderRadius: 11,
+              background: C.card,
+              padding: "30px 0",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+              textAlign: "center",
+            }}
+          >
+            <span style={{ fontSize: 26, opacity: 0.35 }}>📰</span>
+            <span style={{ fontSize: 13, color: C.dim }}>
+              Chưa có thông báo nào
+            </span>
+          </div>
+        ) : (
         <div
           style={{
             display: "grid",
@@ -1338,9 +1330,9 @@ export const StudentOverviewPage = () => {
             gap: 12,
           }}
         >
-          {MOCK_NEWS.map((n, i) => (
+          {newsRows.map((n) => (
             <div
-              key={i}
+              key={n.id}
               style={{
                 borderLeft: `1px solid ${C.line}`,
                 borderRight: `1px solid ${C.line}`,
@@ -1349,7 +1341,6 @@ export const StudentOverviewPage = () => {
                 borderRadius: 11,
                 background: C.card,
                 padding: "15px 17px",
-                cursor: "pointer",
               }}
             >
               <div
@@ -1357,6 +1348,7 @@ export const StudentOverviewPage = () => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  gap: 8,
                   marginBottom: 9,
                 }}
               >
@@ -1367,14 +1359,14 @@ export const StudentOverviewPage = () => {
                     letterSpacing: ".5px",
                     textTransform: "uppercase",
                     color: n.accent,
-                    background: n.bg,
+                    background: n.accent + "1f",
                     padding: "2px 9px",
                     borderRadius: 5,
                   }}
                 >
                   {n.tag}
                 </span>
-                <span style={{ fontSize: 11, color: "#56688a" }}>
+                <span style={{ fontSize: 11, color: C.dim, whiteSpace: "nowrap" }}>
                   🕐 {n.time}
                 </span>
               </div>
@@ -1395,6 +1387,7 @@ export const StudentOverviewPage = () => {
             </div>
           ))}
         </div>
+        )}
       </div>
 
       {/* ── Ranking + contributions ─────────────────────────────────────────── */}
@@ -1418,9 +1411,26 @@ export const StudentOverviewPage = () => {
           >
             <span style={{ color: C.gold }}>🏆</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.text2 }}>
-              Bảng xếp hạng — {pool}
+              Bảng xếp hạng{pool ? ` — ${pool}` : ""}
             </span>
           </div>
+          {ranking.length === 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 8,
+                padding: "34px 0 38px",
+                textAlign: "center",
+              }}
+            >
+              <span style={{ fontSize: 26, opacity: 0.35 }}>🏆</span>
+              <span style={{ fontSize: 13, color: C.dim }}>
+                Chưa có bảng xếp hạng cho vòng này
+              </span>
+            </div>
+          ) : (
           <table
             style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
           >
@@ -1523,6 +1533,7 @@ export const StudentOverviewPage = () => {
               ))}
             </tbody>
           </table>
+          )}
         </div>
 
         {/* Member contributions */}
@@ -1540,127 +1551,101 @@ export const StudentOverviewPage = () => {
               Đóng góp thành viên
             </span>
           </div>
+          {!hasContribs ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 8,
+                padding: "26px 0",
+                textAlign: "center",
+              }}
+            >
+              <span style={{ fontSize: 26, opacity: 0.35 }}>📊</span>
+              <span style={{ fontSize: 13, color: C.dim, lineHeight: 1.5 }}>
+                Trưởng nhóm chưa ghi nhận tỷ lệ đóng góp.
+                <br />
+                Cập nhật tại trang <strong style={{ color: C.text2 }}>Đội thi</strong>.
+              </span>
+            </div>
+          ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {memberContribs.map(
-              ({ member, commits, tasks, reviews, score }) => {
-                const pct = Math.round((score / maxScore) * 100);
-                const nm =
-                  member.full_name || member.email?.split("@")[0] || "User";
-                return (
-                  <div key={member.email ?? nm}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 6,
-                      }}
-                    >
+            {memberContribs.map(({ member, pct, rating, note }) => {
+              const nm =
+                member.full_name || member.email?.split("@")[0] || "User";
+              return (
+                <div key={member.email ?? nm}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div
                         style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 9,
+                          background: C.card2,
+                          border: `1px solid ${C.line}`,
                           display: "flex",
                           alignItems: "center",
-                          gap: 10,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: 9,
-                            background:
-                              "linear-gradient(135deg,#15233c,#1a2540)",
-                            border: "1px solid #233355",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: "#8fa6c4",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {(nm[0] ?? "U").toUpperCase()}
-                        </div>
-                        <div>
-                          <div
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 600,
-                              color: C.text,
-                            }}
-                          >
-                            {nm}
-                          </div>
-                          <div style={{ fontSize: 10.5, color: C.dim }}>
-                            {commits} commits · {tasks} tasks · {reviews}{" "}
-                            reviews
-                          </div>
-                        </div>
-                      </div>
-                      <span
-                        style={{
-                          fontFamily: "'Space Grotesk', sans-serif",
+                          justifyContent: "center",
                           fontSize: 13,
                           fontWeight: 700,
-                          color: C.cyan,
+                          color: C.muted,
+                          flexShrink: 0,
                         }}
                       >
-                        {pct}%
-                      </span>
+                        {(nm[0] ?? "U").toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+                          {nm}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: C.dim }}>
+                          {rating ? "★".repeat(rating) + "☆".repeat(5 - rating) : "Chưa đánh giá"}
+                          {note ? ` · ${note}` : ""}
+                        </div>
+                      </div>
                     </div>
-                    <div
+                    <span
                       style={{
-                        height: 5,
-                        borderRadius: 3,
-                        background: C.card,
-                        overflow: "hidden",
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: C.cyan,
                       }}
                     >
-                      <div
-                        style={{
-                          height: "100%",
-                          borderRadius: 3,
-                          width: `${pct}%`,
-                          background: `linear-gradient(90deg, ${C.cyan}, ${C.purple})`,
-                        }}
-                      />
-                    </div>
+                      {pct}%
+                    </span>
                   </div>
-                );
-              },
-            )}
+                  <div
+                    style={{
+                      height: 5,
+                      borderRadius: 3,
+                      background: C.card2,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        borderRadius: 3,
+                        width: `${pct}%`,
+                        background: `linear-gradient(90deg, ${C.cyan}, ${C.purple})`,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 18,
-              marginTop: 16,
-              paddingTop: 13,
-              borderTop: `1px solid ${C.line2}`,
-            }}
-          >
-            {[
-              ["Commits", C.cyan],
-              ["Tasks ×2", C.purple],
-              ["Reviews", C.green],
-            ].map(([t, c]) => (
-              <div
-                key={t}
-                style={{ display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 2,
-                    background: c,
-                  }}
-                />
-                <span style={{ fontSize: 11, color: "#6b7e9c" }}>{t}</span>
-              </div>
-            ))}
-          </div>
+          )}
         </div>
       </div>
 
@@ -1674,14 +1659,14 @@ export const StudentOverviewPage = () => {
           return key === 'ended' ? 'done' : key;
         };
         const dotBg = (st) => {
-          if (st === 'done') return '#00d4ff';
-          if (st === 'active') return '#7c3aed';
-          return '#2a3a55';
+          if (st === 'done') return C.cyan;
+          if (st === 'active') return C.purple;
+          return C.dim;
         };
         const chipStyle = (st) => {
-          if (st === 'done') return { color: '#22c55e', background: 'rgba(34,197,94,.12)', border: '1px solid rgba(34,197,94,.3)', label: 'Hoàn thành' };
-          if (st === 'active') return { color: '#00d4ff', background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.3)', label: 'Đang diễn ra' };
-          return { color: '#7e90ab', background: 'rgba(126,144,171,.1)', border: '1px solid rgba(126,144,171,.25)', label: 'Sắp tới' };
+          if (st === 'done') return { color: C.green, background: 'rgba(34,197,94,.12)', border: '1px solid rgba(34,197,94,.3)', label: 'Hoàn thành' };
+          if (st === 'active') return { color: C.cyan, background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.3)', label: 'Đang diễn ra' };
+          return { color: C.muted, background: 'rgba(126,144,171,.1)', border: '1px solid rgba(126,144,171,.25)', label: 'Sắp tới' };
         };
         const fmtDateTime = (iso) => {
           if (!iso) return '—';
@@ -1699,7 +1684,7 @@ export const StudentOverviewPage = () => {
 
         return (
           <div
-            style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(4,8,15,.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 50, background: theme === 'light' ? 'rgba(15,23,42,.45)' : 'rgba(4,8,15,.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
             onClick={() => setScheduleOpen(false)}
           >
             <div
@@ -1707,18 +1692,18 @@ export const StudentOverviewPage = () => {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '22px 26px', borderBottom: '1px solid #131d31' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '22px 26px', borderBottom: `1px solid ${C.line2}` }}>
                 <div>
-                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, color: '#e6eef9', marginBottom: 4 }}>Lịch trình cuộc thi</div>
-                  <div style={{ fontSize: 12.5, color: '#7e90ab' }}>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 700, color: C.text, marginBottom: 4 }}>Lịch trình cuộc thi</div>
+                  <div style={{ fontSize: 12.5, color: C.muted }}>
                     {contest?.title ?? 'Hackathon SEAL'} · {modalRounds.length} vòng thi{dateRange ? ` · ${dateRange}` : ''}
                   </div>
                 </div>
                 <button
                   onClick={() => setScheduleOpen(false)}
-                  style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #1b2740', background: 'transparent', color: '#7e90ab', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = 'rgba(248,113,113,.4)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = '#7e90ab'; e.currentTarget.style.borderColor = '#1b2740'; }}
+                  style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${C.line}`, background: 'transparent', color: C.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = C.red; e.currentTarget.style.borderColor = 'rgba(248,113,113,.4)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = C.muted; e.currentTarget.style.borderColor = C.line; }}
                 >
                   ✕
                 </button>
@@ -1736,22 +1721,22 @@ export const StudentOverviewPage = () => {
                       <div style={{ position: 'absolute', left: 0, top: 3, width: 15, height: 15, borderRadius: '50%', background: dotBg(st) }} />
                       {/* Connector line */}
                       {!isLast && (
-                        <div style={{ position: 'absolute', left: 7, top: 20, bottom: 0, width: 2, background: st === 'done' ? 'rgba(0,212,255,.35)' : '#1b2740' }} />
+                        <div style={{ position: 'absolute', left: 7, top: 20, bottom: 0, width: 2, background: st === 'done' ? 'rgba(0,212,255,.35)' : C.line }} />
                       )}
                       {/* Round name + chip */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: '#e6eef9' }}>{r.name}</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{r.name}</span>
                         <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 20, ...cs }}>{cs.label}</span>
                       </div>
                       {/* Sub-events */}
-                      <div style={{ borderLeft: '1px solid #131d31', paddingLeft: 14, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ borderLeft: `1px solid ${C.line2}`, paddingLeft: 14, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ fontSize: 12, color: C.text2, fontWeight: 600 }}>Phát đề bài cho các đội</span>
-                          <span style={{ fontSize: 12, color: '#7e90ab', fontFamily: "'JetBrains Mono', monospace" }}>→ {fmtDateTime(r.start_time)}</span>
+                          <span style={{ fontSize: 12, color: C.muted, fontFamily: "'JetBrains Mono', monospace" }}>→ {fmtDateTime(r.start_time)}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 12, color: '#f87171', fontWeight: 600 }}>Hạn nộp bài</span>
-                          <span style={{ fontSize: 12, color: '#7e90ab', fontFamily: "'JetBrains Mono', monospace" }}>→ {fmtDateTime(r.submission_deadline)}</span>
+                          <span style={{ fontSize: 12, color: C.red, fontWeight: 600 }}>Hạn nộp bài</span>
+                          <span style={{ fontSize: 12, color: C.muted, fontFamily: "'JetBrains Mono', monospace" }}>→ {fmtDateTime(r.submission_deadline)}</span>
                         </div>
                       </div>
                     </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { ConfigProvider, theme as antdTheme } from 'antd';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import NotificationBell from '../components/NotificationBell';
@@ -48,13 +49,13 @@ const MOON   = 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z';
 const GROUP1 = [
   { key: 'overview', label: 'Tổng quan', path: '/dashboard',         d: HOUSE,  exact: true },
   { key: 'team',     label: 'Đội thi',   path: '/dashboard/team',    d: TEAM  },
-  { key: 'submit',   label: 'Nộp bài',   path: '/dashboard/submit',  d: UPLOAD, badge: { type: 'amber', text: '7d' } },
+  { key: 'submit',   label: 'Nộp bài',   path: '/dashboard/submit',  d: UPLOAD },
   { key: 'results',  label: 'Kết quả',   path: '/dashboard/results', d: RESULTS },
   { key: 'profile',  label: 'Hồ sơ',     path: '/dashboard/profile', d: USER  },
 ];
 
 const GROUP2 = [
-  { key: 'chat', label: 'Trò chuyện', path: '/dashboard/chat', d: CHAT, badge: { type: 'green', count: 0 } },
+  { key: 'chat', label: 'Trò chuyện', path: '/dashboard/chat', d: CHAT },
 ];
 
 // ── Format clock ─────────────────────────────────────────────────────────────
@@ -112,7 +113,34 @@ export const StudentLayout = () => {
 
   const userInitial = (user?.full_name?.[0] || 'U').toUpperCase();
 
+  const isDark = theme === 'dark';
+
+  // Ant Design tokens per theme — same mapping the admin pages use so both roles
+  // render Modal / Select / Table / Empty with one consistent palette.
+  const antdConfig = {
+    algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+    token: {
+      colorPrimary:         isDark ? '#00d4ff'  : '#0098b5',
+      colorBgBase:          isDark ? '#070b14'  : '#f0f4f8',
+      colorBgContainer:     isDark ? '#0c1524'  : '#ffffff',
+      colorBgElevated:      isDark ? '#0c1524'  : '#ffffff',
+      colorBorder:          isDark ? '#1b2740'  : '#e2e8f0',
+      colorText:            isDark ? '#c9d6e8'  : '#1e293b',
+      colorTextDescription: isDark ? '#5a708f'  : '#94a3b8',
+      borderRadius: 8,
+      fontFamily: "'Be Vietnam Pro', 'Inter', system-ui, sans-serif",
+    },
+    components: {
+      Table: {
+        headerBg:    isDark ? 'rgba(10, 14, 23, 0.6)'   : 'rgba(226, 232, 240, 0.6)',
+        headerColor: isDark ? '#5a708f'                 : '#64748b',
+        rowHoverBg:  isDark ? 'rgba(0, 212, 255, 0.03)' : 'rgba(0, 152, 181, 0.03)',
+      },
+    },
+  };
+
   return (
+    <ConfigProvider theme={antdConfig}>
     <div className="sl-root" data-theme={theme}>
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       <aside className="sl-sidebar">
@@ -185,7 +213,7 @@ export const StudentLayout = () => {
           {/* Left: status + clock */}
           <div className="sl-topbar-left">
             <span className="sl-status-dot" />
-            <span className="sl-status-label">SEAL Hackathon 2026</span>
+            <span className="sl-status-label">SEAL Hackathon</span>
             <span className="sl-status-sep">·</span>
             <span className="sl-clock">{formatClock(now)}</span>
           </div>
@@ -202,5 +230,6 @@ export const StudentLayout = () => {
         </div>
       </div>
     </div>
+    </ConfigProvider>
   );
 };

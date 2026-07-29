@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './SignupPage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:5001');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9]{10}$/;
@@ -48,9 +48,23 @@ function SignupPage() {
     }
   };
 
-  const handleBlur = (e) => {
+  const handleBlur = async (e) => {
     const { name, value } = e.target;
-    setFieldErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
+    const fieldErr = validateField(name, value);
+    setFieldErrors((prev) => ({ ...prev, [name]: fieldErr }));
+
+    if (name === 'email' && !fieldErr && value.trim()) {
+      try {
+        const res = await fetch(`${API_URL}/api/auth/check-email?email=${encodeURIComponent(value.trim())}`);
+        const data = await res.json();
+        if (data.success && data.exists) {
+          const msg = data.message || `Email ${value.trim()} đã được tạo tài khoản trong hệ thống`;
+          setFieldErrors((prev) => ({ ...prev, email: msg }));
+        }
+      } catch {
+        // ignore network error during blur check
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -65,6 +79,23 @@ function SignupPage() {
       password: validateField('password', formData.password),
       confirmPassword: validateField('confirmPassword', formData.confirmPassword),
     };
+
+    // If email format is valid, verify if email already exists in DB
+    if (!errors.email && formData.email.trim()) {
+      try {
+        const checkRes = await fetch(`${API_URL}/api/auth/check-email?email=${encodeURIComponent(formData.email.trim())}`);
+        const checkData = await checkRes.json();
+        if (checkData.success && checkData.exists) {
+          const msg = checkData.message || `Email ${formData.email.trim()} đã được tạo tài khoản trong hệ thống`;
+          errors.email = msg;
+        }
+      } catch {
+        // ignore network error
+      }
+    } else if (fieldErrors.email && fieldErrors.email.includes('đã được tạo')) {
+      errors.email = fieldErrors.email;
+    }
+
     setFieldErrors(errors);
 
     const firstError = Object.values(errors).find(Boolean);
@@ -91,7 +122,11 @@ function SignupPage() {
       const data = await res.json();
 
       if (!data.success) {
-        setError(data.message);
+        const errMsg = data.message || 'Đăng ký thất bại';
+        setError(errMsg);
+        if (res.status === 409 || errMsg.toLowerCase().includes('email') || errMsg.toLowerCase().includes('tồn tại')) {
+          setFieldErrors((prev) => ({ ...prev, email: errMsg }));
+        }
         return;
       }
 

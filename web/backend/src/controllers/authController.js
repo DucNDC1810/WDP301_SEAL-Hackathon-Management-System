@@ -1,5 +1,6 @@
 import {
   createUser,
+  checkEmailExists,
   authenticateUser,
   refreshAccessToken,
   verifyEmail,
@@ -70,6 +71,33 @@ export const signUp = async (req, res) => {
     res
       .status(error.statusCode || 500)
       .json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+// ─── checkEmail ──────────────────────────────────────────────────────────────
+
+export const checkEmail = async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email là bắt buộc" });
+    }
+    const exists = await checkEmailExists(email);
+    if (exists) {
+      return res.status(200).json({
+        success: true,
+        exists: true,
+        message: `Email ${email} đã được tạo tài khoản trong hệ thống`,
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      exists: false,
+      message: "Email chưa được sử dụng",
+    });
+  } catch (error) {
+    console.error("[checkEmail]", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ khi kiểm tra email" });
   }
 };
 

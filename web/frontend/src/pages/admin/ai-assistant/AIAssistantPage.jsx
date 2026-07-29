@@ -14,11 +14,7 @@ const Ico = ({ d, size = 18, sw = 1.8, color = 'currentColor' }) => (
 // Icon paths
 const INFO = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m1 15h-2v-2h2m0-4h-2V7h2';
 const MAIL = ['M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z', 'M22 6l-10 7L2 6'];
-const CLOCK = ['M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11z'];
-const CHECK = 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z';
 const SEND = 'M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16346272 C3.34915502,0.9 2.40734225,0.9 1.77946707,1.42946707 C0.994623095,2.06804123 0.837654301,3.0106256 1.15159189,3.8429026 L3.03521743,10.2838956 C3.03521743,10.4409929 3.19218622,10.5980903 3.50612381,10.5980903 L16.6915026,11.3835772 C16.6915026,11.3835772 17.1624089,11.3835772 17.1624089,11.8548694 L17.1624089,11.8548694 C17.1624089,12.3261616 17.1624089,12.4744748 16.6915026,12.4744748 Z';
-const ALERT = ['M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'];
-const PEOPLE = ['M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.64 2.38 1.77 2.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z'];
 const CHECKMARK = 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z';
 const TRASH = ['M3 6h18', 'M19 6v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6', 'M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2'];
 
@@ -49,40 +45,8 @@ const CHAT_SUGGESTIONS = [
   'Có bao nhiêu giám khảo và mentor được phân công?',
 ];
 
-const fmtCountdown = (deadline) => {
-  const diff = new Date(deadline).getTime() - Date.now();
-  if (diff <= 0) return 'Đã qua hạn';
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  if (days > 0) return `${days} ngày ${hours}h`;
-  const mins = Math.floor((diff % 3600000) / 60000);
-  return `${hours}h ${mins}m`;
-};
-
 export default function AIAssistantPage() {
   const [activeTab, setActiveTab] = useState('chat');
-
-  // ── Dashboard stats (status cards) ──
-  const [dashStats, setDashStats] = useState(null);
-  const [dashLoading, setDashLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      setDashLoading(true);
-      try {
-        const res = await fetch(`${API_URL}/api/ai/dashboard-stats`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-        });
-        const data = await res.json();
-        if (res.ok && data.success) setDashStats(data.data);
-      } catch {
-        // ignore — cards sẽ hiện fallback
-      } finally {
-        setDashLoading(false);
-      }
-    };
-    load();
-  }, []);
 
   // ── Chat state ──
   const [chatMessages, setChatMessages] = useState(() => {
@@ -317,71 +281,6 @@ export default function AIAssistantPage() {
         </div>
       </div>
 
-      {/* Status Cards */}
-      <div className="status-cards">
-        <div className="status-card status-card--active">
-          <div className="status-header">
-            <Ico d={CLOCK} size={18} color="#00d4ff" />
-            <span className="status-badge status-badge--active">
-              {dashStats?.timeline ? 'Active' : 'Idle'}
-            </span>
-          </div>
-          <h3 className="status-title">Timeline Monitor</h3>
-          <div className="status-content">
-            {dashLoading ? (
-              <div className="status-row"><span className="status-label">Đang tải...</span></div>
-            ) : dashStats?.timeline ? (
-              <>
-                <div className="status-row">
-                  <span className="status-label">Cuộc thi:</span>
-                  <span className="status-value">{dashStats.timeline.contest_title}</span>
-                </div>
-                <div className="status-row">
-                  <span className="status-label">Giai đoạn:</span>
-                  <span className="status-value">{dashStats.timeline.phase}</span>
-                </div>
-                <div className="status-row">
-                  <span className="status-label">Còn lại:</span>
-                  <span className="status-value highlight">{fmtCountdown(dashStats.timeline.deadline)}</span>
-                </div>
-              </>
-            ) : (
-              <div className="status-row">
-                <span className="status-label">Không có mốc thời gian sắp tới nào đang theo dõi</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="status-card status-card--active">
-          <div className="status-header">
-            <Ico d={CHECKMARK} size={18} color="#00d4ff" />
-            <span className="status-badge status-badge--active">
-              {dashStats?.active_contests_count > 0 ? 'Active' : 'Idle'}
-            </span>
-          </div>
-          <h3 className="status-title">Scoring Progress</h3>
-          <div className="status-content">
-            {dashLoading ? (
-              <div className="status-row"><span className="status-label">Đang tải...</span></div>
-            ) : (
-              <>
-                <div className="status-row">
-                  <span className="status-label">Cuộc thi đang thi:</span>
-                  <span className="status-value highlight">{dashStats?.active_contests_count ?? 0}</span>
-                </div>
-                <div className="status-row">
-                  <span className="status-label">Bài đã chấm:</span>
-                  <span className="status-value highlight">
-                    {dashStats?.scoring?.scored_submissions ?? 0} / {dashStats?.scoring?.total_submissions ?? 0}
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="ai-tabs">
         <button className={`tab ${activeTab === 'chat' ? 'tab--active' : ''}`} onClick={() => setActiveTab('chat')}>
@@ -391,14 +290,6 @@ export default function AIAssistantPage() {
         <button className={`tab ${activeTab === 'email' ? 'tab--active' : ''}`} onClick={() => setActiveTab('email')}>
           <Ico d={MAIL} size={16} />
           <span>AI Email Generator</span>
-        </button>
-        <button className={`tab ${activeTab === 'timeline' ? 'tab--active' : ''}`} onClick={() => setActiveTab('timeline')}>
-          <Ico d={CLOCK} size={16} />
-          <span>Timeline Manager</span>
-        </button>
-        <button className={`tab ${activeTab === 'review' ? 'tab--active' : ''}`} onClick={() => setActiveTab('review')}>
-          <Ico d={CHECKMARK} size={16} />
-          <span>Review Analyzer</span>
         </button>
       </div>
 
@@ -637,21 +528,6 @@ export default function AIAssistantPage() {
         </div>
       )}
 
-      {activeTab === 'timeline' && (
-        <div className="ai-content">
-          <div style={{ padding: '40px', textAlign: 'center', color: '#7f9bb3' }}>
-            <p>Timeline Manager feature coming soon...</p>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'review' && (
-        <div className="ai-content">
-          <div style={{ padding: '40px', textAlign: 'center', color: '#7f9bb3' }}>
-            <p>Review Analyzer feature coming soon...</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

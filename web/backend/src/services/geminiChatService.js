@@ -9,7 +9,7 @@ import MentorAssignment from "../models/MentorAssignment.js";
 import User from "../models/User.js";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODEL = "gemini-flash-lite-latest";
+const MODEL = "gemini-3-flash-preview";
 const MAX_TOOL_LOOPS = 5;
 
 const SYSTEM_INSTRUCTION = `Bạn là trợ lý AI hỗ trợ Admin quản trị hệ thống thi Hackathon "SEAL".
@@ -332,11 +332,22 @@ export const getDashboardStats = async () => {
   };
 };
 
+const GENERATION_TIMEOUT_MS = 25000;
+
+const generateWithTimeout = (params) => {
+  return Promise.race([
+    ai.models.generateContent(params),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Trợ lý AI phản hồi quá lâu, vui lòng thử lại.")), GENERATION_TIMEOUT_MS)
+    ),
+  ]);
+};
+
 export const runAdminChat = async (history = [], userMessage) => {
   const contents = [...history, createUserContent(userMessage)];
 
   for (let i = 0; i < MAX_TOOL_LOOPS; i++) {
-    const response = await ai.models.generateContent({
+    const response = await generateWithTimeout({
       model: MODEL,
       contents,
       config: { systemInstruction: SYSTEM_INSTRUCTION, tools },

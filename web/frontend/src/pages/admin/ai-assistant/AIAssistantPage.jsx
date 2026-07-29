@@ -22,37 +22,25 @@ const PEOPLE = ['M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s
 const CHECKMARK = 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z';
 const TRASH = ['M3 6h18', 'M19 6v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6', 'M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2'];
 
-// Email templates
+// Email templates — key khớp với backend (aiEmailService.js TEMPLATE_INFO)
 const EMAIL_TEMPLATES = [
-  {
-    id: 1,
-    icon: '🏆',
-    name: 'Finalist Notification',
-    subject: 'Chúc mừng! Bạn đã lọt vào vòng chung kết',
-    preview: 'Thông báo mời dự vòng chung kết hackathon...',
-  },
-  {
-    id: 2,
-    icon: '⏰',
-    name: 'Deadline Reminder',
-    subject: 'Nhắc nhở: Nộp bài trước hôm nay 23:59',
-    preview: 'Hạn chót sắp kết thúc, vui lòng hoàn tất...',
-  },
-  {
-    id: 3,
-    icon: '⚠️',
-    name: 'Missing Submission Alert',
-    subject: 'Cảnh báo: Bài nộp chưa hoàn chỉnh',
-    preview: 'Một số tệp bị thiếu trong bài nộp của bạn...',
-  },
-  {
-    id: 4,
-    icon: '👥',
-    name: 'Mentor Assignment',
-    subject: 'Bạn được gán mentor cho dự án',
-    preview: 'Mentor của bạn là Dr. Smith, hãy liên hệ...',
-  },
+  { id: 'finalist', icon: '🏆', name: 'Finalist Notification' },
+  { id: 'deadline', icon: '⏰', name: 'Deadline Reminder' },
+  { id: 'missing_submission', icon: '⚠️', name: 'Missing Submission Alert' },
+  { id: 'mentor_assignment', icon: '👥', name: 'Mentor Assignment' },
 ];
+
+const RECIPIENT_SCOPES = [
+  { id: 'all', label: 'Tất cả đội trong cuộc thi' },
+  { id: 'pool', label: 'Theo bảng đấu' },
+  { id: 'team', label: 'Một đội cụ thể' },
+  { id: 'missing_submission', label: 'Các đội chưa nộp bài (vòng hiện tại)' },
+];
+
+const fillPreview = (str, vars) =>
+  String(str || '')
+    .replace(/{{\s*leader_name\s*}}/g, vars.leader_name)
+    .replace(/{{\s*team_name\s*}}/g, vars.team_name);
 
 const CHAT_SUGGESTIONS = [
   'Cuộc thi SEAL Hackathon 2026 có bao nhiêu người tham gia?',
@@ -179,34 +167,139 @@ export default function AIAssistantPage() {
     sendChatMessage();
   };
 
-  const [selectedTemplate, setSelectedTemplate] = useState(1);
-  const [recipientFilter, setRecipientFilter] = useState('All teams / Bracket A / Specific team');
-  const [customVars, setCustomVars] = useState('e.g., deadline date, event location');
-  const [emailHistory, setEmailHistory] = useState([
-    {
-      id: 1,
-      type: 'Deadline Reminder',
-      recipients: 24,
-      timestamp: 'a few seconds ago',
-      status: 'sent',
-    },
-    {
-      id: 2,
-      type: 'Mentor Assignment',
-      recipients: 12,
-      timestamp: '5 hours ago',
-      status: 'delivered',
-    },
-  ]);
+  // ── AI Email Generator state ──
+  const [selectedTemplate, setSelectedTemplate] = useState('finalist');
+  const [contests, setContests] = useState([]);
+  const [selectedContestId, setSelectedContestId] = useState('');
+  const [recipientScope, setRecipientScope] = useState('all');
+  const [pools, setPools] = useState([]);
+  const [selectedPoolId, setSelectedPoolId] = useState('');
+  const [teams, setTeams] = useState([]);
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [customNotes, setCustomNotes] = useState('');
+  const [draft, setDraft] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [emailHistory, setEmailHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
-  const getTemplateById = (id) => EMAIL_TEMPLATES.find(t => t.id === id) || EMAIL_TEMPLATES[0];
-  const template = getTemplateById(selectedTemplate);
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+  });
 
-  const generateEmail = () => {
-    notification.success({
-      message: 'Email Generated',
-      description: `Email generated for: ${recipientFilter || 'All teams'}\nTemplate: ${template.name}`,
-    });
+  const fetchEmailHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/ai/email/history`, { headers: authHeaders() });
+      const data = await res.json();
+      if (res.ok && data.success) setEmailHistory(data.data);
+    } catch {
+      // ignore — danh sách sẽ trống
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const loadContests = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/contests`, { headers: authHeaders() });
+        const data = await res.json();
+        if (res.ok && data.success) setContests(data.data || []);
+      } catch {
+        // ignore
+      }
+    };
+    loadContests();
+    fetchEmailHistory();
+  }, []);
+
+  useEffect(() => {
+    setSelectedPoolId('');
+    setSelectedTeamId('');
+    setPools([]);
+    setTeams([]);
+    if (!selectedContestId) return;
+
+    if (recipientScope === 'pool') {
+      fetch(`${API_URL}/api/pools/contests/${selectedContestId}/pools`, { headers: authHeaders() })
+        .then((r) => r.json())
+        .then((d) => setPools(Array.isArray(d) ? d : (d?.data ?? [])))
+        .catch(() => {});
+    } else if (recipientScope === 'team') {
+      fetch(`${API_URL}/api/teams/contests/${selectedContestId}/all`, { headers: authHeaders() })
+        .then((r) => r.json())
+        .then((d) => setTeams(d?.data ?? []))
+        .catch(() => {});
+    }
+  }, [recipientScope, selectedContestId]);
+
+  const generateEmail = async () => {
+    if (!selectedContestId) {
+      notification.warning({ message: 'Vui lòng chọn cuộc thi' });
+      return;
+    }
+    if (recipientScope === 'pool' && !selectedPoolId) {
+      notification.warning({ message: 'Vui lòng chọn bảng đấu' });
+      return;
+    }
+    if (recipientScope === 'team' && !selectedTeamId) {
+      notification.warning({ message: 'Vui lòng chọn đội thi' });
+      return;
+    }
+
+    setGenerating(true);
+    setDraft(null);
+    try {
+      const res = await fetch(`${API_URL}/api/ai/email/generate`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          contest_id: selectedContestId,
+          template: selectedTemplate,
+          scope: recipientScope,
+          pool_id: recipientScope === 'pool' ? selectedPoolId : undefined,
+          team_id: recipientScope === 'team' ? selectedTeamId : undefined,
+          custom_notes: customNotes,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Không thể tạo email');
+      setDraft(data.data);
+      notification.success({
+        message: 'Đã soạn xong email',
+        description: `${data.data.recipients.length} người nhận — kiểm tra bản xem trước bên phải.`,
+      });
+    } catch (err) {
+      notification.error({ message: 'Lỗi', description: err.message || 'Không thể tạo email' });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const sendEmail = async () => {
+    if (!draft) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${API_URL}/api/ai/email/send`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(draft),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Không thể gửi email');
+      notification.success({
+        message: 'Đã gửi email',
+        description: `Thành công ${data.data.sent}/${data.data.total} người nhận.`,
+      });
+      setDraft(null);
+      fetchEmailHistory();
+    } catch (err) {
+      notification.error({ message: 'Lỗi', description: err.message || 'Không thể gửi email' });
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -393,7 +486,7 @@ export default function AIAssistantPage() {
           <div className="email-generator">
             {/* Left Panel */}
             <div className="email-panel email-panel--left">
-              <h2 className="panel-title">Email Template Selection</h2>
+              <h2 className="panel-title">Chọn mẫu Email</h2>
 
               <div className="templates-grid">
                 {EMAIL_TEMPLATES.map(t => (
@@ -408,50 +501,108 @@ export default function AIAssistantPage() {
                 ))}
               </div>
 
-              {/* Recipient Filter */}
+              {/* Cuộc thi */}
               <div className="form-group">
-                <label className="form-label">Recipient Filter</label>
-                <input
-                  type="text"
+                <label className="form-label">Cuộc thi</label>
+                <select
                   className="form-input"
-                  value={recipientFilter}
-                  onChange={(e) => setRecipientFilter(e.target.value)}
-                  placeholder="All teams / Bracket A / Specific team"
-                />
+                  value={selectedContestId}
+                  onChange={(e) => setSelectedContestId(e.target.value)}
+                >
+                  <option value="">-- Chọn cuộc thi --</option>
+                  {contests.map((c) => (
+                    <option key={c._id} value={c._id}>{c.title}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* Custom Variables */}
+              {/* Đối tượng nhận */}
               <div className="form-group">
-                <label className="form-label">Custom Variables</label>
+                <label className="form-label">Đối tượng nhận</label>
+                <select
+                  className="form-input"
+                  value={recipientScope}
+                  onChange={(e) => setRecipientScope(e.target.value)}
+                >
+                  {RECIPIENT_SCOPES.map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {recipientScope === 'pool' && (
+                <div className="form-group">
+                  <label className="form-label">Bảng đấu</label>
+                  <select className="form-input" value={selectedPoolId} onChange={(e) => setSelectedPoolId(e.target.value)}>
+                    <option value="">-- Chọn bảng --</option>
+                    {pools.map((p) => (
+                      <option key={p._id} value={p._id}>{p.pool_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {recipientScope === 'team' && (
+                <div className="form-group">
+                  <label className="form-label">Đội thi</label>
+                  <select className="form-input" value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)}>
+                    <option value="">-- Chọn đội --</option>
+                    {teams.map((t) => (
+                      <option key={t._id} value={t._id}>{t.team_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Ghi chú thêm cho AI */}
+              <div className="form-group">
+                <label className="form-label">Ghi chú thêm (tùy chọn)</label>
                 <textarea
                   className="form-textarea"
-                  value={customVars}
-                  onChange={(e) => setCustomVars(e.target.value)}
-                  placeholder="e.g., deadline date, event location"
+                  value={customNotes}
+                  onChange={(e) => setCustomNotes(e.target.value)}
+                  placeholder="VD: nhấn mạnh tiêu chí chấm điểm, địa điểm sự kiện..."
                   rows={3}
                 />
               </div>
 
               {/* Generate Button */}
-              <button className="btn-generate" onClick={generateEmail}>
+              <button className="btn-generate" onClick={generateEmail} disabled={generating}>
                 <Ico d={SEND} size={16} />
-                <span>Generate Email with AI</span>
+                <span>{generating ? 'Đang soạn email...' : 'Soạn Email bằng AI'}</span>
               </button>
             </div>
 
             {/* Right Panel */}
             <div className="email-panel email-panel--right">
-              <h2 className="panel-title">Generated Email Preview</h2>
+              <h2 className="panel-title">Bản xem trước Email</h2>
               <div className="email-preview">
-                {selectedTemplate ? (
+                {generating ? (
+                  <p className="preview-placeholder">AI đang soạn email dựa trên dữ liệu thật...</p>
+                ) : draft ? (
+                  <div className="email-draft">
+                    <div className="email-draft__meta">
+                      <span>📨 {draft.recipients.length} người nhận</span>
+                      <span>· {draft.contest_title}</span>
+                    </div>
+                    <p className="email-draft__subject"><strong>Tiêu đề:</strong> {fillPreview(draft.subject, draft.recipients[0])}</p>
+                    <div
+                      className="email-draft__body"
+                      dangerouslySetInnerHTML={{ __html: fillPreview(draft.body_html, draft.recipients[0]) }}
+                    />
+                    <p className="email-draft__hint">* Xem trước với đội "{draft.recipients[0].team_name}". Mỗi người nhận sẽ được cá nhân hóa tên riêng khi gửi.</p>
+                    <button className="btn-generate" onClick={sendEmail} disabled={sending}>
+                      <Ico d={SEND} size={16} />
+                      <span>{sending ? 'Đang gửi...' : `Gửi cho ${draft.recipients.length} người nhận`}</span>
+                    </button>
+                  </div>
+                ) : (
                   <>
                     <div className="preview-icon">
                       <Ico d={MAIL} size={48} color="#00d4ff" />
                     </div>
-                    <p className="preview-placeholder">Select a template and click Generate to preview</p>
+                    <p className="preview-placeholder">Chọn cuộc thi, mẫu email và bấm Soạn để xem trước</p>
                   </>
-                ) : (
-                  <p className="preview-placeholder">Select a template and click Generate to preview</p>
                 )}
               </div>
             </div>
@@ -459,22 +610,28 @@ export default function AIAssistantPage() {
 
           {/* Recent Email History */}
           <div className="email-history">
-            <h2 className="history-title">Recent Email History</h2>
+            <h2 className="history-title">Lịch sử gửi Email gần đây</h2>
             <div className="history-list">
-              {emailHistory.map((email) => (
-                <div key={email.id} className="history-item">
-                  <div className="history-info">
-                    <Ico d={MAIL} size={18} color="#00d4ff" />
-                    <div>
-                      <p className="history-type">{email.type}</p>
-                      <p className="history-meta">{email.recipients} teams • {email.timestamp}</p>
+              {historyLoading ? (
+                <p className="preview-placeholder">Đang tải...</p>
+              ) : emailHistory.length === 0 ? (
+                <p className="preview-placeholder">Chưa có email nào được gửi</p>
+              ) : (
+                emailHistory.map((email) => (
+                  <div key={email.id} className="history-item">
+                    <div className="history-info">
+                      <Ico d={MAIL} size={18} color="#00d4ff" />
+                      <div>
+                        <p className="history-type">{email.type}</p>
+                        <p className="history-meta">{email.recipients} đội • {new Date(email.timestamp).toLocaleString('vi-VN')}</p>
+                      </div>
                     </div>
+                    <span className={`history-status history-status--${email.status}`}>
+                      {email.status === 'delivered' ? 'Đã gửi' : 'Lỗi'}
+                    </span>
                   </div>
-                  <span className={`history-status history-status--${email.status}`}>
-                    {email.status.charAt(0).toUpperCase() + email.status.slice(1)}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

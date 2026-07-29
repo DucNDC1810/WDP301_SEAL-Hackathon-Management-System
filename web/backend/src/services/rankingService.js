@@ -4,6 +4,7 @@ import Ranking from "../models/Ranking.js";
 import Team from "../models/Team.js";
 import Contest from "../models/Contest.js";
 import Pool from "../models/Pool.js";
+import Submission from "../models/Submission.js";
 import { getIO } from "../socket/index.js";
 
 // ─── calculateRankings ────────────────────────────────────────────────────────
@@ -77,6 +78,13 @@ export const calculateRankings = async (contestId, roundId) => {
     }
   }
 
+  // Lấy submission time để giải quyết đồng điểm (tie-break)
+  const submissions = await Submission.find({ round_id: roundId });
+  const submissionMap = {};
+  for (const sub of submissions) {
+    submissionMap[sub.team_id.toString()] = sub.submitted_at || sub.created_at || null;
+  }
+
   // Tính weighted average cho từng team
   const entries = [];
   for (const [teamKey, val] of Object.entries(scoresByTeam)) {
@@ -104,11 +112,23 @@ export const calculateRankings = async (contestId, roundId) => {
       team_name: team?.team_name || "Unknown",
       pool_id: teamPoolMap[teamKey] || null,
       final_score: Math.round(finalScore * 100) / 100,
+      submission_time: submissionMap[teamKey] || null,
     });
   }
 
   // Sắp xếp tất cả teams theo final_score giảm dần (Toàn cuộc thi)
-  entries.sort((a, b) => b.final_score - a.final_score);
+  // Nếu bằng điểm, đội nào nộp bài trước (submission_time sớm hơn) sẽ xếp trước
+  entries.sort((a, b) => {
+    if (b.final_score !== a.final_score) {
+      return b.final_score - a.final_score;
+    }
+    if (a.submission_time && b.submission_time) {
+      return new Date(a.submission_time) - new Date(b.submission_time);
+    }
+    if (a.submission_time) return -1;
+    if (b.submission_time) return 1;
+    return 0;
+  });
 
   const sortedRounds = [...contest.rounds].sort((a, b) => a.round_number - b.round_number);
   const currentRoundIndex = sortedRounds.findIndex((r) => r._id.toString() === roundId.toString());

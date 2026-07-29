@@ -402,6 +402,9 @@ export const checkJudgeCompletion = async (roundId) => {
   const contest = await Contest.findOne({ "rounds._id": roundId }).select("_id").lean();
   const contestId = contest?._id;
 
+  // Kiểm tra xem vòng thi này đã có bất kỳ bài nộp nào chưa
+  const hasSubmissions = await Submission.exists({ round_id: roundId });
+
   // Get unique judges from assignments
   const judgeMap = {};
   for (const assign of assignments) {
@@ -441,12 +444,17 @@ export const checkJudgeCompletion = async (roundId) => {
       uniqueTeamIds = activeTeams.map((t) => t._id.toString());
     }
 
-    // Số lượng đội có bài nộp trong vòng này trong pool của judge
-    const expectedCount = await Submission.countDocuments({
-      round_id: roundId,
-      team_id: { $in: uniqueTeamIds },
-      status: { $in: ["SUBMITTED", "LATE_APPROVED"] },
-    });
+    // Số lượng đội mong muốn chấm điểm
+    let expectedCount = 0;
+    if (hasSubmissions) {
+      expectedCount = await Submission.countDocuments({
+        round_id: roundId,
+        team_id: { $in: uniqueTeamIds },
+        status: { $in: ["SUBMITTED", "LATE_APPROVED"] },
+      });
+    } else {
+      expectedCount = uniqueTeamIds.length;
+    }
 
     const scoredCount = await Score.countDocuments({
       round_id: roundId,

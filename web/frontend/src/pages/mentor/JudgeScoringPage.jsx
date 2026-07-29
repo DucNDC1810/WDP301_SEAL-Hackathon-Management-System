@@ -324,6 +324,14 @@ export default function JudgeDashboardPage() {
         </div>
       </div>
 
+      {round?.deadline && new Date() < new Date(round.deadline) && (
+        <Alert
+          type="warning" showIcon
+          message="Vòng thi chưa hết giờ làm bài (chưa qua hạn nộp bài). Giám khảo và Mentor chỉ có thể chấm điểm sau khi hết giờ."
+          style={{ borderRadius: 12, marginBottom: 16 }}
+        />
+      )}
+
       {allDone && scorable.length > 0 && (
         <Alert
           type="success" showIcon
@@ -428,6 +436,7 @@ export default function JudgeDashboardPage() {
                             type={myScore?.status === 'submitted' ? 'default' : 'primary'}
                             size="small"
                             onClick={() => openForm(team)}
+                            disabled={!!(round?.deadline && new Date() < new Date(round.deadline))}
                           >
                             {myScore?.status === 'submitted' ? '✓ Xem / Sửa'
                               : myScore?.status === 'draft' ? '📝 Tiếp tục'

@@ -7,6 +7,7 @@ import {
 import { getRoundStatus } from '../../../utils/roundStatus';
 import './ResultsPage.css';
 import RefreshButton from '../../../components/RefreshButton';
+import LeaderboardTable from '../../../components/LeaderboardTable';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -355,134 +356,92 @@ export default function ResultsPage() {
           </div>
 
           {/* Leaderboard */}
-          <div className="results-panel">
-            <h2 className="panel-title">BẢNG XẾP HẠNG VÒNG ĐẤU (LEADERBOARD)</h2>
-            <div className="leaderboard" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {data.leaderboard.length > 0 ? (
-                (() => {
-                  const isFinal = data.leaderboard[0].isFinalRound;
+          {data.leaderboard.length > 0 ? (
+            (() => {
+              const isFinal = data.leaderboard[0].isFinalRound;
 
-                  if (isFinal) {
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {data.leaderboard.map((team, idx) => (
-                          <div key={idx} className="leaderboard-item">
-                            <div className="leaderboard-rank">
-                              <span className="rank-badge" style={{ backgroundColor: getMedalColor(team.rank) }}>
-                                {team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : team.rank}
-                              </span>
-                            </div>
-                            <div className="leaderboard-info">
-                              <p className="team-name">{team.name}</p>
-                              <p className="team-category">{team.category}</p>
-                            </div>
-                            <div className="leaderboard-score">
-                              <p className="score-value">{team.score.toFixed(2)}</p>
-                              <p className="score-label">Điểm trung bình</p>
-                            </div>
-                            <div className="leaderboard-medal">
-                              <span className={`medal-badge medal-${team.rank.toString().toLowerCase()}`}>
-                                {getMedalLabel(team.rank)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  }
+              if (isFinal) {
+                const formattedTeams = data.leaderboard.map(t => ({
+                  team_id: t.name,
+                  team_name: t.name,
+                  weighted_avg_score: t.score,
+                  rank: t.rank
+                }));
+                return (
+                  <LeaderboardTable groupName="Kết quả chung cuộc" teams={formattedTeams} />
+                );
+              }
 
-                  // Group by poolName for preliminary rounds
-                  const grouped = {};
-                  data.leaderboard.forEach(item => {
-                    const key = item.poolName || "Chưa phân bảng";
-                    if (!grouped[key]) grouped[key] = [];
-                    grouped[key].push(item);
-                  });
+              const grouped = {};
+              data.leaderboard.forEach(item => {
+                const key = item.poolName || "Chưa phân bảng";
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(item);
+              });
 
-                  const pools = Object.keys(grouped);
-                  const currentPool = activePoolTab || pools[0] || "Chưa phân bảng";
-                  const teamsInPool = grouped[currentPool] || [];
-                  const sortedTeams = [...teamsInPool].sort((a, b) => b.score - a.score);
+              const pools = Object.keys(grouped);
+              const currentPool = activePoolTab || pools[0] || "Chưa phân bảng";
+              const teamsInPool = grouped[currentPool] || [];
+              const sortedTeams = [...teamsInPool].sort((a, b) => b.score - a.score).map((t, idx) => ({
+                team_id: t.name,
+                team_name: t.name,
+                weighted_avg_score: t.score,
+                rank: idx + 1
+              }));
 
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      {/* Horizontal Tabs */}
-                      <div className="pool-tabs" style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 12, flexWrap: 'wrap' }}>
-                        {pools.map(poolName => {
-                          const isActive = poolName === currentPool;
-                          return (
-                            <button
-                              key={poolName}
-                              onClick={() => setActivePoolTab(poolName)}
-                              style={{
-                                background: isActive ? 'rgba(0, 212, 255, 0.12)' : 'rgba(255, 255, 255, 0.02)',
-                                color: isActive ? '#00d4ff' : 'rgba(255, 255, 255, 0.6)',
-                                border: isActive ? '1px solid #00d4ff' : '1px solid rgba(255, 255, 255, 0.08)',
-                                borderRadius: '20px',
-                                padding: '6px 16px',
-                                fontSize: '0.85rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                outline: 'none'
-                              }}
-                            >
-                              <span>📦</span>
-                              <span>{poolName}</span>
-                              <span style={{
-                                fontSize: '0.72rem',
-                                padding: '1px 6px',
-                                borderRadius: '10px',
-                                background: isActive ? 'rgba(0, 212, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                                color: isActive ? '#00d4ff' : 'rgba(255, 255, 255, 0.4)',
-                                fontWeight: 700
-                              }}>
-                                {grouped[poolName].length}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
+              return (
+                <div style={{ marginBottom: 32 }}>
+                  {/* Horizontal Tabs */}
+                  <div className="pool-tabs" style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                    {pools.map(poolName => {
+                      const isActive = poolName === currentPool;
+                      return (
+                        <button
+                          key={poolName}
+                          onClick={() => setActivePoolTab(poolName)}
+                          style={{
+                            background: isActive ? 'rgba(0, 212, 255, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                            color: isActive ? '#00d4ff' : 'rgba(255, 255, 255, 0.6)',
+                            border: isActive ? '1px solid #00d4ff' : '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '20px',
+                            padding: '6px 16px',
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            outline: 'none'
+                          }}
+                        >
+                          <span>📦</span>
+                          <span>{poolName}</span>
+                          <span style={{
+                            fontSize: '0.72rem',
+                            padding: '1px 6px',
+                            borderRadius: '10px',
+                            background: isActive ? 'rgba(0, 212, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                            color: isActive ? '#00d4ff' : 'rgba(255, 255, 255, 0.4)',
+                            fontWeight: 700
+                          }}>
+                            {grouped[poolName].length}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                      {/* Leaderboard Items for the selected pool */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {sortedTeams.map((team, idx) => {
-                          const rankInPool = idx + 1;
-                          return (
-                            <div key={idx} className="leaderboard-item">
-                              <div className="leaderboard-rank">
-                                <span className="rank-badge" style={{ backgroundColor: getMedalColor(rankInPool) }}>
-                                  {rankInPool === 1 ? '🥇' : rankInPool === 2 ? '🥈' : rankInPool === 3 ? '🥉' : rankInPool}
-                                </span>
-                              </div>
-                              <div className="leaderboard-info">
-                                <p className="team-name">{team.name}</p>
-                                <p className="team-category">{team.category}</p>
-                              </div>
-                              <div className="leaderboard-score">
-                                <p className="score-value">{team.score.toFixed(2)}</p>
-                                <p className="score-label">Điểm trung bình</p>
-                              </div>
-                              <div className="leaderboard-medal">
-                                <span className={`medal-badge medal-${rankInPool.toString().toLowerCase()}`}>
-                                  {getMedalLabel(rankInPool)}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="empty-state">Chưa có dữ liệu xếp hạng. Vui lòng chấm điểm và tính xếp hạng.</div>
-              )}
+                  <LeaderboardTable groupName={currentPool} teams={sortedTeams} />
+                </div>
+              );
+            })()
+          ) : (
+            <div className="results-panel" style={{ marginBottom: 32 }}>
+              <h2 className="panel-title">BẢNG XẾP HẠNG VÒNG ĐẤU (LEADERBOARD)</h2>
+              <div className="empty-state">Chưa có dữ liệu xếp hạng. Vui lòng chấm điểm và tính xếp hạng.</div>
             </div>
-          </div>
+          )}
 
           {/* Charts Grid */}
           <div className="results-grid">

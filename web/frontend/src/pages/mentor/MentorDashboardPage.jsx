@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Table, Progress, Tag, Button, message } from 'antd';
+import { Table, Progress, Tag, Button, message, Alert } from 'antd';
 import './MentorDashboardPage.css';
 import RefreshButton from '../../components/RefreshButton';
 
@@ -12,19 +12,25 @@ export default function MentorDashboardPage() {
   const [assignments, setAssignments] = useState([]);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [loading, setLoading] = useState(true);
+  const [deadline, setDeadline] = useState(null);
 
   const token = localStorage.getItem('accessToken');
   const headers = { Authorization: `Bearer ${token}` };
 
   const fetchData = async () => {
       try {
-        const [aRes, pRes] = await Promise.all([
+        const [aRes, pRes, cRes] = await Promise.all([
           fetch(`${API}/api/mentor-assignments/contests/${contestId}/rounds/${roundId}`, { headers }),
           fetch(`${API}/api/scores/contests/${contestId}/rounds/${roundId}/progress`, { headers }),
+          fetch(`${API}/api/contests/${contestId}`, { headers }),
         ]);
-        const [aData, pData] = await Promise.all([aRes.json(), pRes.json()]);
+        const [aData, pData, cData] = await Promise.all([aRes.json(), pRes.json(), cRes.json()]);
         setAssignments(aData);
         setProgress(pData);
+
+        const contest = cData?.data ?? cData;
+        const roundObj = (contest?.rounds || []).find(r => r._id === roundId || r._id?.toString() === roundId);
+        setDeadline(roundObj?.submission_deadline ? new Date(roundObj.submission_deadline) : null);
       } catch {
         message.error('Không thể tải dữ liệu');
       } finally {
@@ -61,15 +67,19 @@ export default function MentorDashboardPage() {
     {
       title: '',
       key: 'action',
-      render: (_, record) => (
-        <Button
-          type="primary"
-          size="small"
-          onClick={() => navigate(`/mentor/score/${record._id}?contestId=${contestId}&roundId=${roundId}&teamId=${record.team_id?._id}`)}
-        >
-          Chấm điểm
-        </Button>
-      ),
+      render: (_, record) => {
+        const isLocked = deadline && new Date() < deadline;
+        return (
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => navigate(`/mentor/score/${record._id}?contestId=${contestId}&roundId=${roundId}&teamId=${record.team_id?._id}`)}
+            disabled={!!isLocked}
+          >
+            Chấm điểm
+          </Button>
+        );
+      },
     },
   ];
 
@@ -94,6 +104,15 @@ export default function MentorDashboardPage() {
           strokeColor={{ from: '#00f0ff', to: '#a855f7' }}
         />
       </div>
+
+      {deadline && new Date() < deadline && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Vòng thi chưa hết giờ làm bài (chưa qua hạn nộp bài). Mentor chỉ có thể chấm điểm sau khi hết giờ."
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <div className="mdp-table-card">
         <Table

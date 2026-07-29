@@ -41,6 +41,7 @@ import teamRankingRoute from "./routes/teamRanking.js";
 import adminRankingRoute from "./routes/adminRankingRoute.js";
 import prizeRoute from "./routes/prize.js";
 import aiChatRoute from "./routes/aiChatRoute.js";
+import uploadRoute from "./routes/uploadRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -100,6 +101,7 @@ app.use("/api/ranking", teamRankingRoute);
 app.use("/api/admin/ranking", adminRankingRoute);
 app.use("/api/prize", prizeRoute);
 app.use("/api/ai", aiChatRoute);
+app.use("/api/upload", uploadRoute);
 
 // Global Error Handler — đảm bảo mọi lỗi API luôn trả về JSON sạch thay vì HTML 500
 app.use((err, req, res, next) => {

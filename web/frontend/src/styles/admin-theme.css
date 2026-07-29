@@ -1,4 +1,4 @@
-﻿/*
+/*
   Global light-mode overrides for all admin pages.
   Dark mode uses hardcoded values in each page's CSS.
   Light mode overrides are centralized here.
@@ -79,7 +79,7 @@
 .hl-empty          { color: var(--pg-muted2); }
 .hl-act-btn        { border-color: var(--pg-border); color: var(--pg-muted); }
 .hl-spinner        { border-color: var(--pg-border); border-top-color: var(--pg-accent); }
-.hl-badge--gray    { background: var(--pg-card2); color: var(--pg-muted2); border-color: var(--pg-border); }
+.hl-badge--gray    { background: var(--pg-card2); color: var(--pg-text2); border-color: var(--pg-border); }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    HACKATHON DETAIL PAGE
@@ -109,10 +109,10 @@
 .hd-round-card     { background: var(--pg-card); border-color: var(--pg-border); }
 .hd-round-name     { color: var(--pg-text); }
 .hd-round-dates    { color: var(--pg-muted2); }
-.hd-criteria-table th { color: var(--pg-muted2); border-bottom-color: var(--pg-border); }
-.hd-criteria-table td { color: var(--pg-muted); border-bottom-color: var(--pg-border2); }
+.hd-criteria-table th { color: var(--pg-text2); border-bottom-color: var(--pg-border); }
+.hd-criteria-table td { color: var(--pg-text); border-bottom-color: var(--pg-border2); }
 .hd-crit-name      { color: var(--pg-text); }
-.hd-crit-desc      { color: var(--pg-muted2); }
+.hd-crit-desc      { color: var(--pg-text2); }
 .hd-pool-card      { background: var(--pg-card); border-color: var(--pg-border); }
 .hd-pool-name      { color: var(--pg-text); }
 .hd-pool-count     { background: var(--pg-accent-bg); color: var(--pg-accent); }
@@ -124,7 +124,7 @@
 .hd-tl-date        { color: var(--pg-muted); }
 .hd-loading        { color: var(--pg-muted); }
 .hd-spinner        { border-color: var(--pg-border); border-top-color: var(--pg-accent); }
-.hd-badge--gray    { background: var(--pg-card2); color: var(--pg-muted2); border-color: var(--pg-border); }
+.hd-badge--gray    { background: var(--pg-card2); color: var(--pg-text2); border-color: var(--pg-border); }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    USER MANAGEMENT PAGE

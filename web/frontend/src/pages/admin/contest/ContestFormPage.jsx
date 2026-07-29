@@ -93,6 +93,7 @@ function ContestFormPage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentStepText, setCurrentStepText] = useState('');
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   // ─── Derived min dates ────────────────────────────────────────────────────
   const minOpen = now;
@@ -120,6 +121,54 @@ function ContestFormPage() {
     setContestData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     clearFieldError(name);
     if (error) setError('');
+  };
+
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn file hình ảnh (png, jpg, jpeg, gif, webp).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Kích thước ảnh tối đa là 5MB.');
+      return;
+    }
+
+    setUploadingBanner(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target.result;
+      try {
+        const token = localStorage.getItem('accessToken');
+        const res = await fetch(`${API_URL}/api/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ file: base64, folder: 'seal-banners' })
+        });
+        const d = await res.json();
+        if (d.success) {
+          setContestData(prev => ({ ...prev, banner: d.url }));
+        } else {
+          alert(d.message || 'Lỗi tải ảnh lên.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Không thể kết nối đến máy chủ để tải ảnh.');
+      } finally {
+        setUploadingBanner(false);
+      }
+    };
+    reader.onerror = () => {
+      alert('Lỗi đọc file.');
+      setUploadingBanner(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDateChange = (name, date) => {
@@ -384,9 +433,60 @@ function ContestFormPage() {
 
                   <div className="contest-field">
                     <label className="contest-label">Banner URL (Ảnh nền)</label>
-                    <input type="text" name="banner" className="contest-input" placeholder="https://images.unsplash.com/..." value={contestData.banner} onChange={handleTextChange} />
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <input
+                        type="text"
+                        name="banner"
+                        className="contest-input"
+                        placeholder="https://images.unsplash.com/..."
+                        value={contestData.banner}
+                        onChange={handleTextChange}
+                        style={{ flex: 1 }}
+                      />
+                      <label
+                        className="btn btn--outline"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          padding: '0 16px',
+                          fontSize: '0.85rem',
+                          height: '42px',
+                          whiteSpace: 'nowrap',
+                          margin: 0
+                        }}
+                      >
+                        {uploadingBanner ? 'Đang tải...' : 'Tải file'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBannerUpload}
+                          style={{ display: 'none' }}
+                          disabled={uploadingBanner}
+                        />
+                      </label>
+                    </div>
                     {contestData.banner && (
-                      <div className="contest-banner-preview">
+                      <div className="contest-banner-preview" style={{ position: 'relative' }}>
+                        {uploadingBanner && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(0,0,0,0.6)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '8px',
+                            color: '#00d4ff',
+                            fontWeight: 600
+                          }}>
+                            Đang tải lên...
+                          </div>
+                        )}
                         <img src={contestData.banner} alt="Preview Banner" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800'; }} />
                       </div>
                     )}

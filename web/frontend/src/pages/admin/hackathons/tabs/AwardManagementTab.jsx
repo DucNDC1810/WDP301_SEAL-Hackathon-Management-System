@@ -14,6 +14,11 @@ export default function AwardManagementTab({ contestId, teams: propTeams }) {
   const [submitting, setSubmitting] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('prizes'); // 'prizes' | 'claims'
 
+  // Clone from other contest states
+  const [contests, setContests] = useState([]);
+  const [selectedCloneContestId, setSelectedCloneContestId] = useState(null);
+  const [cloning, setCloning] = useState(false);
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPrize, setEditingPrize] = useState(null); // null for create
@@ -24,6 +29,100 @@ export default function AwardManagementTab({ contestId, teams: propTeams }) {
     rank_required: '',
     awarded_team_id: ''
   });
+
+  // Fetch other contests for cloning
+  const fetchOtherContests = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/contests`, { headers: hdrs() });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          const otherContests = (data.data || []).filter(c => c._id !== contestId);
+          setContests(otherContests);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching contests for cloning:', err);
+    }
+  };
+
+  // Clone prizes handler
+  const handleClonePrizes = async () => {
+    if (!selectedCloneContestId) {
+      notification.warning({ message: 'Vui lòng chọn cuộc thi để kế thừa giải thưởng' });
+      return;
+    }
+
+    const sourceContest = contests.find(c => c._id === selectedCloneContestId);
+    const sourceName = sourceContest ? sourceContest.title : 'cuộc thi đã chọn';
+
+    setCloning(true);
+    try {
+      const res = await fetch(`${API_URL}/api/prize/${selectedCloneContestId}`, { headers: hdrs() });
+      if (!res.ok) {
+        notification.error({ message: 'Không thể lấy thông tin giải thưởng từ cuộc thi nguồn' });
+        setCloning(false);
+        return;
+      }
+      
+      const data = await res.json();
+      const sourcePrizes = data.prizes || [];
+      if (sourcePrizes.length === 0) {
+        notification.info({ message: `Cuộc thi "${sourceName}" không có giải thưởng nào để kế thừa` });
+        setCloning(false);
+        return;
+      }
+
+      Modal.confirm({
+        title: 'Xác nhận kế thừa giải thưởng',
+        content: `Bạn có chắc muốn kế thừa ${sourcePrizes.length} giải thưởng từ cuộc thi "${sourceName}"? Các giải thưởng mới sẽ được thêm vào danh sách hiện tại (không ghi đè).`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          setLoading(true);
+          let successCount = 0;
+          
+          for (const prize of sourcePrizes) {
+            try {
+              const body = {
+                contest_id: contestId,
+                name: prize.name,
+                value: prize.value || '',
+                description: prize.description || '',
+                rank_required: prize.rank_required ? Number(prize.rank_required) : null,
+                awarded_team_id: null
+              };
+
+              const createRes = await fetch(`${API_URL}/api/prize`, {
+                method: 'POST',
+                headers: hdrs(),
+                body: JSON.stringify(body)
+              });
+
+              if (createRes.ok) {
+                successCount++;
+              }
+            } catch (err) {
+              console.error('Error cloning individual prize:', err);
+            }
+          }
+
+          notification.success({ 
+            message: `Kế thừa giải thưởng thành công`, 
+            description: `Đã sao chép thành công ${successCount}/${sourcePrizes.length} giải thưởng từ "${sourceName}".`
+          });
+          
+          setSelectedCloneContestId(null);
+          fetchPrizes();
+        }
+      });
+    } catch (err) {
+      console.error('Error cloning prizes:', err);
+      notification.error({ message: 'Lỗi hệ thống khi kế thừa giải thưởng' });
+    } finally {
+      setCloning(false);
+    }
+  };
 
   // Fetch prizes
   const fetchPrizes = async () => {
@@ -74,6 +173,7 @@ export default function AwardManagementTab({ contestId, teams: propTeams }) {
     if (contestId) {
       fetchPrizes();
       fetchClaims();
+      fetchOtherContests();
       if (!propTeams || propTeams.length === 0) {
         fetchTeams();
       }
@@ -204,6 +304,39 @@ export default function AwardManagementTab({ contestId, teams: propTeams }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {contests.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Select
+                placeholder="Kế thừa giải thưởng từ..."
+                value={selectedCloneContestId}
+                onChange={setSelectedCloneContestId}
+                style={{ width: 220 }}
+                options={contests.map(c => ({ value: c._id, label: c.title }))}
+              />
+              <button
+                onClick={handleClonePrizes}
+                disabled={!selectedCloneContestId || cloning}
+                style={{
+                  background: selectedCloneContestId ? 'linear-gradient(135deg, #a855f7 0%, #3b82f6 100%)' : 'rgba(255, 255, 255, 0.04)',
+                  color: selectedCloneContestId ? '#fff' : 'rgba(255, 255, 255, 0.3)',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '6px 14px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: selectedCloneContestId ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.2s ease',
+                  boxShadow: selectedCloneContestId ? '0 0 12px rgba(168, 85, 247, 0.4)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                <span>📥</span> {cloning ? 'Đang kế thừa...' : 'Kế thừa'}
+              </button>
+            </div>
+          )}
+
           <RefreshButton onRefresh={async () => { await Promise.all([fetchPrizes(), fetchClaims(), fetchTeams()]); }} />
           <button className="hd-btn-add" onClick={openCreateModal} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>➕</span> Thêm giải thưởng

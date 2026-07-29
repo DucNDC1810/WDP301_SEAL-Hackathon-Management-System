@@ -136,7 +136,15 @@ export const getMyAssignments = async (mentorId) => {
       select: "team_name status members topic_id leader_id pool_id",
       populate: { path: "topic_id", select: "title" },
     })
-    .populate("board_id", "pool_name teams")
+    .populate({
+      path: "board_id",
+      select: "pool_name teams",
+      populate: {
+        path: "teams",
+        select: "team_name status topic_id members leader_id",
+        populate: { path: "topic_id", select: "title" },
+      },
+    })
     .sort({ assigned_at: -1 });
 };
 

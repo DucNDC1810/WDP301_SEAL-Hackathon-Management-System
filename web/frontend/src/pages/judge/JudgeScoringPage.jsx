@@ -226,7 +226,7 @@ export const JudgeScoringPage = () => {
   };
 
   const setScore = (critId, val) => {
-    if (round?.scoring_locked) return;
+    if (round?.scoring_locked || (round?.submission_deadline && now < new Date(round.submission_deadline))) return;
     setDraft((p) => ({ ...p, criteria: { ...p.criteria, [critId]: val } }));
   };
 
@@ -560,7 +560,7 @@ export const JudgeScoringPage = () => {
                         c={c}
                         value={draft.criteria?.[c.id] ?? 0}
                         onChange={(v) => setScore(c.id, v)}
-                        readOnly={round?.scoring_locked || false}
+                        readOnly={round?.scoring_locked || (round?.submission_deadline && now < new Date(round.submission_deadline))}
                       />
                     ))}
                   </div>
@@ -572,8 +572,14 @@ export const JudgeScoringPage = () => {
                   <textarea
                     value={draft.comment}
                     onChange={(e) => setDraft((p) => ({ ...p, comment: e.target.value }))}
-                    readOnly={round?.scoring_locked || false}
-                    placeholder={round?.scoring_locked ? "Vòng thi đã khóa chấm điểm" : "Ghi nhận điểm mạnh, góp ý cho team..."}
+                    readOnly={round?.scoring_locked || (round?.submission_deadline && now < new Date(round.submission_deadline))}
+                    placeholder={
+                      round?.scoring_locked
+                        ? "Vòng thi đã khóa chấm điểm"
+                        : round?.submission_deadline && now < new Date(round.submission_deadline)
+                        ? "Chưa hết giờ làm bài, không thể chấm điểm"
+                        : "Ghi nhận điểm mạnh, góp ý cho team..."
+                    }
                     style={{ width: '100%', minHeight: 92, background: '#0e151d', border: '1px solid #1c2632', borderRadius: 13, color: '#e8eef5', padding: '13px 15px', fontSize: 13, fontFamily: 'inherit', lineHeight: 1.5, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
@@ -648,6 +654,14 @@ export const JudgeScoringPage = () => {
                       <div style={{ lineHeight: 1.25 }}>
                         <div style={{ fontSize: 12.5, fontWeight: 700, color: '#f87171' }}>Vòng thi đã khóa chấm điểm</div>
                         <div style={{ fontSize: 11, color: '#aebccb', marginTop: 2 }}>Bạn không thể chỉnh sửa hoặc nộp điểm lúc này.</div>
+                      </div>
+                    </div>
+                  ) : round?.submission_deadline && now < new Date(round.submission_deadline) ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 11, background: 'rgba(251,191,36,.10)', border: '1px solid rgba(251,191,36,.32)' }}>
+                      <span style={{ fontSize: 16 }}>🔒</span>
+                      <div style={{ lineHeight: 1.25 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fbbf24' }}>Chưa hết giờ làm bài</div>
+                        <div style={{ fontSize: 11, color: '#aebccb', marginTop: 2 }}>Bạn chỉ được chấm điểm sau khi hết hạn nộp bài.</div>
                       </div>
                     </div>
                   ) : (

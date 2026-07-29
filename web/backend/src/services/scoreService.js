@@ -54,6 +54,12 @@ export const createScore = async ({
     err.statusCode = 403; throw err;
   }
 
+  // Block scoring before submission deadline has passed
+  if (round.submission_deadline && new Date() < new Date(round.submission_deadline)) {
+    const err = new Error("Chưa hết giờ làm bài (chưa qua hạn nộp bài), không thể chấm điểm");
+    err.statusCode = 403; throw err;
+  }
+
   // Conflict of interest: mentor không được chấm team mình đang hướng dẫn
   const isMentorOfThisTeam = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id });
   if (isMentorOfThisTeam) {
@@ -164,6 +170,12 @@ export const updateScore = async (scoreId, judgeId, { comment, score_details, su
   const round = await getRound(score.contest_id.toString(), score.round_id.toString());
   if (round.scoring_locked) {
     const err = new Error("Vòng thi đã khóa chấm điểm");
+    err.statusCode = 403; throw err;
+  }
+
+  // Block scoring before submission deadline has passed
+  if (round.submission_deadline && new Date() < new Date(round.submission_deadline)) {
+    const err = new Error("Chưa hết giờ làm bài (chưa qua hạn nộp bài), không thể chấm điểm");
     err.statusCode = 403; throw err;
   }
 

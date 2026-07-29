@@ -297,6 +297,19 @@
   color: var(--cyan);
 }
 
+.signup-card__input.has-error {
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.signup-card__input.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.signup-card__field-error {
+  font-size: 12px;
+  color: #fca5a5;
+}
+
 /* ── Password Row (side by side) ── */
 
 .signup-card__row {
@@ -395,7 +408,7 @@
 
 .signup-card__socials {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 

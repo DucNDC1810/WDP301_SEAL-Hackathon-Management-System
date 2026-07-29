@@ -49,6 +49,14 @@ export const signUp = async (req, res) => {
       });
     }
 
+    // validate phone format
+    if (phone && !/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại phải có đúng 10 chữ số",
+      });
+    }
+
     // delegate to service
     const user = await createUser({ full_name, email, password, phone });
 

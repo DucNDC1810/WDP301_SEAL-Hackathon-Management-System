@@ -38,6 +38,15 @@ const fillPreview = (str, vars) =>
     .replace(/{{\s*leader_name\s*}}/g, vars.leader_name)
     .replace(/{{\s*team_name\s*}}/g, vars.team_name);
 
+// Ngược lại với fillPreview — khôi phục placeholder từ bản đã điền tên mẫu,
+// để admin sửa trên bản xem trước dễ đọc mà vẫn giữ cá nhân hóa khi gửi hàng loạt.
+const unfillPreview = (str, vars) => {
+  let result = String(str || '');
+  if (vars.leader_name) result = result.split(vars.leader_name).join('{{leader_name}}');
+  if (vars.team_name) result = result.split(vars.team_name).join('{{team_name}}');
+  return result;
+};
+
 const CHAT_SUGGESTIONS = [
   'Cuộc thi SEAL Hackathon 2026 có bao nhiêu người tham gia?',
   'Khi nào cuộc thi đó bắt đầu và kết thúc?',
@@ -142,6 +151,9 @@ export default function AIAssistantPage() {
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [customNotes, setCustomNotes] = useState('');
   const [draft, setDraft] = useState(null);
+  const [draftKey, setDraftKey] = useState(0); // tăng mỗi lần soạn mới, để reset vùng nội dung có thể sửa
+  const [editSubject, setEditSubject] = useState('');
+  const bodyEditRef = useRef(null);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
   const [emailHistory, setEmailHistory] = useState([]);
@@ -231,9 +243,11 @@ export default function AIAssistantPage() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Không thể tạo email');
       setDraft(data.data);
+      setEditSubject(fillPreview(data.data.subject, data.data.recipients[0]));
+      setDraftKey((k) => k + 1);
       notification.success({
         message: 'Đã soạn xong email',
-        description: `${data.data.recipients.length} người nhận — kiểm tra bản xem trước bên phải.`,
+        description: `${data.data.recipients.length} người nhận — kiểm tra bản xem trước bên phải, có thể chỉnh sửa trước khi gửi.`,
       });
     } catch (err) {
       notification.error({ message: 'Lỗi', description: err.message || 'Không thể tạo email' });
@@ -246,10 +260,17 @@ export default function AIAssistantPage() {
     if (!draft) return;
     setSending(true);
     try {
+      const recipient0 = draft.recipients[0];
+      const editedBodyHtml = bodyEditRef.current?.innerHTML ?? draft.body_html;
+      const payload = {
+        ...draft,
+        subject: unfillPreview(editSubject, recipient0),
+        body_html: unfillPreview(editedBodyHtml, recipient0),
+      };
       const res = await fetch(`${API_URL}/api/ai/email/send`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify(draft),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Không thể gửi email');
@@ -467,7 +488,7 @@ export default function AIAssistantPage() {
             {/* Right Panel */}
             <div className="email-panel email-panel--right">
               <h2 className="panel-title">Bản xem trước Email</h2>
-              <div className="email-preview">
+              <div className={`email-preview ${draft ? 'email-preview--filled' : ''}`}>
                 {generating ? (
                   <p className="preview-placeholder">AI đang soạn email dựa trên dữ liệu thật...</p>
                 ) : draft ? (
@@ -476,16 +497,33 @@ export default function AIAssistantPage() {
                       <span>📨 {draft.recipients.length} người nhận</span>
                       <span>· {draft.contest_title}</span>
                     </div>
-                    <p className="email-draft__subject"><strong>Tiêu đề:</strong> {fillPreview(draft.subject, draft.recipients[0])}</p>
+                    <label className="email-draft__field-label">Tiêu đề</label>
+                    <input
+                      className="email-draft__subject-input"
+                      value={editSubject}
+                      onChange={(e) => setEditSubject(e.target.value)}
+                      disabled={sending}
+                    />
+                    <label className="email-draft__field-label">Nội dung (bấm vào để chỉnh sửa)</label>
                     <div
+                      key={draftKey}
+                      ref={bodyEditRef}
                       className="email-draft__body"
+                      contentEditable={!sending}
+                      suppressContentEditableWarning
                       dangerouslySetInnerHTML={{ __html: fillPreview(draft.body_html, draft.recipients[0]) }}
                     />
-                    <p className="email-draft__hint">* Xem trước với đội "{draft.recipients[0].team_name}". Mỗi người nhận sẽ được cá nhân hóa tên riêng khi gửi.</p>
-                    <button className="btn-generate" onClick={sendEmail} disabled={sending}>
-                      <Ico d={SEND} size={16} />
-                      <span>{sending ? 'Đang gửi...' : `Gửi cho ${draft.recipients.length} người nhận`}</span>
-                    </button>
+                    <p className="email-draft__hint">* Xem trước &amp; chỉnh sửa với đội "{draft.recipients[0].team_name}". Tên/tên đội sẽ tự thay theo từng người nhận khi gửi hàng loạt.</p>
+                    <div className="email-draft__actions">
+                      <button className="btn-discard" onClick={() => setDraft(null)} disabled={sending}>
+                        <Ico d={TRASH} size={16} />
+                        <span>Xóa nháp</span>
+                      </button>
+                      <button className="btn-generate" onClick={sendEmail} disabled={sending}>
+                        <Ico d={SEND} size={16} />
+                        <span>{sending ? 'Đang gửi...' : `Gửi cho ${draft.recipients.length} người nhận`}</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>

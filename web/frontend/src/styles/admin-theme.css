@@ -292,8 +292,17 @@
 
 .al-root[data-theme="light"] .email-draft__meta { color: #0284c7; }
 .al-root[data-theme="light"] .email-draft__subject { color: #1e293b; border-bottom-color: #e2e8f0; }
-.al-root[data-theme="light"] .email-draft__body { color: #334155; }
+.al-root[data-theme="light"] .email-draft__body { color: #334155; border-color: #e2e8f0; background: #f8fafc; }
+.al-root[data-theme="light"] .email-draft__body:focus,
+.al-root[data-theme="light"] .email-draft__body:hover { border-color: #7dd3fc; }
 .al-root[data-theme="light"] .email-draft__hint { color: #94a3b8; }
+.al-root[data-theme="light"] .email-draft__field-label { color: #64748b; }
+.al-root[data-theme="light"] .email-draft__subject-input {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #1e293b;
+}
+.al-root[data-theme="light"] .email-draft__subject-input:focus { border-color: #0284c7; }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    AI ASSISTANT PAGE (old chat interface fallback)

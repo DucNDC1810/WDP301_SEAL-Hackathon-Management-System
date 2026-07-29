@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Form, Input, Modal, Select, Tag, message, Slider, Rate } from 'antd';
+import { App as AntdApp, Button, Form, Input, Modal, Select, Tag, Slider, Rate } from 'antd';
 import { CrownOutlined, MailOutlined, UserDeleteOutlined, MoreOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
@@ -91,6 +91,9 @@ export const StudentTeamPage = () => {
   const { request } = useApi();
   const { theme } = useTheme();
   const C = getStudentColors(theme);
+  // Context-aware message/modal — the static antd APIs ignore ConfigProvider and
+  // would stay dark while the page is in light mode.
+  const { message, modal } = AntdApp.useApp();
 
   // Shared card style
   const cardStyle = {
@@ -135,8 +138,6 @@ export const StudentTeamPage = () => {
   // Team settings
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [teamName, setTeamName] = useState('');
-  const [teamDesc, setTeamDesc] = useState('');
-  const [teamField, setTeamField] = useState('Web Development');
 
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerForm] = Form.useForm();
@@ -174,7 +175,7 @@ export const StudentTeamPage = () => {
         setInvitations(invs.filter(i => i.status === 'pending'));
         const found = teams.find(t => open.some(c => (c._id ?? c) === (t.contest_id?._id ?? t.contest_id))) ?? teams[0] ?? null;
         setTeam(found);
-        if (found) { setTeamName(found.team_name || ''); setTeamDesc(found.description || ''); }
+        if (found) setTeamName(found.team_name || '');
       } catch {
         message.error('Không thể tải thông tin đội thi');
       } finally {
@@ -301,7 +302,7 @@ export const StudentTeamPage = () => {
   };
 
   const handleDissolveTeam = () => {
-    Modal.confirm({
+    modal.confirm({
       title: 'Giải tán đội thi?',
       content: `Toàn bộ thành viên sẽ bị xóa khỏi đội "${team.team_name}". Hành động này không thể hoàn tác.`,
       okText: 'Giải tán',
@@ -691,7 +692,7 @@ export const StudentTeamPage = () => {
                   style={{ width: '100%', justifyContent: 'center' }}
                   disabled={leaveLoading}
                   onClick={() => {
-                    Modal.confirm({
+                    modal.confirm({
                       title: 'Rời khỏi đội thi?',
                       content: 'Bạn có chắc chắn muốn rời khỏi đội này không?',
                       okText: 'Rời đội',
@@ -738,23 +739,6 @@ export const StudentTeamPage = () => {
                 <div>
                   <label style={labelStyle}>Tên đội</label>
                   <input style={inputStyle} value={teamName} onChange={e => setTeamName(e.target.value)} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Lĩnh vực</label>
-                  <select style={{ ...inputStyle }} value={teamField} onChange={e => setTeamField(e.target.value)}>
-                    <option>Web Development</option>
-                    <option>Mobile App</option>
-                    <option>AI / Machine Learning</option>
-                    <option>Game Development</option>
-                    <option>DevOps / Cloud</option>
-                    <option>Khác</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>Mô tả</label>
-                  <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 68 }} rows={3}
-                    placeholder="Mô tả ngắn gọn về đội của bạn..."
-                    value={teamDesc} onChange={e => setTeamDesc(e.target.value)} />
                 </div>
                 <button
                   onClick={handleSaveSettings}
@@ -811,7 +795,7 @@ export const StudentTeamPage = () => {
                 return (
                   <div key={m.email} style={{
                     display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px',
-                    borderBottom: i < (team.members?.length ?? 0) - 1 ? `1px solid #0f1a2e` : 'none',
+                    borderBottom: i < (team.members?.length ?? 0) - 1 ? `1px solid ${C.line2}` : 'none',
                   }}>
                     <Avatar name={memberName} url={m.user_id?.avatar_url} size={40} radius={11} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -875,7 +859,7 @@ export const StudentTeamPage = () => {
                 {pending.map(m => (
                   <div key={m.email} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '10px 0', borderBottom: `1px solid #0f1a2e`,
+                    padding: '10px 0', borderBottom: `1px solid ${C.line2}`,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Avatar name={m.email} url={m.user_id?.avatar_url} size={32} radius={9} />
@@ -945,12 +929,12 @@ export const StudentTeamPage = () => {
                   const name = m.full_name || m.user_id?.full_name || m.email;
                   return (
                     <div key={m.email} style={{
-                      borderBottom: i < (team.members?.length ?? 0) - 1 ? `1px solid #0f1a2e` : 'none',
+                      borderBottom: i < (team.members?.length ?? 0) - 1 ? `1px solid ${C.line2}` : 'none',
                       padding: '12px 0',
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
                         <span style={{ fontWeight: 600, fontSize: 14, color: C.text }}>{name}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#38bdf8', fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.cyan, fontFamily: "'JetBrains Mono', monospace" }}>
                           {pct}%
                         </span>
                       </div>
@@ -991,7 +975,7 @@ export const StudentTeamPage = () => {
         styles={{ body: { padding: '12px 0' } }}
       >
         <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0 0 8px' }}>
+          <p style={{ fontSize: '0.85rem', color: C.muted, margin: '0 0 8px' }}>
             Nhập tỷ lệ phần trăm đóng góp, điểm đánh giá và nhận xét cho từng thành viên.
           </p>
           <div style={{
@@ -1003,7 +987,7 @@ export const StudentTeamPage = () => {
             justifyContent: 'space-between',
             fontSize: '0.85rem'
           }}>
-            <span style={{ color: '#e2e8f0' }}>Tổng tỷ lệ đóng góp của cả đội:</span>
+            <span style={{ color: C.text }}>Tổng tỷ lệ đóng góp của cả đội:</span>
             <strong style={{ color: evalMembers.reduce((sum, m) => sum + (m.contribution_percentage || 0), 0) === 100 ? '#34d399' : '#f87171' }}>
               {evalMembers.reduce((sum, m) => sum + (m.contribution_percentage || 0), 0)}% / 100%
             </strong>
@@ -1013,22 +997,22 @@ export const StudentTeamPage = () => {
         <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
           {evalMembers.map((m, idx) => (
             <div key={m.email} style={{
-              background: 'rgba(255, 255, 255, 0.02)',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
+              background: C.card2,
+              border: `1px solid ${C.line}`,
               borderRadius: 8,
               padding: 14,
               marginBottom: 12
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{m.full_name || m.email}</span>
-                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{m.email}</span>
+                <span style={{ fontWeight: 600, color: C.text }}>{m.full_name || m.email}</span>
+                <span style={{ color: C.muted, fontSize: '0.8rem' }}>{m.email}</span>
               </div>
 
               {/* Slider for percentage */}
               <div style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#94a3b8', marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: C.muted, marginBottom: 4 }}>
                   <span>Tỷ lệ đóng góp</span>
-                  <strong style={{ color: '#38bdf8' }}>{m.contribution_percentage}%</strong>
+                  <strong style={{ color: C.cyan }}>{m.contribution_percentage}%</strong>
                 </div>
                 <Slider
                   min={0}
@@ -1045,7 +1029,7 @@ export const StudentTeamPage = () => {
 
               {/* Rating */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Đánh giá sao:</span>
+                <span style={{ fontSize: '0.85rem', color: C.muted }}>Đánh giá sao:</span>
                 <Rate
                   value={m.contribution_rating}
                   onChange={(val) => {
@@ -1058,7 +1042,7 @@ export const StudentTeamPage = () => {
 
               {/* Note */}
               <div>
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8', display: 'block', marginBottom: 4 }}>Ghi chú nhận xét:</span>
+                <span style={{ fontSize: '0.85rem', color: C.muted, display: 'block', marginBottom: 4 }}>Ghi chú nhận xét:</span>
                 <Input
                   value={m.contribution_note}
                   placeholder="Nhập nhận xét đóng góp..."
@@ -1084,7 +1068,7 @@ export const StudentTeamPage = () => {
         okText="Xác nhận chuyển"
         okButtonProps={{ danger: false }}
       >
-        <p style={{ fontSize: '.85rem', color: '#94a3b8', marginBottom: 16 }}>
+        <p style={{ fontSize: '.85rem', color: C.muted, marginBottom: 16 }}>
           Sau khi chuyển, bạn sẽ trở thành thành viên thường. Hành động này không thể hoàn tác (trừ khi Leader mới chuyển lại cho bạn).
         </p>
         <Form form={transferForm} layout="vertical" onFinish={handleTransferLeader}>

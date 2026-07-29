@@ -901,7 +901,7 @@ export const StudentSubmitPage = () => {
             </div>
           )}
           {submission && (
-            <div style={{ color: '#94a3b8' }}>
+            <div style={{ color: C.muted }}>
               Bài nộp mới sẽ thay thế bài cũ. Hành động này không thể hoàn tác.
             </div>
           )}
@@ -930,7 +930,7 @@ export const StudentSubmitPage = () => {
       >
         {confirmSlot && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '8px 0' }}>
-            <div style={{ fontSize: 13, color: '#94a3b8' }}>
+            <div style={{ fontSize: 13, color: C.muted }}>
               Bạn sẽ đặt slot trình bày sau.{' '}
               <strong style={{ color: C.amber }}>Chỉ admin mới có thể huỷ lịch sau khi đặt.</strong>
             </div>
@@ -965,7 +965,7 @@ export const StudentSubmitPage = () => {
         cancelText="Giữ lại"
         confirmLoading={cancelling}
       >
-        <div style={{ fontSize: 13, color: '#94a3b8', padding: '8px 0' }}>
+        <div style={{ fontSize: 13, color: C.muted, padding: '8px 0' }}>
           Sau khi hủy, slot sẽ được trả về danh sách trống và đội khác có thể đăng ký. Bạn có thể đặt lại slot khác trước hạn nộp bài.
         </div>
       </Modal>

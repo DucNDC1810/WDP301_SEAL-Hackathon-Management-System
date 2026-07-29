@@ -360,8 +360,23 @@ export default function RoundActivatePage() {
                           }}
                         />
                         <div>
-                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: isChecked ? 'var(--cyan)' : '#fff' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: isChecked ? 'var(--cyan)' : '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {judge.full_name}
+                            {judge.roles?.some(r => r.role_name === 'mentor') && (
+                              <span style={{
+                                fontSize: '0.65rem',
+                                fontWeight: '700',
+                                color: 'var(--purple)',
+                                background: 'rgba(168, 85, 247, 0.1)',
+                                border: '1px solid rgba(168, 85, 247, 0.25)',
+                                borderRadius: '4px',
+                                padding: '1px 6px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                              }}>
+                                Mentor
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                             {judge.email}

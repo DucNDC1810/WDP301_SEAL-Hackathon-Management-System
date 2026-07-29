@@ -80,8 +80,11 @@ router.get("/:round_id/setup", authenticate, async (req, res, next) => {
         assigned_at: a.assigned_at || a.created_at
       }));
 
-    // Fetch all available judges in the system
-    const allAvailableJudges = await User.find({ "roles.role_name": "judge" }, "full_name email");
+    // Fetch all available judges and mentors in the system (both can be assigned to score)
+    const allAvailableJudges = await User.find(
+      { "roles.role_name": { $in: ["judge", "mentor"] } },
+      "full_name email roles"
+    );
 
     return res.status(200).json({
       round: roundData,

@@ -144,10 +144,8 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     if (selectedRound) fetchAssignments(selectedRound);
   }, [selectedRound, fetchAssignments]);
 
-  // Users có role judge hoặc mentor đều có thể làm judge
-  const judgeOrMentorUsers = allUsers.filter(u =>
-    u.roles?.some(r => r.role_name === 'judge' || r.role_name === 'mentor')
-  );
+  // Tất cả người dùng đã đăng ký trong hệ thống đều có thể được phân công làm Giám khảo
+  const judgeOrMentorUsers = allUsers;
   const mentors = allUsers.filter(u => u.roles?.some(r => r.role_name === 'mentor'));
 
   // Pool đã có judge

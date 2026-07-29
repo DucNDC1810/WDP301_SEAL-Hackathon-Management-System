@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Table, Tag, Badge, Typography, message } from 'antd';
 import { useSocket } from '../../hooks/useSocket';
+import RefreshButton from '../../components/RefreshButton';
 import './LeaderboardPage.css';
 
 const { Title } = Typography;
@@ -15,14 +16,24 @@ export default function LeaderboardPage() {
 
   const token = localStorage.getItem('accessToken');
 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API}/api/contests/${contestId}/rounds/${roundId}/rankings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      setRankings(data?.data ?? data);
+      setLoading(false);
+    } catch {
+      message.error('Không thể tải bảng xếp hạng');
+      setLoading(false);
+    }
+  }, [contestId, roundId, token]);
+
   useEffect(() => {
-    fetch(`${API}/api/contests/${contestId}/rounds/${roundId}/rankings`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => { setRankings(data?.data ?? data); setLoading(false); })
-      .catch(() => { message.error('Không thể tải bảng xếp hạng'); setLoading(false); });
-  }, [contestId, roundId]);
+    fetchData();
+  }, [fetchData]);
 
   useSocket(contestId, roundId, ({ rankings: newRankings }) => {
     setRankings(newRankings);
@@ -58,6 +69,7 @@ export default function LeaderboardPage() {
       <div className="leaderboard__header">
         <Title level={3}>Bảng xếp hạng</Title>
         {updated && <Badge status="processing" text="Vừa cập nhật" />}
+        <RefreshButton onRefresh={fetchData} />
       </div>
       <Table
         rowKey="_id"

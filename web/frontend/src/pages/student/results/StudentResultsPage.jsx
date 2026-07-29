@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Empty, Progress, Tag } from "antd";
 import { useApi } from "../../../hooks/useApi";
 import "../student.css";
+import RefreshButton from "../../../components/RefreshButton";
 
 const C = {
   bg: "#070b14", card: "#0c1524", line: "#1b2740", line2: "#162036",
@@ -145,28 +146,29 @@ export const StudentResultsPage = () => {
   const [results, setResults] = useState(null);
   const [hasContest, setHasContest] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const teamsRes = await request("/api/teams/me");
-        const teams = Array.isArray(teamsRes) ? teamsRes : (teamsRes?.data ?? []);
-        const team = teams.find((t) => t.contest_id) ?? null;
-        if (!team) {
-          setHasContest(false);
-          setLoading(false);
-          return;
-        }
-        const contestId = team.contest_id?._id ?? team.contest_id;
-        const data = await request(`/api/scores/contests/${contestId}/my-team-results`);
-        setTeamName(data?.team_name ?? team.team_name);
-        setResults(Array.isArray(data?.results) ? data.results : []);
-      } catch {
+  const load = async () => {
+    setLoading(true);
+    try {
+      const teamsRes = await request("/api/teams/me");
+      const teams = Array.isArray(teamsRes) ? teamsRes : (teamsRes?.data ?? []);
+      const team = teams.find((t) => t.contest_id) ?? null;
+      if (!team) {
         setHasContest(false);
-      } finally {
         setLoading(false);
+        return;
       }
-    };
+      const contestId = team.contest_id?._id ?? team.contest_id;
+      const data = await request(`/api/scores/contests/${contestId}/my-team-results`);
+      setTeamName(data?.team_name ?? team.team_name);
+      setResults(Array.isArray(data?.results) ? data.results : []);
+    } catch {
+      setHasContest(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     load();
   }, []);
 
@@ -209,11 +211,14 @@ export const StudentResultsPage = () => {
         >
           Kết quả
         </h2>
-        {teamName && (
-          <span style={{ fontSize: 12.5, color: C.muted }}>
-            Đội <strong style={{ color: C.text2 }}>{teamName}</strong>
-          </span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {teamName && (
+            <span style={{ fontSize: 12.5, color: C.muted }}>
+              Đội <strong style={{ color: C.text2 }}>{teamName}</strong>
+            </span>
+          )}
+          <RefreshButton onRefresh={load} />
+        </div>
       </div>
 
       {results.length === 0 ? (

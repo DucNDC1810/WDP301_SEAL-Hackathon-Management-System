@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './AdminDashboard.css';
 import { notification } from 'antd';
+import RefreshButton from '../../../components/RefreshButton';
 
 const Ico = ({ d, size = 18, sw = 1.8 }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw}
@@ -267,6 +268,7 @@ export default function AdminDashboard() {
           <p>Innovation Powered by AI • FPT University Competition Platform</p>
         </div>
         <div className="dashboard-actions">
+          <RefreshButton onRefresh={fetchDashboardData} />
           <button className="btn-primary" onClick={() => setShowBroadcastModal(true)}>📢 Gửi thông báo</button>
           <button className="btn-secondary">Create Hackathon</button>
         </div>

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getChapterRanking } from '../../api/ranking';
+import RefreshButton from '../../components/RefreshButton';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const MEDAL_COLOR = {
@@ -19,23 +20,26 @@ export default function ChapterRankingPage() {
   const [error, setError] = useState(null);
   const [tooltip, setTooltip] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const fetchData = useCallback((mountedRef) => {
     setLoading(true);
     setUnpublished(false);
     setError(null);
 
     getChapterRanking(round_id)
-      .then((res) => { if (mounted) { setData(res.data); setLoading(false); } })
+      .then((res) => { if (!mountedRef || mountedRef.current) { setData(res.data); setLoading(false); } })
       .catch((err) => {
-        if (!mounted) return;
+        if (mountedRef && !mountedRef.current) return;
         if (err.response?.status === 403) setUnpublished(true);
         else setError(err.response?.data?.message || 'Lỗi tải dữ liệu');
         setLoading(false);
       });
-
-    return () => { mounted = false; };
   }, [round_id]);
+
+  useEffect(() => {
+    const mountedRef = { current: true };
+    fetchData(mountedRef);
+    return () => { mountedRef.current = false; };
+  }, [fetchData]);
 
   /* ── Loading ── */
   if (loading) return (
@@ -90,6 +94,9 @@ export default function ChapterRankingPage() {
           <div style={s.badge}>
             <span style={s.dot} />
             {data?.round_name || 'Vòng thi'}
+          </div>
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+            <RefreshButton onRefresh={() => fetchData()} />
           </div>
           {data?.season_name && (
             <p style={{ color: 'var(--text-secondary)', marginTop: 6, fontSize: '0.9rem' }}>

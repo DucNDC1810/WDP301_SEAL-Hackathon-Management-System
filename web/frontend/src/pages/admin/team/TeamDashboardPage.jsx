@@ -2,6 +2,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import './TeamDashboardPage.css';
 import { notification } from 'antd';
+import RefreshButton from '../../../components/RefreshButton';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -272,6 +273,7 @@ function TeamDashboardPage({ isEmbedded = false, onTeamsUpdated }) {
               <h1 className="team-title">Dashboard <span>Cuộc Thi</span></h1>
               <p className="team-subtitle">Quản lý trạng thái đội thi, xác thực thành viên và chia bảng đấu tự động</p>
             </div>
+            <RefreshButton onRefresh={async () => { await Promise.all([fetchTeams(true), fetchPools(true)]); }} />
           </div>
         )}
 

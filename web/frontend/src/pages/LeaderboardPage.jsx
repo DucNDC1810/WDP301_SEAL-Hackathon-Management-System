@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getLeaderboard, getTiebreakStatus, applyTiebreakRule } from '../api/leaderboard';
 import { getWildCardCandidates } from '../api/wildcard';
 import LeaderboardTable from '../components/LeaderboardTable';
 import TiebreakAlert from '../components/TiebreakAlert';
+import RefreshButton from '../components/RefreshButton';
 
 export default function LeaderboardPage() {
   const { round_id } = useParams();
@@ -15,14 +16,13 @@ export default function LeaderboardPage() {
   const [tiebreakGroups, setTiebreakGroups] = useState([]);
   const [wildcardEligible, setWildcardEligible] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
+  const fetchData = useCallback((isMountedRef) => {
     setLoading(true);
     setError(null);
 
     getLeaderboard(round_id)
       .then((res) => {
-        if (isMounted) {
+        if (!isMountedRef || isMountedRef.current) {
           setData(res.data);
           if (res.data.groups && res.data.groups.length > 0) {
             setActiveGroup(res.data.groups[0].group_name);
@@ -31,7 +31,7 @@ export default function LeaderboardPage() {
         }
       })
       .catch((err) => {
-        if (isMounted) {
+        if (!isMountedRef || isMountedRef.current) {
           console.error(err);
           const errMsg = err.response?.data?.message || err.message || "Đã xảy ra lỗi khi tải bảng xếp hạng.";
           setError(errMsg);
@@ -41,7 +41,7 @@ export default function LeaderboardPage() {
 
     getTiebreakStatus(round_id)
       .then((res) => {
-        if (isMounted && res.data && res.data.success) {
+        if ((!isMountedRef || isMountedRef.current) && res.data && res.data.success) {
           setTiebreakGroups(res.data.tiebreak_groups || []);
         }
       })
@@ -51,18 +51,23 @@ export default function LeaderboardPage() {
 
     getWildCardCandidates(round_id)
       .then((res) => {
-        if (isMounted) {
+        if (!isMountedRef || isMountedRef.current) {
           setWildcardEligible(res.data?.eligible || false);
         }
       })
       .catch((err) => {
         console.error("Lỗi khi tải trạng thái Wild Card (bỏ qua):", err);
       });
+  }, [round_id]);
+
+  useEffect(() => {
+    const isMountedRef = { current: true };
+    fetchData(isMountedRef);
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
     };
-  }, [round_id]);
+  }, [fetchData]);
 
   const handleApplyRule = async (group_name) => {
     console.log('[LeaderboardPage] handleApplyRule called. round_id:', round_id, '| group_name:', group_name);
@@ -215,6 +220,10 @@ export default function LeaderboardPage() {
               boxShadow: "0 0 8px var(--green)"
             }}></span>
             Vòng thi: {data?.round_name || "Sơ loại"}
+          </div>
+
+          <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
+            <RefreshButton onRefresh={() => fetchData()} />
           </div>
 
           <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>

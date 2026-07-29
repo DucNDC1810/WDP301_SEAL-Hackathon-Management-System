@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Table, Form, Input, Button, Tag, Select, Card, Tabs, Typography, message } from 'antd';
 import './AppealsPage.css';
+import RefreshButton from '../../components/RefreshButton';
 
 const { Title } = Typography;
 const API = import.meta.env.VITE_API_URL || '';
@@ -83,7 +84,10 @@ export default function AppealsPage() {
 
   return (
     <div className="appeals">
-      <Title level={3}>Khiếu nại</Title>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Title level={3} style={{ margin: 0 }}>Khiếu nại</Title>
+        <RefreshButton onRefresh={fetchAppeals} />
+      </div>
       {role === 'contestant' ? (
         <Tabs items={[
           {

@@ -5,6 +5,7 @@ import { getRoundSetup, assignJudges, activateRound, createCriteria, updateCrite
 import { useRoundStatus } from '../hooks/useRoundStatus';
 import { FrozenOverlay } from '../components/FrozenOverlay';
 import { notification, Modal } from 'antd';
+import RefreshButton from '../components/RefreshButton';
 
 export default function FinalistConfirmPage() {
   const { round_id } = useParams();
@@ -508,6 +509,9 @@ export default function FinalistConfirmPage() {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
             Thực hiện quy trình thiết lập theo các bước dưới đây để chuẩn bị và kích hoạt vòng thi chung kết.
           </p>
+          <div style={{ marginTop: '12px' }}>
+            <RefreshButton onRefresh={loadData} />
+          </div>
         </header>
 
         {/* Stepper Navigation Indicator */}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Table, Progress, Tag, Button, message } from 'antd';
 import './MentorDashboardPage.css';
+import RefreshButton from '../../components/RefreshButton';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -15,8 +16,7 @@ export default function MentorDashboardPage() {
   const token = localStorage.getItem('accessToken');
   const headers = { Authorization: `Bearer ${token}` };
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = async () => {
       try {
         const [aRes, pRes] = await Promise.all([
           fetch(`${API}/api/mentor-assignments/contests/${contestId}/rounds/${roundId}`, { headers }),
@@ -30,7 +30,9 @@ export default function MentorDashboardPage() {
       } finally {
         setLoading(false);
       }
-    };
+  };
+
+  useEffect(() => {
     fetchData();
   }, [contestId, roundId]);
 
@@ -73,9 +75,12 @@ export default function MentorDashboardPage() {
 
   return (
     <div className="mdp-page">
-      <div className="mdp-header">
-        <h1 className="mdp-title">Dashboard Chấm điểm</h1>
-        <p className="mdp-subtitle">Quản lý và theo dõi tiến độ chấm điểm các đội thi</p>
+      <div className="mdp-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <h1 className="mdp-title">Dashboard Chấm điểm</h1>
+          <p className="mdp-subtitle">Quản lý và theo dõi tiến độ chấm điểm các đội thi</p>
+        </div>
+        <RefreshButton onRefresh={fetchData} />
       </div>
 
       <div className="mdp-progress-card">

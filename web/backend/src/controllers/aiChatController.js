@@ -1,4 +1,4 @@
-import { runAdminChat } from "../services/geminiChatService.js";
+import { runAdminChat, getDashboardStats } from "../services/geminiChatService.js";
 
 /**
  * POST /api/ai/chat
@@ -22,6 +22,22 @@ export const handleAdminChat = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Lỗi máy chủ khi gọi trợ lý AI",
+    });
+  }
+};
+
+/**
+ * GET /api/ai/dashboard-stats
+ */
+export const handleDashboardStats = async (req, res) => {
+  try {
+    const stats = await getDashboardStats();
+    res.status(200).json({ success: true, data: stats });
+  } catch (error) {
+    console.error("[handleDashboardStats]", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Lỗi máy chủ khi lấy số liệu thống kê",
     });
   }
 };

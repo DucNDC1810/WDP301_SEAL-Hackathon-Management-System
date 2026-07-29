@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRoundSetup, finishRound } from '../api/round';
+import RefreshButton from '../components/RefreshButton';
 
 export default function FinishRoundPage() {
   const { round_id } = useParams();
@@ -16,19 +17,21 @@ export default function FinishRoundPage() {
   const [step, setStep] = useState(0); // 0=idle, 1=step1, 2=step2
   const [confirmInput, setConfirmInput] = useState('');
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await getRoundSetup(round_id);
-        setRound(res.data?.round ?? null);
-      } catch {
-        setError('Không thể tải thông tin vòng thi.');
-      } finally {
-        setLoading(false);
-      }
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getRoundSetup(round_id);
+      setRound(res.data?.round ?? null);
+    } catch {
+      setError('Không thể tải thông tin vòng thi.');
+    } finally {
+      setLoading(false);
     }
-    load();
   }, [round_id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   async function handleFinish() {
     if (confirmInput !== 'CONFIRM') return;
@@ -82,7 +85,10 @@ export default function FinishRoundPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-2">{round.name}</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl font-bold">{round.name}</h1>
+          <RefreshButton onRefresh={loadData} />
+        </div>
         <p className="text-gray-400 text-sm mb-6">Xác nhận kết quả & Công bố chung kết</p>
 
         {/* Status badge */}

@@ -6,6 +6,7 @@ import TeamEliminationTab from './tabs/TeamEliminationTab';
 import PresentationScheduleTab from './tabs/PresentationScheduleTab';
 import AwardManagementTab from './tabs/AwardManagementTab';
 import './HackathonFeaturePage.css';
+import RefreshButton from '../../../components/RefreshButton';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const tok = () => localStorage.getItem('accessToken');
@@ -41,21 +42,22 @@ export default function HackathonFeaturePage({ feature }) {
   const [loadingContest, setLoadingContest] = useState(false);
 
   // Fetch all contests for selection
-  useEffect(() => {
-    const fetchContests = async () => {
-      setLoadingList(true);
-      try {
-        const r = await fetch(`${API_URL}/api/contests`, { headers: hdrs() });
-        const d = await r.json();
-        if (d.success) {
-          setContests(d.data || []);
-        }
-      } catch (e) {
-        console.error('Error fetching contests:', e);
-      } finally {
-        setLoadingList(false);
+  const fetchContests = async () => {
+    setLoadingList(true);
+    try {
+      const r = await fetch(`${API_URL}/api/contests`, { headers: hdrs() });
+      const d = await r.json();
+      if (d.success) {
+        setContests(d.data || []);
       }
-    };
+    } catch (e) {
+      console.error('Error fetching contests:', e);
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
+  useEffect(() => {
     fetchContests();
   }, []);
 
@@ -74,7 +76,10 @@ export default function HackathonFeaturePage({ feature }) {
       return;
     }
 
-    const fetchContestData = async () => {
+    fetchContestData();
+  }, [selectedContestId]);
+
+  async function fetchContestData() {
       setLoadingContest(true);
       try {
         const r = await fetch(`${API_URL}/api/contests/${selectedContestId}`, { headers: hdrs() });
@@ -136,10 +141,7 @@ export default function HackathonFeaturePage({ feature }) {
       } finally {
         setLoadingContest(false);
       }
-    };
-
-    fetchContestData();
-  }, [selectedContestId]);
+  }
 
   const handleContestChange = (e) => {
     const newId = e.target.value;
@@ -164,6 +166,13 @@ export default function HackathonFeaturePage({ feature }) {
             )}
           </p>
         </div>
+
+        <RefreshButton
+          onRefresh={async () => {
+            await fetchContests();
+            if (selectedContestId) await fetchContestData();
+          }}
+        />
 
         {/* Dropdown Selector */}
         {!contestId && (

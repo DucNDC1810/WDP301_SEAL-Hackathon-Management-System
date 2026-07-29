@@ -7,6 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useApi } from '../../hooks/useApi';
 import { getRoundStatusKey } from '../../utils/roundStatus';
 import './MentorDashboard.css';
+import RefreshButton from '../../components/RefreshButton';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || '';
 
@@ -1229,13 +1230,16 @@ export default function MentorDashboard() {
       {/* Main content */}
       <main className="md-main">
         {activeView === 'dashboard' && (
-          <div className="md-hero">
-            <h1 className="md-hero-greeting">
-              Xin chào, <span>{user?.full_name?.split(' ').pop() || 'Mentor'}</span> 👋
-            </h1>
-            <p className="md-hero-sub">
-              Theo dõi tiến độ, hỗ trợ đội và quản lý lịch mentor từ đây.
-            </p>
+          <div className="md-hero" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <h1 className="md-hero-greeting">
+                Xin chào, <span>{user?.full_name?.split(' ').pop() || 'Mentor'}</span> 👋
+              </h1>
+              <p className="md-hero-sub">
+                Theo dõi tiến độ, hỗ trợ đội và quản lý lịch mentor từ đây.
+              </p>
+            </div>
+            <RefreshButton onRefresh={fetchData} />
           </div>
         )}
         {renderSection()}

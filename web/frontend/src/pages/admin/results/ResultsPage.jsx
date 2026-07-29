@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { getRoundStatus } from '../../../utils/roundStatus';
 import './ResultsPage.css';
+import RefreshButton from '../../../components/RefreshButton';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -271,6 +272,11 @@ export default function ResultsPage() {
           <h1 className="results-title">Kết Quả & Thống Kê</h1>
           <p className="results-subtitle">SEAL Hackathon - Bảng Xếp Hạng Vòng Đấu & Số Liệu Phân Tích</p>
         </div>
+        <RefreshButton
+          onRefresh={async () => {
+            if (contestId && selectedRoundId) await fetchResultsData(contestId, selectedRoundId);
+          }}
+        />
       </div>
 
         {/* Dropdown selectors */}

@@ -4,6 +4,7 @@ import { Button, Modal, InputNumber, Tag, Alert, Progress, Tooltip, message, Spi
 import { useAuth } from '../../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
 import './JudgeScoringPage.css';
+import RefreshButton from '../../components/RefreshButton';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const TEAM_STATUS_CFG = {
@@ -46,8 +47,7 @@ export default function JudgeDashboardPage() {
   const [draft, setDraft] = useState({ criteria: {}, comment: '' });
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
       try {
         const [contestData, poolsData, mentorAssignData, judgeAssignData, subsData, myScoresData] = await Promise.all([
           request(`/api/contests/${contestId}`),
@@ -162,9 +162,11 @@ export default function JudgeDashboardPage() {
       } finally {
         setLoading(false);
       }
-    };
-    fetchAll();
   }, [contestId, roundId]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
 
   const allTeams = pools.flatMap(p => p.teams);
   // A mentor cannot score their own mentee — exclude those from the scorable set.
@@ -271,6 +273,7 @@ export default function JudgeDashboardPage() {
           </div>
         </div>
         <div className="jp-topbar-right">
+          <RefreshButton onRefresh={fetchAll} />
           <div className="jp-judge-chip">
             <div className="jp-judge-avatar">{(user?.full_name || 'J')[0]}</div>
             <div>

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPrizes } from '../../api/prize';
+import RefreshButton from '../../components/RefreshButton';
 
 const RANK_MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const RANK_COLOR = {
@@ -20,19 +21,21 @@ export default function PrizePage() {
   // Lấy team của user hiện tại từ localStorage (nếu có)
   const myTeamId = localStorage.getItem('teamId') || null;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await getPrizes(contest_id);
-        setPrizes(res.data?.prizes || []);
-      } catch (err) {
-        setError(err.response?.data?.message || 'Lỗi tải dữ liệu giải thưởng');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getPrizes(contest_id);
+      setPrizes(res.data?.prizes || []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Lỗi tải dữ liệu giải thưởng');
+    } finally {
+      setLoading(false);
+    }
   }, [contest_id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) return (
     <div style={s.center}>
@@ -58,6 +61,9 @@ export default function PrizePage() {
           <p style={{ color: 'var(--text-secondary)', marginTop: 8, fontSize: '0.95rem' }}>
             Danh sách giải thưởng và đội nhận giải của cuộc thi
           </p>
+          <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}>
+            <RefreshButton onRefresh={fetchData} />
+          </div>
         </header>
 
         {prizes.length === 0 ? (

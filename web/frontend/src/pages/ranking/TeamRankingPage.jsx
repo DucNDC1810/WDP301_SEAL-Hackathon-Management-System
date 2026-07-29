@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTeamRanking } from '../../api/ranking';
+import RefreshButton from '../../components/RefreshButton';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -19,21 +20,20 @@ export default function TeamRankingPage() {
   const [unpublished, setUnpublished] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let mounted = true;
+  const fetchData = useCallback((mountedRef) => {
     setLoading(true);
     setUnpublished(false);
     setError(null);
 
     getTeamRanking(round_id)
       .then((res) => {
-        if (mounted) {
+        if (!mountedRef || mountedRef.current) {
           setData(res.data);
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (!mounted) return;
+        if (mountedRef && !mountedRef.current) return;
         if (err.response?.status === 403) {
           setUnpublished(true);
         } else {
@@ -41,9 +41,13 @@ export default function TeamRankingPage() {
         }
         setLoading(false);
       });
-
-    return () => { mounted = false; };
   }, [round_id]);
+
+  useEffect(() => {
+    const mountedRef = { current: true };
+    fetchData(mountedRef);
+    return () => { mountedRef.current = false; };
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -118,6 +122,10 @@ export default function TeamRankingPage() {
           <div style={styles.badge}>
             <span style={styles.badgeDot} />
             {data?.round_name || 'Vòng thi'}
+          </div>
+
+          <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'center' }}>
+            <RefreshButton onRefresh={() => fetchData()} />
           </div>
 
           {data?.contest_name && (

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPrizeClaim, submitPrizeClaim } from '../../api/prize';
+import RefreshButton from '../../components/RefreshButton';
 
 export default function PrizeClaimPage() {
   const { prize_id, team_id } = useParams();
@@ -14,25 +15,27 @@ export default function PrizeClaimPage() {
   const [submitErr,  setSubmitErr]  = useState(null);
   const [submitted,  setSubmitted]  = useState(false);
 
-  useEffect(() => {
-    const fetchClaim = async () => {
-      try {
-        const res = await getPrizeClaim(prize_id, team_id);
-        setClaim(res.data?.claim || null);
-      } catch (err) {
-        if (err.response?.status === 403) {
-          setError('Đội của bạn không được trao giải này.');
-        } else if (err.response?.status === 404) {
-          setError('Không tìm thấy giải thưởng.');
-        } else {
-          setError(err.response?.data?.message || 'Lỗi tải dữ liệu');
-        }
-      } finally {
-        setLoading(false);
+  const fetchClaim = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getPrizeClaim(prize_id, team_id);
+      setClaim(res.data?.claim || null);
+    } catch (err) {
+      if (err.response?.status === 403) {
+        setError('Đội của bạn không được trao giải này.');
+      } else if (err.response?.status === 404) {
+        setError('Không tìm thấy giải thưởng.');
+      } else {
+        setError(err.response?.data?.message || 'Lỗi tải dữ liệu');
       }
-    };
-    fetchClaim();
+    } finally {
+      setLoading(false);
+    }
   }, [prize_id, team_id]);
+
+  useEffect(() => {
+    fetchClaim();
+  }, [fetchClaim]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,9 +85,12 @@ export default function PrizeClaimPage() {
         {/* Header */}
         <header style={{ marginBottom: 32 }}>
           <button onClick={() => navigate(-1)} style={s.backLink}>← Quay lại</button>
-          <h1 className="gradient-text glow-text" style={s.title}>
-            {hasClaim ? 'Thông tin nhận thưởng' : 'Điền thông tin nhận thưởng'}
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <h1 className="gradient-text glow-text" style={s.title}>
+              {hasClaim ? 'Thông tin nhận thưởng' : 'Điền thông tin nhận thưởng'}
+            </h1>
+            <RefreshButton onRefresh={fetchClaim} />
+          </div>
           <p style={{ color: 'var(--text-secondary)', marginTop: 6, fontSize: '0.9rem' }}>
             {hasClaim
               ? 'Thông tin của bạn đã được ghi nhận. Ban tổ chức sẽ liên hệ sớm.'

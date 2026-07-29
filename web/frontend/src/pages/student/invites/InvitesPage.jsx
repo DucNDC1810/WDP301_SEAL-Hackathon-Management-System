@@ -3,6 +3,7 @@ import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
+import RefreshButton from '../../../components/RefreshButton';
 
 // ── Color tokens ──────────────────────────────────────────────────────────────
 // bg: #070b14 | card: #0c1524 | border: #1b2740 | text: #e6eef9 | text2: #c9d6e8
@@ -72,35 +73,36 @@ export const StudentInvitesPage = () => {
   const [hasTeam, setHasTeam] = useState(false);
 
   // Load pending invitations and current team status
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
+  const load = async () => {
+    setLoading(true);
+    try {
+      // Try to fetch invitations; gracefully fall back to empty on 404
+      let invites = [];
       try {
-        // Try to fetch invitations; gracefully fall back to empty on 404
-        let invites = [];
-        try {
-          const res = await request('/api/invitations/me');
-          invites = Array.isArray(res) ? res : res?.data ?? [];
-        } catch (err) {
-          if (err.status !== 404) throw err;
-        }
-        // Only show pending invitations
-        setInvitations(invites.filter(inv => !inv.status || inv.status === 'pending'));
-
-        // Check if user already has a team
-        try {
-          const teamRes = await request('/api/teams/me');
-          const teams = Array.isArray(teamRes) ? teamRes : teamRes?.data ?? [];
-          setHasTeam(teams.length > 0);
-        } catch {
-          setHasTeam(false);
-        }
-      } catch {
-        message.error('Không thể tải danh sách lời mời');
-      } finally {
-        setLoading(false);
+        const res = await request('/api/invitations/me');
+        invites = Array.isArray(res) ? res : res?.data ?? [];
+      } catch (err) {
+        if (err.status !== 404) throw err;
       }
-    };
+      // Only show pending invitations
+      setInvitations(invites.filter(inv => !inv.status || inv.status === 'pending'));
+
+      // Check if user already has a team
+      try {
+        const teamRes = await request('/api/teams/me');
+        const teams = Array.isArray(teamRes) ? teamRes : teamRes?.data ?? [];
+        setHasTeam(teams.length > 0);
+      } catch {
+        setHasTeam(false);
+      }
+    } catch {
+      message.error('Không thể tải danh sách lời mời');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     load();
   }, []);
 
@@ -142,19 +144,22 @@ export const StudentInvitesPage = () => {
         fontFamily: "'Manrope', sans-serif", color: '#c9d6e8',
       }}>
         {/* 1. Page header */}
-        <div>
-          <div style={{
-            fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
-            color: '#5a708f', letterSpacing: '1.4px', marginBottom: 6,
-          }}>
-            Hộp thư
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{
+              fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+              color: '#5a708f', letterSpacing: '1.4px', marginBottom: 6,
+            }}>
+              Hộp thư
+            </div>
+            <h1 style={{
+              margin: 0, fontSize: 30, fontWeight: 700, color: '#e6eef9',
+              fontFamily: "'Space Grotesk', 'Manrope', sans-serif",
+            }}>
+              Lời mời vào đội
+            </h1>
           </div>
-          <h1 style={{
-            margin: 0, fontSize: 30, fontWeight: 700, color: '#e6eef9',
-            fontFamily: "'Space Grotesk', 'Manrope', sans-serif",
-          }}>
-            Lời mời vào đội
-          </h1>
+          <RefreshButton onRefresh={load} />
         </div>
 
         {/* 2. Info banner — shown if user already has a team */}

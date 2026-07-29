@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './UserManagementPage.css';
 import { notification, Modal, Input } from 'antd';
+import RefreshButton from '../../../components/RefreshButton';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const tok  = () => localStorage.getItem('accessToken');
@@ -193,6 +194,11 @@ export default function UserManagementPage() {
           <h1 className="um-title">Quản lý Users</h1>
           <p className="um-subtitle">{totalUsers} tài khoản trong hệ thống</p>
         </div>
+        <RefreshButton
+          onRefresh={async () => {
+            await Promise.all([fetchUsers(page, filterRole, search), fetchPendingVerifications()]);
+          }}
+        />
       </div>
 
       {/* Modern Tabs */}

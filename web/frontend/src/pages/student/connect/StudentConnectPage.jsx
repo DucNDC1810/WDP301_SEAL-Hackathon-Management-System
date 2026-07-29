@@ -4,6 +4,7 @@ import { Empty, Button } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import '../student.css';
+import RefreshButton from '../../../components/RefreshButton';
 
 // ---------------------------------------------------------------------------
 // SVG icon helpers
@@ -42,30 +43,31 @@ export const StudentConnectPage = () => {
   const [loading, setLoading] = useState(true);
   const [hasTeam, setHasTeam] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const teamsRes = await request('/api/teams/me');
-        const teams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.data ?? [];
-        if (!teams.length) {
-          setLoading(false);
-          return;
-        }
-
-        setHasTeam(true);
-        const team = teams[0];
-
-        // Dùng đúng API chat — trả về mentor được phân công cho team của student
-        const res = await request(`/api/chat/team/${team._id}/mentors`);
-        const list = res?.data ?? [];
-        setMentors(list);
-      } catch (_) {
-        // ignore load errors
-      } finally {
+  const load = async () => {
+    setLoading(true);
+    try {
+      const teamsRes = await request('/api/teams/me');
+      const teams = Array.isArray(teamsRes) ? teamsRes : teamsRes?.data ?? [];
+      if (!teams.length) {
         setLoading(false);
+        return;
       }
-    };
+
+      setHasTeam(true);
+      const team = teams[0];
+
+      // Dùng đúng API chat — trả về mentor được phân công cho team của student
+      const res = await request(`/api/chat/team/${team._id}/mentors`);
+      const list = res?.data ?? [];
+      setMentors(list);
+    } catch (_) {
+      // ignore load errors
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     load();
   }, []);
 
@@ -79,7 +81,10 @@ export const StudentConnectPage = () => {
 
   return (
     <div className="sp-page">
-      <h2 className="sp-page-title">Kết nối</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h2 className="sp-page-title">Kết nối</h2>
+        <RefreshButton onRefresh={load} />
+      </div>
 
       {!hasTeam ? (
         <Empty description="Bạn cần có đội thi để xem thông tin mentor." />

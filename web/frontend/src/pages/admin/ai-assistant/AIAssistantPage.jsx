@@ -61,8 +61,40 @@ const CHAT_SUGGESTIONS = [
   'Có bao nhiêu giám khảo và mentor được phân công?',
 ];
 
+const fmtCountdown = (deadline) => {
+  const diff = new Date(deadline).getTime() - Date.now();
+  if (diff <= 0) return 'Đã qua hạn';
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  if (days > 0) return `${days} ngày ${hours}h`;
+  const mins = Math.floor((diff % 3600000) / 60000);
+  return `${hours}h ${mins}m`;
+};
+
 export default function AIAssistantPage() {
   const [activeTab, setActiveTab] = useState('chat');
+
+  // ── Dashboard stats (status cards) ──
+  const [dashStats, setDashStats] = useState(null);
+  const [dashLoading, setDashLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setDashLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/api/ai/dashboard-stats`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+        });
+        const data = await res.json();
+        if (res.ok && data.success) setDashStats(data.data);
+      } catch {
+        // ignore — cards sẽ hiện fallback
+      } finally {
+        setDashLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   // ── Chat state ──
   const [chatMessages, setChatMessages] = useState(() => {
@@ -197,66 +229,62 @@ export default function AIAssistantPage() {
         <div className="status-card status-card--active">
           <div className="status-header">
             <Ico d={CLOCK} size={18} color="#00d4ff" />
-            <span className="status-badge status-badge--active">Active</span>
+            <span className="status-badge status-badge--active">
+              {dashStats?.timeline ? 'Active' : 'Idle'}
+            </span>
           </div>
           <h3 className="status-title">Timeline Monitor</h3>
           <div className="status-content">
-            <div className="status-row">
-              <span className="status-label">Current Phase:</span>
-              <span className="status-value">Development</span>
-            </div>
-            <div className="status-row">
-              <span className="status-label">Auto-Close in:</span>
-              <span className="status-value highlight">2 days</span>
-            </div>
-            <div className="status-row">
-              <span className="status-label">Alerts Sent:</span>
-              <span className="status-value">—</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="status-card status-card--processing">
-          <div className="status-header">
-            <Ico d={MAIL} size={18} color="#00d4ff" />
-            <span className="status-badge status-badge--processing">Processing</span>
-          </div>
-          <h3 className="status-title">Email Queue</h3>
-          <div className="status-content">
-            <div className="status-row">
-              <span className="status-label">Pending:</span>
-              <span className="status-value highlight">12</span>
-            </div>
-            <div className="status-row">
-              <span className="status-label">Sent Today:</span>
-              <span className="status-value highlight">48</span>
-            </div>
-            <div className="status-row">
-              <span className="status-label">Success Rate:</span>
-              <span className="status-value highlight">98.5%</span>
-            </div>
+            {dashLoading ? (
+              <div className="status-row"><span className="status-label">Đang tải...</span></div>
+            ) : dashStats?.timeline ? (
+              <>
+                <div className="status-row">
+                  <span className="status-label">Cuộc thi:</span>
+                  <span className="status-value">{dashStats.timeline.contest_title}</span>
+                </div>
+                <div className="status-row">
+                  <span className="status-label">Giai đoạn:</span>
+                  <span className="status-value">{dashStats.timeline.phase}</span>
+                </div>
+                <div className="status-row">
+                  <span className="status-label">Còn lại:</span>
+                  <span className="status-value highlight">{fmtCountdown(dashStats.timeline.deadline)}</span>
+                </div>
+              </>
+            ) : (
+              <div className="status-row">
+                <span className="status-label">Không có mốc thời gian sắp tới nào đang theo dõi</span>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="status-card status-card--active">
           <div className="status-header">
             <Ico d={CHECKMARK} size={18} color="#00d4ff" />
-            <span className="status-badge status-badge--active">Active</span>
+            <span className="status-badge status-badge--active">
+              {dashStats?.active_contests_count > 0 ? 'Active' : 'Idle'}
+            </span>
           </div>
-          <h3 className="status-title">Review Analysis</h3>
+          <h3 className="status-title">Scoring Progress</h3>
           <div className="status-content">
-            <div className="status-row">
-              <span className="status-label">Analyzed:</span>
-              <span className="status-value highlight">156 reviews</span>
-            </div>
-            <div className="status-row">
-              <span className="status-label">Questions Gen:</span>
-              <span className="status-value highlight">312</span>
-            </div>
-            <div className="status-row">
-              <span className="status-label">Insights:</span>
-              <span className="status-value highlight">89</span>
-            </div>
+            {dashLoading ? (
+              <div className="status-row"><span className="status-label">Đang tải...</span></div>
+            ) : (
+              <>
+                <div className="status-row">
+                  <span className="status-label">Cuộc thi đang thi:</span>
+                  <span className="status-value highlight">{dashStats?.active_contests_count ?? 0}</span>
+                </div>
+                <div className="status-row">
+                  <span className="status-label">Bài đã chấm:</span>
+                  <span className="status-value highlight">
+                    {dashStats?.scoring?.scored_submissions ?? 0} / {dashStats?.scoring?.total_submissions ?? 0}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

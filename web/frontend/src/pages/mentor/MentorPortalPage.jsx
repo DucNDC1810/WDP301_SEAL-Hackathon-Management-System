@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
 import { ROUND_STATUS, getRoundStatusKey } from '../../utils/roundStatus';
 import './MentorPortalPage.css';
+import RefreshButton from '../../components/RefreshButton';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const STATUS_CFG = {
@@ -50,8 +51,7 @@ export default function MentorPortalPage() {
   const [expandedTeam, setExpandedTeam] = useState(null);
 
   // ─── Fetch contest + rounds on mount
-  useEffect(() => {
-    const fetchContest = async () => {
+  const fetchContest = useCallback(async () => {
       try {
         const data = await request(`/api/contests/${contestId}`);
         const c = data?.data ?? data;
@@ -74,9 +74,11 @@ export default function MentorPortalPage() {
       } catch {
         messageApi.error('Không thể tải thông tin cuộc thi');
       }
-    };
-    fetchContest();
   }, [contestId]);
+
+  useEffect(() => {
+    fetchContest();
+  }, [fetchContest]);
 
   // ─── Fetch teams + submissions when round changes
   const fetchRoundData = useCallback(async (rid) => {
@@ -197,6 +199,12 @@ export default function MentorPortalPage() {
           </div>
         </div>
         <div className="mp-topbar-right">
+          <RefreshButton
+            onRefresh={async () => {
+              await fetchContest();
+              if (activeRoundId) await fetchRoundData(activeRoundId);
+            }}
+          />
           <div className="mp-user-chip">
             <div className="mp-user-avatar">{(user?.full_name || 'M')[0]}</div>
             <div>

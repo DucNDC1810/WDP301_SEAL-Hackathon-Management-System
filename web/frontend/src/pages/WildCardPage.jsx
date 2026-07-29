@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getWildCardCandidates } from '../api/wildcard';
 import StatusBadge from '../components/StatusBadge';
+import RefreshButton from '../components/RefreshButton';
 
 export default function WildCardPage() {
   const { round_id } = useParams();
@@ -10,31 +11,35 @@ export default function WildCardPage() {
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const fetchData = useCallback((isMountedRef) => {
     setLoading(true);
     setError(null);
 
     getWildCardCandidates(round_id)
       .then((res) => {
-        if (isMounted) {
+        if (!isMountedRef || isMountedRef.current) {
           setData(res.data);
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (isMounted) {
+        if (!isMountedRef || isMountedRef.current) {
           console.error(err);
           const errMsg = err.response?.data?.message || err.message || "Đã xảy ra lỗi khi tải danh sách Wild Card.";
           setError(errMsg);
           setLoading(false);
         }
       });
+  }, [round_id]);
+
+  useEffect(() => {
+    const isMountedRef = { current: true };
+    fetchData(isMountedRef);
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
     };
-  }, [round_id]);
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -223,6 +228,9 @@ export default function WildCardPage() {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             Xem đề xuất các đội thi nhận vé vớt dựa trên điểm số cao nhất trong các đội không đạt Top N
           </p>
+          <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
+            <RefreshButton onRefresh={() => fetchData()} />
+          </div>
         </header>
 
         {/* Global & Round status Banner */}

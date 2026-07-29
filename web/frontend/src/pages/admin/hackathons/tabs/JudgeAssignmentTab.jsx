@@ -189,6 +189,15 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
       if (!EMAIL_REGEX.test(newJudgeExternalEmail.trim())) {
         messageApi.error('Địa chỉ email không hợp lệ!'); return;
       }
+      if (foundInternalUser) {
+        const isEligible = foundInternalUser.roles?.some(
+          r => r.role_name === 'judge' || r.role_name === 'mentor' || r.role_name === 'admin' || r.role_name === 'organizer'
+        );
+        if (!isEligible) {
+          messageApi.error(`Tài khoản ${foundInternalUser.full_name || foundInternalUser.email} là tài khoản Thí sinh (Contestant) — Không thể phân công làm Giám khảo!`);
+          return;
+        }
+      }
     }
     if (!newJudgePool) {
       messageApi.error('Vui lòng chọn bảng đấu!'); return;
@@ -491,7 +500,11 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                 }
                 options={judgeOrMentorUsers.map(u => {
                   const uid = u._id?.toString();
-                  const blocked = isMentorOfPool(uid, newJudgePool);
+                  const isMentor = isMentorOfPool(uid, newJudgePool);
+                  const isEligible = u.roles?.some(
+                    r => r.role_name === 'judge' || r.role_name === 'mentor' || r.role_name === 'admin' || r.role_name === 'organizer'
+                  );
+                  const blocked = isMentor || !isEligible;
                   return {
                     value: u._id,
                     title: u.full_name || u.email,
@@ -501,9 +514,14 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                       <div style={{ opacity: blocked ? 0.45 : 1 }}>
                         <div style={{ fontWeight: 500 }}>
                           {u.full_name || u.email}
-                          {blocked && (
+                          {isMentor && (
                             <span style={{ marginLeft: 6, fontSize: '0.7rem', color: '#ef4444', fontWeight: 400 }}>
                               (Đang mentor bảng này)
+                            </span>
+                          )}
+                          {!isEligible && (
+                            <span style={{ marginLeft: 6, fontSize: '0.7rem', color: '#ef4444', fontWeight: 400 }}>
+                              (Tài khoản Thí sinh — không thể làm Giám khảo)
                             </span>
                           )}
                         </div>
@@ -515,7 +533,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
               />
               {judgeOrMentorUsers.length === 0 && !loadingUsers && (
                 <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  Chưa có tài khoản nào có role Judge hoặc Mentor.
+                  Chưa có tài khoản nào trong hệ thống.
                 </p>
               )}
             </div>
@@ -532,24 +550,50 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                 disabled={!newJudgePool}
               />
               {foundInternalUser ? (
-                <div
-                  className="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
-                  style={{
-                    backgroundColor: 'rgba(79, 70, 229, 0.08)',
-                    border: '1px solid rgba(79, 70, 229, 0.25)',
-                    color: '#4f46e5',
-                  }}
-                >
-                  <span style={{ fontSize: '14px' }}>ℹ️</span>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>
-                      Tài khoản nội bộ: {foundInternalUser.full_name || foundInternalUser.email}
+                (() => {
+                  const isEligible = foundInternalUser.roles?.some(
+                    r => r.role_name === 'judge' || r.role_name === 'mentor' || r.role_name === 'admin' || r.role_name === 'organizer'
+                  );
+                  return isEligible ? (
+                    <div
+                      className="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
+                      style={{
+                        backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                        border: '1px solid rgba(79, 70, 229, 0.25)',
+                        color: '#4f46e5',
+                      }}
+                    >
+                      <span style={{ fontSize: '14px' }}>ℹ️</span>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>
+                          Tài khoản nội bộ: {foundInternalUser.full_name || foundInternalUser.email}
+                        </div>
+                        <div style={{ opacity: 0.85, marginTop: 2 }}>
+                          Email này đã có tài khoản Giám khảo/Mentor trên hệ thống. Khi bấm Phân công, hệ thống sẽ tự động gán trực tiếp.
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ opacity: 0.85, marginTop: 2 }}>
-                      Email này đã có tài khoản trên hệ thống. Khi bấm Phân công, hệ thống sẽ tự động gán trực tiếp làm Giám khảo.
+                  ) : (
+                    <div
+                      className="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
+                      style={{
+                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: '#ef4444',
+                      }}
+                    >
+                      <span style={{ fontSize: '14px' }}>⛔</span>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>
+                          Tài khoản Thí sinh: {foundInternalUser.full_name || foundInternalUser.email}
+                        </div>
+                        <div style={{ opacity: 0.85, marginTop: 2 }}>
+                          Email này thuộc tài khoản Thí sinh (Contestant) — Không thể phân công tài khoản Thí sinh làm Giám khảo!
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()
               ) : checkingEmail ? (
                 <p className="text-xs mt-1 text-gray-400">Đang kiểm tra tài khoản hệ thống...</p>
               ) : (

@@ -60,6 +60,17 @@ export const assignJudge = async ({
       err.statusCode = 409; throw err;
     }
     if (existingUser) {
+      // Chặn tài khoản contestant/thí sinh không phải judge/mentor/admin/organizer
+      const hasEligibleRole = existingUser.roles?.some(
+        (r) => r.role_name === "judge" || r.role_name === "mentor" || r.role_name === "admin" || r.role_name === "organizer"
+      );
+      if (!hasEligibleRole) {
+        const err = new Error(
+          `Tài khoản ${existingUser.full_name || email} (${email}) là tài khoản Thí sinh (Contestant) — Không thể phân công làm Giám khảo!`
+        );
+        err.statusCode = 400; throw err;
+      }
+
       // Chặn mentor chấm bảng mình đang mentor
       const isMentorOfThisPool = await MentorAssignment.exists({
         mentor_id: existingUser._id, contest_id, round_id, board_id: pool_id,
@@ -170,10 +181,10 @@ export const assignJudge = async ({
   }
 
   const hasEligibleRole = judge.roles?.some(
-    r => r.role_name === "judge" || r.role_name === "mentor"
+    r => r.role_name === "judge" || r.role_name === "mentor" || r.role_name === "admin" || r.role_name === "organizer"
   );
   if (!hasEligibleRole) {
-    const err = new Error("Người dùng này chưa được gán quyền Judge hoặc Mentor");
+    const err = new Error(`Tài khoản ${judge.full_name || judge.email} là tài khoản Thí sinh (Contestant) — Không thể phân công làm Giám khảo!`);
     err.statusCode = 400; throw err;
   }
 

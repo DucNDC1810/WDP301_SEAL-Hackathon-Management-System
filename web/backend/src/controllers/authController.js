@@ -86,7 +86,7 @@ export const checkEmail = async (req, res) => {
     return res.status(200).json({
       success: true,
       exists: !!user,
-      user: user ? { _id: user._id, full_name: user.full_name, email: user.email } : null,
+      user: user ? { _id: user._id, full_name: user.full_name, email: user.email, roles: user.roles } : null,
       message: user ? `Email ${email} đã được tạo tài khoản trong hệ thống` : "Email chưa được sử dụng",
     });
   } catch (error) {

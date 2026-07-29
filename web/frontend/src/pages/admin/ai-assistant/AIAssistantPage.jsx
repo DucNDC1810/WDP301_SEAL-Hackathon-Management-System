@@ -274,11 +274,20 @@ export default function AIAssistantPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Không thể gửi email');
-      notification.success({
-        message: 'Đã gửi email',
-        description: `Thành công ${data.data.sent}/${data.data.total} người nhận.`,
-      });
-      setDraft(null);
+      const { sent, total, failed } = data.data;
+      if (failed.length > 0) {
+        notification.warning({
+          message: `Gửi được ${sent}/${total} người nhận`,
+          description: `Lỗi (${failed[0].team_name}): ${failed[0].error}${failed.length > 1 ? ` — và ${failed.length - 1} đội khác lỗi tương tự.` : ''}`,
+          duration: 0,
+        });
+      } else {
+        notification.success({
+          message: 'Đã gửi email',
+          description: `Thành công ${sent}/${total} người nhận.`,
+        });
+        setDraft(null);
+      }
       fetchEmailHistory();
     } catch (err) {
       notification.error({ message: 'Lỗi', description: err.message || 'Không thể gửi email' });

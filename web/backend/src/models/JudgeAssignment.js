@@ -26,7 +26,10 @@ judgeAssignmentSchema.index(
   { unique: true, partialFilterExpression: { external_email: { $type: "string" } } }
 );
 judgeAssignmentSchema.index({ contest_id: 1, round_id: 1 });
-judgeAssignmentSchema.index({ judge_id: 1, round_id: 1 }, { unique: true });
+judgeAssignmentSchema.index(
+  { judge_id: 1, round_id: 1 },
+  { unique: true, partialFilterExpression: { judge_id: { $type: "objectId" } } }
+);
 
 const JudgeAssignment = mongoose.model("JudgeAssignment", judgeAssignmentSchema);
 export default JudgeAssignment;

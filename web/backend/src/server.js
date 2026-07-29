@@ -127,6 +127,16 @@ connectDB().then(() => {
     process.exit(1);
   });
 
+  // Migration: Drop legacy strict unique index on JudgeAssignment that broke external invitations
+  import("./models/JudgeAssignment.js").then(async ({ default: JudgeAssignment }) => {
+    try {
+      await JudgeAssignment.collection.dropIndex("judge_id_1_round_id_1");
+      console.log("[Migration] Successfully dropped legacy index judge_id_1_round_id_1");
+    } catch {
+      // index already dropped or not existing
+    }
+  });
+
   // Migration: Normalize legacy lowercase team status values in the database to uppercase to match Mongoose schema enums
   import("./models/Team.js").then(async ({ default: Team }) => {
     try {

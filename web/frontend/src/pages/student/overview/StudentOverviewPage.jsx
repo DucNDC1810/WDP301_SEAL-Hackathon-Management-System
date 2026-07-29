@@ -6,30 +6,13 @@ import { useApi } from "../../../hooks/useApi";
 import { getRoundStatusKey } from "../../../utils/roundStatus";
 import "../student.css";
 import RefreshButton from "../../../components/RefreshButton";
-
-/* ─── Design tokens ────────────────────────────────────────────────────────── */
-const C = {
-  bg: "#070b14",
-  card: "#0b1220",
-  line: "#1b2740",
-  line2: "#131d31",
-  text: "#e6eef9",
-  text2: "#c9d6e8",
-  muted: "#7e90ab",
-  dim: "#5a708f",
-  cyan: "#00d4ff",
-  purple: "#7c3aed",
-  purple2: "#a855f7",
-  green: "#22c55e",
-  amber: "#f59e0b",
-  gold: "#facc15",
-  red: "#f87171",
-};
+import { useTheme } from "../../../context/ThemeContext";
+import { getStudentColors } from "../studentColors";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
 /* ─── Inline SVG sparkline / progress chart (zero deps) ────────────────────── */
-const ScoreLineChart = ({ hist, w = 560, h = 210, id = "sc" }) => {
+const ScoreLineChart = ({ hist, w = 560, h = 210, id = "sc", C }) => {
   const padL = 34,
     padR = 14,
     padT = 24,
@@ -111,8 +94,8 @@ const ScoreLineChart = ({ hist, w = 560, h = 210, id = "sc" }) => {
               cx={p[0]}
               cy={p[1]}
               r={last ? 4.5 : 3}
-              fill={last ? C.cyan : "#0a1322"}
-              stroke={last ? "#0a1322" : C.purple}
+              fill={last ? C.cyan : C.card}
+              stroke={last ? C.card : C.purple}
               strokeWidth={last ? 2 : 1.6}
             />
             <text
@@ -152,71 +135,6 @@ const MOCK_SCORE_HISTORY = [
   { label: "Hiện tại", score: 921, rank: 3 },
 ];
 
-const MOCK_EVENTS = [
-  {
-    type: "Mentoring",
-    accent: C.purple2,
-    title: "Mentoring 1-1 với mentor Nguyễn Văn A",
-    where: "Google Meet",
-    datetime: "2026-06-25T15:00:00",
-  },
-  {
-    type: "Workshop",
-    accent: C.cyan,
-    title: "Workshop: Thiết kế API RESTful",
-    where: "Hội trường B · Online",
-    datetime: "2026-06-26T19:00:00",
-  },
-  {
-    type: "Deadline",
-    accent: C.amber,
-    title: "Hạn nộp bài Vòng 1 — Sơ loại",
-    where: "Nộp trên hệ thống",
-    datetime: "2026-06-28T23:59:00",
-  },
-  {
-    type: "Kết quả",
-    accent: C.green,
-    title: "Công bố kết quả Vòng 1",
-    where: "Trang Bảng xếp hạng",
-    datetime: "2026-07-01T10:00:00",
-  },
-  {
-    type: "Sự kiện",
-    accent: C.purple,
-    title: "Lễ khai mạc Vòng 2 — Bán kết",
-    where: "Trực tuyến",
-    datetime: "2026-07-03T09:00:00",
-  },
-];
-
-const MOCK_NEWS = [
-  {
-    tag: "Thông báo",
-    accent: C.cyan,
-    bg: "rgba(0,212,255,.08)",
-    title: "Hạn nộp bài vòng 1 được gia hạn thêm 3 ngày",
-    body: "Ban tổ chức quyết định gia hạn do phản hồi từ các đội thi. Hạn mới: 28/06/2026.",
-    time: "2 giờ trước",
-  },
-  {
-    tag: "Kết quả",
-    accent: C.green,
-    bg: "rgba(34,197,94,.08)",
-    title: "Danh sách đội thi vào vòng 2 đã được công bố",
-    body: "32 đội xuất sắc từ vòng 1 đã được chọn để tham gia vòng 2 Hackathon SEAL 2026.",
-    time: "1 ngày trước",
-  },
-  {
-    tag: "Workshop",
-    accent: "#a78bfa",
-    bg: "rgba(167,139,250,.08)",
-    title: 'Workshop "Thiết kế API RESTful" — Thứ 6 tuần này',
-    body: "Mentor Nguyễn Văn A sẽ hướng dẫn thiết kế API chuẩn REST. Đăng ký trước 18/06.",
-    time: "2 ngày trước",
-  },
-];
-
 const MOCK_RANKING = [
   { rank: 1, team: "Alpha Strike", score: 980, change: 12 },
   { rank: 2, team: "Code Ninjas", score: 945, change: 8 },
@@ -224,10 +142,9 @@ const MOCK_RANKING = [
   { rank: 4, team: "ByteForce", score: 890, change: 0 },
   { rank: 5, team: "NightOwls", score: 872, change: -3 },
 ];
-const RANK_COLOR = { 1: C.gold, 2: "#94a3b8", 3: "#cd7f32" };
 
 /* ─── Tiny UI helpers ───────────────────────────────────────────────────────── */
-const SectionHead = ({ icon, title, right }) => (
+const SectionHead = ({ icon, title, right, C }) => (
   <div
     style={{
       display: "flex",
@@ -253,7 +170,7 @@ const SectionHead = ({ icon, title, right }) => (
   </div>
 );
 
-const CdTile = ({ val, label, accent }) => (
+const CdTile = ({ val, label, accent, C }) => (
   <div
     style={{
       textAlign: "center",
@@ -295,6 +212,75 @@ export const StudentOverviewPage = () => {
   const { user } = useAuth();
   const { request } = useApi();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const C = getStudentColors(theme);
+
+  const RANK_COLOR = { 1: C.gold, 2: "#94a3b8", 3: "#cd7f32" };
+
+  const MOCK_EVENTS = [
+    {
+      type: "Mentoring",
+      accent: C.purple2,
+      title: "Mentoring 1-1 với mentor Nguyễn Văn A",
+      where: "Google Meet",
+      datetime: "2026-06-25T15:00:00",
+    },
+    {
+      type: "Workshop",
+      accent: C.cyan,
+      title: "Workshop: Thiết kế API RESTful",
+      where: "Hội trường B · Online",
+      datetime: "2026-06-26T19:00:00",
+    },
+    {
+      type: "Deadline",
+      accent: C.amber,
+      title: "Hạn nộp bài Vòng 1 — Sơ loại",
+      where: "Nộp trên hệ thống",
+      datetime: "2026-06-28T23:59:00",
+    },
+    {
+      type: "Kết quả",
+      accent: C.green,
+      title: "Công bố kết quả Vòng 1",
+      where: "Trang Bảng xếp hạng",
+      datetime: "2026-07-01T10:00:00",
+    },
+    {
+      type: "Sự kiện",
+      accent: C.purple,
+      title: "Lễ khai mạc Vòng 2 — Bán kết",
+      where: "Trực tuyến",
+      datetime: "2026-07-03T09:00:00",
+    },
+  ];
+
+  const MOCK_NEWS = [
+    {
+      tag: "Thông báo",
+      accent: C.cyan,
+      bg: "rgba(0,212,255,.08)",
+      title: "Hạn nộp bài vòng 1 được gia hạn thêm 3 ngày",
+      body: "Ban tổ chức quyết định gia hạn do phản hồi từ các đội thi. Hạn mới: 28/06/2026.",
+      time: "2 giờ trước",
+    },
+    {
+      tag: "Kết quả",
+      accent: C.green,
+      bg: "rgba(34,197,94,.08)",
+      title: "Danh sách đội thi vào vòng 2 đã được công bố",
+      body: "32 đội xuất sắc từ vòng 1 đã được chọn để tham gia vòng 2 Hackathon SEAL 2026.",
+      time: "1 ngày trước",
+    },
+    {
+      tag: "Workshop",
+      accent: "#a78bfa",
+      bg: "rgba(167,139,250,.08)",
+      title: 'Workshop "Thiết kế API RESTful" — Thứ 6 tuần này',
+      body: "Mentor Nguyễn Văn A sẽ hướng dẫn thiết kế API chuẩn REST. Đăng ký trước 18/06.",
+      time: "2 ngày trước",
+    },
+  ];
 
   const [contests, setContests] = useState([]);
   const [myTeam, setMyTeam] = useState(null);
@@ -445,16 +431,16 @@ export const StudentOverviewPage = () => {
   /* ── Chưa tham gia cuộc thi (no team, or team not linked to active contest) ── */
   if (!myTeam || !contest) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 22, fontFamily: "'Manrope', sans-serif", color: '#c9d6e8', padding: '28px 32px 48px', maxWidth: 1240, margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22, fontFamily: "'Manrope', sans-serif", color: C.text2, padding: '28px 32px 48px', maxWidth: 1240, margin: '0 auto' }}>
         {/* Welcome hero */}
-        <div style={{ position: 'relative', border: '1px solid #1b2740', borderRadius: 18, background: 'linear-gradient(135deg,#0d1524 0%,#0a0f1b 55%,#0c0d18 100%)', padding: '32px 34px', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', border: `1px solid ${C.line}`, borderRadius: 18, background: `linear-gradient(135deg, ${C.card} 0%, ${C.bg} 60%, ${C.card} 100%)`, padding: '32px 34px', overflow: 'hidden' }}>
           {/* Glow orb */}
           <div style={{ position: 'absolute', top: -90, right: '4%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle,rgba(0,212,255,.15),transparent 70%)', pointerEvents: 'none' }} />
           {/* Content */}
           <div style={{ position: 'relative' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 700, letterSpacing: '1.4px', color: '#00d4ff', textTransform: 'uppercase', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.25)', padding: '5px 13px', borderRadius: 20, marginBottom: 16 }}>⚡ Bắt đầu hành trình</span>
             <h1 style={{ margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, letterSpacing: -.6, color: '#e6eef9' }}>Chào mừng, {user?.full_name?.split(' ').pop() || 'bạn'} 👋</h1>
-            <p style={{ margin: 0, fontSize: 14.5, color: '#9fb2cc', lineHeight: 1.6, maxWidth: 560 }}>Bạn chưa tham gia cuộc thi nào. Hãy <strong style={{ color: '#c9d6e8' }}>chọn một cuộc thi và tạo đội</strong> để bắt đầu — hoặc tham gia một đội đã có lời mời cho bạn.</p>
+            <p style={{ margin: 0, fontSize: 14.5, color: '#9fb2cc', lineHeight: 1.6, maxWidth: 560 }}>Bạn chưa tham gia cuộc thi nào. Hãy <strong style={{ color: C.text2 }}>chọn một cuộc thi và tạo đội</strong> để bắt đầu — hoặc tham gia một đội đã có lời mời cho bạn.</p>
             {/* 3 steps */}
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 24 }}>
               {[
@@ -464,7 +450,7 @@ export const StudentOverviewPage = () => {
               ].map(([num, label, color, bg, border], i, arr) => (
                 <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 11, flex: 1, minWidth: 200 }}>
                   <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 10, background: bg, border: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 15, color }}>{num}</div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#c9d6e8', lineHeight: 1.35 }}>{label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text2, lineHeight: 1.35 }}>{label}</span>
                   {i < arr.length - 1 && <div style={{ color: '#2a3a55', flexShrink: 0 }}>→</div>}
                 </div>
               ))}
@@ -475,7 +461,7 @@ export const StudentOverviewPage = () => {
         {/* Action cards — context-aware */}
         {myTeam ? (
           /* Has team but no active contest — guide to team page to register */
-          <div onClick={() => navigate('/dashboard/team')} style={{ border: '1px dashed rgba(250,204,21,.35)', borderRadius: 16, background: '#0c1524', padding: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 22 }}>
+          <div onClick={() => navigate('/dashboard/team')} style={{ border: '1px dashed rgba(250,204,21,.35)', borderRadius: 16, background: C.card, padding: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 22 }}>
             <div style={{ width: 54, height: 54, flexShrink: 0, borderRadius: 15, background: 'rgba(250,204,21,.1)', border: '1px solid rgba(250,204,21,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#facc15' }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
             </div>
@@ -488,7 +474,7 @@ export const StudentOverviewPage = () => {
         ) : (
           /* No team — show create / join options */
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div onClick={() => navigate('/dashboard/team')} style={{ border: '1px dashed rgba(0,212,255,.35)', borderRadius: 16, background: '#0c1524', padding: 26, cursor: 'pointer' }}>
+            <div onClick={() => navigate('/dashboard/team')} style={{ border: '1px dashed rgba(0,212,255,.35)', borderRadius: 16, background: C.card, padding: 26, cursor: 'pointer' }}>
               <div style={{ width: 54, height: 54, borderRadius: 15, background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00d4ff', marginBottom: 16 }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
               </div>
@@ -496,7 +482,7 @@ export const StudentOverviewPage = () => {
               <p style={{ margin: '0 0 16px', fontSize: 13, color: '#7e90ab', lineHeight: 1.5 }}>Chọn cuộc thi và đặt tên đội, sau đó mời thành viên qua email.</p>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#00d4ff' }}>Tạo đội ngay →</span>
             </div>
-            <div onClick={() => navigate('/dashboard/invites')} style={{ border: '1px dashed rgba(168,85,247,.35)', borderRadius: 16, background: '#0c1524', padding: 26, cursor: 'pointer' }}>
+            <div onClick={() => navigate('/dashboard/invites')} style={{ border: '1px dashed rgba(168,85,247,.35)', borderRadius: 16, background: C.card, padding: 26, cursor: 'pointer' }}>
               <div style={{ width: 54, height: 54, borderRadius: 15, background: 'rgba(168,85,247,.1)', border: '1px solid rgba(168,85,247,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7', marginBottom: 16 }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
               </div>
@@ -519,7 +505,7 @@ export const StudentOverviewPage = () => {
                 const reg = c.registration_deadline ? new Date(c.registration_deadline) : null;
                 const days = reg ? Math.max(0, Math.ceil((reg - now) / 86_400_000)) : null;
                 return (
-                  <div key={c._id} style={{ border: '1px solid #1b2740', borderTop: '2px solid #00d4ff', borderRadius: 14, background: '#0c1524', padding: '20px 22px', display: 'flex', flexDirection: 'column' }}>
+                  <div key={c._id} style={{ borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`, borderTop: '2px solid #00d4ff', borderRadius: 14, background: C.card, padding: '20px 22px', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: .4, textTransform: 'uppercase', color: '#00d4ff', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.3)', padding: '3px 10px', borderRadius: 6 }}>Web · AI</span>
                       {days !== null && <span style={{ fontSize: 11.5, fontWeight: 700, color: days <= 5 ? '#f59e0b' : '#7e90ab' }}>Còn {days} ngày</span>}
@@ -707,9 +693,10 @@ export const StudentOverviewPage = () => {
             fontSize: 27,
             fontWeight: 700,
             letterSpacing: "-.4px",
-            background: `linear-gradient(90deg, ${C.cyan}, ${C.purple2})`,
+            backgroundImage: `linear-gradient(90deg, ${C.cyan}, ${C.purple2})`,
             WebkitBackgroundClip: "text",
             backgroundClip: "text",
+            WebkitTextFillColor: "transparent",
             color: "transparent",
           }}
         >
@@ -750,7 +737,7 @@ export const StudentOverviewPage = () => {
           border: `1px solid ${C.line}`,
           borderRadius: 16,
           background:
-            "linear-gradient(135deg,#0d1524 0%,#0a0f1b 60%,#0c0d18 100%)",
+            `linear-gradient(135deg, ${C.card} 0%, ${C.bg} 60%, ${C.card} 100%)`,
           padding: "24px 28px",
           overflow: "hidden",
         }}
@@ -815,10 +802,10 @@ export const StudentOverviewPage = () => {
               </span>
             </div>
             <div style={{ display: "flex", gap: 12 }}>
-              <CdTile val={cd.d} label="Ngày" />
-              <CdTile val={cd.h} label="Giờ" />
-              <CdTile val={cd.m} label="Phút" />
-              <CdTile val={cd.s} label="Giây" accent />
+              <CdTile val={cd.d} label="Ngày" C={C} />
+              <CdTile val={cd.h} label="Giờ" C={C} />
+              <CdTile val={cd.m} label="Phút" C={C} />
+              <CdTile val={cd.s} label="Giây" accent C={C} />
             </div>
             <div style={{ marginTop: 13, fontSize: 12.5, color: C.muted }}>
               {activeRound ? "Hạn chót" : nextRound ? "Bắt đầu lúc" : "Thời gian"}:{" "}
@@ -860,7 +847,7 @@ export const StudentOverviewPage = () => {
               style={{
                 height: 9,
                 borderRadius: 6,
-                background: "#0a1322",
+                background: C.card,
                 overflow: "hidden",
                 border: "1px solid #16223a",
               }}
@@ -912,10 +899,10 @@ export const StudentOverviewPage = () => {
 
         if (!rounds.length) {
           return (
-            <div style={{ border: '1px solid #1b2740', borderRadius: 14, background: '#0c1524', padding: '20px 24px' }}>
+            <div style={{ border: `1px solid ${C.line}`, borderRadius: 14, background: C.card, padding: '20px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#c9d6e8' }}>Lộ trình cuộc thi</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text2 }}>Lộ trình cuộc thi</span>
               </div>
               <div style={{ fontSize: 13, color: '#5a708f' }}>Chưa có thông tin vòng thi.</div>
             </div>
@@ -943,11 +930,11 @@ export const StudentOverviewPage = () => {
 
         const dotStyle = (status) => {
           if (status === 'done') return { background: '#00d4ff', border: '2px solid #00d4ff', boxShadow: '0 0 8px rgba(0,212,255,.6)', color: '#070b14' };
-          if (status === 'active') return { background: '#0a1322', border: '2px solid #00d4ff', boxShadow: '0 0 0 4px rgba(0,212,255,.15)', color: '#00d4ff' };
-          return { background: '#0a1322', border: '2px solid #2a3a55', boxShadow: 'none', color: '#7e90ab' };
+          if (status === 'active') return { background: C.card, border: '2px solid #00d4ff', boxShadow: '0 0 0 4px rgba(0,212,255,.15)', color: '#00d4ff' };
+          return { background: C.card, border: '2px solid #2a3a55', boxShadow: 'none', color: '#7e90ab' };
         };
         const nameStyle = (status) => {
-          if (status === 'done') return '#c9d6e8';
+          if (status === 'done') return C.text2;
           if (status === 'active') return '#00d4ff';
           return '#7e90ab';
         };
@@ -963,17 +950,17 @@ export const StudentOverviewPage = () => {
         };
 
         return (
-          <div style={{ border: '1px solid #1b2740', borderRadius: 14, background: '#0c1524', padding: '20px 24px' }}>
+          <div style={{ border: `1px solid ${C.line}`, borderRadius: 14, background: C.card, padding: '20px 24px' }}>
             {/* Header row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#c9d6e8' }}>Lộ trình cuộc thi</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text2 }}>Lộ trình cuộc thi</span>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: '#a855f7', background: 'rgba(168,85,247,.12)', border: '1px solid rgba(168,85,247,.3)', padding: '2px 9px', borderRadius: 20 }}>{rounds.length} giai đoạn</span>
               </div>
               <button
                 onClick={() => setScheduleOpen(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: '#c9d6e8', background: 'transparent', border: '1px solid #1b2740', borderRadius: 8, padding: '6px 13px', cursor: 'pointer' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: C.text2, background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 8, padding: '6px 13px', cursor: 'pointer' }}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Lịch trình chi tiết
@@ -983,7 +970,7 @@ export const StudentOverviewPage = () => {
             {/* Stepper */}
             <div style={{ position: 'relative', marginTop: 20 }}>
               {/* Background track */}
-              <div style={{ position: 'absolute', left: '10%', right: '10%', top: 11, height: 2, background: '#1b2740' }} />
+              <div style={{ position: 'absolute', left: '10%', right: '10%', top: 11, height: 2, background: C.line }} />
               {/* Progress track */}
               <div style={{ position: 'absolute', left: '10%', width: progressWidth, top: 11, height: 2, background: 'linear-gradient(90deg,#00d4ff,#7c3aed)', boxShadow: '0 0 8px rgba(0,212,255,.5)', transition: 'width .4s' }} />
               {/* Items */}
@@ -1190,7 +1177,7 @@ export const StudentOverviewPage = () => {
             </div>
             <div style={{ width: 150, flexShrink: 0 }}>
               {scoreHistory.length >= 2 ? (
-                <ScoreLineChart hist={scoreHistory} w={150} h={46} id="spark" />
+                <ScoreLineChart hist={scoreHistory} w={150} h={46} id="spark" C={C} />
               ) : (
                 <div style={{ width: 150, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.dim }}>
                   Chưa có lịch sử
@@ -1220,9 +1207,10 @@ export const StudentOverviewPage = () => {
                 Theo dõi điểm qua từng mốc
               </span>
             }
+            C={C}
           />
           {scoreHistory.length >= 2 ? (
-            <ScoreLineChart hist={scoreHistory} id="lg" />
+            <ScoreLineChart hist={scoreHistory} id="lg" C={C} />
           ) : (
             <div style={{ height: 210, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <span style={{ fontSize: 28, opacity: .3 }}>📊</span>
@@ -1238,6 +1226,7 @@ export const StudentOverviewPage = () => {
           <SectionHead
             icon={<span style={{ color: C.purple2 }}>🗓️</span>}
             title="Sự kiện sắp tới"
+            C={C}
           />
           <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
             {evRows.map((ev, i) => (
@@ -1353,7 +1342,9 @@ export const StudentOverviewPage = () => {
             <div
               key={i}
               style={{
-                border: `1px solid ${C.line}`,
+                borderLeft: `1px solid ${C.line}`,
+                borderRight: `1px solid ${C.line}`,
+                borderBottom: `1px solid ${C.line}`,
                 borderTop: `2px solid ${n.accent}`,
                 borderRadius: 11,
                 background: C.card,
@@ -1434,7 +1425,7 @@ export const StudentOverviewPage = () => {
             style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
           >
             <thead>
-              <tr style={{ background: "#0a1018" }}>
+              <tr style={{ background: C.card }}>
                 {[
                   ["#", 42, "left"],
                   ["Đội thi", null, "left"],
@@ -1450,7 +1441,7 @@ export const StudentOverviewPage = () => {
                       fontWeight: 700,
                       letterSpacing: ".6px",
                       textTransform: "uppercase",
-                      color: "#56688a",
+                      color: C.dim,
                       width: w ?? "auto",
                     }}
                   >
@@ -1622,7 +1613,7 @@ export const StudentOverviewPage = () => {
                       style={{
                         height: 5,
                         borderRadius: 3,
-                        background: "#0a1322",
+                        background: C.card,
                         overflow: "hidden",
                       }}
                     >
@@ -1712,7 +1703,7 @@ export const StudentOverviewPage = () => {
             onClick={() => setScheduleOpen(false)}
           >
             <div
-              style={{ width: '100%', maxWidth: 620, maxHeight: '84vh', background: '#0c1524', border: '1px solid #1e3a5f', borderRadius: 18, boxShadow: '0 20px 60px rgba(0,0,0,.5)', display: 'flex', flexDirection: 'column' }}
+              style={{ width: '100%', maxWidth: 620, maxHeight: '84vh', background: C.card, border: `1px solid ${C.line}`, borderRadius: 18, boxShadow: '0 20px 60px rgba(0,0,0,.5)', display: 'flex', flexDirection: 'column' }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -1755,7 +1746,7 @@ export const StudentOverviewPage = () => {
                       {/* Sub-events */}
                       <div style={{ borderLeft: '1px solid #131d31', paddingLeft: 14, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 12, color: '#c9d6e8', fontWeight: 600 }}>Phát đề bài cho các đội</span>
+                          <span style={{ fontSize: 12, color: C.text2, fontWeight: 600 }}>Phát đề bài cho các đội</span>
                           <span style={{ fontSize: 12, color: '#7e90ab', fontFamily: "'JetBrains Mono', monospace" }}>→ {fmtDateTime(r.start_time)}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

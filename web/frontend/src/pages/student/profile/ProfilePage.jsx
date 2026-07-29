@@ -11,14 +11,8 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
 import '../student.css';
-
-// ── Color tokens ──────────────────────────────────────────────────────────────
-const C = {
-  bg: '#070b14', card: '#0c1524', line: '#1b2740', line2: '#131d31',
-  text: '#e6eef9', text2: '#c9d6e8', muted: '#7e90ab', dim: '#5a708f',
-  cyan: '#00d4ff', purple: '#7c3aed', purple2: '#a855f7',
-  green: '#22c55e', amber: '#f59e0b', red: '#f87171',
-};
+import { useTheme } from '../../../context/ThemeContext';
+import { getStudentColors } from '../studentColors';
 
 // ── Avatar gradient helper ────────────────────────────────────────────────────
 const AVATAR_COLORS = [
@@ -36,7 +30,7 @@ function avatarInitials(name = '') {
 }
 
 // ── Section label ─────────────────────────────────────────────────────────────
-const SectionLabel = ({ children }) => (
+const SectionLabel = ({ children, C }) => (
   <div style={{
     fontSize: 11, fontWeight: 700, letterSpacing: '.5px', textTransform: 'uppercase',
     color: C.dim, marginBottom: 14,
@@ -46,7 +40,7 @@ const SectionLabel = ({ children }) => (
 );
 
 // ── Info field (view mode) ────────────────────────────────────────────────────
-const InfoField = ({ label, children }) => (
+const InfoField = ({ label, children, C }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
     <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: C.dim }}>
       {label}
@@ -58,7 +52,7 @@ const InfoField = ({ label, children }) => (
 );
 
 // ── Card wrapper ──────────────────────────────────────────────────────────────
-const Card = ({ children, style }) => (
+const Card = ({ children, style, C }) => (
   <div style={{
     border: `1px solid ${C.line}`, borderRadius: 14,
     background: C.card, padding: 22, ...style,
@@ -70,6 +64,8 @@ const Card = ({ children, style }) => (
 export function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const { request } = useApi();
+  const { theme } = useTheme();
+  const C = getStudentColors(theme);
   const fileRef = useRef(null);
   const cardRef = useRef(null);
 
@@ -331,10 +327,10 @@ export function ProfilePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Card 1 — Personal info */}
-          <Card>
+          <Card C={C}>
             {/* Card header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <SectionLabel>THÔNG TIN CÁ NHÂN</SectionLabel>
+              <SectionLabel C={C}>THÔNG TIN CÁ NHÂN</SectionLabel>
               {!editing && (
                 <button
                   onClick={handleEdit}
@@ -368,7 +364,7 @@ export function ProfilePage() {
                     <Form.Item name="full_name" style={{ margin: 0 }} rules={[{ required: true, message: 'Nhập họ và tên' }]}>
                       <Input
                         placeholder="Nhập họ và tên"
-                        style={{ background: '#080e1a', border: `1px solid ${C.line}`, color: C.text, borderRadius: 8, fontSize: 13 }}
+                        style={{ background: C.card, border: `1px solid ${C.line}`, color: C.text, borderRadius: 8, fontSize: 13 }}
                       />
                     </Form.Item>
                   ) : (
@@ -385,7 +381,7 @@ export function ProfilePage() {
                     <Form.Item name="student_id" style={{ margin: 0 }} rules={[{ required: true, message: 'Nhập mã sinh viên' }]}>
                       <Input
                         placeholder="VD: SE12345"
-                        style={{ background: '#080e1a', border: `1px solid ${C.line}`, color: C.text, borderRadius: 8, fontSize: 13 }}
+                        style={{ background: C.card, border: `1px solid ${C.line}`, color: C.text, borderRadius: 8, fontSize: 13 }}
                       />
                     </Form.Item>
                   ) : (
@@ -412,7 +408,7 @@ export function ProfilePage() {
                     <Form.Item name="phone" style={{ margin: 0 }} rules={[{ required: true, message: 'Nhập số điện thoại' }]}>
                       <Input
                         placeholder="VD: 0912345678"
-                        style={{ background: '#080e1a', border: `1px solid ${C.line}`, color: C.text, borderRadius: 8, fontSize: 13 }}
+                        style={{ background: C.card, border: `1px solid ${C.line}`, color: C.text, borderRadius: 8, fontSize: 13 }}
                       />
                     </Form.Item>
                   ) : (
@@ -472,8 +468,8 @@ export function ProfilePage() {
           </Card>
 
           {/* Card 2 — Verification status + student card upload */}
-          <Card>
-            <SectionLabel>XÁC THỰC SINH VIÊN</SectionLabel>
+          <Card C={C}>
+            <SectionLabel C={C}>XÁC THỰC SINH VIÊN</SectionLabel>
 
             {/* Verification status display */}
             {verifyStatus === 'approved' ? (
@@ -596,7 +592,7 @@ export function ProfilePage() {
                     <img
                       src={user.student_card}
                       alt="Thẻ sinh viên"
-                      style={{ width: '100%', height: 220, borderRadius: '8px 8px 0 0', objectFit: 'cover', display: 'block', border: `1px solid ${C.line}`, borderBottom: 'none' }}
+                      style={{ width: '100%', height: 220, borderRadius: '8px 8px 0 0', objectFit: 'cover', display: 'block', borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, borderTop: `1px solid ${C.line}` }}
                     />
                     <div style={{
                       background: '#10b981', color: '#fff', fontSize: '.8rem', fontWeight: 600,
@@ -615,11 +611,11 @@ export function ProfilePage() {
           </Card>
 
           {/* Card 3 — Security */}
-          <Card>
-            <SectionLabel>BẢO MẬT</SectionLabel>
+          <Card C={C}>
+            <SectionLabel C={C}>BẢO MẬT</SectionLabel>
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: '#080e1a', border: `1px solid ${C.line2}`,
+              background: C.card, border: `1px solid ${C.line2}`,
               borderRadius: 11, padding: '14px 16px',
             }}>
               <div>
@@ -651,7 +647,7 @@ export function ProfilePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Card — Avatar */}
-          <Card style={{ textAlign: 'center', padding: 24 }}>
+          <Card C={C} style={{ textAlign: 'center', padding: 24 }}>
             {/* Avatar */}
             <div style={{ position: 'relative', width: 110, height: 110, margin: '0 auto 16px' }}>
               {avatarSrc ? (
@@ -802,8 +798,8 @@ export function ProfilePage() {
           </Card>
 
           {/* Card — Activity */}
-          <Card style={{ padding: '20px 22px' }}>
-            <SectionLabel>HOẠT ĐỘNG</SectionLabel>
+          <Card C={C} style={{ padding: '20px 22px' }}>
+            <SectionLabel C={C}>HOẠT ĐỘNG</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {[
                 { label: 'Đội thi', value: user?.team?.name || '—', color: C.cyan },

@@ -3,6 +3,8 @@ import { message, Modal, Empty } from 'antd';
 import { useApi } from '../../../hooks/useApi';
 import { getRoundStatus, getRoundStatusKey } from '../../../utils/roundStatus';
 import '../student.css';
+import { useTheme } from '../../../context/ThemeContext';
+import { getStudentColors } from '../studentColors';
 
 const Ico = ({ d, size = 14, sw = 1.8 }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -18,20 +20,6 @@ const WARN   = ['M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.
 const EYE    = ['M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'];
 const CAL    = ['M8 2v3', 'M16 2v3', 'M3 7h18', 'M3 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2H3z'];
 
-const C = {
-  bg: '#070b14', card: '#0c1524', card2: '#0d1825', line: '#1b2740', line2: '#162036',
-  text: '#e6eef9', text2: '#c9d6e8', muted: '#7e90ab', dim: '#5a708f',
-  cyan: '#00d4ff', purple: '#7c3aed', purple2: '#a855f7',
-  green: '#22c55e', amber: '#f59e0b', gold: '#facc15', red: '#f87171',
-};
-
-const STATUS_CFG = {
-  SUBMITTED:     { label: 'Đã nộp đúng hạn',      color: C.green,  borderColor: 'rgba(34,197,94,.4)',   bg: 'rgba(34,197,94,.08)',  icon: CHECK },
-  LATE_PENDING:  { label: 'Nộp trễ — Chờ duyệt',  color: C.amber,  borderColor: 'rgba(245,158,11,.4)',  bg: 'rgba(245,158,11,.08)', icon: CLOCK },
-  LATE_APPROVED: { label: 'Nộp trễ — Đã duyệt',   color: C.gold,   borderColor: 'rgba(250,204,21,.4)',  bg: 'rgba(250,204,21,.08)', icon: CHECK },
-  REJECTED:      { label: 'Bị từ chối',            color: C.red,    borderColor: 'rgba(248,113,113,.4)', bg: 'rgba(248,113,113,.08)',icon: WARN  },
-};
-
 const fmtDate = (d) => {
   if (!d) return '—';
   return new Date(d).toLocaleString('vi-VN', {
@@ -46,28 +34,7 @@ const fmtDuration = (s, e) => {
   return `${mins} phút`;
 };
 
-// Shared styles
-const cardStyle = {
-  border: `1px solid ${C.line}`,
-  borderRadius: 14,
-  background: C.card,
-  overflow: 'hidden',
-};
-
-const inputStyle = {
-  width: '100%', padding: '10px 13px', borderRadius: 9,
-  border: `1px solid ${C.line}`, background: '#080e1a',
-  color: C.text, fontFamily: 'inherit', fontSize: 13,
-  outline: 'none', boxSizing: 'border-box',
-};
-
-const labelStyle = {
-  display: 'block', fontSize: 11, fontWeight: 700,
-  textTransform: 'uppercase', letterSpacing: '.5px',
-  color: C.dim, marginBottom: 5,
-};
-
-function Countdown({ deadline }) {
+function Countdown({ deadline, C }) {
   const [diff, setDiff] = useState(null);
 
   useEffect(() => {
@@ -120,6 +87,36 @@ const EMPTY_FORM = { repo_url: '', slide_url: '', demo_url: '', is_accessible: t
 export const StudentSubmitPage = () => {
   const { request } = useApi();
   const [messageApi, ctx] = message.useMessage();
+  const { theme } = useTheme();
+  const C = getStudentColors(theme);
+
+  const STATUS_CFG = {
+    SUBMITTED:     { label: 'Đã nộp đúng hạn',      color: C.green,  borderColor: 'rgba(34,197,94,.4)',   bg: 'rgba(34,197,94,.08)',  icon: CHECK },
+    LATE_PENDING:  { label: 'Nộp trễ — Chờ duyệt',  color: C.amber,  borderColor: 'rgba(245,158,11,.4)',  bg: 'rgba(245,158,11,.08)', icon: CLOCK },
+    LATE_APPROVED: { label: 'Nộp trễ — Đã duyệt',   color: C.gold,   borderColor: 'rgba(250,204,21,.4)',  bg: 'rgba(250,204,21,.08)', icon: CHECK },
+    REJECTED:      { label: 'Bị từ chối',            color: C.red,    borderColor: 'rgba(248,113,113,.4)', bg: 'rgba(248,113,113,.08)',icon: WARN  },
+  };
+
+  // Shared styles
+  const cardStyle = {
+    border: `1px solid ${C.line}`,
+    borderRadius: 14,
+    background: C.card,
+    overflow: 'hidden',
+  };
+
+  const inputStyle = {
+    width: '100%', padding: '10px 13px', borderRadius: 9,
+    border: `1px solid ${C.line}`, background: C.card,
+    color: C.text, fontFamily: 'inherit', fontSize: 13,
+    outline: 'none', boxSizing: 'border-box',
+  };
+
+  const labelStyle = {
+    display: 'block', fontSize: 11, fontWeight: 700,
+    textTransform: 'uppercase', letterSpacing: '.5px',
+    color: C.dim, marginBottom: 5,
+  };
 
   const [loading, setLoading]           = useState(true);
   const [team, setTeam]                 = useState(null);
@@ -410,7 +407,7 @@ export const StudentSubmitPage = () => {
           </h2>
         </div>
         {selectedRound.submission_deadline && (
-          <Countdown deadline={selectedRound.submission_deadline} />
+          <Countdown deadline={selectedRound.submission_deadline} C={C} />
         )}
       </div>
 
@@ -426,7 +423,7 @@ export const StudentSubmitPage = () => {
             }}
             style={{
               width: '100%', padding: '8px 36px 8px 14px', borderRadius: 8,
-              border: `1px solid ${C.line}`, background: '#080e1a', color: C.text2,
+              border: `1px solid ${C.line}`, background: C.card, color: C.text2,
               fontSize: 13, fontFamily: 'inherit', appearance: 'none',
               outline: 'none', cursor: 'pointer',
             }}

@@ -113,7 +113,7 @@ export const StudentLayout = () => {
   const userInitial = (user?.full_name?.[0] || 'U').toUpperCase();
 
   return (
-    <div className="sl-root">
+    <div className="sl-root" data-theme={theme}>
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       <aside className="sl-sidebar">
         {/* Logo */}

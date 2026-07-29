@@ -82,18 +82,12 @@ export const checkEmail = async (req, res) => {
     if (!email) {
       return res.status(400).json({ success: false, message: "Email là bắt buộc" });
     }
-    const exists = await checkEmailExists(email);
-    if (exists) {
-      return res.status(200).json({
-        success: true,
-        exists: true,
-        message: `Email ${email} đã được tạo tài khoản trong hệ thống`,
-      });
-    }
+    const user = await checkEmailExists(email);
     return res.status(200).json({
       success: true,
-      exists: false,
-      message: "Email chưa được sử dụng",
+      exists: !!user,
+      user: user ? { _id: user._id, full_name: user.full_name, email: user.email } : null,
+      message: user ? `Email ${email} đã được tạo tài khoản trong hệ thống` : "Email chưa được sử dụng",
     });
   } catch (error) {
     console.error("[checkEmail]", error);

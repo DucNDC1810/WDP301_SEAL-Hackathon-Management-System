@@ -3,7 +3,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as GitHubStrategy } from "passport-github2";
 import { findOrCreateOAuthUser } from "../services/authService.js";
 
-const SERVER_URL = process.env.SERVER_URL || "http://localhost:5001";
+const SERVER_URL = (process.env.SERVER_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:5001").replace(/\/$/, "");
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const githubClientId = process.env.GITHUB_CLIENT_ID;

@@ -288,6 +288,12 @@
 .al-root[data-theme="light"] .history-meta { color: #94a3b8; }
 .al-root[data-theme="light"] .history-status--delivered { background: #dcfce7; color: #16a34a; border-color: #86efac; }
 .al-root[data-theme="light"] .history-status--sent { background: #e0f2fe; color: #0284c7; border-color: #7dd3fc; }
+.al-root[data-theme="light"] .history-status--failed { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+
+.al-root[data-theme="light"] .email-draft__meta { color: #0284c7; }
+.al-root[data-theme="light"] .email-draft__subject { color: #1e293b; border-bottom-color: #e2e8f0; }
+.al-root[data-theme="light"] .email-draft__body { color: #334155; }
+.al-root[data-theme="light"] .email-draft__hint { color: #94a3b8; }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    AI ASSISTANT PAGE (old chat interface fallback)

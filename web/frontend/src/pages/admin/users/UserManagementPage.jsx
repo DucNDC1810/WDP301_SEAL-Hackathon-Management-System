@@ -21,10 +21,12 @@ const DEL_ROLE = ['M3 6h18','M8 6V4h8v2','M19 6l-1 14H6L5 6'];
 const ROLE_CFG = {
   admin:      { cls:'um-role--red',    label:'Admin'      },
   mentor:     { cls:'um-role--blue',   label:'Mentor'     },
+  judge:      { cls:'um-role--purple', label:'Judge'      },
   contestant: { cls:'um-role--green',  label:'Contestant' },
+  organizer:  { cls:'um-role--orange', label:'Organizer'  },
 };
 
-const ROLES = ['admin','mentor','contestant'];
+const ROLES = ['admin','mentor','judge','contestant','organizer'];
 
 const PAGE_LIMIT = 20;
 
@@ -105,7 +107,15 @@ export default function UserManagementPage() {
     try {
       const r = await fetch(`${API_URL}/api/users/${userId}/roles`, { method:'PUT', headers: hdrs(), body: JSON.stringify({ role_name: newRole }) });
       const d = await r.json();
-      if (d.success) { setUsers(prev => prev.map(u => u._id === userId ? d.data : u)); setAddingRole(null); }
+      if (d.success) {
+        setUsers(prev => prev.map(u => u._id === userId ? d.data : u));
+        setAddingRole(null);
+        notification.success({ message: 'Thành công', description: `Đã gán role "${newRole}" cho người dùng` });
+      } else {
+        notification.error({ message: 'Lỗi', description: d.message || 'Không thể gán role' });
+      }
+    } catch {
+      notification.error({ message: 'Lỗi', description: 'Không thể kết nối đến server' });
     } finally { setSaving(false); }
   };
 
@@ -128,6 +138,34 @@ export default function UserManagementPage() {
           }
         } catch {
           notification.error({ message: 'Lỗi', description: 'Có lỗi xảy ra' });
+        }
+      }
+    });
+  };
+
+  const handleDeleteUser = (userId, userName) => {
+    Modal.confirm({
+      title: 'Xác nhận xóa tài khoản?',
+      content: `Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản "${userName}" khỏi hệ thống? Hành động này không thể hoàn tác.`,
+      okText: 'Xóa vĩnh viễn',
+      cancelText: 'Hủy',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          const r = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'DELETE',
+            headers: hdrs(),
+          });
+          const d = await r.json();
+          if (d.success) {
+            setUsers(prev => prev.filter(u => u._id !== userId));
+            setTotalUsers(prev => Math.max(0, prev - 1));
+            notification.success({ message: 'Thành công', description: `Đã xóa tài khoản "${userName}" thành công.` });
+          } else {
+            notification.error({ message: 'Lỗi xóa user', description: d.message || 'Không thể xóa tài khoản này' });
+          }
+        } catch {
+          notification.error({ message: 'Lỗi kết nối', description: 'Không thể kết nối đến server' });
         }
       }
     });
@@ -268,13 +306,23 @@ export default function UserManagementPage() {
             <div className="um-table-wrap">
               <table className="um-table">
                 <thead>
-                  <tr><th>Tên</th><th>Email</th><th>Roles</th><th>Thông tin</th><th>Xác thực</th><th>Ngày tạo</th></tr>
+                  <tr><th>Tên</th><th>Email</th><th>Roles</th><th>Thông tin</th><th>Xác thực</th><th>Ngày tạo</th><th>Hành động</th></tr>
                 </thead>
                 <tbody>
                   {users.map(u => (
                     <tr key={u._id} className="um-row">
                       <td className="um-col-name">
-                        <div className="um-avatar">{(u.full_name?.[0]||'?').toUpperCase()}</div>
+                        <div className="um-avatar">
+                          {u.avatar_url ? (
+                            <img
+                              src={u.avatar_url}
+                              alt={u.full_name || 'User'}
+                              className="um-avatar-img"
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                          ) : null}
+                          <span className="um-avatar-text">{(u.full_name?.[0] || '?').toUpperCase()}</span>
+                        </div>
                         <span>{u.full_name || '—'}</span>
                       </td>
                       <td className="um-col-email">{u.email}</td>
@@ -315,6 +363,16 @@ export default function UserManagementPage() {
                       </td>
                       <td><span className={`um-verified ${u.is_verified?'um-verified--yes':'um-verified--no'}`}>{u.is_verified?'✓ Đã xác thực':'✗ Chưa'}</span></td>
                       <td className="um-col-date">{u.created_at ? new Date(u.created_at).toLocaleDateString('vi-VN') : '—'}</td>
+                      <td>
+                        <button
+                          className="um-btn-delete"
+                          onClick={() => handleDeleteUser(u._id, u.full_name || u.email)}
+                          title="Xóa tài khoản user"
+                        >
+                          <Ico d={DEL_ROLE} size={14} sw={2} />
+                          <span>Xóa</span>
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

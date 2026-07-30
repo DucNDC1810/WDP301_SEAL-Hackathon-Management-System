@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { Form, InputNumber, Input, Button, Card, Row, Col, Typography, Divider, message, Spin } from 'antd';
+import { Form, InputNumber, Input, Button, Card, Row, Col, Typography, Divider, message, Spin, Alert } from 'antd';
 import './ScoreFormPage.css';
 import RefreshButton from '../../components/RefreshButton';
 
@@ -19,6 +19,7 @@ export default function ScoreFormPage() {
   const [aiData, setAiData]         = useState(null);
   const [loading, setLoading]       = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [deadline, setDeadline]     = useState(null);
   const [form] = Form.useForm();
 
   const token = localStorage.getItem('accessToken');
@@ -30,6 +31,7 @@ export default function ScoreFormPage() {
         const contest = await cRes.json();
         const round = contest.rounds?.find((r) => r._id === roundId);
         setCriteria(round?.score_criteria || []);
+        setDeadline(round?.submission_deadline ? new Date(round.submission_deadline) : null);
 
         try {
           const aiRes = await fetch(`${API}/api/ai-reviews?team_id=${teamId}&round_id=${roundId}`, { headers });
@@ -74,6 +76,8 @@ export default function ScoreFormPage() {
     }
   };
 
+  const isLocked = deadline && new Date() < deadline;
+
   if (loading) return <Spin className="score-form__spin" />;
 
   return (
@@ -85,6 +89,16 @@ export default function ScoreFormPage() {
       <Row gutter={24}>
         <Col xs={24} md={14}>
           <Card title="Phiếu chấm điểm">
+            {isLocked && (
+              <div style={{ marginBottom: 16 }}>
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="Chưa hết giờ làm bài"
+                  description="Bạn chỉ có thể chấm điểm sau khi hết hạn nộp bài."
+                />
+              </div>
+            )}
             <Form form={form} layout="vertical" onFinish={(v) => handleSubmit(v, true)}>
               {criteria.map((c) => (
                 <Form.Item
@@ -92,17 +106,17 @@ export default function ScoreFormPage() {
                   label={`${c.name} (tối đa ${c.max_score} điểm, trọng số ${c.weight})`}
                   name={`score_${c.name}`}
                   rules={[{ required: true, message: 'Vui lòng nhập điểm' }]}>
-                  <InputNumber min={0} max={c.max_score} style={{ width: '100%' }} />
+                  <InputNumber min={0} max={c.max_score} style={{ width: '100%' }} disabled={isLocked} />
                 </Form.Item>
               ))}
               <Form.Item label="Nhận xét" name="comment">
-                <Input.TextArea rows={4} placeholder="Nhận xét chung..." />
+                <Input.TextArea rows={4} placeholder={isLocked ? "Chưa hết giờ làm bài, không thể chấm điểm" : "Nhận xét chung..."} disabled={isLocked} />
               </Form.Item>
               <Button.Group>
-                <Button onClick={() => form.validateFields().then((v) => handleSubmit(v, false))} loading={submitting}>
+                <Button onClick={() => form.validateFields().then((v) => handleSubmit(v, false))} loading={submitting} disabled={isLocked}>
                   Lưu nháp
                 </Button>
-                <Button type="primary" htmlType="submit" loading={submitting}>
+                <Button type="primary" htmlType="submit" loading={submitting} disabled={isLocked}>
                   Nộp điểm
                 </Button>
               </Button.Group>

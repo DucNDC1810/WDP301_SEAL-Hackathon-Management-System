@@ -96,6 +96,7 @@ export default function HackathonDetailPage({ defaultTab }) {
 
   // Forms states
   const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const [generalForm, setGeneralForm] = useState({
     title: '', season: '', year: 2026, description: '', rules: '', banner: '',
     registration_open_date: '', registration_deadline: '', start_date: '', end_date: '',
@@ -122,6 +123,10 @@ export default function HackathonDetailPage({ defaultTab }) {
   });
   const [editingCritId, setEditingCritId] = useState(null);
   const [cloneSourceRoundId, setCloneSourceRoundId] = useState('');
+  const [showDriveLinkModal, setShowDriveLinkModal] = useState(false);
+  const [driveLinkRoundId, setDriveLinkRoundId] = useState('');
+  const [driveLinkVal, setDriveLinkVal] = useState('');
+  const [historicalRounds, setHistoricalRounds] = useState([]);
 
   const [validationErrors, setValidationErrors] = useState([]);
   const [isSuccessActivating, setIsSuccessActivating] = useState(false);
@@ -146,6 +151,40 @@ export default function HackathonDetailPage({ defaultTab }) {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const fetchHistoricalRounds = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/contests`, { headers: hdrs() });
+      const d = await res.json();
+      if (d.success && Array.isArray(d.data)) {
+        const list = [];
+        d.data.forEach(c => {
+          if (c._id === id) return;
+          (c.rounds || []).forEach(r => {
+            if (r.score_criteria && r.score_criteria.length > 0) {
+              list.push({
+                key: `hist_${c._id}_${r.round_number}`,
+                label: `${c.title} — Vòng ${r.round_number}: ${r.name} (${r.score_criteria.length} tiêu chí)`,
+                criteria: r.score_criteria.map((sc, idx) => ({
+                  id: `crit-clone-hist-${Date.now()}-${idx}-${Math.random()}`,
+                  name: sc.name,
+                  type: sc.type || 'Code Quality',
+                  weight: sc.weight,
+                  max_score: sc.max_score || 10,
+                  description: sc.description || '',
+                  rubric_url: sc.rubric_url || '',
+                  display_order: sc.display_order || (idx + 1)
+                }))
+              });
+            }
+          });
+        });
+        setHistoricalRounds(list);
+      }
+    } catch (err) {
+      console.error('Error fetching historical rounds:', err);
     }
   };
 
@@ -497,6 +536,7 @@ export default function HackathonDetailPage({ defaultTab }) {
   // Re-sync trạng thái contest (vd. round.is_active) khi quay lại trang này từ RoundActivatePage
   useEffect(() => {
     fetchContest();
+    fetchHistoricalRounds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key]);
 
@@ -989,6 +1029,73 @@ export default function HackathonDetailPage({ defaultTab }) {
 
   // ─── HANDLERS ──────────────────────────────────────────────────────────────
 
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      notification.error({
+        message: 'Lỗi định dạng',
+        description: 'Vui lòng chọn file hình ảnh (png, jpg, jpeg, gif, webp).',
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      notification.error({
+        message: 'Kích thước lớn',
+        description: 'Kích thước ảnh tối đa là 5MB.',
+      });
+      return;
+    }
+
+    setUploadingBanner(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target.result;
+      try {
+        const token = localStorage.getItem('accessToken');
+        const res = await fetch(`${API_URL}/api/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ file: base64, folder: 'seal-banners' })
+        });
+        const d = await res.json();
+        if (d.success) {
+          setGeneralForm(prev => ({ ...prev, banner: d.url }));
+          notification.success({
+            message: 'Thành công',
+            description: 'Tải ảnh lên thành công!',
+          });
+        } else {
+          notification.error({
+            message: 'Lỗi tải ảnh',
+            description: d.message || 'Lỗi tải ảnh lên.',
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        notification.error({
+          message: 'Lỗi kết nối',
+          description: 'Không thể kết nối đến máy chủ để tải ảnh.',
+        });
+      } finally {
+        setUploadingBanner(false);
+      }
+    };
+    reader.onerror = () => {
+      notification.error({
+        message: 'Lỗi đọc file',
+        description: 'Lỗi đọc file hình ảnh.',
+      });
+      setUploadingBanner(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Save General Info
   const handleSaveGeneralInfo = async (e) => {
     e.preventDefault();
@@ -1298,6 +1405,12 @@ export default function HackathonDetailPage({ defaultTab }) {
     updateConfigState({ ...config, tracks: updatedTracks });
   };
 
+  const handleUpdateRoundDriveLink = (roundId, currentLink) => {
+    setDriveLinkRoundId(roundId);
+    setDriveLinkVal(currentLink || "");
+    setShowDriveLinkModal(true);
+  };
+
   // ─── CRITERIA HANDLERS ─────────────────────────────────────────────────────
   const handleAddCriteria = (e) => {
     e.preventDefault();
@@ -1390,13 +1503,20 @@ export default function HackathonDetailPage({ defaultTab }) {
 
     // Find source criteria
     let sourceCriteria = [];
-    config.tracks.forEach(t => {
-      t.rounds.forEach(r => {
-        if (r.id === cloneSourceRoundId) {
-          sourceCriteria = r.criteria || [];
-        }
+    if (cloneSourceRoundId.startsWith('hist_')) {
+      const found = historicalRounds.find(hr => hr.key === cloneSourceRoundId);
+      if (found) {
+        sourceCriteria = found.criteria || [];
+      }
+    } else {
+      config.tracks.forEach(t => {
+        t.rounds.forEach(r => {
+          if (r.id === cloneSourceRoundId) {
+            sourceCriteria = r.criteria || [];
+          }
+        });
       });
-    });
+    }
 
     if (sourceCriteria.length === 0) {
       notification.warning({
@@ -1406,9 +1526,9 @@ export default function HackathonDetailPage({ defaultTab }) {
       return;
     }
 
-    const cloned = sourceCriteria.map(c => ({
+    const cloned = sourceCriteria.map((c, idx) => ({
       ...c,
-      id: `crit-clone-${Math.random()}`
+      id: `crit-clone-${Date.now()}-${idx}-${Math.random()}`
     }));
 
     const updatedTracks = config.tracks.map(t => {
@@ -1571,7 +1691,43 @@ export default function HackathonDetailPage({ defaultTab }) {
               <div className="hd-form-grid" style={{ gridTemplateColumns: '1fr' }}>
                 <div className="hd-field"><label>Mô tả ngắn</label><textarea rows="2" value={generalForm.description} onChange={e=>setGeneralForm(f=>({...f,description:e.target.value}))}/></div>
                 <div className="hd-field"><label>Quy chế & Thể lệ giải đấu</label><textarea rows="4" value={generalForm.rules} onChange={e=>setGeneralForm(f=>({...f,rules:e.target.value}))}/></div>
-                <div className="hd-field"><label>Link Banner (Ảnh nền)</label><input value={generalForm.banner} onChange={e=>setGeneralForm(f=>({...f,banner:e.target.value}))}/></div>
+                <div className="hd-field">
+                  <label>Link Banner (Ảnh nền)</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      value={generalForm.banner}
+                      onChange={e=>setGeneralForm(f=>({...f,banner:e.target.value}))}
+                      style={{ flex: 1 }}
+                    />
+                    <label
+                      className="hd-btn-add"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        padding: '0 16px',
+                        fontSize: '0.85rem',
+                        height: '42px',
+                        whiteSpace: 'nowrap',
+                        margin: 0,
+                        border: '1px solid var(--border)',
+                        background: 'transparent',
+                        color: 'var(--text-main)',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      {uploadingBanner ? 'Đang tải...' : 'Tải file'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleBannerUpload}
+                        style={{ display: 'none' }}
+                        disabled={uploadingBanner}
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div className="hd-form-grid">
@@ -1872,23 +2028,53 @@ export default function HackathonDetailPage({ defaultTab }) {
                             </div>
                           </div>
                           <div className="hd-problem-release-pools">
-                            {allPools.filter(p => String(p.round_id) === String(dbRound?._id)).length > 0
-                              ? allPools
-                                  .filter(p => String(p.round_id) === String(dbRound?._id))
-                                  .map(pool => (
-                                    <div key={pool._id} className="hd-problem-pool-chip">
-                                      <span className="hd-problem-pool-name">{pool.pool_name || pool.name}</span>
-                                      {pool.drive_link ? (
-                                        <a href={pool.drive_link} target="_blank" rel="noreferrer" className="hd-problem-pool-link">
-                                          🔗 Xem đề
-                                        </a>
-                                      ) : (
-                                        <span className="hd-problem-pool-no-link">Chưa có link</span>
-                                      )}
-                                    </div>
-                                  ))
-                              : <span className="hd-problem-pool-no-link">Chưa cấu hình bảng đấu</span>
-                            }
+                            {dbRound?.type === "FINAL" || round.name?.toLowerCase().includes("chung kết") || round.name?.toLowerCase().includes("final") || Number(round.sequence_order) === 2 ? (
+                              <div className="hd-problem-pool-chip">
+                                <span className="hd-problem-pool-name" style={{ marginRight: '4px' }}>Đề bài:</span>
+                                {dbRound?.drive_link ? (
+                                  <>
+                                    <a href={dbRound.drive_link} target="_blank" rel="noreferrer" className="hd-problem-pool-link" style={{ marginRight: '8px' }}>
+                                      🔗 Xem đề
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateRoundDriveLink(dbRound._id, dbRound.drive_link)}
+                                      style={{ background: 'transparent', border: 'none', color: 'var(--cyan)', cursor: 'pointer', fontSize: '0.72rem', textDecoration: 'underline', padding: 0 }}
+                                    >
+                                      Sửa
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="hd-problem-pool-no-link" style={{ marginRight: '8px' }}>Chưa có link</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateRoundDriveLink(dbRound?._id, '')}
+                                      style={{ background: 'transparent', border: 'none', color: 'var(--cyan)', cursor: 'pointer', fontSize: '0.72rem', textDecoration: 'underline', padding: 0 }}
+                                    >
+                                      Thêm
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ) : (
+                              allPools.filter(p => String(p.round_id) === String(dbRound?._id)).length > 0
+                                ? allPools
+                                    .filter(p => String(p.round_id) === String(dbRound?._id))
+                                    .map(pool => (
+                                      <div key={pool._id} className="hd-problem-pool-chip">
+                                        <span className="hd-problem-pool-name">{pool.pool_name || pool.name}</span>
+                                        {pool.drive_link ? (
+                                          <a href={pool.drive_link} target="_blank" rel="noreferrer" className="hd-problem-pool-link">
+                                            🔗 Xem đề
+                                          </a>
+                                        ) : (
+                                          <span className="hd-problem-pool-no-link">Chưa có link</span>
+                                        )}
+                                      </div>
+                                    ))
+                                : <span className="hd-problem-pool-no-link">Chưa cấu hình bảng đấu</span>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1959,10 +2145,19 @@ export default function HackathonDetailPage({ defaultTab }) {
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Kế thừa (Clone) tiêu chí:</span>
                 <select className="hd-clone-select" value={cloneSourceRoundId} onChange={e=>setCloneSourceRoundId(e.target.value)}>
                   <option value="">-- Chọn Vòng mẫu làm nguồn --</option>
-                  {config.tracks.map(t => 
-                    t.rounds.filter(r => r.id !== selectedCritRoundId && r.criteria?.length > 0).map(r => (
-                      <option key={r.id} value={r.id}>{t.name} — Round {r.sequence_order}: {r.name} ({r.criteria.length} tiêu chí)</option>
-                    ))
+                  <optgroup label="Vòng đấu trong cuộc thi này">
+                    {config.tracks.map(t => 
+                      t.rounds.filter(r => r.id !== selectedCritRoundId && r.criteria?.length > 0).map(r => (
+                        <option key={r.id} value={r.id}>{t.name} — Round {r.sequence_order}: {r.name} ({r.criteria.length} tiêu chí)</option>
+                      ))
+                    )}
+                  </optgroup>
+                  {historicalRounds.length > 0 && (
+                    <optgroup label="Vòng đấu từ cuộc thi khác">
+                      {historicalRounds.map(hr => (
+                        <option key={hr.key} value={hr.key}>{hr.label}</option>
+                      ))}
+                    </optgroup>
                   )}
                 </select>
                 <button type="button" className="hd-btn-add-sm" onClick={handleCloneCriteria} disabled={!cloneSourceRoundId}><Ico d={COPY}/> Sao chép</button>
@@ -2993,6 +3188,62 @@ export default function HackathonDetailPage({ defaultTab }) {
           </div>
         </div>
       </div>
+
+      {showDriveLinkModal && (
+        <AntModal
+          title="Cập nhật Đề bài Vòng Chung kết"
+          open={showDriveLinkModal}
+          onOk={async () => {
+            try {
+              const res = await fetch(`${API_URL}/api/round/${driveLinkRoundId}`, {
+                method: 'PATCH',
+                headers: hdrs(),
+                body: JSON.stringify({ drive_link: driveLinkVal.trim() }),
+              });
+              const d = await res.json();
+              if (d.success) {
+                notification.success({ message: 'Cập nhật đề bài thành công!' });
+                fetchContest();
+                setShowDriveLinkModal(false);
+              } else {
+                notification.error({ message: d.message || 'Lỗi khi cập nhật link đề bài' });
+              }
+            } catch (err) {
+              console.error(err);
+              notification.error({ message: 'Lỗi kết nối máy chủ' });
+            }
+          }}
+          onCancel={() => setShowDriveLinkModal(false)}
+          okText="Lưu"
+          cancelText="Hủy"
+          className="hd-modal-dark"
+        >
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Link Google Drive đề bài thi:
+            </label>
+            <input
+              type="url"
+              placeholder="https://drive.google.com/..."
+              value={driveLinkVal}
+              onChange={(e) => setDriveLinkVal(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: '0.9rem',
+                borderRadius: '8px',
+                background: 'var(--bg-nest)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--cyan)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+            />
+          </div>
+        </AntModal>
+      )}
     </div>
   );
 }

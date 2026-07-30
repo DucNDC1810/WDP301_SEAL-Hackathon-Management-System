@@ -412,6 +412,12 @@ router.get("/:round_id", async (req, res, next) => {
       scoreMap[teamIdStr].push(score.weighted_avg_score || 0);
     }
 
+    const submissions = await Submission.find({ round_id });
+    const submissionMap = {};
+    for (const sub of submissions) {
+      submissionMap[sub.team_id.toString()] = sub.submitted_at || sub.created_at || null;
+    }
+
     const isFinalRound = round.type === "FINAL" || round.name?.toLowerCase().includes("chung kết") || round.name?.toLowerCase().includes("final");
     const fallbackGroupName = isFinalRound ? "Kết quả chung cuộc" : "Chưa phân bảng";
 
@@ -420,10 +426,6 @@ router.get("/:round_id", async (req, res, next) => {
     for (const team of teams) {
       const teamScores = scoreMap[team._id.toString()];
       if (!teamScores || teamScores.length === 0) {
-        // Exclude teams without final scores or default them? 
-        // Let's include them with score 0 so they still appear on the leaderboard, or exclude them.
-        // The prompt says "Chỉ lấy scores có score_type = NORMAL và is_final = true"
-        // Let's exclude teams that don't have any final scores to match "Chỉ lấy scores..."
         continue;
       }
       const avgScore = teamScores.reduce((sum, val) => sum + val, 0) / teamScores.length;
@@ -432,6 +434,7 @@ router.get("/:round_id", async (req, res, next) => {
         team_name: team.team_name || team.name || "Unknown Team",
         assigned_group: teamPoolMap[team._id.toString()] || team.assigned_group || fallbackGroupName,
         weighted_avg_score: Math.round(avgScore * 100) / 100,
+        submission_time: submissionMap[team._id.toString()] || null,
       });
     }
 
@@ -447,8 +450,18 @@ router.get("/:round_id", async (req, res, next) => {
 
     const groups = [];
     for (const [groupName, groupTeams] of Object.entries(groupsMap)) {
-      // Sort teams in each group by weighted_avg_score DESC
-      groupTeams.sort((a, b) => b.weighted_avg_score - a.weighted_avg_score);
+      // Sort teams in each group by weighted_avg_score DESC, then submission_time ASC (earlier submission first)
+      groupTeams.sort((a, b) => {
+        if (b.weighted_avg_score !== a.weighted_avg_score) {
+          return b.weighted_avg_score - a.weighted_avg_score;
+        }
+        if (a.submission_time && b.submission_time) {
+          return new Date(a.submission_time) - new Date(b.submission_time);
+        }
+        if (a.submission_time) return -1;
+        if (b.submission_time) return 1;
+        return 0;
+      });
 
       // Assign rank
       const rankedTeams = groupTeams.map((team, index) => ({

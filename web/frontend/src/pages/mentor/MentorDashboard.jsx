@@ -7,6 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useApi } from '../../hooks/useApi';
 import { getRoundStatusKey } from '../../utils/roundStatus';
 import './MentorDashboard.css';
+import '../judge/JudgeDashboard.css';
 import RefreshButton from '../../components/RefreshButton';
 import NotificationBell from '../../components/NotificationBell';
 
@@ -85,8 +86,11 @@ function enrichAssignment(a, idx) {
     roundId:       round._id?.toString() || a.round_id?.toString() || '',
     roundName:     round.name || '—',
     roundIsActive: !!round.is_active,
+    scoringLocked: !!round.scoring_locked,
+    submissionDeadline: round.submission_deadline,
     poolId:        pool._id?.toString() || '',
     poolName:      pool.pool_name || '—',
+    poolTeams:     pool.teams || [],
     teamId:        team._id?.toString() || '',
     teamName:      team.team_name || '—',
     teamStatus:    team.status || 'pending',
@@ -788,84 +792,158 @@ function SectionEval({ enriched, scores, navigate }) {
 }
 
 // ─── Section: Scoring (teams to score — not own mentees) ─────────────────────
-function SectionScoring({ enriched, judgeMap, rawJudge, navigate }) {
-  // Deduplicate by (contestId, roundId) — each unique round the mentor/judge is assigned to
-  const seen = new Set();
-  const rounds = [];
+function SectionScoring({ enriched, judgeMap, rawJudge, navigate, scores }) {
+  const ACCENT_COLORS = ['#00d4ff', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
 
-  const addRound = (r) => {
-    const key = `${r.contestId}___${r.roundId}`;
-    if (!seen.has(key) && r.contestId && r.roundId) {
-      seen.add(key);
-      rounds.push(r);
-    }
-  };
+  const assignments = [];
 
-  // 1. Add rounds from mentor assignments (enriched)
+  // 1. Process mentor assignments (enriched)
   if (Array.isArray(enriched)) {
-    enriched.forEach(a => {
-      const key = `${a.contestId}___${a.roundId}`;
-      const judgePoolId = judgeMap[key];
-      addRound({
-        key,
-        contestId:    a.contestId,
-        roundId:      a.roundId,
-        contestName:  a.contestName,
-        roundName:    a.roundName,
+    enriched.forEach((a, idx) => {
+      const otherTeams = (a.poolTeams || []).filter(t => {
+        const tid = (t._id || t).toString();
+        return tid !== a.teamId;
+      });
+
+      if (otherTeams.length === 0) return;
+
+      const scoreKey = `${a.contestId}___${a.roundId}`;
+      const myScores = scores[scoreKey] || [];
+
+      const enrichedTeams = otherTeams.map(t => {
+        const tid = (t._id || t).toString();
+        const score = myScores.find(s => (s.team_id?._id || s.team_id)?.toString() === tid);
+        return {
+          id: tid,
+          name: t.team_name || '—',
+          status: t.status || 'pending',
+          projectName: t.topic_id?.title || '',
+          scoreStatus: score ? score.status : 'none',
+          totalScore: score?.total_score ?? null,
+          contestId: a.contestId,
+          roundId: a.roundId,
+          poolId: a.poolId,
+          isJudgeRole: false,
+          submissionDeadline: a.submissionDeadline,
+          scoringLocked: a.scoringLocked,
+        };
+      });
+
+      assignments.push({
+        key: `mentor-${a.key}`,
+        contestId: a.contestId,
+        contestName: a.contestName,
+        accentColor: a.accentColor || ACCENT_COLORS[idx % ACCENT_COLORS.length],
+        roundId: a.roundId,
+        roundName: a.roundName,
+        poolId: a.poolId,
+        poolName: a.poolName,
         roundIsActive: a.roundIsActive,
-        accentColor:  a.accentColor || '#00d4ff',
-        judgePoolId,
+        scoringLocked: a.scoringLocked,
+        submissionDeadline: a.submissionDeadline,
+        teams: enrichedTeams,
+        teamCount: enrichedTeams.length,
       });
     });
   }
 
-  // 2. Add rounds from judge assignments (rawJudge)
+  // 2. Process judge assignments (rawJudge)
   if (Array.isArray(rawJudge)) {
     rawJudge.forEach((ja, idx) => {
+      if (ja.invitation_status === 'pending_invite') return;
+
       const contest = ja.contest_id || {};
       const contestId = (contest._id || contest).toString();
       const roundId = ja.round_id?.toString();
       if (!contestId || !roundId) return;
 
-      const key = `${contestId}___${roundId}`;
-      if (seen.has(key)) return;
+      const rounds = contest.rounds || [];
+      const round = rounds.find(r => r._id?.toString() === roundId) || {};
+      const pool = ja.pool_id || {};
+      const poolTeams = pool.teams || [];
 
-      // Find round details from contest
-      const roundsArr = contest.rounds || [];
-      const round = roundsArr.find(r => r._id?.toString() === roundId) || {};
-      
-      const ACCENT_COLORS = ['#00d4ff', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
+      if (poolTeams.length === 0) return;
 
-      addRound({
-        key,
+      const scoreKey = `${contestId}___${roundId}`;
+      const myScores = scores[scoreKey] || [];
+
+      const enrichedTeams = poolTeams.map(t => {
+        const tid = (t._id || t).toString();
+        const score = myScores.find(s => (s.team_id?._id || s.team_id)?.toString() === tid);
+        return {
+          id: tid,
+          name: t.team_name || '—',
+          status: t.status || 'pending',
+          projectName: t.topic_id?.title || '',
+          scoreStatus: score ? score.status : 'none',
+          totalScore: score?.total_score ?? null,
+          contestId,
+          roundId,
+          poolId: pool._id?.toString() || 'null',
+          isJudgeRole: true,
+          submissionDeadline: round.submission_deadline,
+          scoringLocked: !!round.scoring_locked,
+        };
+      });
+
+      assignments.push({
+        key: `judge-${ja._id}`,
         contestId,
+        contestName: contest.title || '—',
+        accentColor: ACCENT_COLORS[idx % ACCENT_COLORS.length],
         roundId,
-        contestName:  contest.title || '—',
-        roundName:    round.name || '—',
+        roundName: round.name || '—',
+        poolId: pool._id?.toString() || 'null',
+        poolName: pool.pool_name || '—',
         roundIsActive: !!round.is_active,
-        accentColor:  ACCENT_COLORS[idx % ACCENT_COLORS.length],
-        judgePoolId:  ja.pool_id?._id || ja.pool_id,
+        scoringLocked: !!round.scoring_locked,
+        submissionDeadline: round.submission_deadline,
+        teams: enrichedTeams,
+        teamCount: enrichedTeams.length,
       });
     });
   }
 
-  const endedRounds  = rounds.filter(r => !r.roundIsActive);
-  const activeRounds = rounds.filter(r => r.roundIsActive);
-
-  const goScore = (r) => {
-    if (r.judgePoolId) {
-      navigate(`/judge/scoring/${r.contestId}/rounds/${r.roundId}/pools/${r.judgePoolId}`);
-    } else {
-      navigate(`/mentor/scoring/${r.contestId}/rounds/${r.roundId}`);
+  // Deduplicate assignments by (contestId, roundId, poolId) to avoid showing duplicate pools
+  const dedupedAssignments = [];
+  const seen = new Set();
+  assignments.forEach(a => {
+    const key = `${a.contestId}___${a.roundId}___${a.poolId}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      dedupedAssignments.push(a);
     }
-  };
+  });
 
-  if (rounds.length === 0) {
+  // Group deduped assignments by contestId
+  const byContest = {};
+  dedupedAssignments.forEach(a => {
+    if (!byContest[a.contestId]) {
+      byContest[a.contestId] = {
+        id: a.contestId,
+        name: a.contestName,
+        accentColor: a.accentColor,
+        assignments: [],
+      };
+    }
+    byContest[a.contestId].assignments.push(a);
+  });
+
+  const contests = Object.values(byContest).filter(c =>
+    c.assignments.some(a => a.teams && a.teams.length > 0)
+  );
+
+  const totalScorableTeams = contests.reduce(
+    (sum, c) => sum + c.assignments.reduce((s, a) => s + a.teamCount, 0),
+    0
+  );
+
+  if (contests.length === 0) {
     return (
-      <div className="md-empty">
-        <div className="md-empty-icon">⚖</div>
-        <div className="md-empty-title">Chưa có vòng chấm điểm nào</div>
-        <div className="md-empty-sub">Sau khi vòng thi kết thúc bạn có thể chấm điểm các đội khác trong cuộc thi</div>
+      <div className="jd-empty">
+        <div className="jd-empty-icon">⚖</div>
+        <div className="jd-empty-title">Chưa có vòng chấm điểm nào</div>
+        <div className="jd-empty-sub">Sau khi vòng thi kết thúc hoặc được phân công, bạn có thể chấm điểm các đội khác.</div>
       </div>
     );
   }
@@ -874,72 +952,118 @@ function SectionScoring({ enriched, judgeMap, rawJudge, navigate }) {
     <div>
       <div className="md-section-header">
         <div className="md-section-title">
-          ⚖ Đội cần chấm điểm
-          {endedRounds.length > 0 && <span className="md-section-count">{endedRounds.length} vòng sẵn sàng</span>}
+          👥 Đội cần chấm điểm
+          <span className="md-section-count">{totalScorableTeams} đội</span>
         </div>
       </div>
 
-      <div className="md-eval-header-cards" style={{ marginBottom: 20 }}>
-        {[
-          { label: 'Sẵn sàng chấm',     value: endedRounds.length,  color: '#10b981' },
-          { label: 'Chờ vòng kết thúc', value: activeRounds.length, color: '#f59e0b' },
-        ].map((c, i) => (
-          <div key={i} className="md-eval-hcard">
-            <div className="md-eval-hcard-num" style={{ color: c.color }}>{c.value}</div>
-            <div className="md-eval-hcard-label">{c.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {endedRounds.map(r => (
-          <div key={r.key} style={{
-            borderRadius: 14,
-            background: 'rgba(0,212,255,0.04)',
-            border: '1px solid rgba(0,212,255,0.15)',
-            padding: '16px 20px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
-          }}>
-            <div>
-              <div style={{ fontWeight: 700, color: '#fff', fontSize: '0.92rem' }}>{r.contestName}</div>
-              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
-                📋 {r.roundName} · Vòng đã kết thúc
-                {r.judgePoolId && <span style={{ color: '#a855f7', marginLeft: 6 }}>⚖ Giám khảo</span>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        {contests.map(c => {
+          const totalTeams = c.assignments.reduce((s, a) => s + a.teamCount, 0);
+          return (
+            <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 }}>
+                <span style={{ fontSize: '1.15rem' }}>🏆</span>
+                <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{c.name}</span>
+                <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 12, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
+                  {totalTeams} đội
+                </span>
               </div>
+              <MentorTeamsTable assignments={c.assignments} navigate={navigate} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>✓ Sẵn sàng</span>
-              <button className="md-btn-primary" onClick={() => goScore(r)}>
-                ⚖ Vào chấm điểm
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {activeRounds.map(r => (
-          <div key={r.key} style={{
-            borderRadius: 14,
-            background: 'rgba(255,255,255,0.015)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            padding: '16px 20px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
-            opacity: 0.6,
-          }}>
-            <div>
-              <div style={{ fontWeight: 700, color: '#fff', fontSize: '0.92rem' }}>{r.contestName}</div>
-              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
-                📋 {r.roundName} · Vòng đang diễn ra
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: '0.72rem', color: '#f59e0b' }}>⏳ Chờ kết thúc</span>
-              <button className="md-btn-secondary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                🔒 Chưa thể chấm
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+// ─── MentorTeamsTable component ───────────────────────────────────────────────
+function MentorTeamsTable({ assignments, navigate }) {
+  const allTeams = assignments.flatMap(a =>
+    a.teams.map(t => ({
+      ...t,
+      poolName: a.poolName,
+      roundName: a.roundName,
+      contestName: a.contestName,
+      accentColor: a.accentColor,
+    }))
+  );
+
+  if (allTeams.length === 0) {
+    return (
+      <div className="jd-empty" style={{ marginBottom: 24 }}>
+        <div className="jd-empty-icon">👥</div>
+        <div className="jd-empty-title">Không có đội nào cần chấm</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="jd-review-table-wrap" style={{ marginBottom: 0 }}>
+      <table className="jd-review-table">
+        <thead>
+          <tr>
+            <th>Tên đội</th>
+            <th>Dự án</th>
+            <th>Bảng / Vòng</th>
+            <th>Trạng thái chấm</th>
+            <th>Điểm</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allTeams.map((t, i) => {
+            const statusCls  = t.scoreStatus === 'submitted' ? 'completed' : t.scoreStatus === 'draft' ? 'reviewing' : 'pending';
+            const statusText = { submitted: '✓ Đã chấm', draft: '● Đang chấm', none: 'Chờ chấm' }[t.scoreStatus] || 'Chờ chấm';
+            
+            // scoring locked if round is locked manually, OR if current time is before submission deadline
+            const isBeforeDeadline = t.submissionDeadline && new Date() < new Date(t.submissionDeadline);
+            const canScore   = !t.scoringLocked && !isBeforeDeadline;
+
+            const tooltipText = t.scoringLocked
+              ? 'Chấm điểm đã bị khóa'
+              : (isBeforeDeadline ? 'Chưa hết giờ làm bài (chưa qua hạn nộp bài)' : '');
+
+            const handleGoScoring = () => {
+              if (t.isJudgeRole) {
+                navigate(`/judge/scoring/${t.contestId}/rounds/${t.roundId}/pools/${t.poolId}`);
+              } else {
+                navigate(`/mentor/scoring/${t.contestId}/rounds/${t.roundId}`);
+              }
+            };
+
+            return (
+              <tr key={t.id || i}>
+                <td>
+                  <div className="jd-team-name-cell">{t.name}</div>
+                </td>
+                <td><div className="jd-project-cell">{t.projectName || '—'}</div></td>
+                <td>
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{t.poolName}</div>
+                  <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>{t.roundName}</div>
+                </td>
+                <td><span className={`jd-review-status ${statusCls}`}>{statusText}</span></td>
+                <td style={{ color: t.totalScore != null ? t.accentColor : 'rgba(255,255,255,0.25)', fontWeight: 700 }}>
+                  {t.totalScore != null ? t.totalScore.toFixed(1) : '—'}
+                </td>
+                <td>
+                  <Tooltip title={tooltipText}>
+                    <button
+                      className={`jd-review-btn ${t.scoreStatus === 'submitted' ? 'done' : ''}`}
+                      disabled={!canScore}
+                      style={!canScore ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
+                      onClick={handleGoScoring}
+                    >
+                      {t.scoreStatus === 'submitted' ? '✓ Xem lại' : '⚖ Chấm điểm'}
+                    </button>
+                  </Tooltip>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1121,18 +1245,25 @@ export default function MentorDashboard() {
       setContests(allContests);
       setEnriched(enrichedList);
 
-      // 3. Fetch my scores for each unique (contestId, roundId) that has ended
-      const endedRoundKeys = [
-        ...new Set(
-          enrichedList
-            .filter(a => a.contestId && a.roundId && !a.roundIsActive)
-            .map(a => `${a.contestId}___${a.roundId}`)
-        )
-      ];
+      // 3. Fetch my scores for each unique (contestId, roundId)
+      const uniqueRoundKeys = new Set();
+      enrichedList.forEach(a => {
+        if (a.contestId && a.roundId) {
+          uniqueRoundKeys.add(`${a.contestId}___${a.roundId}`);
+        }
+      });
+      rawJudge.forEach(ja => {
+        const cid = (ja.contest_id?._id || ja.contest_id)?.toString();
+        const rid = ja.round_id?.toString();
+        if (cid && rid) {
+          uniqueRoundKeys.add(`${cid}___${rid}`);
+        }
+      });
 
-      if (endedRoundKeys.length > 0) {
+      const roundKeysArr = [...uniqueRoundKeys];
+      if (roundKeysArr.length > 0) {
         const scoreEntries = await Promise.allSettled(
-          endedRoundKeys.map(async key => {
+          roundKeysArr.map(async key => {
             const [cid, rid] = key.split('___');
             const res = await request(`/api/scores/contests/${cid}/rounds/${rid}/my-scores`);
             const data = Array.isArray(res) ? res : (res?.data ?? []);
@@ -1165,7 +1296,7 @@ export default function MentorDashboard() {
     switch (activeView) {
       case 'dashboard': return <SectionDashboard contests={contests} enriched={enriched} loading={loading} navigate={navigate} />;
       case 'teams':     return <SectionTeams     enriched={enriched} onOpenTeam={setSelectedTeam} navigate={navigate} />;
-      case 'scoring':   return <SectionScoring   enriched={enriched} judgeMap={judgeMap} rawJudge={rawJudge} navigate={navigate} />;
+      case 'scoring':   return <SectionScoring   enriched={enriched} judgeMap={judgeMap} rawJudge={rawJudge} navigate={navigate} scores={scores} />;
       case 'schedule':  return <SectionSchedule  contests={contests} enriched={enriched} />;
       case 'eval':      return <SectionEval      enriched={enriched} scores={scores} navigate={navigate} />;
       case 'settings':  return <SectionSettings  user={user} />;

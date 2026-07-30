@@ -144,8 +144,10 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     if (selectedRound) fetchAssignments(selectedRound);
   }, [selectedRound, fetchAssignments]);
 
-  // Tất cả người dùng đã đăng ký trong hệ thống đều có thể được phân công làm Giám khảo
-  const judgeOrMentorUsers = allUsers;
+  // Chỉ hiển thị Giám khảo, Mentor, Admin, Organizer có sẵn trong hệ thống
+  const judgeOrMentorUsers = allUsers.filter(u =>
+    u.roles?.some(r => ['judge', 'mentor', 'admin', 'organizer'].includes(r.role_name))
+  );
   const mentors = allUsers.filter(u => u.roles?.some(r => r.role_name === 'mentor'));
 
   // Pool đã có judge
@@ -533,7 +535,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
               />
               {judgeOrMentorUsers.length === 0 && !loadingUsers && (
                 <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  Chưa có tài khoản nào trong hệ thống.
+                  Chưa có tài khoản Giám khảo/Mentor nào trong hệ thống.
                 </p>
               )}
             </div>

@@ -527,7 +527,8 @@ export const StudentTeamPage = () => {
   const isConfirmed = team.status === 'CONFIRMED' || (team.status === 'ACTIVE' && hasContest);
   const badge = isConfirmed ? STATUS_BADGE.CONFIRMED : (STATUS_BADGE[team.status] || STATUS_BADGE.ACTIVE);
   const desc = isConfirmed ? 'Đội đã được xác nhận tham gia cuộc thi. Chúc bạn thi đấu tốt!' : (statusDesc[team.status] || '');
-  const pending = team.members?.filter(m => !m.user_id || m.user_id.profile_verify_status !== 'approved') ?? [];
+  // Pending invitations = thành viên chưa xác thực email trong đội (chưa click link verify)
+  const pending = team.members?.filter(m => !m.email_verified) ?? [];
 
   const contestCard = (() => {
     if (isConfirmed || team.status === 'WAITING_APPROVAL') {

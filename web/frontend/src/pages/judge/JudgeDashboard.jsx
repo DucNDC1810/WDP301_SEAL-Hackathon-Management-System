@@ -7,6 +7,7 @@ import { useApi } from '../../hooks/useApi';
 import '../mentor/MentorDashboard.css';
 import './JudgeDashboard.css';
 import RefreshButton from '../../components/RefreshButton';
+import NotificationBell from '../../components/NotificationBell';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso) {
@@ -903,7 +904,7 @@ export default function JudgeDashboard() {
               )}
             </svg>
           </button>
-          <div className="md-notif-btn">🔔<div className="md-notif-dot" /></div>
+          <NotificationBell />
           <div className="md-profile-chip">
             <div className="md-avatar">
               {userInitials}

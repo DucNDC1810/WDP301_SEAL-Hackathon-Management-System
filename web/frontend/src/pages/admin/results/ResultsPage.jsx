@@ -191,8 +191,14 @@ export default function ResultsPage() {
       if (progressRes.ok) {
         const progress = await progressRes.json();
         if (progress) {
-          completionRate = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
           judgeReviews = progress.done || 0;
+          if (judgeReviews > 0 && (progress.total === 0 || judgeReviews >= progress.total)) {
+            completionRate = 100;
+          } else if (progress.total > 0) {
+            completionRate = Math.min(100, Math.round((judgeReviews / progress.total) * 100));
+          } else {
+            completionRate = 0;
+          }
         }
       }
 

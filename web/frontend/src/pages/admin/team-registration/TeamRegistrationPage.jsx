@@ -28,6 +28,7 @@ const STATUS_MAP = {
 };
 
 function getStatus(c) {
+  if (!c) return 'closed';
   const now = new Date();
   const reg   = c.registration_deadline ? new Date(c.registration_deadline) : null;
   const end   = c.end_date   ? new Date(c.end_date)   : null;
@@ -37,6 +38,20 @@ function getStatus(c) {
   if (reg && reg < now) return 'closed';
   return 'open';
 }
+
+const getBannerUrl = (contestId) => {
+  if (!contestId) return 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800';
+  try {
+    const savedConfig = localStorage.getItem(`hackathon_config_${contestId}`);
+    if (savedConfig) {
+      const parsed = JSON.parse(savedConfig);
+      if (parsed && parsed.banner) return parsed.banner;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800';
+};
 
 export default function TeamRegistrationPage() {
   const { contestId } = useParams();
@@ -88,13 +103,13 @@ export default function TeamRegistrationPage() {
     } finally {
       setLoading(false);
     }
-  }, [contestId]);
+  }, []);
 
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-
+  const currentContest = contests.find(c => c._id === contestId);
 
   const filtered = contests.filter(c =>
     getStatus(c) !== 'closed' &&
@@ -104,57 +119,83 @@ export default function TeamRegistrationPage() {
   return (
     <div className="hfp-page">
       {/* Header */}
-      <div className="hfp-header" style={{ marginBottom: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {contestId && (
-            <button
-              onClick={() => navigate('/admin/team')}
-              style={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--al-border)',
-                borderRadius: '8px',
-                color: 'var(--al-text)',
-                padding: '8px 16px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '0.85rem',
-                fontWeight: '600',
-                transition: 'background 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}
-            >
-              ← Quay lại
-            </button>
-          )}
+      {!contestId && (
+        <div className="hfp-header" style={{ marginBottom: 0 }}>
           <div>
             <h1 className="hfp-title">Duyệt Đội Thi & Bảng Đấu</h1>
             <p className="hfp-subtitle">
-              {contestId 
-                ? `Đang quản lý giải đấu: ${contests.find(c => c._id === contestId)?.title || '...'}`
-                : 'Lựa chọn giải đấu đang diễn ra để thực hiện duyệt đội thi và quản lý chia bảng đấu'
-              }
+              Lựa chọn giải đấu đang diễn ra để thực hiện duyệt đội thi và quản lý chia bảng đấu
             </p>
           </div>
+          <RefreshButton onRefresh={fetchInitialData} />
         </div>
-
-        <RefreshButton onRefresh={fetchInitialData} />
-
-      </div>
+      )}
 
       {/* Content */}
       <div className="hfp-content">
         {contestId ? (
-          <div className="hfp-feature-card" style={{ padding: '32px' }}>
-            <TeamDashboardPage isEmbedded={true} onTeamsUpdated={fetchPendingData} />
+          <div className="str-detail-wrapper">
+            {/* Contest Banner Hero */}
+            <div className="str-hero-banner">
+              <img
+                src={getBannerUrl(contestId)}
+                alt={currentContest?.title || 'Contest Banner'}
+                className="str-hero-banner__img"
+                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800'; }}
+              />
+              <div className="str-hero-banner__overlay" />
+              <div className="str-hero-banner__content">
+                <div className="str-hero-banner__top">
+                  <button className="str-back-btn" onClick={() => navigate('/admin/team')}>
+                    ← Tất cả cuộc thi
+                  </button>
+                  <div className="str-hero-badges">
+                    {pendingContestIds.has(contestId) && (
+                      <span className="str-hero-badge str-hero-badge--pending">
+                        <span className="str-pulse-dot" /> Có đội chờ duyệt
+                      </span>
+                    )}
+                    <span className={`str-hero-badge ${STATUS_MAP[getStatus(currentContest)]?.cls}`}>
+                      {STATUS_MAP[getStatus(currentContest)]?.label}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="str-hero-main-info">
+                  <h2 className="str-hero-title">{currentContest?.title || 'Đang tải thông tin cuộc thi...'}</h2>
+                  {currentContest?.description && (
+                    <p className="str-hero-desc">{currentContest.description}</p>
+                  )}
+                </div>
+
+                <div className="str-hero-stats">
+                  <div className="str-hero-stat-pill">
+                    <span className="str-hero-stat-label">Hạn đăng ký</span>
+                    <span className="str-hero-stat-val">
+                      {currentContest?.registration_deadline
+                        ? new Date(currentContest.registration_deadline).toLocaleDateString('vi-VN')
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="str-hero-stat-pill">
+                    <span className="str-hero-stat-label">Quy mô bảng đấu</span>
+                    <span className="str-hero-stat-val">
+                      {currentContest?.max_teams_per_pool ? `${currentContest.max_teams_per_pool} đội/bảng` : 'Không giới hạn'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="hfp-feature-card" style={{ padding: '24px 32px' }}>
+              <TeamDashboardPage isEmbedded={true} onTeamsUpdated={fetchPendingData} />
+            </div>
           </div>
         ) : (
           <div className="str-page" style={{ padding: 0 }}>
             {/* Search Bar for card view */}
-            <div className="flex justify-end" style={{ marginBottom: '16px' }}>
-              <div className="str-search-wrap" style={{ width: '100%', maxWidth: '360px' }}>
+            <div className="flex justify-end" style={{ marginBottom: '20px' }}>
+              <div className="str-search-wrap" style={{ width: '100%', maxWidth: '380px' }}>
                 <Ico d={SEARCH} size={15} sw={2} />
                 <input
                   className="str-search"
@@ -168,7 +209,7 @@ export default function TeamRegistrationPage() {
             {loading ? (
               <div className="str-loading">
                 <div className="str-spinner" />
-                <span>Đang tải...</span>
+                <span>Đang tải danh sách cuộc thi...</span>
               </div>
             ) : filtered.length === 0 ? (
               <div className="str-empty">
@@ -183,56 +224,55 @@ export default function TeamRegistrationPage() {
                   const deadline = c.registration_deadline
                     ? new Date(c.registration_deadline).toLocaleDateString('vi-VN')
                     : '—';
+                  const banner = getBannerUrl(c._id);
+
                   return (
                     <div className="str-card" key={c._id}>
-                      <div className="str-card__top">
-                        <div className="str-card__icon-wrap">
-                          <Ico d={TROPHY} size={22} sw={1.5} />
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      {/* Banner image on top of card */}
+                      <div className="str-card-banner-wrap">
+                        <img
+                          src={banner}
+                          alt={c.title}
+                          className="str-card-banner-img"
+                          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800'; }}
+                        />
+                        <div className="str-card-banner-overlay" />
+                        <div className="str-card-badges-overlay">
                           {pendingContestIds.has(c._id) && (
-                            <span 
-                              className="str-badge" 
-                              style={{ 
-                                background: 'rgba(239, 68, 68, 0.12)', 
-                                color: '#ef4444', 
-                                border: '1px solid rgba(239, 68, 68, 0.3)', 
-                                display: 'inline-flex', 
-                                alignItems: 'center', 
-                                gap: '4px' 
-                              }}
-                            >
-                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
-                              Chờ duyệt
+                            <span className="str-badge str-badge--pending">
+                              <span className="str-pulse-dot" /> Chờ duyệt
                             </span>
                           )}
                           <span className={`str-badge ${st.cls}`}>{st.label}</span>
                         </div>
                       </div>
 
-                      <h3 className="str-card__name">{c.title}</h3>
-                      {c.description && (
-                        <p className="str-card__desc">{c.description.slice(0, 80)}{c.description.length > 80 ? '…' : ''}</p>
-                      )}
+                      {/* Card Content */}
+                      <div className="str-card-body">
+                        <h3 className="str-card__name">{c.title}</h3>
+                        <p className="str-card__desc">
+                          {c.description ? (c.description.length > 85 ? c.description.slice(0, 85) + '…' : c.description) : 'Không có mô tả cho cuộc thi này.'}
+                        </p>
 
-                      <div className="str-card__meta">
-                        <div className="str-meta-item">
-                          <Ico d={USERS} size={13} sw={2} />
-                          <span>{c.max_teams_per_pool ? `${c.max_teams_per_pool} teams/pool` : 'Không giới hạn'}</span>
+                        <div className="str-card__meta">
+                          <div className="str-meta-item">
+                            <Ico d={USERS} size={13} sw={2} />
+                            <span>{c.max_teams_per_pool ? `${c.max_teams_per_pool} đội/bảng` : 'Không giới hạn'}</span>
+                          </div>
+                          <div className="str-meta-item">
+                            <Ico d={CLOCK} size={13} sw={2} />
+                            <span>Hạn: {deadline}</span>
+                          </div>
                         </div>
-                        <div className="str-meta-item">
-                          <Ico d={CLOCK} size={13} sw={2} />
-                          <span>Hạn: {deadline}</span>
-                        </div>
+
+                        <button
+                          className="str-card__btn"
+                          onClick={() => navigate(`/admin/team/${c._id}`)}
+                        >
+                          <span>Quản lý đội thi</span>
+                          <Ico d={ARROW} size={14} sw={2} />
+                        </button>
                       </div>
-
-                      <button
-                        className="str-card__btn"
-                        onClick={() => navigate(`/admin/team/${c._id}`)}
-                      >
-                        Quản lý đội thi
-                        <Ico d={ARROW} size={14} sw={2} />
-                      </button>
                     </div>
                   );
                 })}

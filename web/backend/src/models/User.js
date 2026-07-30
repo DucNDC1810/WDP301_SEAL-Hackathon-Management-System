@@ -10,7 +10,7 @@ const embeddedRoleSchema = new mongoose.Schema(
     role_name: {
       type: String,
       required: true,
-      enum: ["admin", "mentor", "judge", "contestant"],
+      enum: ["admin", "mentor", "judge", "contestant", "organizer"],
     },
   },
   { _id: false }

@@ -246,13 +246,18 @@ export const getScoringProgress = async (contestId, roundId) => {
     }
   }
 
-  const total = judgeExpectedScores + mentorExpectedScores;
+  let total = judgeExpectedScores + mentorExpectedScores;
   const done = await Score.countDocuments({
     contest_id: contestId,
     round_id: roundId,
     status: "submitted",
     score_type: "NORMAL"
   });
+
+  // Nếu đã có điểm được nộp và total = 0 hoặc done >= total thì coi như đã hoàn thành 100%
+  if (done > 0 && (total === 0 || done >= total)) {
+    total = done;
+  }
 
   return { total, done, remaining: Math.max(0, total - done) };
 };

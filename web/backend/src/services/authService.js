@@ -119,6 +119,12 @@ export const authenticateUser = async ({ identifier, password }) => {
     throw err;
   }
 
+  if (user.provider === "local" && !user.is_verified) {
+    const err = new Error("Vui lòng xác nhận email trước khi đăng nhập. Kiểm tra hộp thư của bạn hoặc yêu cầu gửi lại email xác nhận.");
+    err.statusCode = 403;
+    throw err;
+  }
+
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
 

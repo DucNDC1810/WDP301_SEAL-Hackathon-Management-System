@@ -12,10 +12,15 @@ import {
 
 // ─── cookie config ──────────────────────────────────────────────────────────
 
+// Frontend (Vercel) và backend (Render) là 2 domain khác nhau — cookie cross-site
+// chỉ được trình duyệt gửi kèm khi sameSite:"none" + secure:true. "strict"/"lax"
+// khiến refreshToken không bao giờ đến được server, làm user bị đăng xuất ngay
+// khi access token (ngắn hạn) hết hạn.
+const isProd = process.env.NODE_ENV === "production";
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict",
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
 };
 

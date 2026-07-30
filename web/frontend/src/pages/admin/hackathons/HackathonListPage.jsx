@@ -135,15 +135,29 @@ export default function HackathonListPage() {
             const roundsCount = c.rounds?.length || 0;
             const gradient = GRADIENTS[idx % GRADIENTS.length];
 
+            // Load banner from local config if it exists
+            let bannerUrl = "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600&auto=format&fit=crop";
+            try {
+              const savedConfig = localStorage.getItem(`hackathon_config_${c._id}`);
+              if (savedConfig) {
+                const parsed = JSON.parse(savedConfig);
+                if (parsed && parsed.banner) {
+                  bannerUrl = parsed.banner;
+                }
+              }
+            } catch (err) {
+              console.error("Error parsing hackathon config for banner", err);
+            }
+
             return (
               <div key={c._id} className="hl-card">
                 {/* Banner */}
                 <div className="hl-card-banner-wrap" style={{ background: gradient }}>
                   <img
-                    src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600&auto=format&fit=crop"
+                    src={bannerUrl}
                     alt={c.title}
                     className="hl-card-banner"
-                    onError={(e) => { e.target.style.display = 'none'; }}
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600&auto=format&fit=crop"; }}
                   />
                   <div className="hl-card-badge-overlay">
                     <span className={`hl-badge ${st.cls}`}>{st.label}</span>

@@ -310,6 +310,29 @@
   margin-bottom: 20px;
 }
 
+.login-card__resend-btn {
+  width: 100%;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 10px;
+  color: #fbbf24;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.login-card__resend-btn:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.18);
+}
+
+.login-card__resend-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ── Error ── */
 
 .login-card__error {

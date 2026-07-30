@@ -23,6 +23,8 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(!!localStorage.getItem('rememberedEmail'));
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     const errorKey = searchParams.get('error');
@@ -38,11 +40,40 @@ function LoginPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (error) setError('');
     if (info) setInfo('');
+    if (needsVerification) setNeedsVerification(false);
+  };
+
+  const handleResendVerification = async () => {
+    if (!formData.email) {
+      setError('Vui lòng nhập email để gửi lại xác nhận');
+      return;
+    }
+    setResending(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNeedsVerification(false);
+        setError('');
+        setInfo('Đã gửi lại email xác nhận. Vui lòng kiểm tra hộp thư.');
+      } else {
+        setError(data.message);
+      }
+    } catch {
+      setError('Không thể kết nối đến server');
+    } finally {
+      setResending(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setNeedsVerification(false);
     setLoading(true);
 
     try {
@@ -57,6 +88,7 @@ function LoginPage() {
 
       if (!data.success) {
         setError(data.message);
+        if (res.status === 403) setNeedsVerification(true);
         return;
       }
 
@@ -180,6 +212,18 @@ function LoginPage() {
                 </svg>
                 {error}
               </div>
+            )}
+
+            {needsVerification && (
+              <button
+                type="button"
+                className="login-card__resend-btn"
+                id="btn-resend-verification"
+                onClick={handleResendVerification}
+                disabled={resending}
+              >
+                {resending ? 'Đang gửi...' : 'Gửi lại email xác nhận'}
+              </button>
             )}
 
             {/* Form */}

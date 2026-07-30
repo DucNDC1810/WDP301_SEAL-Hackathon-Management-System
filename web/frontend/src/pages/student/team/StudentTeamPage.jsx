@@ -19,6 +19,7 @@ const MAIL_D = 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1
 const SETTINGS_D = ['M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'];
 const TEAM_D = ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M23 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'];
 const PLUS_D = ['M12 5v14', 'M5 12h14'];
+const COPY_D = ['M9 9h10v10H9z', 'M5 15V5h10'];
 
 const STATUS_BADGE = {
   PENDING_MEMBERS: { label: 'Chờ xác thực', bg: '#7c3a00', color: '#f97316' },
@@ -199,7 +200,7 @@ export const StudentTeamPage = () => {
   const handleJoin = async (values) => {
     setJoinLoading(true);
     try {
-      await request('/api/teams/join', { method: 'POST', body: { team_id: values.team_code } });
+      await request('/api/teams/join', { method: 'POST', body: { team_code: values.team_code } });
       message.success('Tham gia đội thành công!'); setJoinOpen(false); joinForm.resetFields(); refresh();
     } catch (err) { message.error(err.message || 'Mã đội không hợp lệ'); }
     finally { setJoinLoading(false); }
@@ -784,6 +785,31 @@ export const StudentTeamPage = () => {
                 </button>
               )}
             </div>
+
+            {isLeader && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 18px', borderBottom: `1px solid ${C.line}`, gap: 10,
+              }}>
+                <span style={{ fontSize: 12, color: C.muted }}>
+                  Mã đội: <strong style={{ color: C.dim, fontFamily: 'monospace' }}>{team._id}</strong>
+                </span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(team._id);
+                    message.success('Đã sao chép mã đội!');
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    fontSize: 12, fontWeight: 600, color: C.muted,
+                    background: 'transparent', border: `1px solid ${C.line2}`,
+                    borderRadius: 6, padding: '4px 9px', cursor: 'pointer', flexShrink: 0,
+                  }}
+                >
+                  <Ico d={COPY_D} size={12} /> Sao chép
+                </button>
+              </div>
+            )}
 
             <div>
               {(team.members ?? []).map((m, i) => {

@@ -432,6 +432,12 @@
   color: var(--text-muted);
 }
 
+/* Hide Microsoft Edge default password reveal eye icon */
+.login-card__input::-ms-reveal,
+.login-card__input::-ms-clear {
+  display: none;
+}
+
 .login-card__input:focus {
   border-color: var(--cyan);
   background: rgba(10, 14, 23, 0.7);

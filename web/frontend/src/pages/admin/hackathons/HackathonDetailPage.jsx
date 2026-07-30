@@ -682,7 +682,19 @@ export default function HackathonDetailPage({ defaultTab }) {
                     top_n_advance: dbRound.top_n_advance !== undefined ? dbRound.top_n_advance : r.top_n_advance,
                     wildcard_enabled: dbRound.wildcard_enabled !== undefined ? dbRound.wildcard_enabled : r.wildcard_enabled,
                     name: dbRound.name || r.name,
-                    submission_deadline: dbRound.submission_deadline || r.submission_deadline
+                    submission_deadline: dbRound.submission_deadline || r.submission_deadline,
+                    criteria: (dbRound.score_criteria && dbRound.score_criteria.length > 0)
+                      ? dbRound.score_criteria.map((sc, idx) => ({
+                          id: sc._id || `crit-${Date.now()}-${idx}`,
+                          name: sc.name,
+                          type: sc.type || 'Code Quality',
+                          weight: sc.weight,
+                          max_score: sc.max_score || 10,
+                          description: sc.description || '',
+                          rubric_url: sc.rubric_url || '',
+                          display_order: sc.display_order || (idx + 1)
+                        }))
+                      : (r.criteria || [])
                   };
                 }
                 return r;
@@ -690,6 +702,7 @@ export default function HackathonDetailPage({ defaultTab }) {
             }));
           }
           setConfig(parsed);
+          localStorage.setItem(`hackathon_config_${id}`, JSON.stringify(parsed));
           setGeneralForm({
             title: contest.title || '',
             season: parsed.season || 'Summer',
@@ -740,7 +753,7 @@ export default function HackathonDetailPage({ defaultTab }) {
         const initialConfig = {
           season: 'Summer',
           year: 2026,
-          rules: '1. Đăng ký nhóm từ 3-5 thành viên.\n2. Phát triển sản phẩm trong vòng 48h.\n3. Nộp mã nguồn và video demo sản phẩm trước thời hạn.',
+          rules: '1. Đăng ký nhóm từ 3-5 thành viên.\n2. Phát triển sản phẩm trong vòng 48h.\n3. Nộp mã nguồn và video video demo sản phẩm trước thời hạn.',
           banner: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800',
           registration_open_date: openDateStr,
           registration_deadline: deadlineStr,
@@ -753,30 +766,53 @@ export default function HackathonDetailPage({ defaultTab }) {
               id: 'track-default',
               name: 'Mặc định',
               description: 'Bảng thi mặc định',
-              rounds: [
-                {
-                  id: `round-${Date.now()}-1`,
-                  name: 'Vòng sơ loại',
-                  sequence_order: 1,
-                  submission_deadline: deadline1,
-                  coding_duration_hours: 24,
-                  top_n_advance: 10,
-                  wildcard_enabled: true,
-                  active: true,
-                  criteria: []
-                },
-                {
-                  id: `round-${Date.now()}-2`,
-                  name: 'Vòng chung kết',
-                  sequence_order: 2,
-                  submission_deadline: deadline2,
-                  coding_duration_hours: 48,
-                  top_n_advance: 3,
-                  wildcard_enabled: false,
-                  active: true,
-                  criteria: []
-                }
-              ]
+              rounds: (contest.rounds && contest.rounds.length > 0)
+                ? contest.rounds.map((dbRound, idx) => ({
+                    id: dbRound._id || `round-${Date.now()}-${dbRound.round_number || idx + 1}`,
+                    name: dbRound.name || `Vòng ${dbRound.round_number || idx + 1}`,
+                    sequence_order: dbRound.round_number || idx + 1,
+                    submission_deadline: dbRound.submission_deadline || (idx === 0 ? deadline1 : deadline2),
+                    coding_duration_hours: dbRound.coding_duration_hours || (idx === 0 ? 24 : 48),
+                    top_n_advance: dbRound.top_n_advance || (idx === 0 ? 10 : 3),
+                    wildcard_enabled: dbRound.wildcard_enabled !== undefined ? dbRound.wildcard_enabled : (idx === 0),
+                    active: dbRound.is_active !== undefined ? dbRound.is_active : true,
+                    criteria: (dbRound.score_criteria && dbRound.score_criteria.length > 0)
+                      ? dbRound.score_criteria.map((sc, scIdx) => ({
+                          id: sc._id || `crit-${Date.now()}-${dbRound.round_number}-${scIdx}`,
+                          name: sc.name,
+                          type: sc.type || 'Code Quality',
+                          weight: sc.weight,
+                          max_score: sc.max_score || 10,
+                          description: sc.description || '',
+                          rubric_url: sc.rubric_url || '',
+                          display_order: sc.display_order || (scIdx + 1)
+                        }))
+                      : []
+                  }))
+                : [
+                    {
+                      id: `round-${Date.now()}-1`,
+                      name: 'Vòng sơ loại',
+                      sequence_order: 1,
+                      submission_deadline: deadline1,
+                      coding_duration_hours: 24,
+                      top_n_advance: 10,
+                      wildcard_enabled: true,
+                      active: true,
+                      criteria: []
+                    },
+                    {
+                      id: `round-${Date.now()}-2`,
+                      name: 'Vòng chung kết',
+                      sequence_order: 2,
+                      submission_deadline: deadline2,
+                      coding_duration_hours: 48,
+                      top_n_advance: 3,
+                      wildcard_enabled: false,
+                      active: true,
+                      criteria: []
+                    }
+                  ]
             }
           ]
         };

@@ -121,13 +121,14 @@ export const signIn = async (req, res) => {
       password,
     });
 
-    // set httpOnly cookie
+    // set httpOnly cookie (web) — mobile không có cookie jar cross-site nên
+    // vẫn cần refreshToken trong body để tự lưu và gửi lại thủ công.
     res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
 
     res.status(200).json({
       success: true,
       message: "Đăng nhập thành công",
-      data: { ...user, accessToken },
+      data: { ...user, accessToken, refreshToken },
     });
   } catch (error) {
     console.error("[signIn]", error);
@@ -246,7 +247,8 @@ export const completeProfileHandler = async (req, res) => {
 
 export const refresh = async (req, res) => {
   try {
-    const token = req.cookies?.refreshToken;
+    // Support both cookie (web) and body (mobile — no cross-site cookie jar)
+    const token = req.cookies?.refreshToken || req.body?.refreshToken;
 
     // delegate to service
     const accessToken = await refreshAccessToken(token);

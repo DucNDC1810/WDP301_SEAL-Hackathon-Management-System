@@ -469,9 +469,10 @@ export const joinTeam = async (teamCode, userId, userEmail) => {
     throw err;
   }
 
-  // Kiểm tra user chưa có đội trong cùng contest
+  // Kiểm tra user chưa có đội thi đang hoạt động nào khác
   const existingTeam = await Team.findOne({
-    contest_id: team.contest_id,
+    _id: { $ne: team._id },
+    status: { $in: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED"] },
     $or: [
       { leader_id: userId },
       { "members.user_id": userId },
@@ -479,7 +480,7 @@ export const joinTeam = async (teamCode, userId, userEmail) => {
     ],
   });
   if (existingTeam) {
-    const err = new Error("Bạn đã tham gia một đội khác trong cuộc thi này");
+    const err = new Error("Bạn đã thuộc một đội thi khác đang hoạt động");
     err.statusCode = 409;
     throw err;
   }
@@ -608,18 +609,21 @@ export const inviteMember = async (teamId, inviteeEmail, leaderId) => {
     throw err;
   }
 
-  // 5. Check no conflict with another team in same contest
-  if (team.contest_id) {
-    const conflictTeam = await Team.findOne({
-      _id: { $ne: teamId },
-      contest_id: team.contest_id,
-      "members.email": email,
-    });
-    if (conflictTeam) {
-      const err = new Error("Người dùng này đã tham gia một đội khác trong cùng cuộc thi");
-      err.statusCode = 409;
-      throw err;
-    }
+  // 5. Check user không đang có đội thi đang hoạt động nào khác
+  const activeStatuses = ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED"];
+  const existingTeam = await Team.findOne({
+    _id: { $ne: teamId },
+    status: { $in: activeStatuses },
+    $or: [
+      { leader_id: inviteeUser._id },
+      { "members.user_id": inviteeUser._id },
+      { "members.email": email },
+    ],
+  });
+  if (existingTeam) {
+    const err = new Error("Người dùng này đã thuộc một đội thi khác đang hoạt động");
+    err.statusCode = 409;
+    throw err;
   }
 
   // 6. Create TeamInvitation record (pending)

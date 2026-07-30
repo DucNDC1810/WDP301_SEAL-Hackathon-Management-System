@@ -133,7 +133,6 @@ connectDB().then(() => {
   import("./models/JudgeAssignment.js").then(async ({ default: JudgeAssignment }) => {
     try {
       await JudgeAssignment.collection.dropIndex("judge_id_1_round_id_1");
-      console.log("[Migration] Successfully dropped legacy index judge_id_1_round_id_1");
     } catch {
       // index already dropped or not existing
     }

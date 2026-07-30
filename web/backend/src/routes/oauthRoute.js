@@ -6,10 +6,13 @@ const router = Router();
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
+// Xem giải thích tương tự trong authController.js — cần "none"+secure cho cookie
+// cross-site giữa frontend (Vercel) và backend (Render) trên production.
+const isProd = process.env.NODE_ENV === "production";
 const COOKIE_OPTS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 

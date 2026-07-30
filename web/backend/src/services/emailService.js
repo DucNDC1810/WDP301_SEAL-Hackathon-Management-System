@@ -2,6 +2,9 @@ import nodemailer from "nodemailer";
 
 const getClientUrl = () => process.env.CLIENT_URL || "http://localhost:5173";
 const getFrom = () => process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"SEAL Hackathon" <${process.env.EMAIL_USER}>` : "SEAL Hackathon <onboarding@resend.dev>");
+// Sender đã verify trên Brevo — chỉ email này mới được Brevo chấp nhận gửi thật
+// (EMAIL_USER dùng cho SMTP không nhất thiết đã verify trên Brevo, nên không dùng làm fallback ở đây).
+const BREVO_VERIFIED_SENDER = "damchanduc1810@gmail.com";
 
 // Helper send function supporting HTTPS REST API (Resend / Brevo) and SMTP fallback
 const dispatchEmail = async (mailOptions) => {
@@ -18,14 +21,16 @@ const dispatchEmail = async (mailOptions) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sender: { name: "SEAL Hackathon", email: process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || "damchanduc1810@gmail.com" },
+          sender: { name: "SEAL Hackathon", email: process.env.BREVO_SENDER_EMAIL || BREVO_VERIFIED_SENDER },
           to: [{ email: to }],
           subject,
           htmlContent: html,
         }),
       });
       const data = await res.json();
-      if (res.ok) {
+      // Lưu ý: Brevo có thể trả HTTP 200/201 (request được nhận) nhưng vẫn từ chối
+      // gửi thật nếu sender chưa verify — phải kiểm tra rõ có messageId hay không.
+      if (res.ok && data.messageId) {
         console.log(`[emailService] Successfully sent via Brevo API to "${to}" | ID: ${data.messageId}`);
         return data;
       }

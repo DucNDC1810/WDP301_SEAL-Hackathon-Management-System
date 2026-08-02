@@ -16,6 +16,7 @@ export const canAccessChat = async (userId, userRoles, { contestId, roundId, tea
       round_id: roundId,
       team_id: teamId,
       mentor_id: userId,
+      status: "accepted",
     });
     return !!assignment;
   }
@@ -100,9 +101,9 @@ export const markMessagesRead = async ({ contestId, roundId, teamId, mentorId, u
   );
 };
 
-/** Lấy danh sách mentor được phân công cho một team (để team biết ai để chat) */
+/** Lấy danh sách mentor được phân công cho một team (để team biết ai để chat) — chỉ mentor đã xác nhận */
 export const getTeamMentors = async (teamId, userId) => {
-  const assignments = await MentorAssignment.find({ team_id: teamId })
+  const assignments = await MentorAssignment.find({ team_id: teamId, status: "accepted" })
     .populate("contest_id", "title status rounds")
     .populate("mentor_id", "full_name email avatar_url");
 
@@ -155,9 +156,9 @@ export const getTeamMentors = async (teamId, userId) => {
   return result;
 };
 
-/** Lấy danh sách các cuộc trò chuyện của mentor (gom nhóm theo contest/round/team) */
+/** Lấy danh sách các cuộc trò chuyện của mentor (gom nhóm theo contest/round/team) — chỉ phân công đã xác nhận */
 export const getMentorConversations = async (mentorId) => {
-  const assignments = await MentorAssignment.find({ mentor_id: mentorId })
+  const assignments = await MentorAssignment.find({ mentor_id: mentorId, status: "accepted" })
     .populate("contest_id", "title status start_date end_date rounds")
     .populate("team_id", "team_name leader_id members");
 

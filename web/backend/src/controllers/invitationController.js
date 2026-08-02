@@ -107,11 +107,12 @@ export const handleAcceptInvitation = async (req, res) => {
 export const handleDeclineInvitation = async (req, res) => {
   try {
     const { token } = req.query;
+    const { reason } = req.body || {};
     if (!token) {
       return res.status(400).json({ success: false, message: "Token không hợp lệ" });
     }
 
-    await declineInvitation(token);
+    await declineInvitation(token, { reason });
     res.status(200).json({ success: true, message: "Đã từ chối lời mời" });
   } catch (error) {
     console.error("[handleDeclineInvitation]", error);
@@ -157,14 +158,14 @@ export const handleGetInvitationsByContest = async (req, res) => {
 
 /**
  * POST /api/invitations/judge/complete
- * External judge xác nhận lời mời + tạo tài khoản.
- * Body: { token, full_name, password }
+ * Judge chấp nhận lời mời. Nếu chưa có tài khoản, hệ thống tự tạo và gửi email đặt mật khẩu.
+ * Body: { token, full_name? }
  */
 export const handleCompleteJudgeRegistration = async (req, res) => {
   try {
-    const { token, full_name, password } = req.body;
-    const result = await completeJudgeRegistration({ token, full_name, password });
-    res.status(201).json({ success: true, message: "Tài khoản đã được kích hoạt!", data: result });
+    const { token, full_name } = req.body;
+    const result = await completeJudgeRegistration({ token, full_name });
+    res.status(201).json({ success: true, message: "Đã chấp nhận lời mời!", data: result });
   } catch (error) {
     console.error("[handleCompleteJudgeRegistration]", error);
     res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });

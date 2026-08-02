@@ -4,6 +4,8 @@ import {
   handleGetAssignments,
   handleGetMyAssignments,
   handleRemoveAssignment,
+  handleAcceptAssignment,
+  handleDeclineAssignment,
 } from "../controllers/mentorAssignmentController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 
@@ -22,6 +24,8 @@ router.get(
   authenticate, authorize("admin", "mentor"),
   handleGetAssignments
 );
+router.patch("/:id/accept", authenticate, authorize("mentor"), handleAcceptAssignment);
+router.patch("/:id/decline", authenticate, authorize("mentor"), handleDeclineAssignment);
 router.delete("/:id", authenticate, authorize("admin"), handleRemoveAssignment);
 
 export default router;

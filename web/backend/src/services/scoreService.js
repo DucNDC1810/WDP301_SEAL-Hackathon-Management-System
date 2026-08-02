@@ -61,7 +61,7 @@ export const createScore = async ({
   }
 
   // Conflict of interest: mentor không được chấm team mình đang hướng dẫn
-  const isMentorOfThisTeam = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id });
+  const isMentorOfThisTeam = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, team_id, status: "accepted" });
   if (isMentorOfThisTeam) {
     const err = new Error("Bạn không thể chấm điểm đội mà bạn đang làm mentor (conflict of interest)");
     err.statusCode = 403; throw err;
@@ -87,7 +87,7 @@ export const createScore = async ({
   // Kiểm tra assignment
   // Mentor: round-level — any mentor assignment in this round grants scoring rights for OTHER teams
   // (conflict check above already blocks scoring own mentees)
-  const mentorAssigned = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id });
+  const mentorAssigned = await MentorAssignment.exists({ mentor_id: actorId, contest_id, round_id, status: "accepted" });
   // Judge: pool-level or round-level — find which pool contains this team, then check judge assignment
   let judgeAssigned = false;
   if (!mentorAssigned) {
@@ -229,8 +229,8 @@ export const getScoringProgress = async (contestId, roundId) => {
     }
   }
 
-  // Tìm tất cả các phân công mentor cho vòng thi này
-  const mentorAssignments = await MentorAssignment.find({ contest_id: contestId, round_id: roundId }).lean();
+  // Tìm tất cả các phân công mentor đã xác nhận cho vòng thi này
+  const mentorAssignments = await MentorAssignment.find({ contest_id: contestId, round_id: roundId, status: "accepted" }).lean();
   const totalTeams = await Team.countDocuments({ contest_id: contestId, status: { $in: ["CONFIRMED", "confirmed"] } });
 
   // Group by mentor — each mentor scores (totalTeams - their mentee count) teams

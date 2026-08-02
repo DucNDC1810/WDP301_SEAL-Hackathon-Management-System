@@ -2,6 +2,7 @@ import { Router } from "express";
 import Round from "../models/Round.js";
 import Criteria from "../models/Criteria.js";
 import JudgeAssignment from "../models/JudgeAssignment.js";
+import MentorAssignment from "../models/MentorAssignment.js";
 import User from "../models/User.js";
 import AuditLog from "../models/AuditLog.js";
 import Score from "../models/Score.js";
@@ -478,9 +479,14 @@ const notifyEarlyActivation = async ({ round_id, reason, scheduledStart }) => {
     }
   }
 
-  const assignments = await JudgeAssignment.find({ round_id }).populate("judge_id", "email");
-  for (const a of assignments) {
+  const judgeAssignments = await JudgeAssignment.find({ round_id }).populate("judge_id", "email");
+  for (const a of judgeAssignments) {
     if (a.judge_id?.email) emails.add(a.judge_id.email);
+  }
+
+  const mentorAssignments = await MentorAssignment.find({ round_id, status: "accepted" }).populate("mentor_id", "email");
+  for (const a of mentorAssignments) {
+    if (a.mentor_id?.email) emails.add(a.mentor_id.email);
   }
 
   await Promise.all(

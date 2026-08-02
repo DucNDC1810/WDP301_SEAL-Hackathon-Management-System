@@ -91,7 +91,7 @@ export const activateRound = async (contestId, roundId, actorId, { reason } = {}
 
   // Gửi notification cho tất cả judges được assign trong round
   const judgeAssignments = await JudgeAssignment.find({ contest_id: contestId, round_id: roundId }).distinct("judge_id");
-  const mentorAssignments = await MentorAssignment.find({ contest_id: contestId, round_id: roundId }).distinct("mentor_id");
+  const mentorAssignments = await MentorAssignment.find({ contest_id: contestId, round_id: roundId, status: "accepted" }).distinct("mentor_id");
   const recipientIds = [...new Set([...judgeAssignments.map(String), ...mentorAssignments.map(String)])];
 
   if (recipientIds.length > 0) {

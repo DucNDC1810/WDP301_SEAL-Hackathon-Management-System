@@ -44,3 +44,22 @@ export const handleRemoveAssignment = async (req, res) => {
     res.status(err.statusCode || 500).json({ message: err.message });
   }
 };
+
+export const handleAcceptAssignment = async (req, res) => {
+  try {
+    const assignment = await service.acceptMentorAssignment(req.params.id, req.user._id);
+    res.json({ message: "Đã chấp nhận phân công", assignment });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ message: err.message });
+  }
+};
+
+export const handleDeclineAssignment = async (req, res) => {
+  try {
+    const { reason } = req.body || {};
+    const assignment = await service.declineMentorAssignment(req.params.id, req.user._id, { reason });
+    res.json({ message: "Đã từ chối phân công", assignment });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ message: err.message });
+  }
+};

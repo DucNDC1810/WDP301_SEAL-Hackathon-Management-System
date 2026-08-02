@@ -9,6 +9,9 @@ const mentorAssignmentSchema = new mongoose.Schema(
     mentor_id:   { type: mongoose.Schema.Types.ObjectId, ref: "User",    required: true },
     assigned_by: { type: mongoose.Schema.Types.ObjectId, ref: "User",    required: true },
     assigned_at: { type: Date, default: Date.now },
+    status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
+    decline_reason: { type: String, default: null },
+    responded_at: { type: Date, default: null },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );

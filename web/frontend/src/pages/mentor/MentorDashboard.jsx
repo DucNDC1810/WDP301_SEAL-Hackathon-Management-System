@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { Progress, Spin, Tooltip, message, Tag } from 'antd';
+import { Progress, Spin, Tooltip, message, Tag, Modal, Input } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useApi } from '../../hooks/useApi';
@@ -98,6 +98,9 @@ function enrichAssignment(a, idx) {
     members:       team.members || [],
     assignedAt:    a.assigned_at,
     accentColor:   ACCENT_COLORS[idx % ACCENT_COLORS.length],
+    assignmentId:      a._id,
+    assignmentStatus:  a.status || 'pending',
+    declineReason:     a.decline_reason || '',
   };
 }
 
@@ -441,7 +444,49 @@ function SectionDashboard({ contests, enriched, loading, navigate }) {
 }
 
 // ─── Section: My Teams ────────────────────────────────────────────────────────
-function SectionTeams({ enriched, onOpenTeam, navigate }) {
+function SectionTeams({ enriched, onOpenTeam, navigate, request, messageApi, onRefresh }) {
+  const [respondingId, setRespondingId] = useState(null);
+  const [declineTarget, setDeclineTarget] = useState(null);
+  const [declineReasonInput, setDeclineReasonInput] = useState('');
+
+  const handleAccept = async (e, t) => {
+    e.stopPropagation();
+    setRespondingId(t.assignmentId);
+    try {
+      await request(`/api/mentor-assignments/${t.assignmentId}/accept`, { method: 'PATCH' });
+      messageApi.success(`Đã chấp nhận phân công đội "${t.teamName}"!`);
+      onRefresh?.();
+    } catch (err) {
+      messageApi.error(err.message || 'Không thể chấp nhận phân công');
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
+  const openDeclineModal = (e, t) => {
+    e.stopPropagation();
+    setDeclineTarget(t);
+    setDeclineReasonInput('');
+  };
+
+  const confirmDecline = async () => {
+    if (!declineTarget) return;
+    setRespondingId(declineTarget.assignmentId);
+    try {
+      await request(`/api/mentor-assignments/${declineTarget.assignmentId}/decline`, {
+        method: 'PATCH',
+        body: { reason: declineReasonInput },
+      });
+      messageApi.success(`Đã từ chối phân công đội "${declineTarget.teamName}"`);
+      setDeclineTarget(null);
+      onRefresh?.();
+    } catch (err) {
+      messageApi.error(err.message || 'Không thể từ chối phân công');
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
   if (enriched.length === 0) {
     return (
       <div className="md-empty">
@@ -521,8 +566,32 @@ function SectionTeams({ enriched, onOpenTeam, navigate }) {
                 <div style={{ marginTop:8, fontSize:'0.72rem', color:'rgba(255,255,255,0.35)' }}>
                   Phân công: {relTime(t.assignedAt)}
                 </div>
+                {t.assignmentStatus === 'pending' && (
+                  <Tag color="warning" style={{ marginTop: 8 }}>Chờ bạn xác nhận</Tag>
+                )}
+                {t.assignmentStatus === 'declined' && (
+                  <Tag color="error" style={{ marginTop: 8 }}>Bạn đã từ chối</Tag>
+                )}
               </div>
 
+              {t.assignmentStatus === 'pending' ? (
+                <div className="md-team-actions">
+                  <button
+                    className="md-btn-primary"
+                    disabled={respondingId === t.assignmentId}
+                    onClick={e => handleAccept(e, t)}
+                  >
+                    ✓ Chấp nhận
+                  </button>
+                  <button
+                    className="md-btn-secondary"
+                    disabled={respondingId === t.assignmentId}
+                    onClick={e => openDeclineModal(e, t)}
+                  >
+                    ✕ Từ chối
+                  </button>
+                </div>
+              ) : (
               <div className="md-team-actions">
                 <button className="md-btn-primary" onClick={e => { e.stopPropagation(); onOpenTeam(t); }}>
                   Xem chi tiết
@@ -531,10 +600,32 @@ function SectionTeams({ enriched, onOpenTeam, navigate }) {
                   💬 Chat
                 </button>
               </div>
+              )}
             </div>
           );
         })}
       </div>
+
+      <Modal
+        title="Từ chối phân công"
+        open={!!declineTarget}
+        onOk={confirmDecline}
+        onCancel={() => setDeclineTarget(null)}
+        okText="Xác nhận từ chối"
+        okButtonProps={{ danger: true }}
+        cancelText="Hủy"
+        confirmLoading={respondingId === declineTarget?.assignmentId}
+      >
+        <p>
+          Bạn sắp từ chối phân công hỗ trợ đội <strong>{declineTarget?.teamName}</strong>. Ban tổ chức sẽ được thông báo để tìm mentor khác.
+        </p>
+        <Input.TextArea
+          rows={3}
+          value={declineReasonInput}
+          onChange={(e) => setDeclineReasonInput(e.target.value)}
+          placeholder="Lý do (không bắt buộc) — vd: Tôi đang bận trong khoảng thời gian này..."
+        />
+      </Modal>
     </div>
   );
 }
@@ -1295,7 +1386,7 @@ export default function MentorDashboard() {
     }
     switch (activeView) {
       case 'dashboard': return <SectionDashboard contests={contests} enriched={enriched} loading={loading} navigate={navigate} />;
-      case 'teams':     return <SectionTeams     enriched={enriched} onOpenTeam={setSelectedTeam} navigate={navigate} />;
+      case 'teams':     return <SectionTeams     enriched={enriched} onOpenTeam={setSelectedTeam} navigate={navigate} request={request} messageApi={messageApi} onRefresh={fetchData} />;
       case 'scoring':   return <SectionScoring   enriched={enriched} judgeMap={judgeMap} rawJudge={rawJudge} navigate={navigate} scores={scores} />;
       case 'schedule':  return <SectionSchedule  contests={contests} enriched={enriched} />;
       case 'eval':      return <SectionEval      enriched={enriched} scores={scores} navigate={navigate} />;

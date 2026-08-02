@@ -268,15 +268,17 @@ export const sendMissingSubmissionEmail = async (to, fullName, contestTitle) => 
 };
 
 // ─── sendMentorAssignedEmail ──────────────────────────────────────────────────
+// Gửi khi admin đề xuất mentor phụ trách 1 đội — cần mentor VÀO HỆ THỐNG xác nhận
+// (chấp nhận/từ chối), không phải thông báo đã hoàn tất.
 
 export const sendMentorAssignedEmail = async (to, fullName, contestTitle, teamName) => {
   return dispatchEmail({
     to,
-    subject: `[SEAL Hackathon] Bạn được phân công làm Mentor - ${contestTitle}`,
+    subject: `[SEAL Hackathon] Đề nghị làm Mentor - ${contestTitle}`,
     html: `
       <p>Chào <strong>${fullName}</strong>,</p>
-      <p>Bạn đã được phân công làm <strong>Mentor</strong> hỗ trợ cho đội <strong>${teamName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
-      <p>Vui lòng đăng nhập vào hệ thống để xem thông tin đội thi và bắt đầu hỗ trợ.</p>
+      <p>Ban tổ chức đề nghị bạn làm <strong>Mentor</strong> hỗ trợ cho đội <strong>${teamName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
+      <p>Vui lòng đăng nhập vào hệ thống để <strong>xác nhận (chấp nhận hoặc từ chối)</strong> phân công này. Nếu bạn đang bận trong khoảng thời gian diễn ra cuộc thi, hãy chọn từ chối để Ban tổ chức kịp thời sắp xếp mentor khác.</p>
       <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
     `,
   });

@@ -131,14 +131,14 @@ export const notifyMentorAssigned = async ({ user_id, contestTitle, poolName, re
 };
 
 /**
- * Thông báo cho Mentor khi được phân công hỗ trợ một đội thi.
+ * Thông báo cho Mentor khi được ĐỀ NGHỊ hỗ trợ một đội thi — cần vào hệ thống xác nhận.
  */
 export const notifyMentorAssignedToTeam = async ({ user_id, contestTitle, poolName, teamName, ref_id }) => {
   return createNotification({
     user_id,
     type: "mentor_assigned",
-    title: "Bạn được phân công làm Mentor",
-    message: `Bạn đã được phân công làm Mentor hỗ trợ cho đội "${teamName}" thuộc bảng "${poolName}" trong cuộc thi "${contestTitle}".`,
+    title: "Yêu cầu xác nhận: Đề nghị làm Mentor",
+    message: `Bạn được đề nghị làm Mentor hỗ trợ cho đội "${teamName}" thuộc bảng "${poolName}" trong cuộc thi "${contestTitle}". Vui lòng xác nhận (chấp nhận/từ chối).`,
     ref_id,
     ref_type: "Team",
   });

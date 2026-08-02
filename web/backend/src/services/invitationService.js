@@ -5,8 +5,8 @@ import Invitation from "../models/Invitation.js";
 import JudgeAssignment from "../models/JudgeAssignment.js";
 import Contest from "../models/Contest.js";
 import User from "../models/User.js";
-import { sendInvitationEmail } from "./emailService.js";
-import { notifyJudgeAssignedToPool } from "./notificationService.js";
+import { sendInvitationEmail, sendPasswordResetEmail, sendCustomEmail } from "./emailService.js";
+import { notifyJudgeAssignedToPool, createNotification } from "./notificationService.js";
 
 const FPT_EMAIL_DOMAINS = ["@fpt.edu.vn", "@fe.edu.vn", "@fpt.com.vn"];
 
@@ -157,9 +157,9 @@ export const acceptInvitation = async (token) => {
 // ─── declineInvitation ───────────────────────────────────────────────────────
 
 /**
- * Mentor từ chối lời mời.
+ * Mentor/Judge từ chối lời mời. Thông báo cho admin (người đã mời) qua in-app + email.
  */
-export const declineInvitation = async (token) => {
+export const declineInvitation = async (token, { reason } = {}) => {
   if (!token) {
     const err = new Error("Token không hợp lệ");
     err.statusCode = 400;
@@ -170,7 +170,7 @@ export const declineInvitation = async (token) => {
     token,
     token_expires: { $gt: new Date() },
     status: "pending",
-  });
+  }).populate("contest_id", "title").populate("invited_by", "full_name email");
 
   if (!invitation) {
     const err = new Error("Lời mời không hợp lệ hoặc đã hết hạn");
@@ -182,6 +182,32 @@ export const declineInvitation = async (token) => {
   invitation.token = null;
   invitation.token_expires = null;
   await invitation.save();
+
+  const roleLabel = invitation.role === "judge" ? "Giám khảo" : "Mentor";
+  const contestTitle = invitation.contest_id?.title || "cuộc thi";
+  const reasonText = reason && reason.trim() ? ` Lý do: ${reason.trim()}` : "";
+
+  if (invitation.invited_by) {
+    createNotification({
+      user_id: invitation.invited_by._id,
+      type: "general",
+      title: `Lời mời ${roleLabel} đã bị từ chối`,
+      message: `${invitation.email} đã từ chối lời mời làm ${roleLabel} cho cuộc thi "${contestTitle}".${reasonText}`,
+      ref_id: invitation.contest_id?._id || null,
+      ref_type: "Contest",
+    }).catch((e) => console.error("[declineInvitation notify]", e));
+
+    if (invitation.invited_by.email) {
+      sendCustomEmail(
+        invitation.invited_by.email,
+        `[SEAL Hackathon] ${invitation.email} đã từ chối lời mời ${roleLabel}`,
+        `<p>Xin chào,</p>
+         <p><strong>${invitation.email}</strong> đã <strong>từ chối</strong> lời mời tham gia làm <strong>${roleLabel}</strong> cho cuộc thi <strong>${contestTitle}</strong>.${reasonText}</p>
+         <p>Vui lòng tìm ${roleLabel.toLowerCase()} khác nếu cần.</p>
+         <p>Trân trọng,<br/>Hệ thống SEAL Hackathon</p>`
+      ).catch((e) => console.error("[declineInvitation email]", e));
+    }
+  }
 };
 
 // ─── cancelInvitation ────────────────────────────────────────────────────────
@@ -265,12 +291,15 @@ export const getInvitationByToken = async (token) => {
 // ─── completeJudgeRegistration ───────────────────────────────────────────────
 
 /**
- * External judge click link → điền full_name + password → tạo tài khoản judge.
+ * Judge chấp nhận lời mời (nút "Chấp nhận" trên trang xác nhận lời mời):
+ * - Nếu email đã có tài khoản nội bộ → chỉ gán thêm role judge.
+ * - Nếu chưa có tài khoản → tự tạo tài khoản với mật khẩu ngẫu nhiên, gửi email
+ *   kèm link đặt lại mật khẩu lần đầu (tái dùng cơ chế reset_token có sẵn).
  * Cập nhật JudgeAssignment.judge_id và đánh dấu invitation accepted.
  */
-export const completeJudgeRegistration = async ({ token, full_name, password }) => {
-  if (!token || !full_name || !password) {
-    const err = new Error("Thiếu thông tin đăng ký"); err.statusCode = 400; throw err;
+export const completeJudgeRegistration = async ({ token, full_name }) => {
+  if (!token) {
+    const err = new Error("Token không hợp lệ"); err.statusCode = 400; throw err;
   }
 
   const invitation = await Invitation.findOne({
@@ -283,8 +312,11 @@ export const completeJudgeRegistration = async ({ token, full_name, password }) 
     const err = new Error("Lời mời không hợp lệ hoặc đã hết hạn"); err.statusCode = 400; throw err;
   }
 
+  const resolvedFullName = (full_name && full_name.trim()) || invitation.email.split("@")[0];
+
   // Kiểm tra email đã có tài khoản chưa
   let user = await User.findOne({ email: invitation.email });
+  let isNewAccount = false;
   if (user) {
     // Đã có tài khoản → gán thêm role judge nếu chưa có
     const hasJudge = user.roles.some(r => r.role_name === "judge");
@@ -293,11 +325,13 @@ export const completeJudgeRegistration = async ({ token, full_name, password }) 
       await user.save();
     }
   } else {
-    // Tạo tài khoản mới
+    // Chưa có tài khoản → tự tạo với mật khẩu ngẫu nhiên, judge sẽ đặt lại qua email
+    isNewAccount = true;
+    const randomPassword = crypto.randomBytes(16).toString("hex");
     try {
-      const password_hash = await bcrypt.hash(password, 10);
+      const password_hash = await bcrypt.hash(randomPassword, 10);
       user = await User.create({
-        full_name: full_name.trim(),
+        full_name: resolvedFullName,
         email: invitation.email,
         password_hash,
         provider: "local",
@@ -307,6 +341,7 @@ export const completeJudgeRegistration = async ({ token, full_name, password }) 
     } catch (createErr) {
       if (createErr.code === 11000) {
         // Nếu bị trùng do race condition, lấy lại user đã được tạo
+        isNewAccount = false;
         user = await User.findOne({ email: invitation.email });
         if (!user) throw createErr;
         const hasJudge = user.roles.some(r => r.role_name === "judge");
@@ -318,6 +353,17 @@ export const completeJudgeRegistration = async ({ token, full_name, password }) 
         throw createErr;
       }
     }
+  }
+
+  if (isNewAccount) {
+    // Cấp sẵn reset_token để judge đặt mật khẩu lần đầu qua email, không cần biết mật khẩu ngẫu nhiên
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.reset_token = resetToken;
+    user.reset_token_expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+    await user.save();
+    sendPasswordResetEmail(user.email, resetToken).catch((e) =>
+      console.error("[completeJudgeRegistration sendPasswordResetEmail]", e)
+    );
   }
 
   // Cập nhật tất cả JudgeAssignment pending của invitation này
@@ -355,5 +401,5 @@ export const completeJudgeRegistration = async ({ token, full_name, password }) 
     console.error("[completeJudgeRegistration notification error]", notifErr);
   }
 
-  return { user: { _id: user._id, full_name: user.full_name, email: user.email } };
+  return { user: { _id: user._id, full_name: user.full_name, email: user.email }, isNewAccount };
 };

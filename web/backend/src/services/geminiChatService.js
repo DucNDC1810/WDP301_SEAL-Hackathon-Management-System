@@ -160,7 +160,7 @@ const executors = {
 
     const [judges_assigned, mentors_assigned] = await Promise.all([
       JudgeAssignment.countDocuments({ contest_id: contest._id }),
-      MentorAssignment.countDocuments({ contest_id: contest._id }),
+      MentorAssignment.countDocuments({ contest_id: contest._id, status: "accepted" }),
     ]);
 
     return {

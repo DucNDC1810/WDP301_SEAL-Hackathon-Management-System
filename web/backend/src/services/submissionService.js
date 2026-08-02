@@ -167,6 +167,7 @@ export const createSubmission = async ({ repo_url, demo_url, slide_url, team_id,
       contest_id: contest._id,
       round_id,
       team_id,
+      status: "accepted",
     });
 
     if (mentorAssign && mentorAssign.mentor_id) {

@@ -279,7 +279,10 @@ export const StudentOverviewPage = () => {
           return;
         }
 
-        if (activeRound.drive_link) {
+        // Vòng không chia pool (vd. chung kết): dùng link cấp round.
+        // Vòng có chia pool: PHẢI đợi lấy đúng pool của team, không được fallback
+        // sang link cấp round — tránh hiển thị nhầm đề của bảng khác.
+        if (!team.pool_id && activeRound.drive_link) {
           setPoolDriveLink(activeRound.drive_link);
         }
 
@@ -312,10 +315,10 @@ export const StudentOverviewPage = () => {
               const list = Array.isArray(res) ? res : (res?.data ?? []);
               const pid = (team.pool_id?._id ?? team.pool_id)?.toString();
               const pool = list.find((p) => (p._id ?? p)?.toString() === pid);
-              if (pool) {
-                setPoolName(pool.pool_name);
-                setPoolDriveLink(pool.drive_link || null);
-              }
+              // Team có pool → luôn dùng đúng link của pool đó (kể cả rỗng nếu admin
+              // chưa nhập), không bao giờ fallback về link cấp round của nhánh trên.
+              setPoolName(pool?.pool_name ?? null);
+              setPoolDriveLink(pool?.drive_link || null);
             }),
 
           // Upcoming events. The backend endpoint does not exist yet, so this

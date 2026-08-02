@@ -32,9 +32,9 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
 
-  // Judge modal state
+  // Judge modal state — newJudgeIds là mảng để cho phép gán cả hội đồng (nhiều judge) vào 1 bảng trong 1 lần
   const [showJudgeModal, setShowJudgeModal] = useState(false);
-  const [newJudgeId, setNewJudgeId] = useState(null);
+  const [newJudgeIds, setNewJudgeIds] = useState([]);
   const [newJudgeExternalEmail, setNewJudgeExternalEmail] = useState('');
   const [newJudgePool, setNewJudgePool] = useState(null);
   const [newJudgeType, setNewJudgeType] = useState('INTERNAL');
@@ -153,26 +153,10 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   // Pool đã có judge
   const assignedPoolIds = new Set(judgeAssignments.map(a => a.poolId));
 
-  // Kiểm tra user có đang là mentor trong pool đang chọn không (dựa vào assignment thực tế, không phải role)
-  const isMentorOfPool = (userId, poolId) => {
-    if (!userId || !poolId) return false;
-    return mentorAssignments.some(
-      a => a.mentorId === userId?.toString() && a.poolId === poolId?.toString()
-    );
-  };
-
-  // Các bảng mà giám khảo đang chọn (nếu là mentor) đã phụ trách — không cho chọn để chấm cùng bảng
-  const boardsMentoredByNewJudge = new Set(
-    newJudgeId
-      ? mentorAssignments.filter(a => a.mentorId === newJudgeId?.toString()).map(a => a.poolId)
-      : []
-  );
-  const poolOptions = pools
-    .filter(p => !boardsMentoredByNewJudge.has(p._id?.toString()))
-    .map(p => ({ value: p._id, label: p.pool_name }));
+  const poolOptions = pools.map(p => ({ value: p._id, label: p.pool_name }));
 
   const resetJudgeModal = () => {
-    setNewJudgeId(null);
+    setNewJudgeIds([]);
     setNewJudgeExternalEmail('');
     setNewJudgePool(null);
     setNewJudgeType('INTERNAL');
@@ -180,8 +164,8 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   };
 
   const addJudge = async () => {
-    if (newJudgeType === 'INTERNAL' && !newJudgeId) {
-      messageApi.error('Vui lòng chọn giám khảo!'); return;
+    if (newJudgeType === 'INTERNAL' && newJudgeIds.length === 0) {
+      messageApi.error('Vui lòng chọn ít nhất một giám khảo!'); return;
     }
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (newJudgeType === 'EXTERNAL') {
@@ -206,20 +190,31 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     }
     setSaving(true);
     try {
-      const body = {
-        pool_id: newJudgePool,
-        judge_type: newJudgeType,
-        ...(newJudgeType === 'INTERNAL'
-          ? { judge_id: newJudgeId }
-          : { external_email: newJudgeExternalEmail }),
-      };
-      const res = await request(
-        `/api/contests/${contestId}/rounds/${selectedRound}/judge-assignments`,
-        { method: 'POST', body }
-      );
-      const warnings = res?.warnings || [];
-      if (warnings.length) warnings.forEach(w => messageApi.warning(w));
-      else messageApi.success('Đã phân công giám khảo!');
+      if (newJudgeType === 'INTERNAL') {
+        // Gán cả hội đồng (nhiều judge) vào cùng 1 bảng trong 1 lần bấm
+        const results = await Promise.allSettled(
+          newJudgeIds.map(judgeId =>
+            request(`/api/contests/${contestId}/rounds/${selectedRound}/judge-assignments`, {
+              method: 'POST',
+              body: { pool_id: newJudgePool, judge_type: 'INTERNAL', judge_id: judgeId },
+            })
+          )
+        );
+        const failedCount = results.filter(r => r.status === 'rejected').length;
+        if (failedCount === 0) {
+          messageApi.success(`Đã phân công ${newJudgeIds.length} giám khảo vào bảng!`);
+        } else {
+          messageApi.warning(`Thành công ${newJudgeIds.length - failedCount}/${newJudgeIds.length} giám khảo (${failedCount} lỗi, có thể đã được phân công trước đó).`);
+        }
+      } else {
+        const res = await request(
+          `/api/contests/${contestId}/rounds/${selectedRound}/judge-assignments`,
+          { method: 'POST', body: { pool_id: newJudgePool, judge_type: 'EXTERNAL', external_email: newJudgeExternalEmail } }
+        );
+        const warnings = res?.warnings || [];
+        if (warnings.length) warnings.forEach(w => messageApi.warning(w));
+        else messageApi.success('Đã phân công giám khảo!');
+      }
       setShowJudgeModal(false);
       resetJudgeModal();
       fetchAssignments(selectedRound);
@@ -449,7 +444,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
           <Alert
             type="info"
             showIcon
-            message="Giám khảo sẽ chấm điểm tất cả đội trong bảng được chọn"
+            message="Có thể chọn cả một hội đồng (nhiều giám khảo) để gán cùng lúc vào 1 bảng — mỗi giám khảo sẽ chấm điểm tất cả đội trong bảng đó"
           />
 
           {/* 1. Chọn bảng TRƯỚC */}
@@ -457,7 +452,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
             <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Bảng đấu</label>
             <Select
               value={newJudgePool}
-              onChange={v => { setNewJudgePool(v); setNewJudgeId(null); setNewJudgeExternalEmail(''); }}
+              onChange={v => { setNewJudgePool(v); setNewJudgeIds([]); setNewJudgeExternalEmail(''); }}
               style={{ width: '100%' }}
               placeholder="Chọn bảng trước..."
               options={poolOptions}
@@ -469,7 +464,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
             <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Loại</label>
             <Select
               value={newJudgeType}
-              onChange={v => { setNewJudgeType(v); setNewJudgeId(null); setNewJudgeExternalEmail(''); }}
+              onChange={v => { setNewJudgeType(v); setNewJudgeIds([]); setNewJudgeExternalEmail(''); }}
               style={{ width: '100%' }}
               disabled={!newJudgePool}
               options={[
@@ -483,14 +478,12 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
           {newJudgeType === 'INTERNAL' ? (
             <div>
               <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Chọn Giám khảo
+                Chọn Giám khảo (có thể chọn nhiều — cả một hội đồng)
               </label>
               <Select
-                value={newJudgeId}
-                onChange={v => {
-                  setNewJudgeId(v);
-                  if (isMentorOfPool(v, newJudgePool)) setNewJudgePool(null);
-                }}
+                mode="multiple"
+                value={newJudgeIds}
+                onChange={setNewJudgeIds}
                 style={{ width: '100%' }}
                 placeholder={newJudgePool ? 'Tìm theo tên hoặc email...' : 'Chọn bảng trước'}
                 disabled={!newJudgePool}
@@ -501,12 +494,10 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                   (opt.searchtext || '').toLowerCase().includes(input.toLowerCase())
                 }
                 options={judgeOrMentorUsers.map(u => {
-                  const uid = u._id?.toString();
-                  const isMentor = isMentorOfPool(uid, newJudgePool);
                   const isEligible = u.roles?.some(
                     r => r.role_name === 'judge' || r.role_name === 'mentor' || r.role_name === 'admin' || r.role_name === 'organizer'
                   );
-                  const blocked = isMentor || !isEligible;
+                  const blocked = !isEligible;
                   return {
                     value: u._id,
                     title: u.full_name || u.email,
@@ -516,11 +507,6 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
                       <div style={{ opacity: blocked ? 0.45 : 1 }}>
                         <div style={{ fontWeight: 500 }}>
                           {u.full_name || u.email}
-                          {isMentor && (
-                            <span style={{ marginLeft: 6, fontSize: '0.7rem', color: '#ef4444', fontWeight: 400 }}>
-                              (Đang mentor bảng này)
-                            </span>
-                          )}
                           {!isEligible && (
                             <span style={{ marginLeft: 6, fontSize: '0.7rem', color: '#ef4444', fontWeight: 400 }}>
                               (Tài khoản Thí sinh — không thể làm Giám khảo)

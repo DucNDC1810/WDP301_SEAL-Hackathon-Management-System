@@ -12,7 +12,11 @@ const isFinalRound = async (contestId, roundId) => {
   if (!contestId || !roundId) return false;
   const contest = await Contest.findById(contestId).select("rounds");
   const round = contest?.rounds?.find((r) => r._id.toString() === roundId.toString());
-  return round && round.round_number > 1;
+  if (!round || !contest.rounds.length) return false;
+  // Vòng cuối cùng (round_number lớn nhất) mới là FINAL — không phải "bất kỳ vòng nào sau vòng 1",
+  // để hỗ trợ đúng cuộc thi có nhiều hơn 2 vòng (sơ loại nhiều cấp).
+  const maxRoundNumber = Math.max(...contest.rounds.map((r) => r.round_number));
+  return round.round_number === maxRoundNumber;
 };
 
 // ─── Admin ───────────────────────────────────────────────────────────────────

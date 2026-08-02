@@ -27,11 +27,14 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
       if (!embeddedRound) {
         return res.status(404).json({ success: false, message: "Không tìm thấy vòng thi" });
       }
+      // Vòng cuối cùng (round_number lớn nhất) luôn là FINAL — không hardcode round_number === 2,
+      // để hỗ trợ đúng cuộc thi có nhiều hơn 2 vòng (sơ loại nhiều cấp).
+      const maxRoundNumber = Math.max(...contest.rounds.map((r) => r.round_number));
       round = {
         _id: embeddedRound._id,
         contest_id: contest._id,
         name: embeddedRound.name,
-        type: embeddedRound.round_number === 2 || embeddedRound.name.toLowerCase().includes("chung kết") || embeddedRound.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
+        type: embeddedRound.round_number === maxRoundNumber || embeddedRound.name.toLowerCase().includes("chung kết") || embeddedRound.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
         top_n: embeddedRound.top_n_advance || 6,
         wildcard_count: embeddedRound.wildcard_count || 1,
         wildcard_enabled: embeddedRound.wildcard_enabled || false
@@ -159,11 +162,14 @@ router.get("/:round_id", authenticate, async (req, res, next) => {
         // Ensure standalone Round document exists
         let existingRound = await Round.findById(next_round_id);
         if (!existingRound) {
+          // Vòng cuối cùng (round_number lớn nhất) luôn là FINAL — không hardcode round_number === 2,
+          // để hỗ trợ đúng cuộc thi có nhiều hơn 2 vòng (sơ loại nhiều cấp).
+          const maxRoundNumber = Math.max(...contest.rounds.map((r) => r.round_number));
           await Round.create({
             _id: nextSubRound._id,
             contest_id: round.contest_id,
             name: nextSubRound.name,
-            type: nextSubRound.round_number === 2 || nextSubRound.name.toLowerCase().includes("chung kết") || nextSubRound.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
+            type: nextSubRound.round_number === maxRoundNumber || nextSubRound.name.toLowerCase().includes("chung kết") || nextSubRound.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
             is_active: false,
             round_start: nextSubRound.start_time || new Date(),
             round_end: nextSubRound.end_time || nextSubRound.submission_deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)

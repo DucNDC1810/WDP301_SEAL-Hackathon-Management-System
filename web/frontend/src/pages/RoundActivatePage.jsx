@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getRoundSetup, assignJudges, activateRound } from '../api/round';
 import { useRoundStatus } from '../hooks/useRoundStatus';
 import { FrozenOverlay } from '../components/FrozenOverlay';
-import { notification, Modal } from 'antd';
+import { notification, Modal, Input } from 'antd';
 import RefreshButton from '../components/RefreshButton';
 
 export default function RoundActivatePage() {
@@ -21,6 +21,9 @@ export default function RoundActivatePage() {
   const [selectedJudgeIds, setSelectedJudgeIds] = useState([]);
   const [savingJudges, setSavingJudges] = useState(false);
   const [activating, setActivating] = useState(false);
+  const [earlyReasonModalOpen, setEarlyReasonModalOpen] = useState(false);
+  const [earlyReason, setEarlyReason] = useState('');
+  const [scheduledStartTime, setScheduledStartTime] = useState(null);
 
   const loadSetup = async () => {
     try {
@@ -78,6 +81,50 @@ export default function RoundActivatePage() {
     }
   };
 
+  const doActivate = async (reason) => {
+    setActivating(true);
+    try {
+      const res = await activateRound(round_id, reason);
+      if (res.data.success) {
+        setRound(prev => ({ ...prev, is_active: true }));
+        setEarlyReasonModalOpen(false);
+        setEarlyReason('');
+        notification.success({
+          message: 'Thành công',
+          description: '🎉 Vòng thi đã được kích hoạt thành công!',
+        });
+        setTimeout(() => {
+          const cId = round?.contest_id?._id || round?.contest_id;
+          if (cId) {
+            navigate(`/admin/hackathons/${cId}`);
+          } else {
+            navigate(`/admin/hackathons`);
+          }
+        }, 1500);
+      }
+    } catch (err) {
+      console.error(err);
+      const serverErr = err.response?.data?.error;
+      const serverMsg = err.response?.data?.message;
+      if (serverErr === 'WEIGHT_INVALID') {
+        notification.error({
+          message: 'Kích hoạt thất bại',
+          description: `Tổng trọng số tiêu chí không hợp lệ (${err.response?.data?.total_weight})`,
+        });
+      } else if (serverErr === 'EARLY_ACTIVATION_REASON_REQUIRED') {
+        setScheduledStartTime(err.response?.data?.scheduled_start_time || null);
+        setEarlyReasonModalOpen(true);
+      } else {
+        notification.error({
+          message: 'Kích hoạt thất bại',
+          description: serverMsg || "Kích hoạt vòng thi thất bại. Vui lòng kiểm tra lại cấu hình.",
+        });
+      }
+    } finally {
+      setActivating(false);
+    }
+  };
+
   const handleActivateRound = async () => {
     if (!weightValid) {
       notification.warning({
@@ -99,45 +146,19 @@ export default function RoundActivatePage() {
       content: `Kích hoạt ${round?.name || 'vòng thi'}? Sau khi kích hoạt, vòng thi này sẽ chính thức bắt đầu và BGK có thể tiến hành chấm điểm.`,
       okText: 'Kích hoạt',
       cancelText: 'Hủy',
-      onOk: async () => {
-        setActivating(true);
-        try {
-          const res = await activateRound(round_id);
-          if (res.data.success) {
-            setRound(prev => ({ ...prev, is_active: true }));
-            notification.success({
-              message: 'Thành công',
-              description: '🎉 Vòng thi đã được kích hoạt thành công!',
-            });
-            setTimeout(() => {
-              const cId = round?.contest_id?._id || round?.contest_id;
-              if (cId) {
-                navigate(`/admin/hackathons/${cId}`);
-              } else {
-                navigate(`/admin/hackathons`);
-              }
-            }, 1500);
-          }
-        } catch (err) {
-          console.error(err);
-          const serverErr = err.response?.data?.error;
-          const serverMsg = err.response?.data?.message;
-          if (serverErr === 'WEIGHT_INVALID') {
-            notification.error({
-              message: 'Kích hoạt thất bại',
-              description: `Tổng trọng số tiêu chí không hợp lệ (${err.response?.data?.total_weight})`,
-            });
-          } else {
-            notification.error({
-              message: 'Kích hoạt thất bại',
-              description: serverMsg || "Kích hoạt vòng thi thất bại. Vui lòng kiểm tra lại cấu hình.",
-            });
-          }
-        } finally {
-          setActivating(false);
-        }
-      }
+      onOk: () => doActivate(),
     });
+  };
+
+  const handleConfirmEarlyActivation = () => {
+    if (!earlyReason.trim()) {
+      notification.warning({
+        message: 'Thiếu lý do',
+        description: 'Vui lòng nhập lý do dời lịch/sự cố trước khi kích hoạt sớm.',
+      });
+      return;
+    }
+    doActivate(earlyReason);
   };
 
   if (loading) {
@@ -597,6 +618,29 @@ export default function RoundActivatePage() {
         </div>
 
       </div>
+
+      <Modal
+        title="Kích hoạt sớm hơn lịch dự kiến"
+        open={earlyReasonModalOpen}
+        onOk={handleConfirmEarlyActivation}
+        onCancel={() => { setEarlyReasonModalOpen(false); setEarlyReason(''); }}
+        okText="Xác nhận kích hoạt"
+        cancelText="Hủy"
+        confirmLoading={activating}
+      >
+        <p>
+          Vòng thi dự kiến bắt đầu lúc{' '}
+          <strong>{scheduledStartTime ? new Date(scheduledStartTime).toLocaleString('vi-VN') : 'chưa xác định'}</strong>.
+          Kích hoạt sớm hơn lịch chỉ áp dụng khi dời lịch hoặc có sự cố — vui lòng nhập lý do.
+          Hệ thống sẽ gửi email thông báo thay đổi lịch cho các đội thi, mentor và giám khảo liên quan.
+        </p>
+        <Input.TextArea
+          rows={3}
+          value={earlyReason}
+          onChange={(e) => setEarlyReason(e.target.value)}
+          placeholder="Ví dụ: Dời lịch thi sớm do sự cố phòng thi, cần bắt đầu trước giờ dự kiến..."
+        />
+      </Modal>
     </div>
     </FrozenOverlay>
   );

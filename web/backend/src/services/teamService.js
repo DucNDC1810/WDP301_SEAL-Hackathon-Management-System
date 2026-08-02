@@ -848,9 +848,29 @@ export const registerContest = async (teamId, contestId, userId) => {
     throw err;
   }
 
-  // Phải có đủ 4 thành viên
-  if (!team.members || team.members.length < 4) {
-    const err = new Error(`Đội phải có đủ 4 thành viên để đăng ký cuộc thi (hiện có ${team.members?.length ?? 0} thành viên)`);
+  // Kiểm tra contest tồn tại và status === "open"
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    const err = new Error("Không tìm thấy cuộc thi");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (contest.status !== "open") {
+    const err = new Error("Cuộc thi hiện tại đang không mở đăng ký");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Số lượng thành viên phải nằm trong khoảng cho phép của cuộc thi
+  const minSize = contest.min_team_size || 1;
+  const maxSize = contest.max_team_size || minSize;
+  const memberCount = team.members?.length ?? 0;
+  if (memberCount < minSize || memberCount > maxSize) {
+    const err = new Error(
+      minSize === maxSize
+        ? `Đội phải có đúng ${minSize} thành viên để đăng ký cuộc thi (hiện có ${memberCount} thành viên)`
+        : `Đội phải có từ ${minSize} đến ${maxSize} thành viên để đăng ký cuộc thi (hiện có ${memberCount} thành viên)`
+    );
     err.statusCode = 400;
     throw err;
   }
@@ -866,19 +886,6 @@ export const registerContest = async (teamId, contestId, userId) => {
   const unapproved = team.members.filter((m) => m.user_id.profile_verify_status !== "approved");
   if (unapproved.length > 0) {
     const err = new Error(`Còn ${unapproved.length} thành viên chưa được Admin phê duyệt thông tin cá nhân.`);
-    err.statusCode = 400;
-    throw err;
-  }
-
-  // Kiểm tra contest tồn tại và status === "open"
-  const contest = await Contest.findById(contestId);
-  if (!contest) {
-    const err = new Error("Không tìm thấy cuộc thi");
-    err.statusCode = 404;
-    throw err;
-  }
-  if (contest.status !== "open") {
-    const err = new Error("Cuộc thi hiện tại đang không mở đăng ký");
     err.statusCode = 400;
     throw err;
   }
@@ -1065,9 +1072,14 @@ export const acceptTeamInvitation = async (invitationId, userId) => {
     throw err;
   }
 
-  // Check team is not full (max 4 members)
-  if (team.members.length >= 4) {
-    const err = new Error('Đội đã đủ thành viên (tối đa 4 người)');
+  // Check team is not full (giới hạn theo cấu hình max_team_size của cuộc thi, mặc định 4 nếu team chưa gắn contest)
+  let maxSize = 4;
+  if (team.contest_id) {
+    const contest = await Contest.findById(team.contest_id).select("max_team_size").lean();
+    if (contest?.max_team_size) maxSize = contest.max_team_size;
+  }
+  if (team.members.length >= maxSize) {
+    const err = new Error(`Đội đã đủ thành viên (tối đa ${maxSize} người)`);
     err.statusCode = 400;
     throw err;
   }

@@ -11,6 +11,7 @@ import { writeLog } from "./auditLog.js";
 import { sendNotification } from "./notification.js";
 import { calculateRankings } from "./rankingService.js";
 import { getIO } from "../socket/index.js";
+import { sendScheduleChangeEmail } from "./emailService.js";
 
 const WEIGHT_TOLERANCE = 0.01;
 
@@ -18,9 +19,11 @@ const WEIGHT_TOLERANCE = 0.01;
 
 /**
  * Kích hoạt Round: validate weight tổng = 1.0, enforce 1 active round per contest.
+ * Nếu kích hoạt sớm hơn start_time đã định (dời lịch/sự cố), bắt buộc nhập lý do
+ * và gửi email thông báo cho contestant + mentor/judge liên quan.
  * Gửi notification cho judges và teams.
  */
-export const activateRound = async (contestId, roundId, actorId) => {
+export const activateRound = async (contestId, roundId, actorId, { reason } = {}) => {
   const contest = await Contest.findById(contestId);
   if (!contest) {
     const err = new Error("Không tìm thấy cuộc thi"); err.statusCode = 404; throw err;
@@ -56,15 +59,35 @@ export const activateRound = async (contestId, roundId, actorId) => {
     err.statusCode = 409; throw err;
   }
 
-  round.is_active = true;
-  
-  // Auto-release problem when activated
+  // Kích hoạt sớm hơn lịch dự kiến (start_time) chỉ được phép khi dời lịch/sự cố → bắt buộc lý do
   const now = new Date();
+  const isEarly = round.start_time && now < new Date(round.start_time);
+  if (isEarly && (!reason || !reason.trim())) {
+    const err = new Error(
+      `Vòng thi dự kiến bắt đầu lúc ${new Date(round.start_time).toLocaleString("vi-VN")}. Kích hoạt sớm hơn lịch chỉ áp dụng khi dời lịch/sự cố — vui lòng nhập lý do.`
+    );
+    err.statusCode = 400; throw err;
+  }
+
+  round.is_active = true;
+  round.early_activation_reason = isEarly ? reason.trim() : null;
+
+  // Auto-release problem when activated
   round.problem_released_at = now;
   const durationHours = round.coding_duration_hours || 24;
   round.submission_deadline = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
 
   await contest.save();
+
+  if (isEarly) {
+    await writeLog({
+      action: "ROUND_EARLY_ACTIVATION",
+      actorId,
+      targetId: roundId,
+      targetModel: "Round",
+      detail: { contest_id: contestId, scheduled_start_time: round.start_time, activated_at: now, reason: round.early_activation_reason },
+    });
+  }
 
   // Gửi notification cho tất cả judges được assign trong round
   const judgeAssignments = await JudgeAssignment.find({ contest_id: contestId, round_id: roundId }).distinct("judge_id");
@@ -82,7 +105,44 @@ export const activateRound = async (contestId, roundId, actorId) => {
     }).catch((e) => console.error("[activateRound notify]", e));
   }
 
+  // Nếu kích hoạt lệch lịch: gửi email thông báo thay đổi lịch cho contestant + mentor/judge liên quan
+  if (isEarly) {
+    notifyScheduleChange({ contest, round, reason: round.early_activation_reason, recipientUserIds: recipientIds })
+      .catch((e) => console.error("[activateRound scheduleChangeEmail]", e));
+  }
+
   return round;
+};
+
+/**
+ * Gửi email thông báo thay đổi lịch (kích hoạt sớm do dời lịch/sự cố) cho toàn bộ
+ * thành viên các đội tham gia contest và mentor/judge được assign vào round.
+ */
+const notifyScheduleChange = async (contest, round, reason, recipientUserIds) => {
+  const teams = await Team.find({ contest_id: contest._id, status: { $in: ["ACTIVE", "CONFIRMED"] } })
+    .select("leader_id members.user_id members.email")
+    .lean();
+
+  const emails = new Set();
+  for (const t of teams) {
+    for (const m of t.members || []) {
+      if (m.email) emails.add(m.email);
+    }
+  }
+  if (recipientUserIds?.length) {
+    const users = await User.find({ _id: { $in: recipientUserIds } }).select("email").lean();
+    for (const u of users) {
+      if (u.email) emails.add(u.email);
+    }
+  }
+
+  await Promise.all(
+    [...emails].map((email) =>
+      sendScheduleChangeEmail(email, contest.title, round.name, round.start_time, reason).catch((e) =>
+        console.error(`[notifyScheduleChange] failed for ${email}:`, e.message)
+      )
+    )
+  );
 };
 
 // ─── deactivateRound ──────────────────────────────────────────────────────────

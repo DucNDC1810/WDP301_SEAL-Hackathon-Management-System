@@ -26,8 +26,8 @@ export const getRoundSetup = (round_id) =>
 export const assignJudges = (round_id, judge_ids) =>
   api.post(`/api/round/${round_id}/judges`, { judge_ids });
 
-export const activateRound = (round_id) =>
-  api.patch(`/api/round/${round_id}/activate`);
+export const activateRound = (round_id, reason) =>
+  api.patch(`/api/round/${round_id}/activate`, reason ? { reason } : {});
 
 export const finishRound = (round_id) =>
   api.patch(`/api/round/${round_id}/finish`);

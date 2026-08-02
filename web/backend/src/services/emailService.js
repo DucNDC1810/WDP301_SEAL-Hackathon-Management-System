@@ -297,6 +297,26 @@ export const sendJudgeAssignedEmail = async (to, fullName, contestTitle, poolNam
   });
 };
 
+// ─── sendScheduleChangeEmail ──────────────────────────────────────────────────
+// Gửi khi Admin kích hoạt vòng thi lệch lịch dự kiến (dời lịch/sự cố).
+
+export const sendScheduleChangeEmail = async (to, contestTitle, roundName, scheduledStartTime, reason) => {
+  const scheduledText = scheduledStartTime
+    ? new Date(scheduledStartTime).toLocaleString("vi-VN")
+    : "chưa xác định";
+  return dispatchEmail({
+    to,
+    subject: `[SEAL Hackathon] Thay đổi lịch trình vòng "${roundName}" - ${contestTitle}`,
+    html: `
+      <p>Xin chào,</p>
+      <p>Ban tổ chức thông báo <strong>vòng "${roundName}"</strong> của cuộc thi <strong>${contestTitle}</strong> đã được kích hoạt lệch với lịch dự kiến (${scheduledText}).</p>
+      <p><strong>Lý do:</strong> ${reason}</p>
+      <p>Vui lòng đăng nhập hệ thống để cập nhật thông tin mới nhất.</p>
+      <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
+    `,
+  });
+};
+
 // ─── sendPasswordResetEmail ──────────────────────────────────────────────────
 
 export const sendPasswordResetEmail = async (to, token) => {

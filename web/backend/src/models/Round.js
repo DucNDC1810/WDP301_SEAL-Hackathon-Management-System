@@ -55,6 +55,10 @@ const roundSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    early_activation_reason: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

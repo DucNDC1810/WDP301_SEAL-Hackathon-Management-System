@@ -14,6 +14,8 @@ export const createContest = async ({
   registration_deadline,
   auto_close,
   max_teams_per_pool,
+  min_team_size,
+  max_team_size,
   created_by,
 }) => {
   // Validate date logic
@@ -36,6 +38,12 @@ export const createContest = async ({
     throw err;
   }
 
+  if (min_team_size && max_team_size && Number(max_team_size) < Number(min_team_size)) {
+    const err = new Error('Số thành viên tối đa phải lớn hơn hoặc bằng số thành viên tối thiểu');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const newContest = new Contest({
     title,
     description,
@@ -44,6 +52,8 @@ export const createContest = async ({
     registration_deadline,
     auto_close,
     max_teams_per_pool,
+    min_team_size,
+    max_team_size,
     created_by,
   });
 
@@ -100,6 +110,8 @@ export const updateContest = async (contestId, updateData) => {
     "status",
     "auto_close",
     "max_teams_per_pool",
+    "min_team_size",
+    "max_team_size",
     "rounds",
   ];
 

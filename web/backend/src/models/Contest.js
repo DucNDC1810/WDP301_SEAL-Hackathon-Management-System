@@ -70,6 +70,10 @@ const roundSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    early_activation_reason: {
+      type: String,
+      default: null,
+    },
     coding_duration_hours: {
       type: Number,
       default: 24,
@@ -142,6 +146,16 @@ const contestSchema = new mongoose.Schema(
     max_teams_per_pool: {
       type: Number,
       default: 10,
+    },
+    min_team_size: {
+      type: Number,
+      default: 4,
+      min: 1,
+    },
+    max_team_size: {
+      type: Number,
+      default: 4,
+      min: 1,
     },
     wildcard_enabled: {
       type: Boolean,

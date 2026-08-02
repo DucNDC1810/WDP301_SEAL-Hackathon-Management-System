@@ -78,14 +78,16 @@ function ContestFormPage() {
     season: 'Spring',
     year: new Date().getFullYear(),
     description: '',
-    rules: '1. Đăng ký nhóm từ 3-5 thành viên.\n2. Phát triển sản phẩm trong vòng 48h.\n3. Nộp mã nguồn và video demo sản phẩm trước thời hạn.',
+    rules: '1. Đăng ký nhóm từ 3-5 thành viên.\n2. Cuộc thi diễn ra trong 1 ngày: vòng sơ loại buổi sáng, vòng chung kết buổi chiều.\n3. Nộp mã nguồn và video demo sản phẩm trước thời hạn từng vòng.',
     banner: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800',
     registration_open_date: null,
     registration_deadline: null,
     start_date: null,
-    end_date: null,
+    end_date: null, // Ngày kết thúc cuộc thi (ngày thi đấu chính thức) — nhập tường minh, không suy luận ngầm
     auto_close: true,
     max_teams_per_pool: 10,
+    min_team_size: 4,
+    max_team_size: 4,
   });
 
   const [fieldErrors, setFieldErrors] = useState({});
@@ -102,9 +104,11 @@ function ContestFormPage() {
     ? new Date(contestData.registration_open_date.getTime() + 60_000)
     : now;
 
-  const minStart = contestData.registration_deadline
-    ? addDays(contestData.registration_deadline, 4)
-    : minClose;
+  const minStart = contestData.registration_deadline || minClose;
+
+  const minEnd = contestData.start_date
+    ? new Date(contestData.start_date.getTime() + 60_000)
+    : minStart;
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const clearFieldError = (name) => {
@@ -175,21 +179,21 @@ function ContestFormPage() {
     setContestData((prev) => {
       const next = { ...prev, [name]: date };
 
-      if (name === 'registration_deadline' && date) {
-        next.start_date = addDays(date, 4);
-      }
-
       if (name === 'registration_open_date' && date && prev.registration_deadline) {
         if (date >= prev.registration_deadline) {
           next.registration_deadline = null;
           next.start_date = null;
+          next.end_date = null;
         }
       }
 
-      if (name === 'registration_deadline' && date && prev.start_date) {
-        if (prev.start_date < addDays(date, 4)) {
-          next.start_date = addDays(date, 4);
-        }
+      if (name === 'registration_deadline' && date && prev.start_date && prev.start_date < date) {
+        next.start_date = null;
+        next.end_date = null;
+      }
+
+      if (name === 'start_date' && date && prev.end_date && prev.end_date <= date) {
+        next.end_date = null;
       }
 
       return next;
@@ -224,12 +228,29 @@ function ContestFormPage() {
     }
 
     if (!contestData.start_date) {
-      errs.start_date = 'Vui lòng chọn ngày thi đấu chính thức.';
-    } else if (contestData.registration_deadline) {
-      const minEvent = addDays(contestData.registration_deadline, 4);
-      if (contestData.start_date < minEvent) {
-        errs.start_date = 'Ngày thi đấu phải ít nhất 4 ngày sau ngày đóng đăng ký.';
-      }
+      errs.start_date = 'Vui lòng chọn ngày khai mạc / bắt đầu thi đấu.';
+    } else if (
+      contestData.registration_deadline &&
+      contestData.start_date < contestData.registration_deadline
+    ) {
+      errs.start_date = 'Ngày khai mạc phải từ sau ngày đóng đăng ký trở đi.';
+    }
+
+    if (!contestData.end_date) {
+      errs.end_date = 'Vui lòng chọn ngày kết thúc cuộc thi.';
+    } else if (contestData.start_date && contestData.end_date <= contestData.start_date) {
+      errs.end_date = 'Ngày kết thúc phải sau ngày khai mạc.';
+    }
+
+    const minSize = Number(contestData.min_team_size);
+    const maxSize = Number(contestData.max_team_size);
+    if (!minSize || minSize < 1) {
+      errs.min_team_size = 'Số thành viên tối thiểu phải lớn hơn 0.';
+    }
+    if (!maxSize || maxSize < 1) {
+      errs.max_team_size = 'Số thành viên tối đa phải lớn hơn 0.';
+    } else if (minSize && maxSize < minSize) {
+      errs.max_team_size = 'Số thành viên tối đa phải lớn hơn hoặc bằng tối thiểu.';
     }
 
     setFieldErrors(errs);
@@ -264,12 +285,12 @@ function ContestFormPage() {
         title: contestData.title,
         description: contestData.description,
         start_date: contestData.start_date.toISOString(),
-        end_date: contestData.end_date
-          ? contestData.end_date.toISOString()
-          : new Date(contestData.start_date.getTime() + 48 * 60 * 60 * 1000).toISOString(),
+        end_date: contestData.end_date.toISOString(),
         registration_deadline: contestData.registration_deadline.toISOString(),
         auto_close: contestData.auto_close,
         max_teams_per_pool: Number(contestData.max_teams_per_pool) || 10,
+        min_team_size: Number(contestData.min_team_size) || 1,
+        max_team_size: Number(contestData.max_team_size) || Number(contestData.min_team_size) || 1,
       };
 
       const res = await fetch(`${API_URL}/api/contests`, {
@@ -283,9 +304,11 @@ function ContestFormPage() {
 
       const contestId = data.data._id;
 
+      // Sự kiện diễn ra trong ngày thi đấu chính thức (start_date): vòng sơ loại buổi sáng,
+      // vòng chung kết buổi chiều nối tiếp — không cộng dồn qua nhiều ngày.
       const baseTime = contestData.start_date ? new Date(contestData.start_date).getTime() : Date.now();
-      const deadline1 = new Date(baseTime + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-      const deadline2 = new Date(new Date(deadline1).getTime() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16);
+      const deadline1 = new Date(baseTime + 4 * 60 * 60 * 1000).toISOString().slice(0, 16);
+      const deadline2 = new Date(new Date(deadline1).getTime() + 4 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
       const customConfig = {
         season: contestData.season,
@@ -308,7 +331,7 @@ function ContestFormPage() {
                 name: 'Vòng sơ loại',
                 sequence_order: 1,
                 submission_deadline: deadline1,
-                coding_duration_hours: 24,
+                coding_duration_hours: 4,
                 top_n_advance: 10,
                 wildcard_enabled: true,
                 active: true,
@@ -319,7 +342,7 @@ function ContestFormPage() {
                 name: 'Vòng chung kết',
                 sequence_order: 2,
                 submission_deadline: deadline2,
-                coding_duration_hours: 48,
+                coding_duration_hours: 4,
                 top_n_advance: 3,
                 wildcard_enabled: false,
                 active: true,
@@ -501,10 +524,11 @@ function ContestFormPage() {
                     <span className="contest-timeline-dot contest-timeline-dot--close" />
                     <span>Đóng ĐK</span>
                     <span className="contest-timeline-line" />
-                    <span className="contest-timeline-badge">+4 ngày</span>
+                    <span className="contest-timeline-dot contest-timeline-dot--event" />
+                    <span>Khai mạc</span>
                     <span className="contest-timeline-line" />
                     <span className="contest-timeline-dot contest-timeline-dot--event" />
-                    <span>Thi đấu</span>
+                    <span>Kết thúc</span>
                   </div>
 
                   <DateField
@@ -527,13 +551,23 @@ function ContestFormPage() {
                   />
 
                   <DateField
-                    label="Ngày thi đấu chính thức *"
-                    hint="— tự động +4 ngày, có thể chỉnh lại"
+                    label="Ngày khai mạc (bắt đầu thi) *"
+                    hint="— từ sau ngày đóng đăng ký"
                     selected={contestData.start_date}
                     onChange={(d) => handleDateChange('start_date', d)}
                     minDate={minStart}
                     disabled={!contestData.registration_deadline}
                     error={fieldErrors.start_date}
+                  />
+
+                  <DateField
+                    label="Ngày kết thúc cuộc thi *"
+                    hint="— ngày thi đấu chính thức / công bố kết quả"
+                    selected={contestData.end_date}
+                    onChange={(d) => handleDateChange('end_date', d)}
+                    minDate={minEnd}
+                    disabled={!contestData.start_date}
+                    error={fieldErrors.end_date}
                   />
 
                   <div className="contest-divider" />
@@ -547,6 +581,35 @@ function ContestFormPage() {
                       <input type="checkbox" name="auto_close" checked={contestData.auto_close} onChange={handleTextChange} />
                       <span className="slider round" />
                     </label>
+                  </div>
+
+                  <div className="contest-divider" />
+
+                  <div className="contest-field-group" style={{ marginTop: '15px', display: 'flex', gap: '16px' }}>
+                    <div className="contest-field" style={{ flex: 1 }}>
+                      <label className="contest-label">Số thành viên tối thiểu / đội *</label>
+                      <input
+                        type="number"
+                        name="min_team_size"
+                        min={1}
+                        value={contestData.min_team_size}
+                        onChange={handleTextChange}
+                        className={`contest-input ${fieldErrors.min_team_size ? 'contest-input--error' : ''}`}
+                      />
+                      {fieldErrors.min_team_size && <span className="contest-error-text">{fieldErrors.min_team_size}</span>}
+                    </div>
+                    <div className="contest-field" style={{ flex: 1 }}>
+                      <label className="contest-label">Số thành viên tối đa / đội *</label>
+                      <input
+                        type="number"
+                        name="max_team_size"
+                        min={1}
+                        value={contestData.max_team_size}
+                        onChange={handleTextChange}
+                        className={`contest-input ${fieldErrors.max_team_size ? 'contest-input--error' : ''}`}
+                      />
+                      {fieldErrors.max_team_size && <span className="contest-error-text">{fieldErrors.max_team_size}</span>}
+                    </div>
                   </div>
 
                 </div>

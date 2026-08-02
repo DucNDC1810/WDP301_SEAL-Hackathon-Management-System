@@ -10,7 +10,8 @@ import {
 export const activate = async (req, res, next) => {
   try {
     const { contestId, roundId } = req.params;
-    const round = await activateRound(contestId, roundId, req.user._id);
+    const { reason } = req.body;
+    const round = await activateRound(contestId, roundId, req.user._id, { reason });
     res.json({ message: "Kích hoạt vòng thi thành công", round });
   } catch (e) { next(e); }
 };

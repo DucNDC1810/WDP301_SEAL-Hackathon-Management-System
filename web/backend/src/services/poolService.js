@@ -67,6 +67,16 @@ export const drawPools = async (contestId, { pool_count, round_id }) => {
       throw err;
     }
 
+    const maxTeamsPerPool = contest.max_teams_per_pool || 10;
+    const minPoolsNeeded = Math.ceil(teams.length / maxTeamsPerPool);
+    if (pool_count < minPoolsNeeded) {
+      const err = new Error(
+        `Mỗi bảng đấu tối đa ${maxTeamsPerPool} đội (cấu hình cuộc thi). Với ${teams.length} đội, cần chia thành ít nhất ${minPoolsNeeded} bảng (hiện chọn ${pool_count}).`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
     // Fisher-Yates shuffle
     const shuffledTeams = [...teams];
     for (let i = shuffledTeams.length - 1; i > 0; i--) {
@@ -281,6 +291,16 @@ export const assignTeamsToExistingPools = async (contestId, { round_id }) => {
       throw err;
     }
 
+    const maxTeamsPerPool = contest.max_teams_per_pool || 10;
+    const minPoolsNeeded = Math.ceil(teams.length / maxTeamsPerPool);
+    if (existingPools.length < minPoolsNeeded) {
+      const err = new Error(
+        `Mỗi bảng đấu tối đa ${maxTeamsPerPool} đội (cấu hình cuộc thi). Với ${teams.length} đội, cần ít nhất ${minPoolsNeeded} bảng (hiện có ${existingPools.length} bảng). Vui lòng tạo thêm bảng đấu trước.`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
     const shuffledTeams = [...teams];
     for (let i = shuffledTeams.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -396,6 +416,14 @@ export const updatePool = async (poolId, { pool_name, description, drive_link, t
     if (teams !== undefined && Array.isArray(teams)) {
       const oldTeams = pool.teams.map(id => id.toString());
       const newTeams = teams.map(id => id.toString());
+
+      const parentContest = await Contest.findById(pool.contest_id).select("max_teams_per_pool").session(session);
+      const maxTeamsPerPool = parentContest?.max_teams_per_pool || 10;
+      if (newTeams.length > maxTeamsPerPool) {
+        const err = new Error(`Bảng đấu tối đa ${maxTeamsPerPool} đội (cấu hình cuộc thi). Đang cố gán ${newTeams.length} đội.`);
+        err.statusCode = 400;
+        throw err;
+      }
 
       const removedTeams = oldTeams.filter(id => !newTeams.includes(id));
       const addedTeams = newTeams.filter(id => !oldTeams.includes(id));

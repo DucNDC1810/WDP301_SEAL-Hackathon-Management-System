@@ -15,13 +15,16 @@ router.get("/contests/:contest_id/rounds", async (req, res, next) => {
 
     const contest = await Contest.findById(contest_id);
     if (contest && contest.rounds && contest.rounds.length > 0) {
+      // Vòng cuối cùng (round_number lớn nhất) luôn là FINAL — không hardcode round_number === 2,
+      // để hỗ trợ đúng cuộc thi có nhiều hơn 2 vòng (sơ loại nhiều cấp).
+      const maxRoundNumber = Math.max(...contest.rounds.map((r) => r.round_number));
       for (const r of contest.rounds) {
         await Round.findOneAndUpdate(
           { _id: r._id },
           {
             contest_id,
             name: r.name,
-            type: r.round_number === 2 || r.name.toLowerCase().includes("chung kết") || r.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
+            type: r.round_number === maxRoundNumber || r.name.toLowerCase().includes("chung kết") || r.name.toLowerCase().includes("final") ? "FINAL" : "PRELIMINARY",
             is_active: r.is_active,
             scoring_locked: r.scoring_locked,
             round_start: r.start_time || new Date(),

@@ -338,6 +338,7 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
     let beforeActive;
     let scheduledStart = null;
     let isEarly = false;
+    let affectedContestId = null;
 
     if (round) {
       scheduledStart = round.round_start;
@@ -394,6 +395,7 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
             }
           }
           await contest.save();
+          affectedContestId = contest._id;
         }
       }
     } else {
@@ -422,6 +424,19 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
         }
       }
       await contest.save();
+      affectedContestId = contest._id;
+    }
+
+    // Kích hoạt sớm hơn lịch: lùi Contest.end_date đúng bằng độ lệch, giữ nguyên tổng thời lượng cuộc thi
+    let newEndDate = null;
+    if (isEarly && affectedContestId) {
+      const offsetMs = new Date(scheduledStart).getTime() - now.getTime();
+      const contestToShift = await Contest.findById(affectedContestId).select("end_date");
+      if (contestToShift?.end_date) {
+        newEndDate = new Date(contestToShift.end_date.getTime() - offsetMs);
+        contestToShift.end_date = newEndDate;
+        await contestToShift.save();
+      }
     }
 
     // Create AuditLog
@@ -430,7 +445,7 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
       entity_id: round_id,
       action: isEarly ? "ROUND_EARLY_ACTIVATION" : "ROUND_ACTIVATED",
       old_value: { is_active: beforeActive },
-      new_value: { is_active: true, early_activation_reason: isEarly ? reason.trim() : null },
+      new_value: { is_active: true, early_activation_reason: isEarly ? reason.trim() : null, contest_end_date_shifted_to: newEndDate },
       performed_by: req.user?._id || null,
       performed_at: new Date(),
       // Compatibility fields
@@ -444,7 +459,7 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
 
     // Nếu kích hoạt lệch lịch (dời lịch/sự cố): gửi email thông báo cho contestant + mentor/judge liên quan
     if (isEarly) {
-      notifyEarlyActivation({ round_id, reason: reason.trim(), scheduledStart }).catch((e) =>
+      notifyEarlyActivation({ round_id, reason: reason.trim(), scheduledStart, newEndDate }).catch((e) =>
         console.error("[round activate scheduleChangeEmail]", e)
       );
     }
@@ -452,7 +467,8 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
     return res.status(200).json({
       success: true,
       round_id,
-      is_active: true
+      is_active: true,
+      contest_end_date_shifted_to: newEndDate,
     });
   } catch (error) {
     next(error);
@@ -460,7 +476,7 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
 });
 
 // Gửi email thông báo thay đổi lịch cho thành viên các đội + judge/mentor được assign vào round
-const notifyEarlyActivation = async ({ round_id, reason, scheduledStart }) => {
+const notifyEarlyActivation = async ({ round_id, reason, scheduledStart, newEndDate }) => {
   const Contest = (await import("../models/Contest.js")).default;
   const round = await Round.findById(round_id);
   const contest = round
@@ -491,7 +507,7 @@ const notifyEarlyActivation = async ({ round_id, reason, scheduledStart }) => {
 
   await Promise.all(
     [...emails].map((email) =>
-      sendScheduleChangeEmail(email, contest.title, roundName || "", scheduledStart, reason).catch((e) =>
+      sendScheduleChangeEmail(email, contest.title, roundName || "", scheduledStart, reason, newEndDate).catch((e) =>
         console.error(`[notifyEarlyActivation] failed for ${email}:`, e.message)
       )
     )

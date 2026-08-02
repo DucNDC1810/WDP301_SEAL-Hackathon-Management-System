@@ -89,9 +89,13 @@ export default function RoundActivatePage() {
         setRound(prev => ({ ...prev, is_active: true }));
         setEarlyReasonModalOpen(false);
         setEarlyReason('');
+        const shiftedEndDate = res.data.contest_end_date_shifted_to;
         notification.success({
           message: 'Thành công',
-          description: '🎉 Vòng thi đã được kích hoạt thành công!',
+          description: shiftedEndDate
+            ? `🎉 Vòng thi đã được kích hoạt thành công! Ngày kết thúc cuộc thi đã được dời sớm tương ứng, dự kiến kết thúc lúc ${new Date(shiftedEndDate).toLocaleString('vi-VN')}.`
+            : '🎉 Vòng thi đã được kích hoạt thành công!',
+          duration: shiftedEndDate ? 8 : 4.5,
         });
         setTimeout(() => {
           const cId = round?.contest_id?._id || round?.contest_id;

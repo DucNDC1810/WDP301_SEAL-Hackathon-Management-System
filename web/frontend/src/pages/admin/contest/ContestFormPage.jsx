@@ -192,8 +192,10 @@ function ContestFormPage() {
         next.end_date = null;
       }
 
-      if (name === 'start_date' && date && prev.end_date && prev.end_date <= date) {
-        next.end_date = null;
+      if (name === 'start_date' && date) {
+        // Hackathon diễn ra 2 ngày: ngày khai mạc + ngày thi chính thức/kết thúc kế tiếp.
+        // Tự đề xuất end_date = start_date + 1 ngày, admin vẫn có thể chỉnh lại sau.
+        next.end_date = addDays(date, 1);
       }
 
       return next;
@@ -287,6 +289,9 @@ function ContestFormPage() {
         start_date: contestData.start_date.toISOString(),
         end_date: contestData.end_date.toISOString(),
         registration_deadline: contestData.registration_deadline.toISOString(),
+        kickoff_date: new Date(
+          contestData.registration_deadline.getTime() + 12 * 60 * 60 * 1000
+        ).toISOString(),
         auto_close: contestData.auto_close,
         max_teams_per_pool: Number(contestData.max_teams_per_pool) || 10,
         min_team_size: Number(contestData.min_team_size) || 1,

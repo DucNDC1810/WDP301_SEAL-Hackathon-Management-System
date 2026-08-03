@@ -112,6 +112,10 @@ const contestSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    kickoff_date: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
       enum: ["draft", "open", "closed"],

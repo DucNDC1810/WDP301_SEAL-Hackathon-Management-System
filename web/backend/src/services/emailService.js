@@ -111,8 +111,11 @@ export const sendVerificationEmail = async (to, token) => {
 
 // ─── sendInvitationEmail ─────────────────────────────────────────────────────
 
-export const sendInvitationEmail = async (to, contestTitle, token) => {
+export const sendInvitationEmail = async (to, contestTitle, token, schedule = {}) => {
   const link = `${getClientUrl()}/invitation/accept?token=${token}`;
+  const { kickoffDate, startDate, endDate } = schedule;
+  const fmtVN = (d) => (d ? new Date(d).toLocaleString("vi-VN") : "Chưa xác định");
+  const scheduleText = `<p><strong>Lịch khai mạc:</strong> ${fmtVN(kickoffDate)}<br/><strong>Thời gian diễn ra:</strong> ${fmtVN(startDate)}${endDate ? ` — ${fmtVN(endDate)}` : ""}. Vui lòng kiểm tra lịch trước khi xác nhận để đảm bảo bạn có thể tham gia đầy đủ.</p>`;
   return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Lời mời tham gia ban giám khảo - ${contestTitle}`,
@@ -120,17 +123,34 @@ export const sendInvitationEmail = async (to, contestTitle, token) => {
       <p>Xin chào,</p>
       <p>Bạn được mời tham gia làm <strong>mentor / giám khảo</strong> cho cuộc thi
          <strong>${contestTitle}</strong> trên hệ thống SEAL Hackathon.</p>
+      ${scheduleText}
       <p>Nhấn vào liên kết bên dưới để xác nhận tham gia (có hiệu lực trong <strong>7 ngày</strong>):</p>
       <p><a href="${link}">${link}</a></p>
-      <p>Nếu bạn muốn từ chối, hãy bỏ qua email này.</p>
+      <p>Nếu bạn không thể tham gia (bận lịch trình), hãy bỏ qua email này hoặc từ chối trong hệ thống.</p>
     `,
   });
 };
 
 // ─── sendJudgeInvitationEmail ─────────────────────────────────────────────────
 
-export const sendJudgeInvitationEmail = async (to, contestTitle, token) => {
+export const sendJudgeInvitationEmail = async (to, contestTitle, token, schedule = {}) => {
   const link = `${getClientUrl()}/judge/accept-invite?token=${token}`;
+  const { kickoffDate, startDate, endDate, roundName, roundStart } = schedule;
+  const fmtVN = (d) => (d ? new Date(d).toLocaleString("vi-VN") : "Chưa xác định");
+  const scheduleRows = `
+    <tr>
+      <td style="font-size:14px;color:#64748b;padding:4px 0"><strong>Lịch khai mạc:</strong></td>
+      <td style="font-size:14px;color:#1e293b;padding:4px 0;font-weight:600">${fmtVN(kickoffDate)}</td>
+    </tr>
+    <tr>
+      <td style="font-size:14px;color:#64748b;padding:4px 0"><strong>Thời gian cuộc thi:</strong></td>
+      <td style="font-size:14px;color:#1e293b;padding:4px 0;font-weight:600">${fmtVN(startDate)}${endDate ? ` — ${fmtVN(endDate)}` : ""}</td>
+    </tr>
+    <tr>
+      <td style="font-size:14px;color:#64748b;padding:4px 0"><strong>Vòng chấm:</strong></td>
+      <td style="font-size:14px;color:#1e293b;padding:4px 0;font-weight:600">${roundName || "Chưa xác định"} — dự kiến ${fmtVN(roundStart)}</td>
+    </tr>
+  `;
   return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Lời mời làm Giám khảo - ${contestTitle}`,
@@ -163,10 +183,11 @@ export const sendJudgeInvitationEmail = async (to, contestTitle, token) => {
                   <td style="font-size:14px;color:#64748b;padding:4px 0"><strong>Hạn kích hoạt:</strong></td>
                   <td style="font-size:14px;color:#ef4444;padding:4px 0;font-weight:600">7 ngày (kể từ hôm nay)</td>
                 </tr>
+                ${scheduleRows}
               </table>
             </div>
-            
-            <p style="font-size:15px;margin:0 0 30px 0">Để kích hoạt tài khoản giám khảo của bạn và xác nhận tham gia chấm điểm, vui lòng nhấn vào nút bên dưới (hệ thống sẽ tự động tạo tài khoản cho bạn):</p>
+
+            <p style="font-size:15px;margin:0 0 30px 0">Vui lòng kiểm tra lịch trình ở trên để đảm bảo bạn có thể tham gia đầy đủ. Để kích hoạt tài khoản giám khảo của bạn và xác nhận tham gia chấm điểm, nhấn vào nút bên dưới (hệ thống sẽ tự động tạo tài khoản cho bạn):</p>
             
             <!-- CTA Button -->
             <div style="text-align:center;margin:35px 0">

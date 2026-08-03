@@ -670,6 +670,10 @@ export default function HackathonDetailPage({ defaultTab }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
+          // kickoff_date giờ được lưu thật trong MongoDB — ưu tiên giá trị từ DB thay vì localStorage
+          if (contest.kickoff_date) {
+            parsed.kickoff_date = contest.kickoff_date;
+          }
           if (parsed.tracks?.length > 0) {
             parsed.tracks = parsed.tracks.map(t => ({
               ...t,
@@ -714,7 +718,7 @@ export default function HackathonDetailPage({ defaultTab }) {
             registration_deadline: contest.registration_deadline?.slice(0, 16) || parsed.registration_deadline?.slice(0, 16) || '',
             start_date: contest.start_date?.slice(0, 16) || parsed.start_date?.slice(0, 16) || '',
             end_date: contest.end_date?.slice(0, 16) || parsed.end_date?.slice(0, 16) || '',
-            kickoff_date: parsed.kickoff_date?.slice(0, 16) || ''
+            kickoff_date: contest.kickoff_date?.slice(0, 16) || parsed.kickoff_date?.slice(0, 16) || ''
           });
           if (parsed.tracks?.length > 0) {
             setActiveTrackId(prev => {
@@ -744,7 +748,9 @@ export default function HackathonDetailPage({ defaultTab }) {
         const deadlineStr = contest.registration_deadline ? contest.registration_deadline.slice(0, 16) : '2026-06-10T18:00';
         const startDateStr = contest.start_date ? contest.start_date.slice(0, 16) : '2026-06-11T09:00';
         const endDateStr = contest.end_date ? contest.end_date.slice(0, 16) : '2026-06-13T18:00';
-        const kickoffStr = new Date(new Date(deadlineStr).getTime() + 12 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        const kickoffStr = contest.kickoff_date
+          ? contest.kickoff_date.slice(0, 16)
+          : new Date(new Date(deadlineStr).getTime() + 12 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
         const baseTime = startDateStr ? new Date(startDateStr).getTime() : Date.now();
         const deadline1 = new Date(baseTime + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
@@ -869,7 +875,8 @@ export default function HackathonDetailPage({ defaultTab }) {
         method: 'PUT',
         headers: hdrs(),
         body: JSON.stringify({
-          rounds: mappedRounds
+          rounds: mappedRounds,
+          kickoff_date: newConfig.kickoff_date || null,
         })
       });
       
@@ -1164,7 +1171,8 @@ export default function HackathonDetailPage({ defaultTab }) {
           description: generalForm.description,
           registration_deadline: generalForm.registration_deadline,
           start_date: generalForm.start_date,
-          end_date: generalForm.end_date
+          end_date: generalForm.end_date,
+          kickoff_date: generalForm.kickoff_date || null
         })
       });
       const data = await res.json();
@@ -1792,6 +1800,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                   <div className="hd-overview-card"><span className="hd-ov-label">Mở đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_open_date || config.registration_open_date || contest.created_at)}</span></div>
                   <div className="hd-overview-card"><span className="hd-ov-label">Hạn đóng đăng ký</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.registration_deadline || config.registration_deadline)}</span></div>
                   <div className="hd-overview-card"><span className="hd-ov-label">Lịch khai mạc (Kickoff)</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(config.kickoff_date)}</span></div>
+                  <div className="hd-overview-card"><span className="hd-ov-label">Ngày kết thúc cuộc thi</span><span className="hd-ov-value" style={{ fontSize: '1.05rem', marginTop: '6px' }}>{fmtDate(contest.end_date || config.end_date)}</span></div>
                   <div className="hd-overview-card"><span className="hd-ov-label">Số vòng thi</span><span className="hd-ov-value">{selectedTrack?.rounds?.length || 0}</span></div>
                 </div>
 
@@ -1821,23 +1830,38 @@ export default function HackathonDetailPage({ defaultTab }) {
                   : null;
                 if (!activeRound || !activeDbRound?.submission_deadline) return null;
                 const isLocked = activeDbRound?.scoring_locked;
+                // Hết hạn nộp bài nhưng chưa khóa chấm điểm — round vẫn "active" theo thiết kế
+                // (contestant nộp trễ vẫn được ghi nhận LATE_PENDING chờ admin duyệt), nhưng
+                // cần cảnh báo rõ để admin biết mà chủ động xử lý/khóa thay vì tưởng vẫn đang chạy bình thường.
+                const isExpiredNotLocked = !isLocked && new Date(activeDbRound.submission_deadline) <= new Date();
                 return (
                   <div className="hd-round-countdown-banner">
                     <div className="hd-round-countdown-banner-info">
-                      <span 
+                      <span
                         className="hd-round-countdown-banner-status"
-                        style={isLocked ? { color: 'var(--cyan)', background: 'rgba(0, 240, 255, 0.1)', borderColor: 'rgba(0, 240, 255, 0.4)', boxShadow: '0 0 16px rgba(0, 240, 255, 0.15)' } : {}}
+                        style={
+                          isLocked
+                            ? { color: 'var(--cyan)', background: 'rgba(0, 240, 255, 0.1)', borderColor: 'rgba(0, 240, 255, 0.4)', boxShadow: '0 0 16px rgba(0, 240, 255, 0.15)' }
+                            : isExpiredNotLocked
+                            ? { color: '#f87171', background: 'rgba(248, 113, 113, 0.12)', borderColor: 'rgba(248, 113, 113, 0.45)', boxShadow: '0 0 16px rgba(248, 113, 113, 0.2)' }
+                            : {}
+                        }
                       >
                         <span className={`hd-round-countdown-banner-status-dot ${isLocked ? 'hd-round-countdown-banner-status-dot--completed' : ''}`} />
-                        {isLocked ? 'Đã hoàn thành' : 'Đang thi'}
+                        {isLocked ? 'Đã hoàn thành' : isExpiredNotLocked ? '⚠ Đã hết hạn — cần xử lý' : 'Đang thi'}
                       </span>
                       <span className="hd-round-countdown-banner-eyebrow">
-                        {isLocked ? 'Vòng thi đã kết thúc' : 'Vòng thi đang kích hoạt'}
+                        {isLocked ? 'Vòng thi đã kết thúc' : isExpiredNotLocked ? 'Đã qua hạn nộp bài, vòng vẫn đang mở' : 'Vòng thi đang kích hoạt'}
                       </span>
                       <span className="hd-round-countdown-banner-title">{activeRound.name}</span>
                       <div className="hd-round-countdown-banner-dates">
                         <span>📅 Hạn nộp bài: <strong style={{ color: '#ffffff' }}>{fmtDate(activeDbRound.submission_deadline)}</strong></span>
                       </div>
+                      {isExpiredNotLocked && (
+                        <div className="hd-round-countdown-banner-dates" style={{ marginTop: 6, color: '#f87171' }}>
+                          <span>⚠ Đã qua hạn nộp bài. Đội nộp trễ vẫn được ghi nhận chờ duyệt (LATE_PENDING). Hãy kiểm tra bài nộp trễ, hoàn tất chấm điểm rồi khóa chấm điểm để kết thúc vòng.</span>
+                        </div>
+                      )}
                     </div>
                     {isLocked ? (
                       <div className="hd-round-completed-box">

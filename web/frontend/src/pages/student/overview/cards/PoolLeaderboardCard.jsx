@@ -61,7 +61,7 @@ export const PoolLeaderboardCard = ({ ranking, round, poolName, C }) => {
                 </tr>
               ) : (
                 <tr
-                  key={row.rank_position}
+                  key={`${row.rank_position}-${row.team_name}`}
                   style={{
                     borderTop: `1px solid ${C.line2}`,
                     background: row.is_mine ? 'rgba(0,212,255,.06)' : 'transparent',

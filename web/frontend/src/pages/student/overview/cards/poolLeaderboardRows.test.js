@@ -34,4 +34,17 @@ describe('buildLeaderboardRows', () => {
   it('handles an empty board', () => {
     expect(buildLeaderboardRows({ board: [], topN: 6, poolTeamCount: 12 })).toEqual([]);
   });
+
+  it('omits the cut line when the boundary falls in a hidden gap', () => {
+    const gapBoard = [
+      { rank_position: 1, team_name: 'First', final_score: 100, is_mine: false },
+      { rank_position: 2, team_name: 'Second', final_score: 95, is_mine: false },
+      { rank_position: 3, team_name: 'Third', final_score: 90, is_mine: false },
+      { rank_position: 4, team_name: 'Fourth', final_score: 85, is_mine: false },
+      { rank_position: 5, team_name: 'Fifth', final_score: 80, is_mine: false },
+      { rank_position: 20, team_name: 'OwnTeam', final_score: 50, is_mine: true },
+    ];
+    const rows = buildLeaderboardRows({ board: gapBoard, topN: 6, poolTeamCount: 12 });
+    expect(rows.some((r) => r.type === 'cutline')).toBe(false);
+  });
 });

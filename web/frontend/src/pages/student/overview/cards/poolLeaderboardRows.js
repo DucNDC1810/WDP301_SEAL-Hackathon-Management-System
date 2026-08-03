@@ -11,6 +11,9 @@ export const buildLeaderboardRows = ({ board, topN, poolTeamCount }) => {
 
   const index = rows.findIndex((r) => r.rank_position > topN);
   if (index <= 0) return rows;
+  // Only draw the line when the boundary is genuinely visible — when the row
+  // immediately before the insertion point is exactly at rank topN.
+  if (rows[index - 1].rank_position !== topN) return rows;
 
   return [...rows.slice(0, index), { type: 'cutline', topN }, ...rows.slice(index)];
 };

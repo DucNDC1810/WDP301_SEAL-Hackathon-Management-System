@@ -4,7 +4,7 @@ import {
   reviewLateSubmission,
 } from "../services/submissionService.js";
 import { sendNotification } from "../services/notification.js";
-import { getCommitCount, getContributorStats } from "../services/githubService.js";
+import { getCommitCount, getContributorStats, getRecentCommits } from "../services/githubService.js";
 import Submission from "../models/Submission.js";
 
 /**
@@ -129,6 +129,28 @@ export const handleGetCommitCount = async (req, res, next) => {
       success: true,
       data: { ...commitResult, contributors: contributorResult.contributors },
     });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+/**
+ * Handle GET /api/submissions/:id/commits
+ * Lấy danh sách commit gần nhất của repo GitHub trong bài nộp (admin only).
+ */
+export const handleGetRecentCommits = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const submission = await Submission.findById(id).select("repo_url");
+    if (!submission) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy bài nộp" });
+    }
+
+    const result = await getRecentCommits(submission.repo_url);
+    return res.status(200).json({ success: true, data: result });
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json({ success: false, message: error.message });

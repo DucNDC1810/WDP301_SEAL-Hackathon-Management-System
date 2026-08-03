@@ -119,3 +119,53 @@ export const getContributorStats = async (repoUrl) => {
 
   return { owner, repo, contributors };
 };
+
+/**
+ * Lấy danh sách commit gần nhất (message, tác giả, thời gian, link) của nhánh mặc định.
+ */
+export const getRecentCommits = async (repoUrl, limit = 30) => {
+  const parsed = parseGithubRepoUrl(repoUrl);
+  if (!parsed) {
+    const err = new Error("Link không phải repository GitHub hợp lệ");
+    err.statusCode = 400;
+    throw err;
+  }
+  const { owner, repo } = parsed;
+
+  const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/commits?per_page=${limit}`, {
+    headers: { Accept: "application/vnd.github+json" },
+  });
+
+  if (res.status === 404) {
+    const err = new Error("Không tìm thấy repository (private hoặc không tồn tại)");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (res.status === 403) {
+    const err = new Error("GitHub API đã đạt giới hạn truy vấn (rate limit), vui lòng thử lại sau");
+    err.statusCode = 429;
+    throw err;
+  }
+  if (res.status === 409) {
+    // Repo rỗng, chưa có commit nào
+    return { owner, repo, commits: [] };
+  }
+  if (!res.ok) {
+    const err = new Error(`GitHub API trả lỗi: ${res.status}`);
+    err.statusCode = 502;
+    throw err;
+  }
+
+  const body = await res.json();
+  const commits = (Array.isArray(body) ? body : []).map((c) => ({
+    sha: c.sha?.slice(0, 7) || "",
+    message: (c.commit?.message || "").split("\n")[0], // chỉ lấy dòng đầu tiên
+    author_name: c.commit?.author?.name || c.author?.login || "Unknown",
+    author_username: c.author?.login || null,
+    author_avatar: c.author?.avatar_url || null,
+    committed_at: c.commit?.author?.date || null,
+    url: c.html_url || null,
+  }));
+
+  return { owner, repo, commits };
+};

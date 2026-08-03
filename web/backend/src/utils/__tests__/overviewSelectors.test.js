@@ -135,4 +135,18 @@ describe("resolveState", () => {
     });
     expect(state).toBe("pending_approval");
   });
+
+  it("returns forming for PENDING_MEMBERS status with an active contest", () => {
+    expect(resolveState({ team: { status: "PENDING_MEMBERS", contest_id: "c1" } })).toBe(
+      "forming"
+    );
+  });
+
+  it("returns pending_approval for the legacy PENDING status", () => {
+    expect(resolveState({ team: { status: "PENDING" } })).toBe("pending_approval");
+  });
+
+  it("returns eliminated for an eliminated team", () => {
+    expect(resolveState({ team: { status: "ELIMINATED" } })).toBe("eliminated");
+  });
 });

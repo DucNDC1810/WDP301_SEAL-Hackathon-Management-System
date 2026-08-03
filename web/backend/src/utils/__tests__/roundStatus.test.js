@@ -33,4 +33,9 @@ describe("getRoundStatusKey", () => {
   it("returns 'upcoming' when there is no deadline at all", () => {
     expect(getRoundStatusKey({ scoring_locked: false, is_active: false }, NOW)).toBe("upcoming");
   });
+
+  it("prefers is_active over an elapsed deadline", () => {
+    const round = { scoring_locked: false, is_active: true, submission_deadline: PAST };
+    expect(getRoundStatusKey(round, NOW)).toBe("active");
+  });
 });

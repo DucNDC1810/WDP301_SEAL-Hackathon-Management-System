@@ -71,7 +71,7 @@ export const RoundResultState = ({ data, C }) => {
         <CountdownCard round={null} nextRound={data.next_round} submission={null} C={C} />
       )}
 
-      <PoolLeaderboardCard ranking={ranking} round={round} poolName={team?.pool_name} C={C} />
+      <PoolLeaderboardCard ranking={ranking} round={round} poolName={team?.pool_name} C={C} warnings={data.warnings ?? []} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ScoreTrendChart scoreHistory={history} C={C} />

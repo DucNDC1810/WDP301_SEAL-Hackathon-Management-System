@@ -9,6 +9,7 @@ export const FormingState = ({ data, C }) => {
   const members = team?.members ?? [];
   const total = members.length;
   const verified = members.filter((m) => m.profile_verify_status === 'approved').length;
+  const emailVerified = members.filter((m) => m.email_verified === true).length;
 
   // The team has no contest yet, so fall back to the strictest open contest.
   const requiredSize =
@@ -18,13 +19,18 @@ export const FormingState = ({ data, C }) => {
 
   const sizePercent = requiredSize ? Math.min(100, Math.round((total / requiredSize) * 100)) : 0;
   const verifyPercent = total ? Math.round((verified / total) * 100) : 0;
+  const emailVerifyPercent = total ? Math.round((emailVerified / total) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-5">
       <Card
         title={
           <span style={{ color: C.text }}>
-            Đội <strong>{team?.team_name}</strong> — chưa đăng ký cuộc thi nào
+            {contest ? (
+              <>Đội <strong>{team?.team_name}</strong> — {contest.title}</>
+            ) : (
+              <>Đội <strong>{team?.team_name}</strong> — chưa đăng ký cuộc thi nào</>
+            )}
           </span>
         }
         style={{ background: C.card, borderColor: C.line }}
@@ -50,7 +56,16 @@ export const FormingState = ({ data, C }) => {
                   {verified}/{total}
                 </span>
               </div>
-              <Progress percent={verifyPercent} showInfo={false} strokeColor={verified === total ? C.green : C.amber} trailColor={C.card2} />
+              <Progress percent={verifyPercent} showInfo={false} strokeColor={verified === total && total > 0 ? C.green : C.amber} trailColor={C.card2} />
+            </div>
+            <div className="mb-4">
+              <div className="mb-1 flex justify-between text-xs" style={{ color: C.muted }}>
+                <span>Xác nhận email</span>
+                <span style={{ color: emailVerified === total && total > 0 ? C.green : C.amber }}>
+                  {emailVerified}/{total}
+                </span>
+              </div>
+              <Progress percent={emailVerifyPercent} showInfo={false} strokeColor={emailVerified === total && total > 0 ? C.green : C.amber} trailColor={C.card2} />
             </div>
           </>
         ) : (

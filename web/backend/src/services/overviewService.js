@@ -265,6 +265,11 @@ const buildRankingBlock = async ({ contestId, round, team, pool, deltas, isFinal
     final_score: mine?.final_score ?? null,
     qualified: mine?.qualified ?? null,
     is_final_round: isFinalRound,
+    // rankingService currently derives the advance cut-off itself and ignores
+    // round.top_n_advance, so the UI must mirror that same rule or the cut line
+    // will contradict the `qualified` flag. Keep these two in sync until
+    // rankingService is changed to read the configured value.
+    effective_top_n: isFinalRound ? 3 : 6,
     pool_team_count: pool?.teams?.length ?? rows.length,
     delta_rank: deltas.delta_rank,
     delta_score: deltas.delta_score,
@@ -325,7 +330,11 @@ const listMentors = async (teamId, userId) => {
 };
 
 const listPendingInvitations = async (userId) => {
-  const rows = await TeamInvitation.find({ invitee_user_id: userId, status: "pending" })
+  const rows = await TeamInvitation.find({
+    invitee_user_id: userId,
+    status: "pending",
+    expires_at: { $gt: new Date() },
+  })
     .populate("team_id", "team_name members")
     .populate("invited_by", "full_name")
     .populate("contest_id", "title")

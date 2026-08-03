@@ -22,12 +22,12 @@ export const CompetingState = ({ data, C }) => {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <TeamSummaryCard team={data.team} contest={data.contest} git={data.git} C={C} />
-        <RankCard ranking={data.ranking} round={data.round} poolName={data.team?.pool_name} C={C} />
-        <ProblemCard round={data.round} driveLink={data.team?.pool_drive_link} poolName={data.team?.pool_name} C={C} />
+        <RankCard ranking={data.ranking} round={data.round} poolName={data.team?.pool_name} C={C} warnings={data.warnings ?? []} />
+        <ProblemCard round={data.round} driveLink={data.team?.pool_drive_link} poolName={data.team?.pool_name} C={C} warnings={data.warnings ?? []} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <PoolLeaderboardCard ranking={data.ranking} round={data.round} poolName={data.team?.pool_name} C={C} />
+        <PoolLeaderboardCard ranking={data.ranking} round={data.round} poolName={data.team?.pool_name} C={C} warnings={data.warnings ?? []} />
         <div className="flex flex-col gap-4">
           <PresentationCard presentation={data.presentation} C={C} />
           <MentorCard mentors={data.mentors} C={C} />

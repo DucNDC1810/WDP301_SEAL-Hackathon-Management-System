@@ -14,26 +14,37 @@ export const PendingApprovalState = ({ data, C }) => {
   const { team, contest, notifications } = data;
 
   const rejected = String(team?.status).toUpperCase() === 'REJECTED';
+  const isConfirmed = String(team?.status).toUpperCase() === 'CONFIRMED';
   const members = team?.members ?? [];
   const verified = members.filter((m) => m.profile_verify_status === 'approved').length;
+
+  let alertType = 'info';
+  let alertMessage = 'Đang chờ ban tổ chức duyệt';
+  let alertDescription = `Đội ${team?.team_name} đã gửi yêu cầu tham gia${contest?.title ? ` ${contest.title}` : ''}.`;
+  if (rejected) {
+    alertType = 'error';
+    alertMessage = 'Yêu cầu tham gia bị từ chối';
+    alertDescription =
+      'Trưởng nhóm có thể chỉnh sửa thông tin đội rồi gửi lại yêu cầu. Liên hệ ban tổ chức nếu cần biết lý do cụ thể.';
+  } else if (isConfirmed) {
+    alertMessage = 'Đội đã được duyệt';
+    alertDescription =
+      'Ban tổ chức chưa mở vòng thi nào. Trang này sẽ tự cập nhật khi vòng đầu tiên bắt đầu.';
+  }
 
   return (
     <div className="flex flex-col gap-5">
       <Alert
-        type={rejected ? 'error' : 'info'}
+        type={alertType}
         showIcon
-        message={rejected ? 'Yêu cầu tham gia bị từ chối' : 'Đang chờ ban tổ chức duyệt'}
-        description={
-          rejected
-            ? 'Trưởng nhóm có thể chỉnh sửa thông tin đội rồi gửi lại yêu cầu. Liên hệ ban tổ chức nếu cần biết lý do cụ thể.'
-            : `Đội ${team?.team_name} đã gửi yêu cầu tham gia${contest?.title ? ` ${contest.title}` : ''}.`
-        }
+        message={alertMessage}
+        description={alertDescription}
       />
 
       <Card style={{ background: C.card, borderColor: C.line }}>
         <div className="flex flex-col gap-2 text-[13px]" style={{ color: C.text2 }}>
           <div>
-            Gửi lúc: <span className="font-semibold">{fmtTs(team?.updated_at)}</span>
+            {isConfirmed ? 'Duyệt lúc:' : 'Gửi lúc:'} <span className="font-semibold">{fmtTs(team?.updated_at)}</span>
           </div>
           <div>
             Xác thực hồ sơ:{' '}

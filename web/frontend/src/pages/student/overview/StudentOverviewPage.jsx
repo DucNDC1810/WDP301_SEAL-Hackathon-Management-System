@@ -68,7 +68,7 @@ export const StudentOverviewPage = () => {
   }
 
   const StateComponent = STATE_COMPONENTS[data?.state];
-  const warnings = (data?.warnings ?? []).filter((w) => WARNING_LABEL[w]);
+  const warnings = data?.warnings ?? [];
 
   // Keep the leaderboard entry point the old page had, but only when there is a
   // contest and round to link to.
@@ -113,7 +113,7 @@ export const StudentOverviewPage = () => {
           description={
             <ul className="m-0 list-disc pl-5">
               {warnings.map((w) => (
-                <li key={w}>{WARNING_LABEL[w]}</li>
+                <li key={w}>{WARNING_LABEL[w] || 'Một phần dữ liệu chưa tải được.'}</li>
               ))}
             </ul>
           }

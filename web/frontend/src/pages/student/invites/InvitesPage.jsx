@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
 import RefreshButton from '../../../components/RefreshButton';
+import { ACTIVE_TEAM_STATUSES } from '../../../constants/teamStatus.js';
 
 // ── Color tokens ──────────────────────────────────────────────────────────────
 // bg: #070b14 | card: #0c1524 | border: #1b2740 | text: #e6eef9 | text2: #c9d6e8
@@ -91,7 +92,11 @@ export const StudentInvitesPage = () => {
       try {
         const teamRes = await request('/api/teams/me');
         const teams = Array.isArray(teamRes) ? teamRes : teamRes?.data ?? [];
-        setHasTeam(teams.length > 0);
+        // /api/teams/me returns every team the user has ever been in, including
+        // finished ones (ELIMINATED / DISQUALIFIED). Those must not block the
+        // user from accepting a new invitation, so only count active teams.
+        const activeTeams = teams.filter((t) => ACTIVE_TEAM_STATUSES.includes(String(t.status).toUpperCase()));
+        setHasTeam(activeTeams.length > 0);
       } catch {
         setHasTeam(false);
       }

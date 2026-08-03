@@ -35,6 +35,16 @@ describe('buildLeaderboardRows', () => {
     expect(buildLeaderboardRows({ board: [], topN: 6, poolTeamCount: 12 })).toEqual([]);
   });
 
+  it('documents current behaviour when poolTeamCount is 0 (falsy, guard disabled)', () => {
+    // pool_team_count can legitimately be 0 when a Pool exists with an empty
+    // teams array. `poolTeamCount && topN >= poolTeamCount` short-circuits on
+    // the falsy 0, so the "every team advances" guard never triggers here —
+    // this pins that existing behaviour rather than changing it.
+    const rows = buildLeaderboardRows({ board, topN: 2, poolTeamCount: 0 });
+    expect(rows[2]).toEqual({ type: 'cutline', topN: 2 });
+    expect(rows[3].team_name).toBe('Kappa');
+  });
+
   it('omits the cut line when the boundary falls in a hidden gap', () => {
     const gapBoard = [
       { rank_position: 1, team_name: 'First', final_score: 100, is_mine: false },

@@ -187,6 +187,17 @@ describe('buildTasks', () => {
     expect(tasks.find((t) => t.id === 'problem-no-link').severity).toBe('note');
   });
 
+  it('does not note a missing drive link when the pool block failed to load', () => {
+    const overview = {
+      ...base,
+      round: { ...base.round, problem_released_at: hoursFromNow(-4) },
+      team: { ...base.team, pool_drive_link: null },
+      warnings: ['pool_unavailable'],
+    };
+    const tasks = buildTasks(overview, NOW);
+    expect(idsOf(tasks)).not.toContain('problem-no-link');
+  });
+
   it('reports members with no git activity', () => {
     const overview = {
       ...base,
@@ -236,7 +247,7 @@ describe('buildTasks', () => {
   });
 
   it('preserves insertion order for same-severity tasks', () => {
-    // Three info-severity tasks: submission-missing, members-unverified, submission-late-pending
+    // Two info-severity tasks: submission-late-pending, members-unverified
     const overview = {
       ...base,
       round: { ...base.round, submission_deadline: hoursFromNow(48) },

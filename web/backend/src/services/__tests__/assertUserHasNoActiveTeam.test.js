@@ -41,7 +41,7 @@ describe("assertUserHasNoActiveTeam", () => {
     expect(caught).toBeDefined();
     expect(caught.statusCode).toBe(409);
     expect(caught.message).toBe(
-      "Bạn đã thuộc một đội thi khác đang hoạt động. Hãy rời đội hiện tại trước khi tham gia đội mới."
+      'Bạn đã thuộc đội "Team A" đang hoạt động. Hãy rời đội hiện tại trước khi tham gia đội mới.'
     );
   });
 

@@ -48,6 +48,12 @@ export const CountdownCard = ({ round, nextRound, submission, C }) => {
   const target = deadlineMs ?? nextStartMs;
   const ms = target ? Math.max(0, target - now) : 0;
 
+  // A round can be live without a configured deadline (submission_deadline
+  // defaults to null). Four zero tiles would read as a real "00:00:00:00"
+  // measurement, so this case gets its own branch instead of falling through
+  // to the countdown tiles.
+  const liveRoundNoDeadline = !!round && deadlineMs === null;
+
   const startMs = round?.start_time ? new Date(round.start_time).getTime() : null;
   const percent =
     startMs && deadlineMs && deadlineMs > startMs
@@ -69,20 +75,36 @@ export const CountdownCard = ({ round, nextRound, submission, C }) => {
               className="text-[11.5px] font-bold uppercase tracking-wider"
               style={{ color: deadlineMs ? C.amber : C.cyan }}
             >
-              {deadlineMs ? `Hạn nộp bài · ${round.name}` : nextRound ? `Vòng tiếp theo · ${nextRound.name}` : 'Chưa có vòng thi'}
+              {deadlineMs
+                ? `Hạn nộp bài · ${round?.name}`
+                : liveRoundNoDeadline
+                  ? `Vòng đang diễn ra · ${round?.name}`
+                  : nextRound
+                    ? `Vòng tiếp theo · ${nextRound.name}`
+                    : 'Chưa có vòng thi'}
             </span>
           </div>
-          <div className="flex gap-3">
-            <Tile value={pad2(Math.floor(ms / 86400000))} label="Ngày" C={C} />
-            <Tile value={pad2(Math.floor((ms % 86400000) / 3600000))} label="Giờ" C={C} />
-            <Tile value={pad2(Math.floor((ms % 3600000) / 60000))} label="Phút" C={C} />
-            <Tile value={pad2(Math.floor((ms % 60000) / 1000))} label="Giây" accent C={C} />
-          </div>
+          {!liveRoundNoDeadline && (
+            <div className="flex gap-3">
+              <Tile value={pad2(Math.floor(ms / 86400000))} label="Ngày" C={C} />
+              <Tile value={pad2(Math.floor((ms % 86400000) / 3600000))} label="Giờ" C={C} />
+              <Tile value={pad2(Math.floor((ms % 3600000) / 60000))} label="Phút" C={C} />
+              <Tile value={pad2(Math.floor((ms % 60000) / 1000))} label="Giây" accent C={C} />
+            </div>
+          )}
           <div className="mt-3 text-[12.5px]" style={{ color: C.muted }}>
-            {deadlineMs ? 'Hạn chót' : 'Bắt đầu lúc'}:{' '}
-            <span className="font-semibold" style={{ color: C.text2 }}>
-              {fmtTs(deadlineMs ?? nextStartMs)}
-            </span>
+            {liveRoundNoDeadline ? (
+              <span className="font-semibold" style={{ color: C.text2 }}>
+                Hạn nộp: chưa được công bố
+              </span>
+            ) : (
+              <>
+                {deadlineMs ? 'Hạn chót' : 'Bắt đầu lúc'}:{' '}
+                <span className="font-semibold" style={{ color: C.text2 }}>
+                  {fmtTs(deadlineMs ?? nextStartMs)}
+                </span>
+              </>
+            )}
             {round?.coding_duration_hours ? (
               <span style={{ color: C.dim }}> · Thời lượng code: {round.coding_duration_hours} giờ</span>
             ) : null}

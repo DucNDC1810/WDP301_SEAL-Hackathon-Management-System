@@ -7,8 +7,9 @@ const fmtTs = (value) => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())} · ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
 };
 
-export const ProblemCard = ({ round, driveLink, poolName, C }) => {
+export const ProblemCard = ({ round, driveLink, poolName, C, warnings = [] }) => {
   const released = !!round?.problem_released_at;
+  const poolUnavailable = warnings.includes('pool_unavailable');
 
   return (
     <Card size="small" style={{ background: C.card, borderColor: C.line, borderTop: `2px solid ${C.purple2}` }}>
@@ -44,7 +45,9 @@ export const ProblemCard = ({ round, driveLink, poolName, C }) => {
             </a>
           ) : (
             <div className="mt-3 text-xs italic" style={{ color: C.muted }}>
-              Đề đã phát — chờ ban tổ chức cập nhật link Drive
+              {poolUnavailable
+                ? 'Không tải được thông tin bảng đấu. Hãy thử làm mới.'
+                : 'Đề đã phát — chờ ban tổ chức cập nhật link Drive'}
             </div>
           )}
         </>

@@ -8,11 +8,10 @@ export const SEVERITY_ORDER = { critical: 3, warning: 2, info: 1, note: 0 };
 const ROUTES = {
   submit: '/dashboard/submit',
   team: '/dashboard/team',
-  profile: '/dashboard/profile',
 };
 
 export const buildTasks = (overview, now = Date.now()) => {
-  const { team, contest, round, submission, presentation, git } = overview ?? {};
+  const { team, contest, round, submission, presentation, git, warnings = [] } = overview ?? {};
   if (!round) return [];
 
   const tasks = [];
@@ -143,7 +142,7 @@ export const buildTasks = (overview, now = Date.now()) => {
     });
   }
 
-  if (round.problem_released_at && !team?.pool_drive_link) {
+  if (round.problem_released_at && !team?.pool_drive_link && !warnings.includes('pool_unavailable')) {
     tasks.push({
       id: 'problem-no-link',
       severity: 'note',

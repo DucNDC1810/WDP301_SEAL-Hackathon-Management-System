@@ -12,8 +12,9 @@ const DeltaChip = ({ delta, C }) => {
   );
 };
 
-export const RankCard = ({ ranking, round, poolName, C }) => {
+export const RankCard = ({ ranking, poolName, C, warnings = [] }) => {
   if (!ranking) {
+    const rankingsUnavailable = warnings.includes('rankings_unavailable');
     return (
       <Card size="small" style={{ background: C.card, borderColor: C.line, borderTop: `2px solid ${C.gold}` }}>
         <div className="mb-3 text-[11px] font-bold uppercase tracking-widest" style={{ color: C.dim }}>
@@ -23,7 +24,9 @@ export const RankCard = ({ ranking, round, poolName, C }) => {
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description={
             <span className="text-[13px]" style={{ color: C.dim }}>
-              Ban tổ chức chưa công bố xếp hạng vòng này
+              {rankingsUnavailable
+                ? 'Không tải được xếp hạng. Hãy thử làm mới.'
+                : 'Ban tổ chức chưa công bố xếp hạng vòng này'}
             </span>
           }
         />
@@ -31,7 +34,7 @@ export const RankCard = ({ ranking, round, poolName, C }) => {
     );
   }
 
-  const topN = round?.top_n_advance ?? null;
+  const topN = ranking?.effective_top_n ?? null;
   const safe = ranking.qualified === true;
 
   return (
@@ -51,8 +54,7 @@ export const RankCard = ({ ranking, round, poolName, C }) => {
       <div className="mt-3 text-[12.5px]" style={{ color: C.muted }}>
         {poolName ? (
           <>
-            trong <span className="font-semibold" style={{ color: C.text2 }}>{poolName}</span>
-            {ranking.pool_team_count ? ` (${ranking.pool_team_count} đội)` : ''} ·{' '}
+            trong <span className="font-semibold" style={{ color: C.text2 }}>{poolName}</span> ·{' '}
           </>
         ) : null}
         <span className="font-semibold" style={{ color: C.text2 }}>{ranking.final_score ?? '—'}</span> điểm

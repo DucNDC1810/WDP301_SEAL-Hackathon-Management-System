@@ -453,7 +453,7 @@ export const assertUserHasNoActiveTeam = async ({ userId, userEmail, excludeTeam
   const existingTeam = await Team.findOne(query).select("_id team_name").lean();
   if (existingTeam) {
     const err = new Error(
-      "Bạn đã thuộc một đội thi khác đang hoạt động. Hãy rời đội hiện tại trước khi tham gia đội mới."
+      `Bạn đã thuộc đội "${existingTeam.team_name}" đang hoạt động. Hãy rời đội hiện tại trước khi tham gia đội mới.`
     );
     err.statusCode = 409;
     throw err;

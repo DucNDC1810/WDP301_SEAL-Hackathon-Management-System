@@ -3,15 +3,22 @@ import { buildLeaderboardRows } from './poolLeaderboardRows.js';
 
 const RANK_COLOR = { 1: '#facc15', 2: '#94a3b8', 3: '#cd7f32' };
 
-export const PoolLeaderboardCard = ({ ranking, round, poolName, C }) => {
+export const PoolLeaderboardCard = ({ ranking, poolName, C, warnings = [] }) => {
   const title = `Bảng xếp hạng${poolName ? ` — ${poolName}` : ''}`;
 
   if (!ranking?.board?.length) {
+    const unavailable = warnings.includes('rankings_unavailable') || warnings.includes('pool_unavailable');
     return (
       <Card size="small" title={<span style={{ color: C.text2 }}>🏆 {title}</span>} style={{ background: C.card, borderColor: C.line }}>
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={<span style={{ color: C.dim }}>Ban tổ chức chưa công bố xếp hạng vòng này</span>}
+          description={
+            <span style={{ color: C.dim }}>
+              {unavailable
+                ? 'Không tải được bảng xếp hạng. Hãy thử làm mới.'
+                : 'Ban tổ chức chưa công bố xếp hạng vòng này'}
+            </span>
+          }
         />
       </Card>
     );
@@ -19,7 +26,7 @@ export const PoolLeaderboardCard = ({ ranking, round, poolName, C }) => {
 
   const rows = buildLeaderboardRows({
     board: ranking.board,
-    topN: round?.top_n_advance ?? null,
+    topN: ranking?.effective_top_n ?? null,
     poolTeamCount: ranking.pool_team_count,
   });
 

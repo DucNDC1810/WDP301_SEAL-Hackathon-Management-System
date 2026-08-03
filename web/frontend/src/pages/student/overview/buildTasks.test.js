@@ -42,6 +42,22 @@ describe('buildTasks', () => {
     expect(tasks.find((t) => t.id === 'submission-missing').severity).toBe('info');
   });
 
+  it('marks a missing submission as warning at exactly 6 hours remaining', () => {
+    const tasks = buildTasks(
+      { ...base, round: { ...base.round, submission_deadline: hoursFromNow(6) } },
+      NOW
+    );
+    expect(tasks.find((t) => t.id === 'submission-missing').severity).toBe('warning');
+  });
+
+  it('marks a missing submission as info at exactly 24 hours remaining', () => {
+    const tasks = buildTasks(
+      { ...base, round: { ...base.round, submission_deadline: hoursFromNow(24) } },
+      NOW
+    );
+    expect(tasks.find((t) => t.id === 'submission-missing').severity).toBe('info');
+  });
+
   it('reports overdue instead of missing once the deadline has passed', () => {
     const tasks = buildTasks(
       { ...base, round: { ...base.round, submission_deadline: hoursFromNow(-2) } },
@@ -75,7 +91,9 @@ describe('buildTasks', () => {
       { ...base, submission: { status: 'SUBMITTED', is_accessible: false } },
       NOW
     );
+    const task = tasks.find((t) => t.id === 'repo-private');
     expect(idsOf(tasks)).toContain('repo-private');
+    expect(task.severity).toBe('warning');
   });
 
   it('reports a late submission awaiting review', () => {
@@ -85,6 +103,7 @@ describe('buildTasks', () => {
     );
     const task = tasks.find((t) => t.id === 'submission-late-pending');
     expect(task.detail).toContain('12');
+    expect(task.severity).toBe('info');
   });
 
   it('reports missing members against contest.min_team_size', () => {
@@ -118,7 +137,9 @@ describe('buildTasks', () => {
       submission: { status: 'SUBMITTED', is_accessible: true },
       presentation: { booked: null, available_count: 4 },
     };
-    expect(idsOf(buildTasks(overview, NOW))).toContain('presentation-unbooked');
+    const tasks = buildTasks(overview, NOW);
+    expect(idsOf(tasks)).toContain('presentation-unbooked');
+    expect(tasks.find((t) => t.id === 'presentation-unbooked').severity).toBe('info');
   });
 
   it('escalates when no presentation slots are left', () => {
@@ -143,12 +164,16 @@ describe('buildTasks', () => {
 
   it('reports a penalty score', () => {
     const overview = { ...base, team: { ...base.team, penalty_score: 5 } };
-    expect(buildTasks(overview, NOW).find((t) => t.id === 'penalty').title).toContain('5');
+    const task = buildTasks(overview, NOW).find((t) => t.id === 'penalty');
+    expect(task.title).toContain('5');
+    expect(task.severity).toBe('warning');
   });
 
   it('reports a pending tiebreak', () => {
     const overview = { ...base, team: { ...base.team, tiebreak_status: 'PENDING' } };
-    expect(idsOf(buildTasks(overview, NOW))).toContain('tiebreak-pending');
+    const tasks = buildTasks(overview, NOW);
+    expect(idsOf(tasks)).toContain('tiebreak-pending');
+    expect(tasks.find((t) => t.id === 'tiebreak-pending').severity).toBe('note');
   });
 
   it('notes a released problem with no drive link yet', () => {
@@ -157,7 +182,9 @@ describe('buildTasks', () => {
       round: { ...base.round, problem_released_at: hoursFromNow(-4) },
       team: { ...base.team, pool_drive_link: null },
     };
-    expect(idsOf(buildTasks(overview, NOW))).toContain('problem-no-link');
+    const tasks = buildTasks(overview, NOW);
+    expect(idsOf(tasks)).toContain('problem-no-link');
+    expect(tasks.find((t) => t.id === 'problem-no-link').severity).toBe('note');
   });
 
   it('reports members with no git activity', () => {
@@ -166,7 +193,9 @@ describe('buildTasks', () => {
       submission: { status: 'SUBMITTED', is_accessible: true },
       git: { status: 'ok', members_with_activity: 3, members_total: 4 },
     };
-    expect(buildTasks(overview, NOW).find((t) => t.id === 'git-inactive').title).toContain('1');
+    const task = buildTasks(overview, NOW).find((t) => t.id === 'git-inactive');
+    expect(task.title).toContain('1');
+    expect(task.severity).toBe('info');
   });
 
   it('ignores git when its status is not ok', () => {
@@ -204,5 +233,26 @@ describe('buildTasks', () => {
     // critical: submission-missing (<6h) | warning: members-missing | info: members-unverified
     const severities = buildTasks(overview, NOW).map((t) => t.severity);
     expect(severities).toEqual(['critical', 'warning', 'info']);
+  });
+
+  it('preserves insertion order for same-severity tasks', () => {
+    // Three info-severity tasks: submission-missing, members-unverified, submission-late-pending
+    const overview = {
+      ...base,
+      round: { ...base.round, submission_deadline: hoursFromNow(48) },
+      submission: { status: 'LATE_PENDING', is_accessible: true, late_duration: 5 },
+      team: {
+        ...base.team,
+        members: [
+          { email: 'a@x.vn', profile_verify_status: 'approved' },
+          { email: 'b@x.vn', profile_verify_status: 'pending' },
+        ],
+      },
+    };
+    const tasks = buildTasks(overview, NOW);
+    const ids = idsOf(tasks);
+    // All three are info severity; rules fire in order: submission, team composition
+    // So order must be: submission-late-pending, members-unverified
+    expect(ids).toEqual(['submission-late-pending', 'members-unverified']);
   });
 });

@@ -9,6 +9,7 @@ import { sendMemberInviteEmail, sendTeamInvitationEmail } from "./emailService.j
 import { writeLog } from "./auditLog.js";
 import { sendNotification } from "./notification.js";
 import { triggerReRank } from "./roundService.js";
+import { ACTIVE_TEAM_STATUSES } from "../utils/overviewSelectors.js";
 
 const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
@@ -434,6 +435,32 @@ export const rejectTeam = async (teamId, reason) => {
 };
 
 /**
+ * Enforce the one-active-team-per-user rule.
+ * Both joinTeam() and acceptTeamInvitation() must call this so the two entry
+ * points can never drift apart.
+ */
+export const assertUserHasNoActiveTeam = async ({ userId, userEmail, excludeTeamId = null }) => {
+  const query = {
+    status: { $in: ACTIVE_TEAM_STATUSES },
+    $or: [
+      { leader_id: userId },
+      { "members.user_id": userId },
+      { "members.email": String(userEmail || "").toLowerCase() },
+    ],
+  };
+  if (excludeTeamId) query._id = { $ne: excludeTeamId };
+
+  const existingTeam = await Team.findOne(query).select("_id team_name").lean();
+  if (existingTeam) {
+    const err = new Error(
+      "Bạn đã thuộc một đội thi khác đang hoạt động. Hãy rời đội hiện tại trước khi tham gia đội mới."
+    );
+    err.statusCode = 409;
+    throw err;
+  }
+};
+
+/**
  * Tham gia đội bằng mã đội (team_code = team._id).
  * User đã xác thực nên email_verified = true ngay.
  */
@@ -469,21 +496,12 @@ export const joinTeam = async (teamCode, userId, userEmail) => {
     throw err;
   }
 
-  // Kiểm tra user chưa có đội thi đang hoạt động nào khác
-  const existingTeam = await Team.findOne({
-    _id: { $ne: team._id },
-    status: { $in: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED"] },
-    $or: [
-      { leader_id: userId },
-      { "members.user_id": userId },
-      { "members.email": userEmail.toLowerCase() },
-    ],
+  // One active team per user — shared guard, see assertUserHasNoActiveTeam.
+  await assertUserHasNoActiveTeam({
+    userId,
+    userEmail,
+    excludeTeamId: team._id,
   });
-  if (existingTeam) {
-    const err = new Error("Bạn đã thuộc một đội thi khác đang hoạt động");
-    err.statusCode = 409;
-    throw err;
-  }
 
   const joiner = await User.findById(userId);
 
@@ -1064,6 +1082,14 @@ export const acceptTeamInvitation = async (invitationId, userId) => {
     err.statusCode = 400;
     throw err;
   }
+
+  // Same rule as joinTeam: accepting an invitation must not put the user in a
+  // second active team.
+  await assertUserHasNoActiveTeam({
+    userId,
+    userEmail: inv.invitee_email,
+    excludeTeamId: inv.team_id,
+  });
 
   const team = await Team.findById(inv.team_id);
   if (!team) {

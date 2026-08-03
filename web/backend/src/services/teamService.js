@@ -44,17 +44,8 @@ export const createTeam = async (
     throw err;
   }
 
-  // Kiểm tra leader chưa có team đang hoạt động
-  const activeTeamQuery = {
-    leader_id: leader_id,
-    status: { $in: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED"] }
-  };
-  const existingActiveTeam = await Team.findOne(activeTeamQuery);
-  if (existingActiveTeam) {
-    const err = new Error("Bạn đã tham gia hoặc làm trưởng nhóm của một đội thi khác đang hoạt động");
-    err.statusCode = 400;
-    throw err;
-  }
+  // One active team per user — shared guard, see assertUserHasNoActiveTeam.
+  await assertUserHasNoActiveTeam({ userId: leader_id, userEmail: leader.email });
 
   if (contestId) {
     // 2. Kiểm tra leader chưa có team trong contest này
@@ -436,10 +427,15 @@ export const rejectTeam = async (teamId, reason) => {
 
 /**
  * Enforce the one-active-team-per-user rule.
- * Both joinTeam() and acceptTeamInvitation() must call this so the two entry
- * points can never drift apart.
+ * createTeam(), joinTeam(), acceptTeamInvitation(), and inviteMember() must
+ * all call this so the four entry points can never drift apart.
  */
-export const assertUserHasNoActiveTeam = async ({ userId, userEmail, excludeTeamId = null }) => {
+export const assertUserHasNoActiveTeam = async ({
+  userId,
+  userEmail,
+  excludeTeamId = null,
+  message = null,
+}) => {
   const query = {
     status: { $in: ACTIVE_TEAM_STATUSES },
     $or: [
@@ -453,7 +449,9 @@ export const assertUserHasNoActiveTeam = async ({ userId, userEmail, excludeTeam
   const existingTeam = await Team.findOne(query).select("_id team_name").lean();
   if (existingTeam) {
     const err = new Error(
-      `Bạn đã thuộc đội "${existingTeam.team_name}" đang hoạt động. Hãy rời đội hiện tại trước khi tham gia đội mới.`
+      message
+        ? message(existingTeam.team_name)
+        : `Bạn đã thuộc đội "${existingTeam.team_name}" đang hoạt động. Hãy rời đội hiện tại trước khi tham gia đội mới.`
     );
     err.statusCode = 409;
     throw err;
@@ -628,21 +626,15 @@ export const inviteMember = async (teamId, inviteeEmail, leaderId) => {
   }
 
   // 5. Check user không đang có đội thi đang hoạt động nào khác
-  const activeStatuses = ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED"];
-  const existingTeam = await Team.findOne({
-    _id: { $ne: teamId },
-    status: { $in: activeStatuses },
-    $or: [
-      { leader_id: inviteeUser._id },
-      { "members.user_id": inviteeUser._id },
-      { "members.email": email },
-    ],
+  // Guard checks the invitee, not the leader clicking — message must stay
+  // third-person or the leader will read it as their own conflict.
+  await assertUserHasNoActiveTeam({
+    userId: inviteeUser._id,
+    userEmail: email,
+    excludeTeamId: teamId,
+    message: (teamName) =>
+      `Người dùng này đã thuộc đội "${teamName}" đang hoạt động.`,
   });
-  if (existingTeam) {
-    const err = new Error("Người dùng này đã thuộc một đội thi khác đang hoạt động");
-    err.statusCode = 409;
-    throw err;
-  }
 
   // 6. Create TeamInvitation record (pending)
   await TeamInvitation.create({

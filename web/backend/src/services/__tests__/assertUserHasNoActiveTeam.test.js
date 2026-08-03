@@ -95,4 +95,44 @@ describe("assertUserHasNoActiveTeam", () => {
     const query = Team.findOne.mock.calls[0][0];
     expect(query.$or).toContainEqual({ "members.email": "abc@fpt.edu.vn" });
   });
+
+  it("uses the custom message function instead of the default when supplied, and still throws 409", async () => {
+    Team.findOne.mockReturnValue(
+      mockFindOneChain({ _id: "existing-team-id", team_name: "Team A" })
+    );
+
+    let caught;
+    try {
+      await assertUserHasNoActiveTeam({
+        userId: "user-1",
+        userEmail: "a@b.com",
+        message: (teamName) => `Người dùng này đã thuộc đội "${teamName}" đang hoạt động.`,
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeDefined();
+    expect(caught.statusCode).toBe(409);
+    expect(caught.message).toBe('Người dùng này đã thuộc đội "Team A" đang hoạt động.');
+  });
+
+  it("keeps the default second-person message with the team name when no message is supplied", async () => {
+    Team.findOne.mockReturnValue(
+      mockFindOneChain({ _id: "existing-team-id", team_name: "Team B" })
+    );
+
+    let caught;
+    try {
+      await assertUserHasNoActiveTeam({ userId: "user-1", userEmail: "a@b.com" });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeDefined();
+    expect(caught.statusCode).toBe(409);
+    expect(caught.message).toBe(
+      'Bạn đã thuộc đội "Team B" đang hoạt động. Hãy rời đội hiện tại trước khi tham gia đội mới.'
+    );
+  });
 });

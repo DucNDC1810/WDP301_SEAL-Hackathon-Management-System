@@ -171,7 +171,7 @@ export const StudentInvitesPage = () => {
           }}>
             <IconInfo />
             <span style={{ fontSize: 12.5, color: '#9fb2cc', lineHeight: 1.55 }}>
-              Chấp nhận một lời mời khác sẽ khiến bạn rời khỏi đội hiện tại.
+              Bạn đang thuộc một đội. Hãy rời đội hiện tại trước khi chấp nhận lời mời khác.
             </span>
           </div>
         )}
@@ -304,17 +304,18 @@ export const StudentInvitesPage = () => {
 
                     {/* Accept */}
                     <button
-                      disabled={isBusy}
+                      disabled={isBusy || hasTeam}
+                      title={hasTeam ? 'Bạn phải rời đội hiện tại trước' : undefined}
                       onClick={() => handleAccept(inv)}
                       style={{
                         padding: '9px 18px', borderRadius: 9,
                         border: 'none',
-                        background: isBusy ? 'rgba(0,212,255,.4)' : 'linear-gradient(135deg,#00d4ff,#0099cc)',
+                        background: isBusy || hasTeam ? 'rgba(0,212,255,.4)' : 'linear-gradient(135deg,#00d4ff,#0099cc)',
                         color: '#070b14',
-                        fontSize: 13, fontWeight: 700, cursor: isBusy ? 'not-allowed' : 'pointer',
+                        fontSize: 13, fontWeight: 700, cursor: isBusy || hasTeam ? 'not-allowed' : 'pointer',
                         display: 'flex', alignItems: 'center', gap: 6,
                         transition: 'opacity .15s',
-                        opacity: isBusy ? 0.7 : 1,
+                        opacity: isBusy || hasTeam ? 0.6 : 1,
                       }}
                     >
                       {isAccepting ? (

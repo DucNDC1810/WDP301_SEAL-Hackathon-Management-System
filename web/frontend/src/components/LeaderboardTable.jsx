@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import TeamDetailModal from './TeamDetailModal';
 
 const styles = `
   .podium-wrapper {
@@ -166,6 +167,14 @@ const styles = `
 `;
 
 export default function LeaderboardTable({ groupName, teams }) {
+  const [selectedTeamId, setSelectedTeamId] = useState(null);
+
+  // Một số bản ghi xếp hạng cũ/seed có thể thiếu team_id (dữ liệu hỏng) —
+  // tránh mở modal rỗng khi bấm vào, chỉ cho click nếu có team_id hợp lệ.
+  const handleTeamClick = (team) => {
+    if (team?.team_id) setSelectedTeamId(team.team_id);
+  };
+
   const getRankClassAndStyle = (rank) => {
     return {
       style: {
@@ -221,7 +230,7 @@ export default function LeaderboardTable({ groupName, teams }) {
           <div className="podium-wrapper">
             {/* Rank 2 (Silver) */}
             {team2 ? (
-              <div className="podium-item silver">
+              <div className="podium-item silver" onClick={() => handleTeamClick(team2)} style={{ cursor: team2.team_id ? 'pointer' : 'default' }}>
                 <span className="podium-crown">🥈</span>
                 <div className="podium-avatar">🥈</div>
                 <div className="podium-team-name" title={team2.team_name}>{team2.team_name}</div>
@@ -238,7 +247,7 @@ export default function LeaderboardTable({ groupName, teams }) {
 
             {/* Rank 1 (Gold) */}
             {team1 ? (
-              <div className="podium-item gold">
+              <div className="podium-item gold" onClick={() => handleTeamClick(team1)} style={{ cursor: team1.team_id ? 'pointer' : 'default' }}>
                 <span className="podium-crown" style={{ top: '-28px', fontSize: '2.2rem' }}>👑</span>
                 <div className="podium-avatar">🥇</div>
                 <div className="podium-team-name" title={team1.team_name}>{team1.team_name}</div>
@@ -255,7 +264,7 @@ export default function LeaderboardTable({ groupName, teams }) {
 
             {/* Rank 3 (Bronze) */}
             {team3 ? (
-              <div className="podium-item bronze">
+              <div className="podium-item bronze" onClick={() => handleTeamClick(team3)} style={{ cursor: team3.team_id ? 'pointer' : 'default' }}>
                 <span className="podium-crown">🥉</span>
                 <div className="podium-avatar">🥉</div>
                 <div className="podium-team-name" title={team3.team_name}>{team3.team_name}</div>
@@ -292,8 +301,10 @@ export default function LeaderboardTable({ groupName, teams }) {
                     const { style, badge } = getRankClassAndStyle(team.rank);
                     return (
                       <tr
-                        key={team.team_id}
+                        key={team.team_id || `${team.team_name}-${idx}`}
+                        onClick={() => handleTeamClick(team)}
                         style={{
+                          cursor: team.team_id ? "pointer" : "default",
                           transition: "transform var(--transition-fast), box-shadow var(--transition-fast)",
                           ...style
                         }}
@@ -374,6 +385,10 @@ export default function LeaderboardTable({ groupName, teams }) {
         }}>
           Chưa có xếp hạng cho bảng đấu này.
         </div>
+      )}
+
+      {selectedTeamId && (
+        <TeamDetailModal teamId={selectedTeamId} onClose={() => setSelectedTeamId(null)} />
       )}
     </div>
   );

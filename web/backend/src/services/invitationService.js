@@ -59,7 +59,11 @@ export const sendInvitation = async (contestId, email, invitedBy) => {
       existing.status = "pending";
       await existing.save();
 
-      sendInvitationEmail(emailLower, contest.title, rawToken).catch((err) =>
+      sendInvitationEmail(emailLower, contest.title, rawToken, {
+        kickoffDate: contest.kickoff_date,
+        startDate: contest.start_date,
+        endDate: contest.end_date,
+      }).catch((err) =>
         console.error("[sendInvitationEmail resend]", err)
       );
       return existing;
@@ -82,7 +86,11 @@ export const sendInvitation = async (contestId, email, invitedBy) => {
 
   await invitation.save();
 
-  sendInvitationEmail(emailLower, contest.title, rawToken).catch((err) =>
+  sendInvitationEmail(emailLower, contest.title, rawToken, {
+    kickoffDate: contest.kickoff_date,
+    startDate: contest.start_date,
+    endDate: contest.end_date,
+  }).catch((err) =>
     console.error("[sendInvitationEmail]", err)
   );
 

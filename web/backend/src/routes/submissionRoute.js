@@ -4,6 +4,7 @@ import {
   handleSubmit,
   handleListSubmissions,
   handleReviewSubmission,
+  handleGetCommitCount,
 } from "../controllers/submissionController.js";
 
 const router = Router();
@@ -16,5 +17,8 @@ router.get("/", authenticate, handleListSubmissions);
 
 // PATCH /api/submissions/:id/review - Duyệt bài nộp muộn (COORDINATOR/admin only)
 router.patch("/:id/review", authenticate, requireRole("admin"), handleReviewSubmission);
+
+// GET /api/submissions/:id/commit-count - Đếm số commit của repo GitHub (admin only)
+router.get("/:id/commit-count", authenticate, requireRole("admin"), handleGetCommitCount);
 
 export default router;

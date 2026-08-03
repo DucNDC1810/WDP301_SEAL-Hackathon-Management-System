@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Select, Button, Tag, Modal, Input, Alert, message, Spin } from 'antd';
+import { Select, Button, Tag, Modal, Input, Alert, message, Spin, Popover } from 'antd';
 import { useApi } from '../../../../hooks/useApi';
 import RefreshButton from '../../../../components/RefreshButton';
 
@@ -57,6 +57,21 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
   const [selected, setSelected] = useState(null);
   const [reason, setReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [commitData, setCommitData] = useState({}); // { [submissionId]: { loading, count, contributors, error } }
+
+  const fetchCommitCount = useCallback(async (submissionId) => {
+    setCommitData(prev => ({ ...prev, [submissionId]: { loading: true } }));
+    try {
+      const res = await request(`/api/submissions/${submissionId}/commit-count`);
+      const data = res?.data ?? res;
+      setCommitData(prev => ({
+        ...prev,
+        [submissionId]: { loading: false, count: data.commit_count, contributors: data.contributors || [] },
+      }));
+    } catch (e) {
+      setCommitData(prev => ({ ...prev, [submissionId]: { loading: false, error: e.message || 'Không thể lấy số commit' } }));
+    }
+  }, [request]);
 
   const fetchSubmissions = useCallback(async (rid) => {
     if (!rid) return;
@@ -254,6 +269,82 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
                       >
                         📁 Repository
                       </a>
+                    )}
+                    {sub.repoUrl && sub.repoUrl.toLowerCase().includes('github.com') && (
+                      (() => {
+                        const cd = commitData[sub.id];
+                        if (cd?.loading) {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border"
+                              style={{ color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+                              ⏳ Đang tải...
+                            </span>
+                          );
+                        }
+                        if (cd?.error) {
+                          return (
+                            <button onClick={() => fetchCommitCount(sub.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border cursor-pointer"
+                              style={{ color: '#ff4d4f', borderColor: 'rgba(255,77,79,0.3)', background: 'rgba(255,77,79,0.05)' }}
+                              title={cd.error}>
+                              ⚠ Lỗi — thử lại
+                            </button>
+                          );
+                        }
+                        if (cd?.count != null) {
+                          const contributors = cd.contributors || [];
+                          const badge = (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border"
+                              style={{
+                                color: '#52c41a', borderColor: 'rgba(82,196,26,0.3)', background: 'rgba(82,196,26,0.05)',
+                                cursor: contributors.length > 0 ? 'pointer' : 'default',
+                              }}>
+                              🔀 {cd.count} commit{cd.count === 1 ? '' : 's'}
+                              {contributors.length > 0 && ` · ${contributors.length} người`}
+                            </span>
+                          );
+                          if (contributors.length === 0) return badge;
+                          return (
+                            <Popover
+                              key={`${sub.id}-contributors`}
+                              trigger="click"
+                              title="Commit theo thành viên"
+                              content={
+                                <div style={{ minWidth: 220 }}>
+                                  {contributors.map((c, i) => (
+                                    <div key={c.username || i} className="flex items-center justify-between gap-3"
+                                      style={{ padding: '4px 0', fontSize: '0.8rem' }}>
+                                      <span className="flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                        {c.avatar_url && (
+                                          <img src={c.avatar_url} alt={c.username} width={20} height={20}
+                                            style={{ borderRadius: '50%' }} />
+                                        )}
+                                        {c.profile_url ? (
+                                          <a href={c.profile_url} target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>
+                                            {c.username}
+                                          </a>
+                                        ) : c.username}
+                                      </span>
+                                      <span style={{ fontWeight: 600, color: '#52c41a' }}>{c.commit_count}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              }
+                            >
+                              {badge}
+                            </Popover>
+                          );
+                        }
+                        return (
+                          <button onClick={() => fetchCommitCount(sub.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border cursor-pointer"
+                            style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'transparent' }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+                            🔀 Xem số commit
+                          </button>
+                        );
+                      })()
                     )}
                     {sub.slideUrl && (
                       <a href={sub.slideUrl} target="_blank" rel="noreferrer"

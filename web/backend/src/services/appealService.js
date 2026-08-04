@@ -1,4 +1,18 @@
 import Appeal from "../models/Appeal.js";
+import Team from "../models/Team.js";
+
+// Resolve the caller's own team within a contest server-side, mirroring the
+// pattern used by getMyTeamResults in scoreService.js — never trust a
+// client-supplied team_id. Returns null (not a throw) when the user has no
+// team, so callers can decide per-endpoint whether that's an error or an
+// empty result.
+const resolveTeamId = async (contestId, userId) => {
+  const team = await Team.findOne({
+    contest_id: contestId,
+    $or: [{ leader_id: userId }, { "members.user_id": userId }],
+  }).select("_id").lean();
+  return team ? team._id : null;
+};
 
 const mockClassifyAppeal = (content) => {
   const keywords = ["sai", "lỗi", "nhầm", "không đúng", "thiếu"];
@@ -11,7 +25,12 @@ const mockClassifyAppeal = (content) => {
   };
 };
 
-export const createAppeal = async ({ team_id, contest_id, round_id, content }) => {
+export const createAppeal = async ({ contest_id, round_id, content, userId }) => {
+  const team_id = await resolveTeamId(contest_id, userId);
+  if (!team_id) {
+    const err = new Error("Bạn chưa có đội thi trong cuộc thi này"); err.statusCode = 404; throw err;
+  }
+
   const existing = await Appeal.findOne({
     team_id, contest_id, round_id,
     status: { $in: ["pending", "reviewing"] },
@@ -33,8 +52,11 @@ export const getAppealsByContest = async (contestId) => {
     .populate("resolved_by", "full_name email");
 };
 
-export const getMyAppeals = async (teamId, contestId) => {
-  return Appeal.find({ team_id: teamId, contest_id: contestId }).sort({ created_at: -1 });
+export const getMyAppeals = async (contestId, userId) => {
+  const team_id = await resolveTeamId(contestId, userId);
+  // No team in this contest is a legitimate "no appeals" answer, not an error.
+  if (!team_id) return [];
+  return Appeal.find({ team_id, contest_id: contestId }).sort({ created_at: -1 });
 };
 
 export const resolveAppeal = async (appealId, resolution, resolvedBy) => {

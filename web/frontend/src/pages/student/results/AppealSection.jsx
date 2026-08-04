@@ -25,10 +25,10 @@ export const AppealSection = ({ contestId, roundId, roundName, teamId, C }) => {
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
 
-  // GET /api/appeals/contests/:contestId/my requires team_id as a query param
-  // (backend filters by team_id + contestId) — omitting it would return every
-  // team's appeals for the contest, not just this team's.
-  const myAppealsUrl = `/api/appeals/contests/${contestId}/my?team_id=${teamId}`;
+  // GET /api/appeals/contests/:contestId/my resolves the caller's team
+  // server-side from the authenticated user — no team_id query param needed
+  // (and the backend ignores one if sent).
+  const myAppealsUrl = `/api/appeals/contests/${contestId}/my`;
 
   useEffect(() => {
     if (!contestId || !teamId) return;

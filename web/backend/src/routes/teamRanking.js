@@ -91,6 +91,47 @@ router.get("/contests", async (req, res, next) => {
   }
 });
 
+// GET /api/ranking/teams/:team_id/detail
+// Chi tiết 1 team để hiển thị khi click từ bảng xếp hạng (public, không cần login).
+// Chỉ trả các field an toàn để hiển thị công khai — không trả email/liên hệ.
+router.get("/teams/:team_id/detail", async (req, res, next) => {
+  try {
+    const { team_id } = req.params;
+
+    const team = await Team.findById(team_id)
+      .populate("leader_id", "full_name avatar_url")
+      .populate("members.user_id", "full_name avatar_url")
+      .populate("topic_id", "title description difficulty")
+      .lean();
+
+    if (!team) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đội thi" });
+    }
+
+    const members = (team.members || []).map((m) => ({
+      full_name: m.user_id?.full_name || m.full_name || "—",
+      avatar_url: m.user_id?.avatar_url || null,
+      role: m.role || "member",
+      contribution_percentage: m.contribution_percentage ?? null,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        team_id: team._id,
+        team_name: team.team_name,
+        status: team.status,
+        assigned_group: team.assigned_group || "",
+        topic: team.topic_id ? { title: team.topic_id.title, description: team.topic_id.description, difficulty: team.topic_id.difficulty } : null,
+        leader: team.leader_id ? { full_name: team.leader_id.full_name, avatar_url: team.leader_id.avatar_url || null } : null,
+        members,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/ranking/:round_id/teams
 // Trả bảng xếp hạng team theo round. Chỉ hiển thị khi scoring_locked = true.
 router.get("/:round_id/teams", async (req, res, next) => {

@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTeamRanking } from '../../api/ranking';
 import RefreshButton from '../../components/RefreshButton';
+import TeamDetailModal from '../../components/TeamDetailModal';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -19,6 +20,11 @@ export default function TeamRankingPage() {
   const [loading, setLoading] = useState(true);
   const [unpublished, setUnpublished] = useState(false);
   const [error, setError] = useState(null);
+
+  const [sortKey, setSortKey] = useState('rank');
+  const [sortDir, setSortDir] = useState('asc');
+
+  const [selectedTeamId, setSelectedTeamId] = useState(null);
 
   const fetchData = useCallback((mountedRef) => {
     setLoading(true);
@@ -48,6 +54,36 @@ export default function TeamRankingPage() {
     fetchData(mountedRef);
     return () => { mountedRef.current = false; };
   }, [fetchData]);
+
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'weighted_avg_score' || key === 'rank' ? 'asc' : 'asc');
+    }
+  };
+
+  const openTeamDetail = (teamId) => {
+    // Một số bản ghi xếp hạng cũ/seed có thể thiếu team_id — không mở modal rỗng.
+    if (teamId) setSelectedTeamId(teamId);
+  };
+  const closeTeamDetail = () => setSelectedTeamId(null);
+
+  const sortedTeams = useMemo(() => {
+    const teams = data?.teams || [];
+    const dirMul = sortDir === 'asc' ? 1 : -1;
+    return [...teams].sort((a, b) => {
+      let av = a[sortKey];
+      let bv = b[sortKey];
+      if (sortKey === 'team_name' || sortKey === 'chapter') {
+        av = (av || '').toString().toLowerCase();
+        bv = (bv || '').toString().toLowerCase();
+        return av < bv ? -1 * dirMul : av > bv ? 1 * dirMul : 0;
+      }
+      return ((av ?? 0) - (bv ?? 0)) * dirMul;
+    });
+  }, [data, sortKey, sortDir]);
 
   if (loading) {
     return (
@@ -97,7 +133,9 @@ export default function TeamRankingPage() {
     );
   }
 
-  const teams = data?.teams || [];
+  const teams = sortedTeams;
+
+  const sortArrow = (key) => (sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
 
   return (
     <div style={styles.page}>
@@ -151,8 +189,20 @@ export default function TeamRankingPage() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  {['Hạng', 'Tên đội', 'Chapter', 'Điểm TB'].map((h) => (
-                    <th key={h} style={styles.th}>{h}</th>
+                  {[
+                    { key: 'rank', label: 'Hạng' },
+                    { key: 'team_name', label: 'Tên đội' },
+                    { key: 'chapter', label: 'Chapter' },
+                    { key: 'weighted_avg_score', label: 'Điểm TB' },
+                  ].map((h) => (
+                    <th
+                      key={h.key}
+                      style={{ ...styles.th, cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleSort(h.key)}
+                      title="Bấm để sắp xếp"
+                    >
+                      {h.label}{sortArrow(h.key)}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -162,11 +212,13 @@ export default function TeamRankingPage() {
                   const color = MEDAL_COLOR[team.rank];
                   return (
                     <tr
-                      key={team.team_id}
+                      key={team.team_id || team.rank}
+                      onClick={() => openTeamDetail(team.team_id)}
                       style={{
                         background: color ? color.bg : 'transparent',
                         borderBottom: '1px solid rgba(0,240,255,0.07)',
                         transition: 'background 0.2s',
+                        cursor: team.team_id ? 'pointer' : 'default',
                       }}
                     >
                       <td style={{ ...styles.td, width: '80px', textAlign: 'center' }}>
@@ -212,6 +264,10 @@ export default function TeamRankingPage() {
           * Kết quả kỳ này — không cộng dồn từ các kỳ trước
         </p>
       </div>
+
+      {selectedTeamId && (
+        <TeamDetailModal teamId={selectedTeamId} onClose={closeTeamDetail} />
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Select, Button, Tag, Modal, Input, Alert, message, Spin } from 'antd';
+import { Select, Button, Tag, Modal, Input, Alert, message, Spin, Popover } from 'antd';
 import { useApi } from '../../../../hooks/useApi';
 import RefreshButton from '../../../../components/RefreshButton';
 
@@ -57,6 +57,35 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
   const [selected, setSelected] = useState(null);
   const [reason, setReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [commitData, setCommitData] = useState({}); // { [submissionId]: { loading, count, contributors, error } }
+  const [commitListModal, setCommitListModal] = useState(null); // { submissionId, teamName } | null
+  const [commitList, setCommitList] = useState({ loading: false, commits: [], error: null });
+
+  const fetchCommitCount = useCallback(async (submissionId) => {
+    setCommitData(prev => ({ ...prev, [submissionId]: { loading: true } }));
+    try {
+      const res = await request(`/api/submissions/${submissionId}/commit-count`);
+      const data = res?.data ?? res;
+      setCommitData(prev => ({
+        ...prev,
+        [submissionId]: { loading: false, count: data.commit_count, contributors: data.contributors || [] },
+      }));
+    } catch (e) {
+      setCommitData(prev => ({ ...prev, [submissionId]: { loading: false, error: e.message || 'Không thể lấy số commit' } }));
+    }
+  }, [request]);
+
+  const openCommitList = useCallback(async (submissionId, teamName) => {
+    setCommitListModal({ submissionId, teamName });
+    setCommitList({ loading: true, commits: [], error: null });
+    try {
+      const res = await request(`/api/submissions/${submissionId}/commits`);
+      const data = res?.data ?? res;
+      setCommitList({ loading: false, commits: data.commits || [], error: null });
+    } catch (e) {
+      setCommitList({ loading: false, commits: [], error: e.message || 'Không thể tải danh sách commit' });
+    }
+  }, [request]);
 
   const fetchSubmissions = useCallback(async (rid) => {
     if (!rid) return;
@@ -255,6 +284,87 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
                         📁 Repository
                       </a>
                     )}
+                    {sub.repoUrl && sub.repoUrl.toLowerCase().includes('github.com') && (
+                      (() => {
+                        const cd = commitData[sub.id];
+                        if (cd?.loading) {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border"
+                              style={{ color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+                              ⏳ Đang tải...
+                            </span>
+                          );
+                        }
+                        if (cd?.error) {
+                          return (
+                            <button onClick={() => fetchCommitCount(sub.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border cursor-pointer"
+                              style={{ color: '#ff4d4f', borderColor: 'rgba(255,77,79,0.3)', background: 'rgba(255,77,79,0.05)' }}
+                              title={cd.error}>
+                              ⚠ Lỗi — thử lại
+                            </button>
+                          );
+                        }
+                        if (cd?.count != null) {
+                          const contributors = cd.contributors || [];
+                          const badge = (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border"
+                              style={{
+                                color: '#52c41a', borderColor: 'rgba(82,196,26,0.3)', background: 'rgba(82,196,26,0.05)',
+                                cursor: contributors.length > 0 ? 'pointer' : 'default',
+                              }}>
+                              🔀 {cd.count} commit{cd.count === 1 ? '' : 's'}
+                              {contributors.length > 0 && ` · ${contributors.length} người`}
+                            </span>
+                          );
+                          if (contributors.length === 0) return badge;
+                          return (
+                            <Popover
+                              key={`${sub.id}-contributors`}
+                              trigger="click"
+                              title="Commit theo thành viên"
+                              content={
+                                <div style={{ minWidth: 220 }}>
+                                  {contributors.map((c, i) => (
+                                    <div key={c.username || i} className="flex items-center justify-between gap-3"
+                                      style={{ padding: '4px 0', fontSize: '0.8rem' }}>
+                                      <span className="flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                        {c.avatar_url && (
+                                          <img src={c.avatar_url} alt={c.username} width={20} height={20}
+                                            style={{ borderRadius: '50%' }} />
+                                        )}
+                                        {c.profile_url ? (
+                                          <a href={c.profile_url} target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>
+                                            {c.username}
+                                          </a>
+                                        ) : c.username}
+                                      </span>
+                                      <span style={{ fontWeight: 600, color: '#52c41a' }}>{c.commit_count}</span>
+                                    </div>
+                                  ))}
+                                  <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 8, textAlign: 'center' }}>
+                                    <a onClick={() => openCommitList(sub.id, sub.teamName)} style={{ color: 'var(--cyan)', cursor: 'pointer', fontSize: '0.78rem' }}>
+                                      📜 Xem chi tiết lịch sử commit
+                                    </a>
+                                  </div>
+                                </div>
+                              }
+                            >
+                              {badge}
+                            </Popover>
+                          );
+                        }
+                        return (
+                          <button onClick={() => fetchCommitCount(sub.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border cursor-pointer"
+                            style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'transparent' }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+                            🔀 Xem số commit
+                          </button>
+                        );
+                      })()
+                    )}
                     {sub.slideUrl && (
                       <a href={sub.slideUrl} target="_blank" rel="noreferrer"
                         className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150"
@@ -402,6 +512,57 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
                 ✗ Từ chối
               </Button>
             </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Commit History Modal */}
+      <Modal
+        title={`Lịch sử commit: ${commitListModal?.teamName || ''}`}
+        open={!!commitListModal}
+        onCancel={() => setCommitListModal(null)}
+        footer={null}
+        width={620}
+      >
+        {commitList.loading && <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>}
+
+        {!commitList.loading && commitList.error && (
+          <Alert type="error" showIcon message={commitList.error} />
+        )}
+
+        {!commitList.loading && !commitList.error && commitList.commits.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
+            Chưa có commit nào trong repo này.
+          </div>
+        )}
+
+        {!commitList.loading && !commitList.error && commitList.commits.length > 0 && (
+          <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+            {commitList.commits.map((c, idx) => (
+              <div key={c.sha || idx} className="flex items-start gap-3"
+                style={{ padding: '10px 0', borderBottom: idx < commitList.commits.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                {c.author_avatar ? (
+                  <img src={c.author_avatar} alt={c.author_name} width={28} height={28} style={{ borderRadius: '50%', flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--border)', flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+                    {c.url ? (
+                      <a href={c.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-primary)' }}>{c.message}</a>
+                    ) : c.message}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    <span style={{ fontFamily: 'monospace' }}>{c.sha}</span>
+                    {' · '}
+                    {c.author_username ? (
+                      <span style={{ color: 'var(--cyan)' }}>@{c.author_username}</span>
+                    ) : c.author_name}
+                    {c.committed_at && ` · ${new Date(c.committed_at).toLocaleString('vi-VN')}`}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Modal>

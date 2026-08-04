@@ -54,6 +54,41 @@ export default function ResultsPage() {
 
   const [loadingList, setLoadingList] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (!contestId || !selectedRoundId) return;
+    setExporting(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(
+        `${API_URL}/api/contests/${contestId}/rounds/${selectedRoundId}/export-excel`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Không thể xuất file Excel');
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const fileName = match ? match[1] : 'KetQua.xlsx';
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Export Excel error:', e);
+      alert(e.message || 'Xuất file Excel thất bại.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // 1. Tải danh sách cuộc thi
   useEffect(() => {
@@ -158,7 +193,8 @@ export default function ResultsPage() {
 
         leaderboard = allRankings.map((r, i) => ({
           rank: r.rank_position || (i + 1),
-          name: r.team_name,
+          teamId: (r.team_id?._id || r.team_id)?.toString(),
+          name: r.team_name || r.team_id?.team_name,
           score: r.final_score || 0,
           category: r.category || 'General',
           poolName: r.board_id ? r.board_id.pool_name : null,
@@ -279,11 +315,31 @@ export default function ResultsPage() {
           <h1 className="results-title">Kết Quả & Thống Kê</h1>
           <p className="results-subtitle">SEAL Hackathon - Bảng Xếp Hạng Vòng Đấu & Số Liệu Phân Tích</p>
         </div>
-        <RefreshButton
-          onRefresh={async () => {
-            if (contestId && selectedRoundId) await fetchResultsData(contestId, selectedRoundId);
-          }}
-        />
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            onClick={handleExportExcel}
+            disabled={exporting || !contestId || !selectedRoundId}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'rgba(16, 185, 129, 0.12)',
+              color: '#10b981',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              borderRadius: 8,
+              padding: '8px 16px',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: exporting ? 'not-allowed' : 'pointer',
+              opacity: exporting ? 0.6 : 1,
+            }}
+          >
+            📊 {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+          </button>
+          <RefreshButton
+            onRefresh={async () => {
+              if (contestId && selectedRoundId) await fetchResultsData(contestId, selectedRoundId);
+            }}
+          />
+        </div>
       </div>
 
         {/* Dropdown selectors */}
@@ -368,7 +424,7 @@ export default function ResultsPage() {
 
               if (isFinal) {
                 const formattedTeams = data.leaderboard.map(t => ({
-                  team_id: t.name,
+                  team_id: t.teamId,
                   team_name: t.name,
                   weighted_avg_score: t.score,
                   rank: t.rank
@@ -389,7 +445,7 @@ export default function ResultsPage() {
               const currentPool = activePoolTab || pools[0] || "Chưa phân bảng";
               const teamsInPool = grouped[currentPool] || [];
               const sortedTeams = [...teamsInPool].sort((a, b) => b.score - a.score).map((t, idx) => ({
-                team_id: t.name,
+                team_id: t.teamId,
                 team_name: t.name,
                 weighted_avg_score: t.score,
                 rank: idx + 1

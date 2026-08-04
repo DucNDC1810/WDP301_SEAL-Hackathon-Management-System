@@ -144,7 +144,13 @@ export const assignJudge = async ({
       assigned_by,
     });
 
-    sendJudgeInvitationEmail(email, contest.title, rawToken).catch(e =>
+    sendJudgeInvitationEmail(email, contest.title, rawToken, {
+      kickoffDate: contest.kickoff_date,
+      startDate: contest.start_date,
+      endDate: contest.end_date,
+      roundName: round.name,
+      roundStart: round.start_time,
+    }).catch(e =>
       console.error("[sendJudgeInvitationEmail]", e)
     );
 

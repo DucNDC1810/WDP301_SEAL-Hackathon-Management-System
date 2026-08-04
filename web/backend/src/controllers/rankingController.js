@@ -3,6 +3,7 @@ import {
   getRankings,
   getLeaderboard,
 } from "../services/rankingService.js";
+import { buildRoundResultsWorkbook } from "../services/exportService.js";
 
 export const recalculate = async (req, res, next) => {
   try {
@@ -26,5 +27,17 @@ export const leaderboard = async (req, res, next) => {
     const { contestId, roundId } = req.params;
     const data = await getLeaderboard(contestId, roundId);
     res.json(data);
+  } catch (e) { next(e); }
+};
+
+export const exportExcel = async (req, res, next) => {
+  try {
+    const { contestId, roundId } = req.params;
+    const { workbook, fileName } = await buildRoundResultsWorkbook(contestId, roundId);
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (e) { next(e); }
 };

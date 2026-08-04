@@ -5,6 +5,7 @@ import "../student.css";
 import RefreshButton from "../../../components/RefreshButton";
 import { useTheme } from "../../../context/ThemeContext";
 import { getStudentColors } from "../studentColors";
+import { CriteriaRadarChart } from "../overview/cards/CriteriaRadarChart.jsx";
 
 const CriteriaRow = ({ c, C }) => {
   const pct = c.max_score ? Math.round((c.avg_score / c.max_score) * 100) : 0;
@@ -118,9 +119,16 @@ const RoundCard = ({ r, C, cardStyle, RANK_COLOR }) => {
         <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: ".6px", color: C.muted, textTransform: "uppercase", marginBottom: 12 }}>
           Điểm theo tiêu chí (trung bình các giám khảo)
         </div>
-        {(r.criteria ?? []).map((c) => (
-          <CriteriaRow key={c.criteria_name} c={c} C={C} />
-        ))}
+        <div style={{ display: 'grid', gridTemplateColumns: (r.criteria ?? []).length >= 3 ? '1fr 1fr' : '1fr', gap: 20, alignItems: 'start' }}>
+          <div>
+            {(r.criteria ?? []).map((c) => (
+              <CriteriaRow key={c.criteria_name} c={c} C={C} />
+            ))}
+          </div>
+          {(r.criteria ?? []).length >= 3 && (
+            <CriteriaRadarChart scoreHistory={[r]} C={C} />
+          )}
+        </div>
       </div>
     </div>
   );

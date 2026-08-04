@@ -115,6 +115,15 @@ export const StudentConnectPage = () => {
                           <span className="sp-text">{conv.mentorEmail}</span>
                         </div>
                       )}
+
+                      {conv.mentorPhone && (
+                        <div className="sp-flex sp-gap-2">
+                          <span className="sp-muted">
+                            <Ico d={PHONE} />
+                          </span>
+                          <span className="sp-text">{conv.mentorPhone}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

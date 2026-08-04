@@ -105,7 +105,7 @@ export const markMessagesRead = async ({ contestId, roundId, teamId, mentorId, u
 export const getTeamMentors = async (teamId, userId) => {
   const assignments = await MentorAssignment.find({ team_id: teamId, status: "accepted" })
     .populate("contest_id", "title status rounds")
-    .populate("mentor_id", "full_name email avatar_url");
+    .populate("mentor_id", "full_name email avatar_url phone");
 
   const result = await Promise.all(
     assignments.map(async (a) => {
@@ -146,6 +146,7 @@ export const getTeamMentors = async (teamId, userId) => {
         mentorId: a.mentor_id._id,
         mentorName: a.mentor_id.full_name,
         mentorEmail: a.mentor_id.email,
+        mentorPhone: a.mentor_id.phone || null,
         mentorAvatar: a.mentor_id.avatar_url,
         chatOpen,
         lastMessage: lastMsg || null,

@@ -932,7 +932,7 @@ export const StudentSubmitPage = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '8px 0' }}>
             <div style={{ fontSize: 13, color: C.muted }}>
               Bạn sẽ đặt slot trình bày sau.{' '}
-              <strong style={{ color: C.amber }}>Chỉ admin mới có thể huỷ lịch sau khi đặt.</strong>
+              <strong style={{ color: C.amber }}>Bạn có thể huỷ lịch trước hạn nộp bài. Sau hạn nộp, chỉ ban tổ chức mới thay đổi được.</strong>
             </div>
             <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 8, padding: '12px 16px', display: 'flex', gap: 24 }}>
               <div>

@@ -8,6 +8,7 @@ import Notification from "../models/Notification.js";
 import { getMyTeams } from "./teamService.js";
 import { getMyTeamResults } from "./scoreService.js";
 import { getTeamMentors } from "./chatService.js";
+import { getTeamGitStats } from "./teamGitStatsService.js";
 import { getRoundStatusKey } from "../utils/roundStatus.js";
 import {
   selectActiveTeam,
@@ -238,8 +239,13 @@ export const getOverviewForUser = async (user) => {
     notifications,
     invitations,
     open_contests: openContests,
-    // Populated by Plan 2 (Git activity). Null keeps the contract stable.
-    git: null,
+    // Cache-only on purpose: a dashboard load must never spend GitHub quota.
+    // The Team page's endpoint is what warms this cache.
+    git: focusRound
+      ? await safely("git_unavailable", warnings, () =>
+          getTeamGitStats({ teamId: team._id, roundId: focusRound._id, allowFetch: false })
+        )
+      : null,
   };
 };
 

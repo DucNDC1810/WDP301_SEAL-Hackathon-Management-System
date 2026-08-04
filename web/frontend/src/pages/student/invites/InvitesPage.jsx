@@ -211,7 +211,6 @@ export const StudentInvitesPage = () => {
               const memberCount = inv.team_id?.members?.length ?? 0;
               const inviterName = inv.invited_by?.full_name ?? 'Ai đó';
               const contestTitle = inv.contest_id?.title ?? '';
-              const field = inv.contest_id?.field ?? '';
               const createdAt = inv.created_at ?? '';
               const isAccepting = actionLoading[inv._id] === 'accept';
               const isRejecting = actionLoading[inv._id] === 'reject';
@@ -243,20 +242,11 @@ export const StudentInvitesPage = () => {
 
                   {/* Info section */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Row 1: team name + field chip */}
+                    {/* Row 1: team name + contest chip */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
                       <span style={{ fontSize: 16, fontWeight: 700, color: '#e6eef9' }}>
                         {teamName}
                       </span>
-                      {field && (
-                        <span style={{
-                          fontSize: 10.5, padding: '2px 8px', borderRadius: 5,
-                          background: 'rgba(168,85,247,.1)', border: '1px solid rgba(168,85,247,.25)',
-                          color: '#a855f7', fontWeight: 600, letterSpacing: '0.4px',
-                        }}>
-                          {field}
-                        </span>
-                      )}
                       {contestTitle && (
                         <span style={{
                           fontSize: 10.5, padding: '2px 8px', borderRadius: 5,

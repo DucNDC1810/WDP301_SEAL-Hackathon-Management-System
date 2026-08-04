@@ -339,6 +339,15 @@ export const StudentTeamPage = () => {
   if (loading) return <div className="sp-loading"><div className="sp-spinner" /></div>;
 
   const isLeader = team && user && (team.leader_id?._id ?? team.leader_id) === user._id;
+  // Team size comes from the contest the team registered for. A team with no
+  // contest yet falls back to the strictest requirement among the open contests,
+  // so the progress bars measure against a real configured value rather than a
+  // hardcoded number.
+  const minTeamSize =
+    team?.contest_id?.min_team_size ??
+    contests.reduce((acc, c) => Math.max(acc, c.min_team_size ?? 0), 0) ??
+    0;
+  const maxTeamSize = team?.contest_id?.max_team_size ?? minTeamSize;
   // Đội đang tham gia cuộc thi còn mở → không được giải tán
   const hasActiveContest = !!team?.contest_id && contests.some(
     c => (c._id ?? c)?.toString() === (team.contest_id?._id ?? team.contest_id)?.toString()
@@ -448,7 +457,7 @@ export const StudentTeamPage = () => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { icon: '👥', text: <>Đội cần đủ <strong style={{ color: C.text }}>4 thành viên</strong></> },
+              { icon: '👥', text: <>Đội cần đủ <strong style={{ color: C.text }}>{minTeamSize} thành viên</strong></> },
               { icon: '✅', text: <>Tất cả thành viên xác thực sinh viên</> },
               { icon: '🔧', text: <>Xác nhận qua email sau khi được mời</> },
             ].map((item, i) => (
@@ -552,29 +561,35 @@ export const StudentTeamPage = () => {
     if ((team.status === 'ACTIVE' && !hasContest) || team.status === 'REJECTED') {
       const totalMembers = team.members?.length ?? 0;
       const verifiedCount = team.members?.filter(m => m.user_id && m.user_id.profile_verify_status === 'approved').length ?? 0;
-      const canRegister = totalMembers >= 4 && verifiedCount === totalMembers;
+      const canRegister = minTeamSize > 0 && totalMembers >= minTeamSize && verifiedCount === totalMembers;
       return (
         <div style={{ ...cardStyle, padding: 20 }}>
           <div style={labelStyle}>Đăng ký cuộc thi</div>
-          {!canRegister ? (
+          {minTeamSize === 0 ? (
+            <div style={{ background: 'rgba(251,146,60,.08)', border: '1px solid rgba(251,146,60,.25)', borderRadius: 8, padding: '10px 12px', marginTop: 8 }}>
+              <p style={{ margin: 0, fontSize: 12, color: C.amber, lineHeight: 1.5 }}>
+                Hiện chưa có cuộc thi nào đang mở đăng ký.
+              </p>
+            </div>
+          ) : !canRegister ? (
             <div style={{ marginTop: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <span style={{ fontSize: 12, color: C.muted }}>Thành viên đã xác thực</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: verifiedCount === totalMembers && totalMembers >= 4 ? C.green : C.amber }}>
-                  {verifiedCount}/{Math.max(totalMembers, 4)}
+                <span style={{ fontSize: 12, fontWeight: 700, color: verifiedCount === totalMembers && totalMembers >= minTeamSize ? C.green : C.amber }}>
+                  {verifiedCount}/{Math.max(totalMembers, minTeamSize)}
                 </span>
               </div>
               <div style={{ height: 6, background: C.line2, borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
-                <div style={{ height: '100%', width: `${Math.min((totalMembers / 4) * 100, 100)}%`, background: totalMembers >= 4 ? C.green : C.amber, borderRadius: 99, transition: 'width .4s' }} />
+                <div style={{ height: '100%', width: `${minTeamSize > 0 ? Math.min((totalMembers / minTeamSize) * 100, 100) : 0}%`, background: totalMembers >= minTeamSize ? C.green : C.amber, borderRadius: 99, transition: 'width .4s' }} />
               </div>
               <div style={{ background: 'rgba(251,146,60,.08)', border: '1px solid rgba(251,146,60,.25)', borderRadius: 8, padding: '10px 12px' }}>
                 <p style={{ margin: 0, fontSize: 12, color: C.amber, lineHeight: 1.5 }}>
-                  ⚠ Cần đủ <strong>4 thành viên</strong> và tất cả phải <strong>xác thực thông tin</strong>.
-                  {totalMembers < 4 && ` (Còn thiếu ${4 - totalMembers} thành viên)`}
-                  {totalMembers >= 4 && verifiedCount < totalMembers && ` (${totalMembers - verifiedCount} chưa xác thực)`}
+                  ⚠ Cần đủ <strong>{minTeamSize} thành viên</strong> và tất cả phải <strong>xác thực thông tin</strong>.
+                  {totalMembers < minTeamSize && ` (Còn thiếu ${minTeamSize - totalMembers} thành viên)`}
+                  {totalMembers >= minTeamSize && verifiedCount < totalMembers && ` (${totalMembers - verifiedCount} chưa xác thực)`}
                 </p>
               </div>
-              {isLeader && totalMembers < 4 && (
+              {isLeader && totalMembers < minTeamSize && (
                 <button className="stp-btn stp-btn--ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }} onClick={() => setInviteOpen(true)}>
                   + Mời thêm thành viên
                 </button>
@@ -905,7 +920,7 @@ export const StudentTeamPage = () => {
                   </div>
                 ))}
                 <p style={{ fontSize: 11, color: C.dim, margin: '10px 0 6px', fontStyle: 'italic' }}>
-                  Bạn có thể mời tối đa 4 thành viên vào đội của mình.
+                  Bạn có thể mời tối đa {maxTeamSize} thành viên vào đội của mình.
                 </p>
               </div>
             </div>

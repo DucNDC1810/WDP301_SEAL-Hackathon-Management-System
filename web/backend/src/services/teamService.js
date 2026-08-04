@@ -200,7 +200,7 @@ export const getMyTeams = async (userId, userEmail) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
-    .populate("contest_id", "title description status start_date end_date")
+    .populate("contest_id", "title description status start_date end_date min_team_size max_team_size")
     .sort({ created_at: -1 });
 };
 
@@ -215,7 +215,7 @@ export const getTeamsByContest = async (contestId, { status } = {}) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
-    .populate("contest_id", "title description status start_date end_date")
+    .populate("contest_id", "title description status start_date end_date min_team_size max_team_size")
     .sort({ created_at: -1 });
 
   return teams;
@@ -229,7 +229,7 @@ export const getTeamById = async (teamId) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
-    .populate("contest_id", "title description status start_date end_date");
+    .populate("contest_id", "title description status start_date end_date min_team_size max_team_size");
 
   if (!team) {
     const err = new Error("Không tìm thấy đội thi");
@@ -267,7 +267,7 @@ export const getMyTeam = async (contestId, userId) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
-    .populate("contest_id", "title description status start_date end_date");
+    .populate("contest_id", "title description status start_date end_date min_team_size max_team_size");
 
   return team;
 };

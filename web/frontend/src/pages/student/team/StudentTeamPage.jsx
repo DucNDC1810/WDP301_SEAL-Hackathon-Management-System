@@ -7,6 +7,8 @@ import '../student.css';
 import './StudentTeamPage.css';
 import { useTheme } from '../../../context/ThemeContext';
 import { getStudentColors } from '../studentColors';
+import { getRoundStatusKey } from '../../../utils/roundStatus';
+import { GitActivityCard } from './GitActivityCard';
 
 // ── SVG helpers ─────────────────────────────────────────────────────────────
 const Ico = ({ d, size = 18, sw = 1.8 }) => (
@@ -122,6 +124,9 @@ export const StudentTeamPage = () => {
   const [contests, setContests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  // The team's currently ongoing round, used to scope the Git activity card.
+  // null when the contest has no round active right now.
+  const [activeRound, setActiveRound] = useState(null);
 
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
@@ -177,6 +182,23 @@ export const StudentTeamPage = () => {
         const found = teams.find(t => open.some(c => (c._id ?? c) === (t.contest_id?._id ?? t.contest_id))) ?? teams[0] ?? null;
         setTeam(found);
         if (found) setTeamName(found.team_name || '');
+
+        // Resolve the contest's currently active round for the Git activity
+        // card. Best-effort only — a failure here shouldn't fail the whole
+        // page load, so it gets its own try/catch.
+        const foundContestId = found?.contest_id?._id ?? found?.contest_id;
+        if (foundContestId) {
+          try {
+            const contestRes = await request(`/api/contests/${foundContestId}`);
+            const contestData = contestRes?.data ?? contestRes;
+            const roundsList = contestData?.rounds ?? [];
+            setActiveRound(roundsList.find(r => getRoundStatusKey(r) === 'active') ?? null);
+          } catch {
+            setActiveRound(null);
+          }
+        } else {
+          setActiveRound(null);
+        }
       } catch {
         message.error('Không thể tải thông tin đội thi');
       } finally {
@@ -975,6 +997,17 @@ export const StudentTeamPage = () => {
                 </p>
               </div>
             </div>
+          )}
+
+          {/* Git activity — separate from the contribution evaluation below;
+              commit counts are not a substitute for that manual review. */}
+          {isConfirmed && activeRound && (
+            <GitActivityCard
+              teamId={team._id}
+              roundId={activeRound._id}
+              roundName={activeRound.name}
+              C={C}
+            />
           )}
 
           {/* Member contributions */}

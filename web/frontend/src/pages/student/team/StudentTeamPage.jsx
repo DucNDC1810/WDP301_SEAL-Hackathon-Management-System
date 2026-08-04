@@ -907,7 +907,9 @@ export const StudentTeamPage = () => {
                       <Avatar name={m.email} url={m.user_id?.avatar_url} size={32} radius={9} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.email}</div>
-                        <div style={{ fontSize: 11, color: C.dim }}>Sent {timeAgo(m.created_at || team.created_at)}</div>
+                        <div style={{ fontSize: 11, color: C.dim }}>
+                          {m.invited_at ? `Mời ${timeAgo(m.invited_at)}` : 'Chưa rõ thời điểm mời'}
+                        </div>
                       </div>
                     </div>
                     <button

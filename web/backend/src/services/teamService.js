@@ -100,6 +100,7 @@ export const createTeam = async (
       email_verified: emailVerified,
       verify_token: verifyToken,
       verify_token_expires: verifyTokenExpires,
+      invited_at: new Date(),
     });
   }
 
@@ -510,6 +511,7 @@ export const joinTeam = async (teamCode, userId, userEmail) => {
     email_verified: true,
     verify_token: null,
     verify_token_expires: null,
+    invited_at: new Date(),
   });
 
   const allVerified = team.members.every((m) => m.email_verified);
@@ -1119,6 +1121,7 @@ export const acceptTeamInvitation = async (invitationId, userId) => {
     full_name: user?.full_name || '',
     email_verified: true, // User is authenticated, no need to reverify
     role: 'member',
+    invited_at: new Date(),
   });
   await team.save();
 

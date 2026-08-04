@@ -20,6 +20,7 @@ import {
   updateTeamContributions,
   leaveTeam,
   transferLeader,
+  removeMember,
 } from "../services/teamService.js";
 import { sendNotification } from "../services/notification.js";
 
@@ -493,5 +494,16 @@ export const handleTransferLeader = async (req, res) => {
   } catch (error) {
     console.error("[handleTransferLeader]", error);
     res.status(error.statusCode || 500).json({ success: false, message: error.message || "Lỗi máy chủ" });
+  }
+};
+
+export const handleRemoveMember = async (req, res) => {
+  try {
+    const isAdmin = (req.user.roles ?? []).some((r) => r.role_name === "admin");
+    const team = await removeMember(req.params.id, req.params.email, req.user._id, isAdmin);
+    res.status(200).json({ success: true, data: team });
+  } catch (err) {
+    console.error("[handleRemoveMember]", err);
+    res.status(err.statusCode || 500).json({ success: false, message: err.message || "Lỗi máy chủ" });
   }
 };

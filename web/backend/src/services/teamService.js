@@ -1209,3 +1209,47 @@ export const transferLeader = async (teamId, requesterId, newLeaderEmail) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card");
 };
+
+/**
+ * Remove a member from a team. Only the team leader or an admin may do this,
+ * and the leader can never be removed this way — transferring leadership or
+ * dissolving the team are the routes for that.
+ */
+export const removeMember = async (teamId, email, actingUserId, isAdmin = false) => {
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi"); err.statusCode = 404; throw err;
+  }
+
+  const leaderId = (team.leader_id?._id ?? team.leader_id)?.toString();
+  if (!isAdmin && leaderId !== actingUserId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có quyền xoá thành viên");
+    err.statusCode = 403; throw err;
+  }
+
+  const target = String(email || "").toLowerCase();
+  const member = team.members.find((m) => m.email === target);
+  if (!member) {
+    const err = new Error("Không tìm thấy thành viên này trong đội");
+    err.statusCode = 404; throw err;
+  }
+
+  const memberUserId = (member.user_id?._id ?? member.user_id)?.toString();
+  if (memberUserId && memberUserId === leaderId) {
+    const err = new Error("Không thể xoá trưởng nhóm. Hãy chuyển quyền trưởng nhóm trước.");
+    err.statusCode = 400; throw err;
+  }
+
+  if (["CONFIRMED", "WAITING_APPROVAL"].includes(team.status)) {
+    const err = new Error("Không thể thay đổi thành viên khi đội đã gửi duyệt hoặc đã được xác nhận");
+    err.statusCode = 409; throw err;
+  }
+
+  team.members = team.members.filter((m) => m.email !== target);
+  await team.save();
+
+  // Drop any still-pending invitation so the member can be re-invited later.
+  await TeamInvitation.deleteMany({ team_id: teamId, invitee_email: target, status: "pending" });
+
+  return team;
+};

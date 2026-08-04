@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Form, Input, Modal, Select, Tag, Slider, Rate } from 'antd';
+import { App as AntdApp, Button, Dropdown, Form, Input, Modal, Select, Tag, Slider, Rate } from 'antd';
 import { CrownOutlined, MailOutlined, UserDeleteOutlined, MoreOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
@@ -213,6 +213,39 @@ export const StudentTeamPage = () => {
       message.success(`Đã gửi lời mời tới ${values.email}`); setInviteOpen(false); inviteForm.resetFields(); refresh();
     } catch (err) { message.error(err.message || 'Không thể gửi lời mời'); }
     finally { setInviteLoading(false); }
+  };
+
+  const handleRemoveMember = (member) => {
+    modal.confirm({
+      title: 'Xoá thành viên?',
+      content: `${member.full_name || member.email} sẽ bị xoá khỏi đội. Bạn có thể mời lại sau.`,
+      okText: 'Xoá',
+      okType: 'danger',
+      cancelText: 'Huỷ',
+      onOk: async () => {
+        try {
+          await request(`/api/teams/${team._id}/members/${encodeURIComponent(member.email)}`, {
+            method: 'DELETE',
+          });
+          message.success('Đã xoá thành viên');
+          refresh();
+        } catch (err) {
+          message.error(err.message || 'Không thể xoá thành viên');
+        }
+      },
+    });
+  };
+
+  const handleResendVerification = async (member) => {
+    try {
+      await request(`/api/teams/${team._id}/resend-verification`, {
+        method: 'POST',
+        body: { email: member.email },
+      });
+      message.success('Đã gửi lại email xác nhận cho thành viên');
+    } catch (err) {
+      message.error(err.message || 'Không thể gửi lại email xác nhận');
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -875,9 +908,25 @@ export const StudentTeamPage = () => {
                       </span>
                     )}
                     {isLeader && !isSelf && (
-                      <button className="stp-icon-btn" title="Tùy chọn" style={{ color: C.dim }}>
-                        <MoreOutlined />
-                      </button>
+                      <Dropdown
+                        menu={{
+                          items: [
+                            ...(!m.email_verified
+                              ? [{ key: 'resend', label: 'Gửi lại email xác thực' }]
+                              : []),
+                            { key: 'remove', label: 'Xoá khỏi đội', danger: true },
+                          ],
+                          onClick: ({ key }) => {
+                            if (key === 'resend') handleResendVerification(m);
+                            if (key === 'remove') handleRemoveMember(m);
+                          },
+                        }}
+                        trigger={['click']}
+                      >
+                        <button className="stp-icon-btn" title="Tùy chọn" style={{ color: C.dim }}>
+                          <MoreOutlined />
+                        </button>
+                      </Dropdown>
                     )}
                   </div>
                 );
@@ -914,8 +963,8 @@ export const StudentTeamPage = () => {
                     </div>
                     <button
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.dim, fontSize: 14, padding: '2px 6px' }}
-                      title="Hủy lời mời"
-                      onClick={() => message.info('Tính năng đang cập nhật.')}
+                      title="Xoá thành viên"
+                      onClick={() => handleRemoveMember(m)}
                     >
                       ✕
                     </button>

@@ -207,9 +207,9 @@ export const removeRoleFromUser = async (userId, role_name) => {
 
 /**
  * Cập nhật thông tin cá nhân của user.
- * Chỉ cho phép sửa full_name, phone, avatar_url, student_id, student_card.
+ * Chỉ cho phép sửa full_name, phone, avatar_url, student_id, student_card, github_username.
  */
-export const updateProfile = async (userId, { full_name, phone, avatar_url, student_id, student_card }) => {
+export const updateProfile = async (userId, { full_name, phone, avatar_url, student_id, student_card, github_username }) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     const err = new Error("User ID không hợp lệ");
     err.statusCode = 400;
@@ -239,6 +239,7 @@ export const updateProfile = async (userId, { full_name, phone, avatar_url, stud
     }
     user.student_id = trimmed;
   }
+  if (github_username !== undefined) user.github_username = github_username.trim().toLowerCase();
 
   // Upload avatar to Cloudinary if it is a base64 string
   if (avatar_url !== undefined) {

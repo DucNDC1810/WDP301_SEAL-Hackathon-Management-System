@@ -43,6 +43,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    github_username: {
+      type: String,
+      default: "",
+      trim: true,
+      lowercase: true,
+    },
     avatar_url: {
       type: String,
       default: "",

@@ -73,9 +73,17 @@ export const GitActivityCard = ({ teamId, roundId, roundName, C }) => {
 
   // Tick once a second only while the button is cooling down, so the label
   // counts down live without setting up an interval the rest of the time.
+  // The effect depends only on [cooldownUntil], which does not change once
+  // the cooldown expires — so the interval must clear itself from inside the
+  // tick, otherwise it would keep firing (and re-rendering the card) once a
+  // second for the rest of the page's life.
   useEffect(() => {
     if (cooldownUntil <= Date.now()) return undefined;
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      if (t >= cooldownUntil) clearInterval(id);
+    }, 1000);
     return () => clearInterval(id);
   }, [cooldownUntil]);
 
@@ -144,8 +152,11 @@ export const GitActivityCard = ({ teamId, roundId, roundName, C }) => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-            {(data.contributors ?? []).map((c) => (
-              <div key={c.github_id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {(data.contributors ?? []).map((c, i) => (
+              // Anonymous contributors (the endpoint requests anon=1) carry no
+              // github_id, so it is null for all of them — falling back to
+              // github_id alone would collide multiple rows on the same key.
+              <div key={c.github_id ?? `name:${c.username}:${i}`} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img
                   src={c.avatar_url}
                   alt={c.username}

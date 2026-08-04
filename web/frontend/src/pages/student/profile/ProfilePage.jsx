@@ -132,6 +132,7 @@ export function ProfilePage() {
       full_name: user?.full_name,
       phone: user?.phone,
       student_id: user?.student_id,
+      github_username: user?.github_username,
     });
     setAvatarPreview(null);
     setCardPreview(null);
@@ -466,6 +467,33 @@ export function ProfilePage() {
                       </span>
                     ))}
                   </div>
+                </div>
+
+                {/* GitHub username — dùng để đối chiếu hoạt động Git của đội thi */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: C.dim, marginBottom: 5 }}>
+                    Tên đăng nhập GitHub
+                  </div>
+                  {editing ? (
+                    <Form.Item
+                      name="github_username"
+                      style={{ margin: 0 }}
+                      extra={
+                        <span style={{ fontSize: 11, color: C.dim }}>
+                          Chỉ nhập tên đăng nhập GitHub (VD: octocat), không phải đường dẫn URL. Không bắt buộc — dùng để đối chiếu commit của bạn trong thẻ Hoạt động Git.
+                        </span>
+                      }
+                    >
+                      <Input
+                        placeholder="VD: octocat"
+                        style={{ background: C.card, border: `1px solid ${C.line}`, color: C.text, borderRadius: 8, fontSize: 13 }}
+                      />
+                    </Form.Item>
+                  ) : (
+                    <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
+                      {user?.github_username || '—'}
+                    </span>
+                  )}
                 </div>
               </div>
 

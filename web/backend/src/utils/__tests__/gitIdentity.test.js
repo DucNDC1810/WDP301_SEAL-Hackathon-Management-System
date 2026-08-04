@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import { matchContributorsToMembers } from "../gitIdentity.js";
 
 const members = [
-  { email: "a@x.vn", full_name: "An",  user: { provider: "github", provider_id: "111", github_username: "" } },
+  // github_username: "an" is required for the dedupe test below to be a real
+  // collision — without it, no contributor username can ever match "a", and
+  // the "never matches two contributors to the same member" test is vacuous.
+  { email: "a@x.vn", full_name: "An",  user: { provider: "github", provider_id: "111", github_username: "an" } },
   { email: "b@x.vn", full_name: "Bình", user: { provider: "local",  provider_id: null,  github_username: "binhdev" } },
   { email: "c@x.vn", full_name: "Cường", user: { provider: "local", provider_id: null,  github_username: "" } },
 ];
@@ -42,6 +45,9 @@ describe("matchContributorsToMembers", () => {
   });
 
   it("never matches two contributors to the same member", () => {
+    // Contributor 2 has no id match (222 is unknown) but its username "an"
+    // does resolve to a@x.vn — the same member contributor 1 already claimed
+    // by id. This is the real collision the claimed-guard exists to prevent.
     const { rows } = matchContributorsToMembers(
       [
         { github_id: 111, username: "an", commit_count: 5 },
@@ -50,6 +56,7 @@ describe("matchContributorsToMembers", () => {
       members
     );
     expect(rows.filter((r) => r.matched_member_email === "a@x.vn")).toHaveLength(1);
+    expect(rows[1].matched_member_email).toBeNull();
   });
 
   it("reports members with no contributor at all", () => {

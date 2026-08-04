@@ -124,8 +124,12 @@ export const StudentTeamPage = () => {
   const [contests, setContests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
-  // The team's currently ongoing round, used to scope the Git activity card.
-  // null when the contest has no round active right now.
+  // The round used to scope the Git activity card: the currently active
+  // round, or — mirroring overviewService's `focusRound` selection — the
+  // most recently locked round when nothing is active. Without that
+  // fallback, once the final round locks nothing could ever warm its cache
+  // (this page only fetches when the card renders) and the Overview page's
+  // cache-only read would stay cold forever. null when neither exists.
   const [activeRound, setActiveRound] = useState(null);
 
   // Modals
@@ -192,7 +196,20 @@ export const StudentTeamPage = () => {
             const contestRes = await request(`/api/contests/${foundContestId}`);
             const contestData = contestRes?.data ?? contestRes;
             const roundsList = contestData?.rounds ?? [];
-            setActiveRound(roundsList.find(r => getRoundStatusKey(r) === 'active') ?? null);
+            const active = roundsList.find(r => getRoundStatusKey(r) === 'active') ?? null;
+            if (active) {
+              setActiveRound(active);
+            } else {
+              // No active round — fall back to the most recently locked one,
+              // same rule as overviewService's `latestLockedRound` (highest
+              // round_number among scoring_locked rounds), so this page and
+              // the Overview page always agree on which round's cache to use.
+              const locked = roundsList.filter(r => r.scoring_locked);
+              const latestLocked = locked.length
+                ? [...locked].sort((a, b) => (b.round_number ?? 0) - (a.round_number ?? 0))[0]
+                : null;
+              setActiveRound(latestLocked);
+            }
           } catch {
             setActiveRound(null);
           }

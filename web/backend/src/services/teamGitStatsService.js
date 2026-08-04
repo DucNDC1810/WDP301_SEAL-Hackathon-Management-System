@@ -10,11 +10,27 @@ import { matchContributorsToMembers } from "../utils/gitIdentity.js";
 export const TTL_MS = 30 * 60 * 1000;
 // Transient failures should be retried sooner than successes expire.
 export const ERROR_TTL_MS = 2 * 60 * 1000;
+// GitHub's unauthenticated quota resets on a rolling 1-hour window, so
+// retrying a rate-limited repo every 2 minutes is pointless — back off to
+// the quota-reset horizon instead.
+export const RATE_LIMITED_TTL_MS = 60 * 60 * 1000;
+
+// `private` is not a transient failure — it is a persistent property of the
+// repo that will not change for hours or days. Treating it like a fleeting
+// error (2-minute TTL) meant every refresh re-fetched and burned a 404
+// against the shared 60/h quota. Give it the same long TTL as a success.
+// `rate_limited` gets its own even-longer TTL (see above). Only genuinely
+// transient conditions (`error`) keep the short retry window.
+const ttlFor = (status) => {
+  if (status === "ok" || status === "private") return TTL_MS;
+  if (status === "rate_limited") return RATE_LIMITED_TTL_MS;
+  return ERROR_TTL_MS;
+};
 
 const isFresh = (entry) => {
   if (!entry) return false;
   const age = Date.now() - new Date(entry.fetched_at).getTime();
-  return age < (entry.status === "ok" ? TTL_MS : ERROR_TTL_MS);
+  return age < ttlFor(entry.status);
 };
 
 const shape = (entry) => ({
@@ -87,13 +103,38 @@ export const getTeamGitStats = async ({ teamId, roundId, allowFetch = false }) =
     else if (err.statusCode === 429) status = "rate_limited";
     else status = "error";
     console.error("[teamGitStatsService]", status, err.message);
+
+    // A transient failure (network blip, GitHub 5xx, momentary rate limit)
+    // must not erase a previously good payload: the cache-only Overview
+    // reads this same document, so wiping it turns "slightly stale" into
+    // "blank" on a single bad request, with no way to recover except a
+    // teammate manually revisiting the Team page. Serve stale-on-error
+    // instead — keep the last-known-good payload and report "ok" (what
+    // every consumer already gates on) so one blip stays invisible.
+    // `private` is deliberately excluded: it is a real state change (see
+    // ttlFor above), not a transient failure, so it must be reported
+    // honestly instead of papered over with old data.
+    if ((status === "error" || status === "rate_limited") && cached?.status === "ok" && cached.payload) {
+      status = "ok";
+      payload = cached.payload;
+    }
   }
 
-  await GitStatsCache.findOneAndUpdate(
-    { team_id: teamId, round_id: roundId },
-    { team_id: teamId, round_id: roundId, repo_url: repoUrl, status, payload, fetched_at: new Date() },
-    { upsert: true }
-  );
+  const fetchedAt = new Date();
+  try {
+    await GitStatsCache.findOneAndUpdate(
+      { team_id: teamId, round_id: roundId },
+      { team_id: teamId, round_id: roundId, repo_url: repoUrl, status, payload, fetched_at: fetchedAt },
+      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+    );
+  } catch (err) {
+    // Two teammates opening a cold cache in the same second can both pass
+    // the find stage of the upsert and race on the unique
+    // {team_id, round_id} index; the loser gets an E11000 duplicate-key
+    // error. The data above was already fetched (and already cost quota) —
+    // swallow the race instead of turning it into a 500 that discards it.
+    if (err.code !== 11000) throw err;
+  }
 
-  return shape({ status, repo_url: repoUrl, payload, fetched_at: new Date() });
+  return shape({ status, repo_url: repoUrl, payload, fetched_at: fetchedAt });
 };

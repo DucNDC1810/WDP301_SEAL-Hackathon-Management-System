@@ -30,7 +30,13 @@ const ttlFor = (status) => {
 const isFresh = (entry) => {
   if (!entry) return false;
   const age = Date.now() - new Date(entry.fetched_at).getTime();
-  return age < ttlFor(entry.status);
+  // TTL is picked from the *real* outcome of the last fetch attempt, not the
+  // (possibly stale-on-error-masked) displayed `status` — otherwise a
+  // rescued rate_limited/error entry would read back as "ok" and get the
+  // short "ok" TTL instead of the longer backoff its real failure deserves.
+  // `?? entry.status` is back-compat for cache docs written before
+  // last_attempt_status existed.
+  return age < ttlFor(entry.last_attempt_status ?? entry.status);
 };
 
 const shape = (entry) => ({
@@ -70,7 +76,9 @@ export const getTeamGitStats = async ({ teamId, roundId, allowFetch = false }) =
   }
 
   let status = "ok";
+  let rawStatus = "ok"; // true outcome of *this* attempt — `status` may get masked below
   let payload = null;
+  let rescued = false;
   try {
     const { contributors } = await getContributorStats(repoUrl);
 
@@ -99,9 +107,10 @@ export const getTeamGitStats = async ({ teamId, roundId, allowFetch = false }) =
       members_with_activity: members.length - membersWithoutActivity.length,
     };
   } catch (err) {
-    if (err.statusCode === 404) status = "private";
-    else if (err.statusCode === 429) status = "rate_limited";
-    else status = "error";
+    if (err.statusCode === 404) rawStatus = "private";
+    else if (err.statusCode === 429) rawStatus = "rate_limited";
+    else rawStatus = "error";
+    status = rawStatus;
     console.error("[teamGitStatsService]", status, err.message);
 
     // A transient failure (network blip, GitHub 5xx, momentary rate limit)
@@ -117,14 +126,31 @@ export const getTeamGitStats = async ({ teamId, roundId, allowFetch = false }) =
     if ((status === "error" || status === "rate_limited") && cached?.status === "ok" && cached.payload) {
       status = "ok";
       payload = cached.payload;
+      rescued = true;
     }
   }
 
-  const fetchedAt = new Date();
+  // The payload's own timestamp: "now" for a genuine fetch (success, or a
+  // failure with nothing to rescue), or the ORIGINAL cached time when
+  // serving stale-on-error — otherwise the "cập nhật X phút trước" label
+  // would always read "vừa xong" for a rescued response no matter how old
+  // the underlying data really is. `rawStatus` (the true, unmasked outcome
+  // of this attempt) is persisted separately below so the next freshness
+  // check still applies the TTL this failure actually deserves instead of
+  // a fresh "ok" window every time it's rescued (see isFresh/ttlFor above).
+  const fetchedAt = rescued ? new Date(cached.fetched_at) : new Date();
   try {
     await GitStatsCache.findOneAndUpdate(
       { team_id: teamId, round_id: roundId },
-      { team_id: teamId, round_id: roundId, repo_url: repoUrl, status, payload, fetched_at: fetchedAt },
+      {
+        team_id: teamId,
+        round_id: roundId,
+        repo_url: repoUrl,
+        status,
+        last_attempt_status: rawStatus,
+        payload,
+        fetched_at: fetchedAt,
+      },
       { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
     );
   } catch (err) {

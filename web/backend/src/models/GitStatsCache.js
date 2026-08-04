@@ -16,6 +16,17 @@ const gitStatsCacheSchema = new mongoose.Schema(
     },
     payload:    { type: mongoose.Schema.Types.Mixed, default: null },
     fetched_at: { type: Date, default: Date.now },
+    // The true outcome of the most recent fetch *attempt*, kept separate from
+    // `status` above. A stale-on-error rescue masks `status` to "ok" so every
+    // consumer (which gates on status === 'ok') keeps rendering the preserved
+    // payload, but the retry backoff still needs to know the attempt actually
+    // failed — otherwise a rescued `rate_limited` would read back as "ok" and
+    // get the short "ok" TTL instead of the longer quota-reset backoff.
+    last_attempt_status: {
+      type: String,
+      enum: ["ok", "private", "rate_limited", "unsupported", "error"],
+      default: "ok",
+    },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );

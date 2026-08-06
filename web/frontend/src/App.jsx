@@ -34,6 +34,7 @@ import MentorPortalPage from './pages/mentor/MentorPortalPage';
 import MentorScoringPage from './pages/mentor/JudgeScoringPage';
 import ScoreFormPage from './pages/mentor/ScoreFormPage';
 import MentorChatPage from './pages/mentor/MentorChatPage';
+import MentorAcceptInvitePage from './pages/mentor/MentorAcceptInvitePage';
 
 // Judge
 import JudgeHomePage from './pages/judge/JudgeDashboard';
@@ -46,6 +47,7 @@ import FinalistConfirmPage from './pages/FinalistConfirmPage';
 import RoundActivatePage from './pages/RoundActivatePage';
 import SubmissionPage from './pages/SubmissionPage';
 import FinishRoundPage from './pages/FinishRoundPage';
+import ScheduleChangeResponsePage from './pages/ScheduleChangeResponsePage';
 import ContestHistoryPage from './pages/history/ContestHistoryPage';
 import AppealsPage from './pages/appeals/AppealsPage';
 import TeamRankingPage from './pages/ranking/TeamRankingPage';
@@ -104,6 +106,7 @@ function App() {
               <Route path="/round/:round_id/activate" element={<RoundActivatePage />} />
               <Route path="/round/:round_id/finish" element={<FinishRoundPage />} />
               <Route path="/submission/:round_id/:team_id" element={<SubmissionPage />} />
+              <Route path="/schedule-change/respond" element={<ScheduleChangeResponsePage />} />
 
               {/* Admin */}
               <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
@@ -143,6 +146,7 @@ function App() {
               <Route path="/mentor/scoring/:contestId/rounds/:roundId"    element={<MentorScoringRoute><MentorScoringPage /></MentorScoringRoute>} />
               <Route path="/mentor/contests/:contestId/rounds/:roundId"   element={<MentorRoute><MentorDashboardPage /></MentorRoute>} />
               <Route path="/mentor/score/:scoreId"                        element={<MentorRoute><ScoreFormPage /></MentorRoute>} />
+              <Route path="/mentor/accept-invite"                         element={<MentorAcceptInvitePage />} />
 
               {/* Judge — chỉ chấm điểm sau khi vòng kết thúc */}
               <Route path="/judge/accept-invite"                           element={<JudgeAcceptInvitePage />} />

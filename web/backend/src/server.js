@@ -44,6 +44,7 @@ import prizeRoute from "./routes/prize.js";
 import aiChatRoute from "./routes/aiChatRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
 import overviewRoute from "./routes/overviewRoute.js";
+import scheduleChangeRoute from "./routes/scheduleChangeRoute.js";
 import passport from "./config/passport.js";
 import { connectDB } from "./config/db.js";
 import { initSocket } from "./socket/index.js";
@@ -106,6 +107,7 @@ app.use("/api/admin/ranking", adminRankingRoute);
 app.use("/api/prize", prizeRoute);
 app.use("/api/ai", aiChatRoute);
 app.use("/api/upload", uploadRoute);
+app.use("/api/schedule-change", scheduleChangeRoute);
 
 // Global Error Handler — đảm bảo mọi lỗi API luôn trả về JSON sạch thay vì HTML 500
 app.use((err, req, res, next) => {

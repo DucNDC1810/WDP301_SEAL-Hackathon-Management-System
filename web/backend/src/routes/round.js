@@ -11,6 +11,7 @@ import { sendNotification } from "../services/notification.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import { notifyJudgeAssignedToRound } from "../services/notificationService.js";
 import { sendScheduleChangeEmail } from "../services/emailService.js";
+import { createScheduleChangeResponses } from "../services/scheduleChangeService.js";
 
 const router = Router();
 
@@ -475,7 +476,9 @@ router.patch("/:round_id/activate", authenticate, authorize("admin"), async (req
   }
 });
 
-// Gửi email thông báo thay đổi lịch cho thành viên các đội + judge/mentor được assign vào round
+// Gửi email thông báo thay đổi lịch. Contestant chỉ nhận thông báo (không có lựa chọn nào để
+// bấm — họ không thể "rút khỏi round của chính đội mình"). Judge/mentor nhận email có 2 nút
+// Xác nhận (vẫn tham gia) / Từ chối (rút khỏi round, admin được báo tìm người thay).
 const notifyEarlyActivation = async ({ round_id, reason, scheduledStart, newEndDate }) => {
   const Contest = (await import("../models/Contest.js")).default;
   const round = await Round.findById(round_id);
@@ -485,29 +488,52 @@ const notifyEarlyActivation = async ({ round_id, reason, scheduledStart, newEndD
   if (!contest) return;
   const roundName = round ? round.name : contest.rounds.id(round_id)?.name;
 
+  // 1. Contestant — thông báo thuần, không có nút hành động.
   const teams = await Team.find({ contest_id: contest._id, status: { $in: ["ACTIVE", "CONFIRMED"] } })
     .select("members.email")
     .lean();
-  const emails = new Set();
+  const contestantEmails = new Set();
   for (const t of teams) {
     for (const m of t.members || []) {
-      if (m.email) emails.add(m.email);
+      if (m.email) contestantEmails.add(m.email);
     }
   }
+  await Promise.all(
+    [...contestantEmails].map((email) =>
+      sendScheduleChangeEmail(email, contest.title, roundName || "", scheduledStart, reason, newEndDate).catch((e) =>
+        console.error(`[notifyEarlyActivation] failed for ${email}:`, e.message)
+      )
+    )
+  );
 
+  // 2. Judge/mentor — mỗi người nhận 1 token riêng gắn với đúng assignment của họ,
+  // để khi "Từ chối" hệ thống biết chính xác assignment nào cần xóa.
   const judgeAssignments = await JudgeAssignment.find({ round_id }).populate("judge_id", "email");
-  for (const a of judgeAssignments) {
-    if (a.judge_id?.email) emails.add(a.judge_id.email);
-  }
-
   const mentorAssignments = await MentorAssignment.find({ round_id, status: "accepted" }).populate("mentor_id", "email");
-  for (const a of mentorAssignments) {
-    if (a.mentor_id?.email) emails.add(a.mentor_id.email);
+
+  const recipients = [];
+  for (const a of judgeAssignments) {
+    if (a.judge_id?.email) {
+      recipients.push({ role: "judge", email: a.judge_id.email, assignment_id: a._id, assignment_model: "JudgeAssignment" });
+    }
   }
+  for (const a of mentorAssignments) {
+    if (a.mentor_id?.email) {
+      recipients.push({ role: "mentor", email: a.mentor_id.email, assignment_id: a._id, assignment_model: "MentorAssignment" });
+    }
+  }
+  if (recipients.length === 0) return;
+
+  const responses = await createScheduleChangeResponses({
+    contestId: contest._id,
+    roundId: round_id,
+    reason,
+    recipients,
+  });
 
   await Promise.all(
-    [...emails].map((email) =>
-      sendScheduleChangeEmail(email, contest.title, roundName || "", scheduledStart, reason, newEndDate).catch((e) =>
+    responses.map(({ email, token }) =>
+      sendScheduleChangeEmail(email, contest.title, roundName || "", scheduledStart, reason, newEndDate, token).catch((e) =>
         console.error(`[notifyEarlyActivation] failed for ${email}:`, e.message)
       )
     )

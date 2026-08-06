@@ -33,11 +33,20 @@ Tài liệu này hướng dẫn chi tiết các bước thiết lập môi trư�
    * Khởi động client: `npm run dev` (chạy tại cổng **http://localhost:5173**)
 
 ### Bước 2: Tạo dữ liệu tài khoản cơ bản
-Mở terminal tại thư mục `web/backend` và chạy các script khởi tạo:
+Mở terminal tại thư mục `web/backend` và chạy:
 ```bash
-node scripts/seedUsers.js
+node scripts/createAdmin.js
 ```
-*Script này sẽ tự động tạo các tài khoản Admin, Judge, Mentor và Thí sinh mẫu vào MongoDB.*
+*Script này tạo tài khoản Admin mẫu vào MongoDB (xem file để biết email/mật khẩu mặc định).*
+
+### Bước 3: Prep data demo nhanh (one-click)
+Để có ngay 1 cuộc thi hoàn chỉnh (đầy đủ ngày tháng, 2 vòng thi kèm tiêu chí chấm điểm) phục vụ demo/kiểm thử mà không cần tự tạo tay từng bước qua UI:
+```bash
+node scripts/prepDemoContest.mjs
+```
+*Tạo cuộc thi **"DEMO SEAL Hackathon"** ở trạng thái `open`, đã cấu hình: ngày mở/đóng đăng ký, ngày khai mạc (kickoff), ngày kết thúc, số thành viên/đội (3–5 người), 2 vòng thi (Vòng sơ loại + Vòng chung kết) mỗi vòng 3 tiêu chí chấm điểm sẵn sàng (tổng weight = 1.0). An toàn khi chạy lại nhiều lần — tự xóa bản demo cũ cùng tên trước khi tạo lại.*
+
+*Sau khi chạy, vào Admin → Hackathons để thấy cuộc thi demo, tiếp tục đăng ký/tạo team và gán judge/mentor theo các luồng bên dưới.*
 
 ---
 

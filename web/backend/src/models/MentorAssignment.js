@@ -12,12 +12,16 @@ const mentorAssignmentSchema = new mongoose.Schema(
     status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
     decline_reason: { type: String, default: null },
     responded_at: { type: Date, default: null },
+    // Token dùng để mentor xác nhận/từ chối trực tiếp qua email, không cần đăng nhập trước.
+    response_token: { type: String, default: null },
+    response_token_expires: { type: Date, default: null },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );
 
 mentorAssignmentSchema.index({ mentor_id: 1, round_id: 1, team_id: 1 }, { unique: true });
 mentorAssignmentSchema.index({ contest_id: 1, round_id: 1 });
+mentorAssignmentSchema.index({ response_token: 1 });
 
 const MentorAssignment = mongoose.model("MentorAssignment", mentorAssignmentSchema);
 export default MentorAssignment;

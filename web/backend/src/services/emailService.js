@@ -292,15 +292,71 @@ export const sendMissingSubmissionEmail = async (to, fullName, contestTitle) => 
 // Gửi khi admin đề xuất mentor phụ trách 1 đội — cần mentor VÀO HỆ THỐNG xác nhận
 // (chấp nhận/từ chối), không phải thông báo đã hoàn tất.
 
-export const sendMentorAssignedEmail = async (to, fullName, contestTitle, teamName) => {
+export const sendMentorAssignedEmail = async (to, fullName, contestTitle, teamName, schedule = {}) => {
+  const { token, contestStart, contestEnd, roundName } = schedule;
+  const fmtVN = (d) => (d ? new Date(d).toLocaleString("vi-VN") : "Chưa xác định");
+  const link = token ? `${getClientUrl()}/mentor/accept-invite?token=${token}` : null;
+
+  const scheduleRows = `
+    <tr>
+      <td style="font-size:14px;color:#64748b;padding:4px 0"><strong>Thời gian cuộc thi:</strong></td>
+      <td style="font-size:14px;color:#1e293b;padding:4px 0;font-weight:600">${fmtVN(contestStart)}${contestEnd ? ` — ${fmtVN(contestEnd)}` : ""}</td>
+    </tr>
+    <tr>
+      <td style="font-size:14px;color:#64748b;padding:4px 0"><strong>Vòng thi:</strong></td>
+      <td style="font-size:14px;color:#1e293b;padding:4px 0;font-weight:600">${roundName || "Chưa xác định"}</td>
+    </tr>
+  `;
+
   return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Đề nghị làm Mentor - ${contestTitle}`,
     html: `
-      <p>Chào <strong>${fullName}</strong>,</p>
-      <p>Ban tổ chức đề nghị bạn làm <strong>Mentor</strong> hỗ trợ cho đội <strong>${teamName}</strong> trong cuộc thi <strong>${contestTitle}</strong>.</p>
-      <p>Vui lòng đăng nhập vào hệ thống để <strong>xác nhận (chấp nhận hoặc từ chối)</strong> phân công này. Nếu bạn đang bận trong khoảng thời gian diễn ra cuộc thi, hãy chọn từ chối để Ban tổ chức kịp thời sắp xếp mentor khác.</p>
-      <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
+      <div style="background-color:#f6f9fc;padding:40px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+        <div style="max-width:540px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #e2e8f0">
+          <div style="background:linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);padding:35px 30px;text-align:center">
+            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.5px">SEAL Hackathon</h1>
+            <p style="color:rgba(255,255,255,0.85);margin:5px 0 0 0;font-size:14px">Đề nghị tham gia làm Mentor</p>
+          </div>
+
+          <div style="padding:40px 30px;color:#334155;line-height:1.6">
+            <p style="margin-top:0;font-size:16px;font-weight:600;color:#1e293b">Chào ${fullName},</p>
+            <p style="font-size:15px;margin:0 0 16px 0">Ban tổ chức đề nghị bạn làm <strong>Mentor</strong> hỗ trợ cho đội <strong>${teamName}</strong>.</p>
+
+            <div style="background-color:#f8fafc;border-left:4px solid #4f46e5;padding:16px 20px;margin:24px 0;border-radius:0 8px 8px 0">
+              <table style="width:100%;border-collapse:collapse">
+                <tr>
+                  <td style="width:110px;font-size:14px;color:#64748b;padding:4px 0"><strong>Cuộc thi:</strong></td>
+                  <td style="font-size:14px;color:#1e293b;padding:4px 0;font-weight:600">${contestTitle}</td>
+                </tr>
+                <tr>
+                  <td style="font-size:14px;color:#64748b;padding:4px 0"><strong>Đội hỗ trợ:</strong></td>
+                  <td style="font-size:14px;color:#1e293b;padding:4px 0;font-weight:600">${teamName}</td>
+                </tr>
+                ${scheduleRows}
+              </table>
+            </div>
+
+            <p style="font-size:15px;margin:0 0 30px 0">Vui lòng kiểm tra lịch trình ở trên để đảm bảo bạn có thể tham gia đầy đủ. Nếu bạn đang bận trong khoảng thời gian diễn ra cuộc thi, hãy chọn từ chối để Ban tổ chức kịp thời sắp xếp mentor khác.</p>
+
+            ${link ? `
+            <div style="text-align:center;margin:35px 0">
+              <a href="${link}" style="display:inline-block;background-color:#4f46e5;color:#ffffff;padding:14px 35px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 4px 6px rgba(79,70,229,0.2)">
+                Xác nhận / Từ chối
+              </a>
+            </div>
+            ` : `
+            <p style="font-size:15px;margin:0 0 30px 0">Vui lòng đăng nhập hệ thống để xác nhận (chấp nhận hoặc từ chối) phân công này.</p>
+            `}
+
+            <p style="font-size:13px;color:#64748b;margin:0">Link có hiệu lực trong 14 ngày. Nếu không phải bạn, có thể bỏ qua email này.</p>
+          </div>
+
+          <div style="background-color:#f8fafc;padding:20px 30px;text-align:center;border-top:1px solid #e2e8f0">
+            <p style="margin:0;font-size:12px;color:#94a3b8">© ${new Date().getFullYear()} SEAL Hackathon. All rights reserved.</p>
+          </div>
+        </div>
+      </div>
     `,
   });
 };
@@ -323,13 +379,28 @@ export const sendJudgeAssignedEmail = async (to, fullName, contestTitle, poolNam
 // ─── sendScheduleChangeEmail ──────────────────────────────────────────────────
 // Gửi khi Admin kích hoạt vòng thi lệch lịch dự kiến (dời lịch/sự cố).
 
-export const sendScheduleChangeEmail = async (to, contestTitle, roundName, scheduledStartTime, reason, newEndDate) => {
+export const sendScheduleChangeEmail = async (to, contestTitle, roundName, scheduledStartTime, reason, newEndDate, responseToken) => {
   const scheduledText = scheduledStartTime
     ? new Date(scheduledStartTime).toLocaleString("vi-VN")
     : "chưa xác định";
   const endDateNote = newEndDate
     ? `<p>Do đó, <strong>ngày kết thúc cuộc thi</strong> cũng được dời sớm tương ứng, dự kiến kết thúc lúc <strong>${new Date(newEndDate).toLocaleString("vi-VN")}</strong>.</p>`
     : "";
+
+  // Có token: người nhận là judge/mentor — cần xác nhận còn tham gia được hay không.
+  // Không có token: người nhận là contestant — chỉ thông báo, không có lựa chọn nào để bấm.
+  const actionBlock = responseToken
+    ? `
+      <p style="margin-top:16px">Vui lòng xác nhận bạn có còn tiếp tục tham gia vòng thi này được không:</p>
+      <div style="text-align:center;margin:24px 0">
+        <a href="${getClientUrl()}/schedule-change/respond?token=${responseToken}" style="display:inline-block;background-color:#4f46e5;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 6px">
+          Xác nhận / Từ chối
+        </a>
+      </div>
+      <p style="font-size:13px;color:#64748b">Nếu bạn không thể tiếp tục tham gia do trùng lịch, vui lòng chọn "Từ chối" để Ban tổ chức kịp thời tìm người thay thế.</p>
+    `
+    : `<p>Vui lòng đăng nhập hệ thống để cập nhật thông tin mới nhất.</p>`;
+
   return dispatchEmail({
     to,
     subject: `[SEAL Hackathon] Thay đổi lịch trình vòng "${roundName}" - ${contestTitle}`,
@@ -338,7 +409,7 @@ export const sendScheduleChangeEmail = async (to, contestTitle, roundName, sched
       <p>Ban tổ chức thông báo <strong>vòng "${roundName}"</strong> của cuộc thi <strong>${contestTitle}</strong> đã được kích hoạt lệch với lịch dự kiến (${scheduledText}).</p>
       <p><strong>Lý do:</strong> ${reason}</p>
       ${endDateNote}
-      <p>Vui lòng đăng nhập hệ thống để cập nhật thông tin mới nhất.</p>
+      ${actionBlock}
       <p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>
     `,
   });

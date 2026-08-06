@@ -63,3 +63,49 @@ export const handleDeclineAssignment = async (req, res) => {
     res.status(err.statusCode || 500).json({ message: err.message });
   }
 };
+
+// ─── Public: xác nhận/từ chối qua token trong email (không cần đăng nhập) ────────
+
+export const handlePreviewAssignmentByToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+    const assignment = await service.findAssignmentByToken(token);
+    res.json({
+      success: true,
+      data: {
+        team_name: assignment.team_id?.team_name || "",
+        contest_title: assignment.contest_id?.title || "",
+        mentor_email: assignment.mentor_id?.email || "",
+        mentor_name: assignment.mentor_id?.full_name || "",
+        status: assignment.status,
+      },
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+export const handleAcceptAssignmentByToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+    const result = await service.acceptMentorAssignmentByToken(token);
+    res.json({
+      success: true,
+      message: "Đã chấp nhận phân công",
+      data: { isNewAccount: result.isNewAccount, mentorEmail: result.mentorEmail },
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+export const handleDeclineAssignmentByToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+    const { reason } = req.body || {};
+    await service.declineMentorAssignmentByToken(token, { reason });
+    res.json({ success: true, message: "Đã từ chối phân công" });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};

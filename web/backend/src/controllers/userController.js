@@ -139,17 +139,18 @@ export const getUserByIdHandler = async (req, res) => {
 
 /**
  * PATCH /api/users/me
- * Cập nhật thông tin cá nhân (full_name, phone, avatar_url)
+ * Cập nhật thông tin cá nhân (full_name, phone, avatar_url, student_id, student_card, github_username)
  */
 export const updateProfileHandler = async (req, res) => {
   try {
-    const { full_name, phone, avatar_url, student_id, student_card } = req.body;
+    const { full_name, phone, avatar_url, student_id, student_card, github_username } = req.body;
     const updatedUser = await updateProfile(req.user._id.toString(), {
       full_name,
       phone,
       avatar_url,
       student_id,
       student_card,
+      github_username,
     });
     res.status(200).json({ success: true, message: "Cập nhật thông tin thành công", data: updatedUser });
   } catch (error) {

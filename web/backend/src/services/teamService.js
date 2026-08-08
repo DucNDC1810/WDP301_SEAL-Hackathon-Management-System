@@ -9,6 +9,7 @@ import { sendMemberInviteEmail, sendTeamInvitationEmail } from "./emailService.j
 import { writeLog } from "./auditLog.js";
 import { sendNotification } from "./notification.js";
 import { triggerReRank } from "./roundService.js";
+import { ACTIVE_TEAM_STATUSES } from "../utils/overviewSelectors.js";
 
 const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
@@ -43,17 +44,8 @@ export const createTeam = async (
     throw err;
   }
 
-  // Kiểm tra leader chưa có team đang hoạt động
-  const activeTeamQuery = {
-    leader_id: leader_id,
-    status: { $in: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED"] }
-  };
-  const existingActiveTeam = await Team.findOne(activeTeamQuery);
-  if (existingActiveTeam) {
-    const err = new Error("Bạn đã tham gia hoặc làm trưởng nhóm của một đội thi khác đang hoạt động");
-    err.statusCode = 400;
-    throw err;
-  }
+  // One active team per user — shared guard, see assertUserHasNoActiveTeam.
+  await assertUserHasNoActiveTeam({ userId: leader_id, userEmail: leader.email });
 
   if (contestId) {
     // 2. Kiểm tra leader chưa có team trong contest này
@@ -108,6 +100,7 @@ export const createTeam = async (
       email_verified: emailVerified,
       verify_token: verifyToken,
       verify_token_expires: verifyTokenExpires,
+      invited_at: new Date(),
     });
   }
 
@@ -208,7 +201,7 @@ export const getMyTeams = async (userId, userEmail) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
-    .populate("contest_id", "title description status start_date end_date")
+    .populate("contest_id", "title description status start_date end_date min_team_size max_team_size")
     .sort({ created_at: -1 });
 };
 
@@ -223,7 +216,7 @@ export const getTeamsByContest = async (contestId, { status } = {}) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
-    .populate("contest_id", "title description status start_date end_date")
+    .populate("contest_id", "title description status start_date end_date min_team_size max_team_size")
     .sort({ created_at: -1 });
 
   return teams;
@@ -237,7 +230,7 @@ export const getTeamById = async (teamId) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
-    .populate("contest_id", "title description status start_date end_date");
+    .populate("contest_id", "title description status start_date end_date min_team_size max_team_size");
 
   if (!team) {
     const err = new Error("Không tìm thấy đội thi");
@@ -275,7 +268,7 @@ export const getMyTeam = async (contestId, userId) => {
     .populate("leader_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card")
     .populate("topic_id", "title description difficulty status admin_note resources")
-    .populate("contest_id", "title description status start_date end_date");
+    .populate("contest_id", "title description status start_date end_date min_team_size max_team_size");
 
   return team;
 };
@@ -434,6 +427,39 @@ export const rejectTeam = async (teamId, reason) => {
 };
 
 /**
+ * Enforce the one-active-team-per-user rule.
+ * createTeam(), joinTeam(), acceptTeamInvitation(), and inviteMember() must
+ * all call this so the four entry points can never drift apart.
+ */
+export const assertUserHasNoActiveTeam = async ({
+  userId,
+  userEmail,
+  excludeTeamId = null,
+  message = null,
+}) => {
+  const query = {
+    status: { $in: ACTIVE_TEAM_STATUSES },
+    $or: [
+      { leader_id: userId },
+      { "members.user_id": userId },
+      { "members.email": String(userEmail || "").toLowerCase() },
+    ],
+  };
+  if (excludeTeamId) query._id = { $ne: excludeTeamId };
+
+  const existingTeam = await Team.findOne(query).select("_id team_name").lean();
+  if (existingTeam) {
+    const err = new Error(
+      message
+        ? message(existingTeam.team_name)
+        : `Bạn đã thuộc đội "${existingTeam.team_name}" đang hoạt động. Hãy rời đội hiện tại trước khi tham gia đội mới.`
+    );
+    err.statusCode = 409;
+    throw err;
+  }
+};
+
+/**
  * Tham gia đội bằng mã đội (team_code = team._id).
  * User đã xác thực nên email_verified = true ngay.
  */
@@ -469,21 +495,12 @@ export const joinTeam = async (teamCode, userId, userEmail) => {
     throw err;
   }
 
-  // Kiểm tra user chưa có đội thi đang hoạt động nào khác
-  const existingTeam = await Team.findOne({
-    _id: { $ne: team._id },
-    status: { $in: ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED"] },
-    $or: [
-      { leader_id: userId },
-      { "members.user_id": userId },
-      { "members.email": userEmail.toLowerCase() },
-    ],
+  // One active team per user — shared guard, see assertUserHasNoActiveTeam.
+  await assertUserHasNoActiveTeam({
+    userId,
+    userEmail,
+    excludeTeamId: team._id,
   });
-  if (existingTeam) {
-    const err = new Error("Bạn đã thuộc một đội thi khác đang hoạt động");
-    err.statusCode = 409;
-    throw err;
-  }
 
   const joiner = await User.findById(userId);
 
@@ -494,6 +511,7 @@ export const joinTeam = async (teamCode, userId, userEmail) => {
     email_verified: true,
     verify_token: null,
     verify_token_expires: null,
+    invited_at: new Date(),
   });
 
   const allVerified = team.members.every((m) => m.email_verified);
@@ -610,21 +628,15 @@ export const inviteMember = async (teamId, inviteeEmail, leaderId) => {
   }
 
   // 5. Check user không đang có đội thi đang hoạt động nào khác
-  const activeStatuses = ["PENDING_MEMBERS", "ACTIVE", "WAITING_APPROVAL", "CONFIRMED", "REJECTED"];
-  const existingTeam = await Team.findOne({
-    _id: { $ne: teamId },
-    status: { $in: activeStatuses },
-    $or: [
-      { leader_id: inviteeUser._id },
-      { "members.user_id": inviteeUser._id },
-      { "members.email": email },
-    ],
+  // Guard checks the invitee, not the leader clicking — message must stay
+  // third-person or the leader will read it as their own conflict.
+  await assertUserHasNoActiveTeam({
+    userId: inviteeUser._id,
+    userEmail: email,
+    excludeTeamId: teamId,
+    message: (teamName) =>
+      `Người dùng này đã thuộc đội "${teamName}" đang hoạt động.`,
   });
-  if (existingTeam) {
-    const err = new Error("Người dùng này đã thuộc một đội thi khác đang hoạt động");
-    err.statusCode = 409;
-    throw err;
-  }
 
   // 6. Create TeamInvitation record (pending)
   await TeamInvitation.create({
@@ -1065,6 +1077,14 @@ export const acceptTeamInvitation = async (invitationId, userId) => {
     throw err;
   }
 
+  // Same rule as joinTeam: accepting an invitation must not put the user in a
+  // second active team.
+  await assertUserHasNoActiveTeam({
+    userId,
+    userEmail: inv.invitee_email,
+    excludeTeamId: inv.team_id,
+  });
+
   const team = await Team.findById(inv.team_id);
   if (!team) {
     const err = new Error('Đội thi không còn tồn tại');
@@ -1101,6 +1121,7 @@ export const acceptTeamInvitation = async (invitationId, userId) => {
     full_name: user?.full_name || '',
     email_verified: true, // User is authenticated, no need to reverify
     role: 'member',
+    invited_at: new Date(),
   });
   await team.save();
 
@@ -1187,4 +1208,48 @@ export const transferLeader = async (teamId, requesterId, newLeaderEmail) => {
   return Team.findById(teamId)
     .populate("leader_id", "full_name email avatar_url profile_verify_status")
     .populate("members.user_id", "full_name email avatar_url profile_verify_status is_profile_complete student_id student_card");
+};
+
+/**
+ * Remove a member from a team. Only the team leader or an admin may do this,
+ * and the leader can never be removed this way — transferring leadership or
+ * dissolving the team are the routes for that.
+ */
+export const removeMember = async (teamId, email, actingUserId, isAdmin = false) => {
+  const team = await Team.findById(teamId);
+  if (!team) {
+    const err = new Error("Không tìm thấy đội thi"); err.statusCode = 404; throw err;
+  }
+
+  const leaderId = (team.leader_id?._id ?? team.leader_id)?.toString();
+  if (!isAdmin && leaderId !== actingUserId.toString()) {
+    const err = new Error("Chỉ trưởng nhóm mới có quyền xoá thành viên");
+    err.statusCode = 403; throw err;
+  }
+
+  const target = String(email || "").toLowerCase();
+  const member = team.members.find((m) => m.email === target);
+  if (!member) {
+    const err = new Error("Không tìm thấy thành viên này trong đội");
+    err.statusCode = 404; throw err;
+  }
+
+  const memberUserId = (member.user_id?._id ?? member.user_id)?.toString();
+  if (memberUserId && memberUserId === leaderId) {
+    const err = new Error("Không thể xoá trưởng nhóm. Hãy chuyển quyền trưởng nhóm trước.");
+    err.statusCode = 400; throw err;
+  }
+
+  if (["CONFIRMED", "WAITING_APPROVAL"].includes(team.status)) {
+    const err = new Error("Không thể thay đổi thành viên khi đội đã gửi duyệt hoặc đã được xác nhận");
+    err.statusCode = 409; throw err;
+  }
+
+  team.members = team.members.filter((m) => m.email !== target);
+  await team.save();
+
+  // Drop any still-pending invitation so the member can be re-invited later.
+  await TeamInvitation.deleteMany({ team_id: teamId, invitee_email: target, status: "pending" });
+
+  return team;
 };

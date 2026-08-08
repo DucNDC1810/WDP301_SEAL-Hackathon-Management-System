@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
 import RefreshButton from '../../../components/RefreshButton';
+import { ACTIVE_TEAM_STATUSES } from '../../../constants/teamStatus.js';
 
 // ── Color tokens ──────────────────────────────────────────────────────────────
 // bg: #070b14 | card: #0c1524 | border: #1b2740 | text: #e6eef9 | text2: #c9d6e8
@@ -91,7 +92,11 @@ export const StudentInvitesPage = () => {
       try {
         const teamRes = await request('/api/teams/me');
         const teams = Array.isArray(teamRes) ? teamRes : teamRes?.data ?? [];
-        setHasTeam(teams.length > 0);
+        // /api/teams/me returns every team the user has ever been in, including
+        // finished ones (ELIMINATED / DISQUALIFIED). Those must not block the
+        // user from accepting a new invitation, so only count active teams.
+        const activeTeams = teams.filter((t) => ACTIVE_TEAM_STATUSES.includes(String(t.status).toUpperCase()));
+        setHasTeam(activeTeams.length > 0);
       } catch {
         setHasTeam(false);
       }
@@ -171,7 +176,7 @@ export const StudentInvitesPage = () => {
           }}>
             <IconInfo />
             <span style={{ fontSize: 12.5, color: '#9fb2cc', lineHeight: 1.55 }}>
-              Chấp nhận một lời mời khác sẽ khiến bạn rời khỏi đội hiện tại.
+              Bạn đang thuộc một đội. Hãy rời đội hiện tại trước khi chấp nhận lời mời khác.
             </span>
           </div>
         )}
@@ -206,7 +211,6 @@ export const StudentInvitesPage = () => {
               const memberCount = inv.team_id?.members?.length ?? 0;
               const inviterName = inv.invited_by?.full_name ?? 'Ai đó';
               const contestTitle = inv.contest_id?.title ?? '';
-              const field = inv.contest_id?.field ?? '';
               const createdAt = inv.created_at ?? '';
               const isAccepting = actionLoading[inv._id] === 'accept';
               const isRejecting = actionLoading[inv._id] === 'reject';
@@ -238,20 +242,11 @@ export const StudentInvitesPage = () => {
 
                   {/* Info section */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Row 1: team name + field chip */}
+                    {/* Row 1: team name + contest chip */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
                       <span style={{ fontSize: 16, fontWeight: 700, color: '#e6eef9' }}>
                         {teamName}
                       </span>
-                      {field && (
-                        <span style={{
-                          fontSize: 10.5, padding: '2px 8px', borderRadius: 5,
-                          background: 'rgba(168,85,247,.1)', border: '1px solid rgba(168,85,247,.25)',
-                          color: '#a855f7', fontWeight: 600, letterSpacing: '0.4px',
-                        }}>
-                          {field}
-                        </span>
-                      )}
                       {contestTitle && (
                         <span style={{
                           fontSize: 10.5, padding: '2px 8px', borderRadius: 5,
@@ -304,17 +299,18 @@ export const StudentInvitesPage = () => {
 
                     {/* Accept */}
                     <button
-                      disabled={isBusy}
+                      disabled={isBusy || hasTeam}
+                      title={hasTeam ? 'Bạn phải rời đội hiện tại trước' : undefined}
                       onClick={() => handleAccept(inv)}
                       style={{
                         padding: '9px 18px', borderRadius: 9,
                         border: 'none',
-                        background: isBusy ? 'rgba(0,212,255,.4)' : 'linear-gradient(135deg,#00d4ff,#0099cc)',
+                        background: isBusy || hasTeam ? 'rgba(0,212,255,.4)' : 'linear-gradient(135deg,#00d4ff,#0099cc)',
                         color: '#070b14',
-                        fontSize: 13, fontWeight: 700, cursor: isBusy ? 'not-allowed' : 'pointer',
+                        fontSize: 13, fontWeight: 700, cursor: isBusy || hasTeam ? 'not-allowed' : 'pointer',
                         display: 'flex', alignItems: 'center', gap: 6,
                         transition: 'opacity .15s',
-                        opacity: isBusy ? 0.7 : 1,
+                        opacity: isBusy || hasTeam ? 0.6 : 1,
                       }}
                     >
                       {isAccepting ? (

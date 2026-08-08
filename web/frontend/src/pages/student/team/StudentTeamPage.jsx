@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Button, Form, Input, Modal, Select, Tag, Slider, Rate } from 'antd';
+import { App as AntdApp, Button, Dropdown, Form, Input, Modal, Select, Tag, Slider, Rate } from 'antd';
 import { CrownOutlined, MailOutlined, UserDeleteOutlined, MoreOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
@@ -7,6 +7,8 @@ import '../student.css';
 import './StudentTeamPage.css';
 import { useTheme } from '../../../context/ThemeContext';
 import { getStudentColors } from '../studentColors';
+import { getRoundStatusKey } from '../../../utils/roundStatus';
+import { GitActivityCard } from './GitActivityCard';
 
 // ── SVG helpers ─────────────────────────────────────────────────────────────
 const Ico = ({ d, size = 18, sw = 1.8 }) => (
@@ -122,6 +124,13 @@ export const StudentTeamPage = () => {
   const [contests, setContests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  // The round used to scope the Git activity card: the currently active
+  // round, or — mirroring overviewService's `focusRound` selection — the
+  // most recently locked round when nothing is active. Without that
+  // fallback, once the final round locks nothing could ever warm its cache
+  // (this page only fetches when the card renders) and the Overview page's
+  // cache-only read would stay cold forever. null when neither exists.
+  const [activeRound, setActiveRound] = useState(null);
 
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
@@ -177,6 +186,36 @@ export const StudentTeamPage = () => {
         const found = teams.find(t => open.some(c => (c._id ?? c) === (t.contest_id?._id ?? t.contest_id))) ?? teams[0] ?? null;
         setTeam(found);
         if (found) setTeamName(found.team_name || '');
+
+        // Resolve the contest's currently active round for the Git activity
+        // card. Best-effort only — a failure here shouldn't fail the whole
+        // page load, so it gets its own try/catch.
+        const foundContestId = found?.contest_id?._id ?? found?.contest_id;
+        if (foundContestId) {
+          try {
+            const contestRes = await request(`/api/contests/${foundContestId}`);
+            const contestData = contestRes?.data ?? contestRes;
+            const roundsList = contestData?.rounds ?? [];
+            const active = roundsList.find(r => getRoundStatusKey(r) === 'active') ?? null;
+            if (active) {
+              setActiveRound(active);
+            } else {
+              // No active round — fall back to the most recently locked one,
+              // same rule as overviewService's `latestLockedRound` (highest
+              // round_number among scoring_locked rounds), so this page and
+              // the Overview page always agree on which round's cache to use.
+              const locked = roundsList.filter(r => r.scoring_locked);
+              const latestLocked = locked.length
+                ? [...locked].sort((a, b) => (b.round_number ?? 0) - (a.round_number ?? 0))[0]
+                : null;
+              setActiveRound(latestLocked);
+            }
+          } catch {
+            setActiveRound(null);
+          }
+        } else {
+          setActiveRound(null);
+        }
       } catch {
         message.error('Không thể tải thông tin đội thi');
       } finally {
@@ -213,6 +252,39 @@ export const StudentTeamPage = () => {
       message.success(`Đã gửi lời mời tới ${values.email}`); setInviteOpen(false); inviteForm.resetFields(); refresh();
     } catch (err) { message.error(err.message || 'Không thể gửi lời mời'); }
     finally { setInviteLoading(false); }
+  };
+
+  const handleRemoveMember = (member) => {
+    modal.confirm({
+      title: 'Xoá thành viên?',
+      content: `${member.full_name || member.email} sẽ bị xoá khỏi đội. Bạn có thể mời lại sau.`,
+      okText: 'Xoá',
+      okType: 'danger',
+      cancelText: 'Huỷ',
+      onOk: async () => {
+        try {
+          await request(`/api/teams/${team._id}/members/${encodeURIComponent(member.email)}`, {
+            method: 'DELETE',
+          });
+          message.success('Đã xoá thành viên');
+          refresh();
+        } catch (err) {
+          message.error(err.message || 'Không thể xoá thành viên');
+        }
+      },
+    });
+  };
+
+  const handleResendVerification = async (member) => {
+    try {
+      await request(`/api/teams/${team._id}/resend-verification`, {
+        method: 'POST',
+        body: { email: member.email },
+      });
+      message.success('Đã gửi lại email xác nhận cho thành viên');
+    } catch (err) {
+      message.error(err.message || 'Không thể gửi lại email xác nhận');
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -339,6 +411,15 @@ export const StudentTeamPage = () => {
   if (loading) return <div className="sp-loading"><div className="sp-spinner" /></div>;
 
   const isLeader = team && user && (team.leader_id?._id ?? team.leader_id) === user._id;
+  // Team size comes from the contest the team registered for. A team with no
+  // contest yet falls back to the strictest requirement among the open contests,
+  // so the progress bars measure against a real configured value rather than a
+  // hardcoded number.
+  const minTeamSize =
+    team?.contest_id?.min_team_size ??
+    contests.reduce((acc, c) => Math.max(acc, c.min_team_size ?? 0), 0) ??
+    0;
+  const maxTeamSize = team?.contest_id?.max_team_size ?? minTeamSize;
   // Đội đang tham gia cuộc thi còn mở → không được giải tán
   const hasActiveContest = !!team?.contest_id && contests.some(
     c => (c._id ?? c)?.toString() === (team.contest_id?._id ?? team.contest_id)?.toString()
@@ -448,7 +529,7 @@ export const StudentTeamPage = () => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { icon: '👥', text: <>Đội cần đủ <strong style={{ color: C.text }}>4 thành viên</strong></> },
+              { icon: '👥', text: <>Đội cần đủ <strong style={{ color: C.text }}>{minTeamSize} thành viên</strong></> },
               { icon: '✅', text: <>Tất cả thành viên xác thực sinh viên</> },
               { icon: '🔧', text: <>Xác nhận qua email sau khi được mời</> },
             ].map((item, i) => (
@@ -552,29 +633,35 @@ export const StudentTeamPage = () => {
     if ((team.status === 'ACTIVE' && !hasContest) || team.status === 'REJECTED') {
       const totalMembers = team.members?.length ?? 0;
       const verifiedCount = team.members?.filter(m => m.user_id && m.user_id.profile_verify_status === 'approved').length ?? 0;
-      const canRegister = totalMembers >= 4 && verifiedCount === totalMembers;
+      const canRegister = minTeamSize > 0 && totalMembers >= minTeamSize && verifiedCount === totalMembers;
       return (
         <div style={{ ...cardStyle, padding: 20 }}>
           <div style={labelStyle}>Đăng ký cuộc thi</div>
-          {!canRegister ? (
+          {minTeamSize === 0 ? (
+            <div style={{ background: 'rgba(251,146,60,.08)', border: '1px solid rgba(251,146,60,.25)', borderRadius: 8, padding: '10px 12px', marginTop: 8 }}>
+              <p style={{ margin: 0, fontSize: 12, color: C.amber, lineHeight: 1.5 }}>
+                Hiện chưa có cuộc thi nào đang mở đăng ký.
+              </p>
+            </div>
+          ) : !canRegister ? (
             <div style={{ marginTop: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <span style={{ fontSize: 12, color: C.muted }}>Thành viên đã xác thực</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: verifiedCount === totalMembers && totalMembers >= 4 ? C.green : C.amber }}>
-                  {verifiedCount}/{Math.max(totalMembers, 4)}
+                <span style={{ fontSize: 12, fontWeight: 700, color: verifiedCount === totalMembers && totalMembers >= minTeamSize ? C.green : C.amber }}>
+                  {verifiedCount}/{Math.max(totalMembers, minTeamSize)}
                 </span>
               </div>
               <div style={{ height: 6, background: C.line2, borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
-                <div style={{ height: '100%', width: `${Math.min((totalMembers / 4) * 100, 100)}%`, background: totalMembers >= 4 ? C.green : C.amber, borderRadius: 99, transition: 'width .4s' }} />
+                <div style={{ height: '100%', width: `${minTeamSize > 0 ? Math.min((totalMembers / minTeamSize) * 100, 100) : 0}%`, background: totalMembers >= minTeamSize ? C.green : C.amber, borderRadius: 99, transition: 'width .4s' }} />
               </div>
               <div style={{ background: 'rgba(251,146,60,.08)', border: '1px solid rgba(251,146,60,.25)', borderRadius: 8, padding: '10px 12px' }}>
                 <p style={{ margin: 0, fontSize: 12, color: C.amber, lineHeight: 1.5 }}>
-                  ⚠ Cần đủ <strong>4 thành viên</strong> và tất cả phải <strong>xác thực thông tin</strong>.
-                  {totalMembers < 4 && ` (Còn thiếu ${4 - totalMembers} thành viên)`}
-                  {totalMembers >= 4 && verifiedCount < totalMembers && ` (${totalMembers - verifiedCount} chưa xác thực)`}
+                  ⚠ Cần đủ <strong>{minTeamSize} thành viên</strong> và tất cả phải <strong>xác thực thông tin</strong>.
+                  {totalMembers < minTeamSize && ` (Còn thiếu ${minTeamSize - totalMembers} thành viên)`}
+                  {totalMembers >= minTeamSize && verifiedCount < totalMembers && ` (${totalMembers - verifiedCount} chưa xác thực)`}
                 </p>
               </div>
-              {isLeader && totalMembers < 4 && (
+              {isLeader && totalMembers < minTeamSize && (
                 <button className="stp-btn stp-btn--ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }} onClick={() => setInviteOpen(true)}>
                   + Mời thêm thành viên
                 </button>
@@ -860,9 +947,25 @@ export const StudentTeamPage = () => {
                       </span>
                     )}
                     {isLeader && !isSelf && (
-                      <button className="stp-icon-btn" title="Tùy chọn" style={{ color: C.dim }}>
-                        <MoreOutlined />
-                      </button>
+                      <Dropdown
+                        menu={{
+                          items: [
+                            ...(!m.email_verified
+                              ? [{ key: 'resend', label: 'Gửi lại email xác thực' }]
+                              : []),
+                            { key: 'remove', label: 'Xoá khỏi đội', danger: true },
+                          ],
+                          onClick: ({ key }) => {
+                            if (key === 'resend') handleResendVerification(m);
+                            if (key === 'remove') handleRemoveMember(m);
+                          },
+                        }}
+                        trigger={['click']}
+                      >
+                        <button className="stp-icon-btn" title="Tùy chọn" style={{ color: C.dim }}>
+                          <MoreOutlined />
+                        </button>
+                      </Dropdown>
                     )}
                   </div>
                 );
@@ -892,23 +995,36 @@ export const StudentTeamPage = () => {
                       <Avatar name={m.email} url={m.user_id?.avatar_url} size={32} radius={9} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.email}</div>
-                        <div style={{ fontSize: 11, color: C.dim }}>Sent {timeAgo(m.created_at || team.created_at)}</div>
+                        <div style={{ fontSize: 11, color: C.dim }}>
+                          {m.invited_at ? `Mời ${timeAgo(m.invited_at)}` : 'Chưa rõ thời điểm mời'}
+                        </div>
                       </div>
                     </div>
                     <button
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.dim, fontSize: 14, padding: '2px 6px' }}
-                      title="Hủy lời mời"
-                      onClick={() => message.info('Tính năng đang cập nhật.')}
+                      title="Xoá thành viên"
+                      onClick={() => handleRemoveMember(m)}
                     >
                       ✕
                     </button>
                   </div>
                 ))}
                 <p style={{ fontSize: 11, color: C.dim, margin: '10px 0 6px', fontStyle: 'italic' }}>
-                  Bạn có thể mời tối đa 4 thành viên vào đội của mình.
+                  Bạn có thể mời tối đa {maxTeamSize} thành viên vào đội của mình.
                 </p>
               </div>
             </div>
+          )}
+
+          {/* Git activity — separate from the contribution evaluation below;
+              commit counts are not a substitute for that manual review. */}
+          {isConfirmed && activeRound && (
+            <GitActivityCard
+              teamId={team._id}
+              roundId={activeRound._id}
+              roundName={activeRound.name}
+              C={C}
+            />
           )}
 
           {/* Member contributions */}

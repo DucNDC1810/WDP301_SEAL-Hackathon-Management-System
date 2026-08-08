@@ -309,7 +309,7 @@ function ChatWindow({ conv, userId, request }) {
             {conv.mentorName}
             <span className="tc-role-badge">Mentor</span>
             {conv.chatOpen
-              ? <span className="tc-status-open"><i />Đang hoạt động</span>
+              ? <span className="tc-status-open"><i />Phiên chat đang mở</span>
               : <span className="tc-status-closed">Đã đóng</span>
             }
           </div>

@@ -50,6 +50,12 @@ const memberSchema = new mongoose.Schema(
       type: String,
       default: "member",
     },
+    // When this member was added to the team. memberSchema has no timestamps,
+    // so this must be set explicitly at every insertion point.
+    invited_at: {
+      type: Date,
+      default: Date.now,
+    },
   }
 );
 

@@ -21,6 +21,7 @@ import {
   handleUpdateTeamContributions,
   handleLeaveTeam,
   handleTransferLeader,
+  handleRemoveMember,
 } from "../controllers/teamController.js";
 import { authenticate, authorize } from "../middlewares/authMiddleware.js";
 import { audit } from "../middlewares/auditMiddleware.js";
@@ -87,6 +88,9 @@ router.post("/:id/resend-verification", authenticate, handleResendMemberVerifica
 
 // POST /api/teams/:id/members                — leader mời thành viên mới qua email
 router.post("/:id/members", authenticate, handleInviteMember);
+
+// DELETE /api/teams/:id/members/:email    — leader xoá thành viên chưa xác thực
+router.delete("/:id/members/:email", authenticate, handleRemoveMember);
 
 // POST /api/teams/:id/select-topic           — leader chọn đề tài có sẵn
 router.post("/:id/select-topic", authenticate, handleSelectTopic);

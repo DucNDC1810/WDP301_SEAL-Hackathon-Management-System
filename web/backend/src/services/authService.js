@@ -154,10 +154,18 @@ export const findOrCreateOAuthUser = async ({
   email,
   full_name,
   avatar_url,
+  github_username,
 }) => {
   // 1. Tìm theo provider + provider_id
   let user = await User.findOne({ provider, provider_id });
-  if (user) return { user, isNewUser: !user.is_profile_complete };
+  if (user) {
+    // Chỉ ghi github_username nếu field đang rỗng — không đè lên giá trị người dùng tự khai
+    if (github_username && !user.github_username) {
+      user.github_username = github_username;
+      await user.save();
+    }
+    return { user, isNewUser: !user.is_profile_complete };
+  }
 
   // 2. Tìm theo email → link tài khoản (user đã có từ local)
   user = await User.findOne({ email: email.toLowerCase() });
@@ -165,6 +173,8 @@ export const findOrCreateOAuthUser = async ({
     user.provider = provider;
     user.provider_id = provider_id;
     if (avatar_url) user.avatar_url = avatar_url;
+    // Chỉ ghi github_username nếu field đang rỗng — không đè lên giá trị người dùng tự khai
+    if (github_username && !user.github_username) user.github_username = github_username;
     await user.save();
     // Nếu profile chưa hoàn chỉnh (ví dụ: tạo qua invitation chưa điền phone)
     return { user, isNewUser: !user.is_profile_complete };
@@ -177,6 +187,7 @@ export const findOrCreateOAuthUser = async ({
     provider,
     provider_id,
     avatar_url: avatar_url || "",
+    github_username: github_username || "",
     is_verified: true,
     is_profile_complete: false,
     roles: [

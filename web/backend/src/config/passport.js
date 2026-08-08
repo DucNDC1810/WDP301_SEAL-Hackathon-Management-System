@@ -59,6 +59,7 @@ if (githubClientId && githubClientSecret) {
             email,
             full_name: profile.displayName || profile.username,
             avatar_url: profile.photos?.[0]?.value || "",
+            github_username: profile.username || "",
           });
           done(null, { ...user.toObject(), isNewUser });
         } catch (err) {

@@ -44,6 +44,15 @@ const LOGOUT = ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'M16 17l5-5-5-5', 'M2
 const SUN    = 'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 5a7 7 0 1 0 0 14A7 7 0 0 0 12 5z';
 const MOON   = 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z';
 
+// Vietnamese labels for the role names the backend stores on User.roles[].
+const ROLE_LABEL = {
+  admin: 'Quản trị viên',
+  organizer: 'Ban tổ chức',
+  mentor: 'Mentor',
+  judge: 'Giám khảo',
+  contestant: 'Thí sinh',
+};
+
 
 // ── Navigation groups ────────────────────────────────────────────────────────
 const GROUP1 = [
@@ -112,6 +121,12 @@ export const StudentLayout = () => {
   };
 
   const userInitial = (user?.full_name?.[0] || 'U').toUpperCase();
+
+  // A user can hold several roles; show them all rather than assuming contestant.
+  const roleLabel =
+    (user?.roles ?? [])
+      .map((r) => ROLE_LABEL[r.role_name] ?? r.role_name)
+      .join(' · ') || 'Thí sinh';
 
   const isDark = theme === 'dark';
 
@@ -186,7 +201,7 @@ export const StudentLayout = () => {
             <div className="sl-user-av">{userInitial}</div>
             <div className="sl-user-info">
               <span className="sl-user-name">{user?.full_name || 'Người dùng'}</span>
-              <span className="sl-user-role">👥 Thí sinh</span>
+              <span className="sl-user-role">👥 {roleLabel}</span>
             </div>
             <button
               className="sl-logout-icon"

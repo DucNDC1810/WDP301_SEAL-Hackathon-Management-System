@@ -110,6 +110,7 @@ export const getContributorStats = async (repoUrl) => {
   const body = await res.json();
   const contributors = (Array.isArray(body) ? body : [])
     .map((c) => ({
+      github_id: c.id ?? null,
       username: c.login || c.name || "Unknown",
       avatar_url: c.avatar_url || null,
       profile_url: c.html_url || null,

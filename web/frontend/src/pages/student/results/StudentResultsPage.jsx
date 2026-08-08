@@ -5,6 +5,8 @@ import "../student.css";
 import RefreshButton from "../../../components/RefreshButton";
 import { useTheme } from "../../../context/ThemeContext";
 import { getStudentColors } from "../studentColors";
+import { CriteriaRadarChart } from "../overview/cards/CriteriaRadarChart.jsx";
+import { AppealSection } from "./AppealSection.jsx";
 
 const CriteriaRow = ({ c, C }) => {
   const pct = c.max_score ? Math.round((c.avg_score / c.max_score) * 100) : 0;
@@ -32,7 +34,7 @@ const CriteriaRow = ({ c, C }) => {
   );
 };
 
-const RoundCard = ({ r, C, cardStyle, RANK_COLOR }) => {
+const RoundCard = ({ r, C, cardStyle, RANK_COLOR, contestId, teamId }) => {
   if (!r.locked) {
     return (
       <div style={{ ...cardStyle, border: `1px dashed ${C.line}`, padding: "20px 24px", opacity: 0.75 }}>
@@ -118,10 +120,27 @@ const RoundCard = ({ r, C, cardStyle, RANK_COLOR }) => {
         <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: ".6px", color: C.muted, textTransform: "uppercase", marginBottom: 12 }}>
           Điểm theo tiêu chí (trung bình các giám khảo)
         </div>
-        {(r.criteria ?? []).map((c) => (
-          <CriteriaRow key={c.criteria_name} c={c} C={C} />
-        ))}
+        <div style={{ display: 'grid', gridTemplateColumns: (r.criteria ?? []).length >= 3 ? '1fr 1fr' : '1fr', gap: 20, alignItems: 'start' }}>
+          <div>
+            {(r.criteria ?? []).map((c) => (
+              <CriteriaRow key={c.criteria_name} c={c} C={C} />
+            ))}
+          </div>
+          {(r.criteria ?? []).length >= 3 && (
+            <CriteriaRadarChart scoreHistory={[r]} C={C} />
+          )}
+        </div>
       </div>
+
+      {r.locked && !r.no_scores && (
+        <AppealSection
+          contestId={contestId}
+          roundId={r.round_id}
+          roundName={r.round_name}
+          teamId={teamId}
+          C={C}
+        />
+      )}
     </div>
   );
 };
@@ -140,6 +159,8 @@ export const StudentResultsPage = () => {
   const [teamName, setTeamName] = useState(null);
   const [results, setResults] = useState(null);
   const [hasContest, setHasContest] = useState(true);
+  const [contestId, setContestId] = useState(null);
+  const [teamId, setTeamId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -152,8 +173,10 @@ export const StudentResultsPage = () => {
         setLoading(false);
         return;
       }
-      const contestId = team.contest_id?._id ?? team.contest_id;
-      const data = await request(`/api/scores/contests/${contestId}/my-team-results`);
+      const resolvedContestId = team.contest_id?._id ?? team.contest_id;
+      setContestId(resolvedContestId);
+      setTeamId(team._id);
+      const data = await request(`/api/scores/contests/${resolvedContestId}/my-team-results`);
       setTeamName(data?.team_name ?? team.team_name);
       setResults(Array.isArray(data?.results) ? data.results : []);
     } catch {
@@ -224,7 +247,15 @@ export const StudentResultsPage = () => {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {results.map((r) => (
-            <RoundCard key={r.round_id} r={r} C={C} cardStyle={cardStyle} RANK_COLOR={RANK_COLOR} />
+            <RoundCard
+              key={r.round_id}
+              r={r}
+              C={C}
+              cardStyle={cardStyle}
+              RANK_COLOR={RANK_COLOR}
+              contestId={contestId}
+              teamId={teamId}
+            />
           ))}
         </div>
       )}

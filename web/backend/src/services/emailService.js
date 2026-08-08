@@ -187,16 +187,16 @@ export const sendJudgeInvitationEmail = async (to, contestTitle, token, schedule
               </table>
             </div>
 
-            <p style="font-size:15px;margin:0 0 30px 0">Vui lòng kiểm tra lịch trình ở trên để đảm bảo bạn có thể tham gia đầy đủ. Để kích hoạt tài khoản giám khảo của bạn và xác nhận tham gia chấm điểm, nhấn vào nút bên dưới (hệ thống sẽ tự động tạo tài khoản cho bạn):</p>
-            
+            <p style="font-size:15px;margin:0 0 30px 0">Vui lòng kiểm tra lịch trình ở trên để đảm bảo bạn có thể tham gia đầy đủ, sau đó nhấn nút bên dưới để <strong>chấp nhận hoặc từ chối</strong> lời mời (nếu chấp nhận và chưa có tài khoản, hệ thống sẽ tự động tạo tài khoản cho bạn):</p>
+
             <!-- CTA Button -->
             <div style="text-align:center;margin:35px 0">
               <a href="${link}" style="display:inline-block;background-color:#4f46e5;color:#ffffff;padding:14px 35px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 4px 6px rgba(79,70,229,0.2)">
-                Xác Nhận & Kích Hoạt
+                Xem lời mời &amp; Phản hồi
               </a>
             </div>
-            
-            <p style="font-size:13px;color:#64748b;margin:0">Nếu bạn không yêu cầu thư mời này hoặc không muốn tham gia, bạn có thể yên tâm bỏ qua email này.</p>
+
+            <p style="font-size:13px;color:#64748b;margin:0">Nếu bạn không thể tham gia, vui lòng bấm vào nút trên và chọn <strong>Từ chối</strong> để Ban tổ chức kịp thời tìm giám khảo khác — không nên chỉ bỏ qua email này.</p>
           </div>
           
           <!-- Footer -->

@@ -60,6 +60,7 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
   const [commitData, setCommitData] = useState({}); // { [submissionId]: { loading, count, contributors, error } }
   const [commitListModal, setCommitListModal] = useState(null); // { submissionId, teamName } | null
   const [commitList, setCommitList] = useState({ loading: false, commits: [], error: null });
+  const [openPopoverId, setOpenPopoverId] = useState(null); // submissionId của Popover đang mở, chỉ 1 cái tại 1 thời điểm
 
   const fetchCommitCount = useCallback(async (submissionId) => {
     setCommitData(prev => ({ ...prev, [submissionId]: { loading: true } }));
@@ -76,6 +77,7 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
   }, [request]);
 
   const openCommitList = useCallback(async (submissionId, teamName) => {
+    setOpenPopoverId(null); // đóng Popover trước để không chồng lấn với Modal
     setCommitListModal({ submissionId, teamName });
     setCommitList({ loading: true, commits: [], error: null });
     try {
@@ -322,6 +324,8 @@ export default function SubmissionReviewTab({ config, contestId, contest }) {
                             <Popover
                               key={`${sub.id}-contributors`}
                               trigger="click"
+                              open={openPopoverId === sub.id}
+                              onOpenChange={(nextOpen) => setOpenPopoverId(nextOpen ? sub.id : null)}
                               title="Commit theo thành viên"
                               content={
                                 <div style={{ minWidth: 220 }}>

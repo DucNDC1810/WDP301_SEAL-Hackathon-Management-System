@@ -43,9 +43,13 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
 
   // Mentor modal state
   const [showMentorModal, setShowMentorModal] = useState(false);
+  const [newMentorType, setNewMentorType] = useState('INTERNAL');
   const [newMentorId, setNewMentorId] = useState(null);
+  const [newMentorExternalEmail, setNewMentorExternalEmail] = useState('');
   const [newMentorPoolFilter, setNewMentorPoolFilter] = useState(null); // lọc danh sách đội theo bảng (tùy chọn)
   const [newMentorTeams, setNewMentorTeams] = useState([]); // multi-select, có thể chọn đội từ nhiều bảng khác nhau
+  const [checkingMentorEmail, setCheckingMentorEmail] = useState(false);
+  const [foundInternalMentorUser, setFoundInternalMentorUser] = useState(null);
 
   const [saving, setSaving] = useState(false);
 
@@ -77,6 +81,31 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     }, 350);
     return () => clearTimeout(timer);
   }, [newJudgeExternalEmail, newJudgeType, request]);
+
+  // Check real-time if entered external mentor email belongs to an existing internal user
+  useEffect(() => {
+    if (newMentorType !== 'EXTERNAL' || !newMentorExternalEmail) {
+      setFoundInternalMentorUser(null);
+      return;
+    }
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_REGEX.test(newMentorExternalEmail.trim())) {
+      setFoundInternalMentorUser(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setCheckingMentorEmail(true);
+      try {
+        const res = await request(`/api/auth/check-email?email=${encodeURIComponent(newMentorExternalEmail.trim())}`);
+        setFoundInternalMentorUser(res?.exists && res?.user ? res.user : null);
+      } catch {
+        setFoundInternalMentorUser(null);
+      } finally {
+        setCheckingMentorEmail(false);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [newMentorExternalEmail, newMentorType, request]);
 
   // Fetch users + pools once
   useEffect(() => {
@@ -126,7 +155,10 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
       setMentorAssignments(mentorList.map(a => ({
         id: a._id,
         mentorId: (a.mentor_id?._id || a.mentor_id)?.toString(),
-        mentorName: a.mentor_id?.full_name || a.mentor_id?.email || '—',
+        mentorName: a.mentor_id?.full_name || a.mentor_id?.email || a.external_email || '—',
+        type: a.mentor_type || 'INTERNAL',
+        status: a.status || 'pending',
+        externalEmail: a.external_email,
         pool: a.board_id?.pool_name || '—',
         poolId: (a.board_id?._id || a.board_id)?.toString(),
         teamId: (a.team_id?._id || a.team_id)?.toString(),
@@ -226,7 +258,9 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   };
 
   const resetMentorModal = () => {
-    setNewMentorId(null); setNewMentorPoolFilter(null); setNewMentorTeams([]);
+    setNewMentorType('INTERNAL');
+    setNewMentorId(null); setNewMentorExternalEmail('');
+    setNewMentorPoolFilter(null); setNewMentorTeams([]);
   };
 
   // Danh sách tất cả đội (kèm bảng của đội) trên toàn bộ vòng thi — dùng để multi-select nhanh,
@@ -239,9 +273,19 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
     }))
   );
 
-  // Mỗi mentor chỉ được phụ trách 1 đội / bảng — các đội khác trong cùng bảng phải có mentor khác
+  // Đã chọn đủ thông tin mentor để cho phép chọn đội hay chưa (nội bộ cần chọn id, ngoài cần nhập email hợp lệ)
+  const mentorPicked = newMentorType === 'EXTERNAL'
+    ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newMentorExternalEmail.trim())
+    : !!newMentorId;
+
+  // Mỗi mentor chỉ được phụ trách 1 đội / bảng — các đội khác trong cùng bảng phải có mentor khác.
+  // Với mentor EXTERNAL (chưa có mentorId), khóa theo external_email đang nhập thay vì id.
   const boardsAlreadyMentored = new Set(
-    mentorAssignments.filter(a => a.mentorId === newMentorId?.toString()).map(a => a.poolId)
+    newMentorType === 'EXTERNAL'
+      ? mentorAssignments
+          .filter(a => a.type === 'EXTERNAL' && a.externalEmail === newMentorExternalEmail.trim().toLowerCase())
+          .map(a => a.poolId)
+      : mentorAssignments.filter(a => a.mentorId === newMentorId?.toString()).map(a => a.poolId)
   );
   const selectedBoardIds = new Set(
     newMentorTeams
@@ -275,23 +319,37 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
   };
 
   const addMentor = async () => {
-    if (!newMentorId || newMentorTeams.length === 0) {
-      messageApi.error('Vui lòng chọn mentor và ít nhất một đội!'); return;
+    const isExternal = newMentorType === 'EXTERNAL';
+    if (isExternal && !newMentorExternalEmail.trim()) {
+      messageApi.error('Vui lòng nhập email mentor ngoài!'); return;
+    }
+    if (!isExternal && !newMentorId) {
+      messageApi.error('Vui lòng chọn mentor!'); return;
+    }
+    if (newMentorTeams.length === 0) {
+      messageApi.error('Vui lòng chọn ít nhất một đội!'); return;
     }
     setSaving(true);
     try {
       const results = await Promise.allSettled(
         newMentorTeams.map(teamId => {
           const opt = allTeamOptions.find(o => o.value === teamId);
+          const body = isExternal
+            ? { board_id: opt?.poolId, team_id: teamId, mentor_type: 'EXTERNAL', external_email: newMentorExternalEmail.trim() }
+            : { board_id: opt?.poolId, team_id: teamId, mentor_type: 'INTERNAL', mentor_id: newMentorId };
           return request(`/api/mentor-assignments/contests/${contestId}/rounds/${selectedRound}`, {
             method: 'POST',
-            body: { board_id: opt?.poolId, team_id: teamId, mentor_id: newMentorId },
+            body,
           });
         })
       );
       const failedCount = results.filter(r => r.status === 'rejected').length;
       if (failedCount === 0) {
-        messageApi.success(`Đã phân công mentor cho ${newMentorTeams.length} đội!`);
+        messageApi.success(
+          isExternal
+            ? `Đã gửi lời mời mentor tới ${newMentorTeams.length} đội!`
+            : `Đã phân công mentor cho ${newMentorTeams.length} đội!`
+        );
       } else {
         messageApi.warning(`Thành công ${newMentorTeams.length - failedCount}/${newMentorTeams.length} đội (${failedCount} đội lỗi, có thể đã được phân công trước đó).`);
       }
@@ -412,8 +470,20 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
               <div key={a.id} className="flex items-center gap-3 px-4 py-3 flex-wrap"
                 style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}>
                 <div className="flex-1 min-w-0">
-                  <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{a.mentorName}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{a.mentorName}</span>
+                    {a.status === 'pending' && (
+                      <Tag color="orange" style={{ fontSize: '0.65rem' }}>⏳ Chờ xác nhận</Tag>
+                    )}
+                    {a.status === 'declined' && (
+                      <Tag color="red" style={{ fontSize: '0.65rem' }}>Đã từ chối</Tag>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <Tag color={a.type === 'INTERNAL' ? 'blue' : 'purple'} style={{ fontSize: '0.65rem' }}>{a.type}</Tag>
+                    {a.type === 'EXTERNAL' && a.externalEmail && (
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{a.externalEmail}</span>
+                    )}
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Bảng: <strong>{a.pool}</strong></span>
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Đội: <strong>{a.teamName}</strong></span>
                     {a.assignedAt && (
@@ -613,36 +683,89 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
           />
 
           <div>
-            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Chọn Mentor</label>
+            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Loại</label>
             <Select
-              value={newMentorId}
-              onChange={v => { setNewMentorId(v); setNewMentorTeams([]); }}
+              value={newMentorType}
+              onChange={v => { setNewMentorType(v); setNewMentorId(null); setNewMentorExternalEmail(''); setNewMentorTeams([]); }}
               style={{ width: '100%' }}
-              placeholder="Tìm theo tên hoặc email..."
-              loading={loadingUsers}
-              showSearch
-              optionLabelProp="title"
-              filterOption={(input, opt) =>
-                (opt.searchtext || '').toLowerCase().includes(input.toLowerCase())
-              }
-              options={mentors.map(m => ({
-                value: m._id,
-                title: m.full_name || m.email,
-                searchtext: `${m.full_name || ''} ${m.email || ''}`,
-                label: (
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{m.full_name || m.email}</div>
-                    {m.email && <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>{m.email}</div>}
-                  </div>
-                ),
-              }))}
+              options={[
+                { value: 'INTERNAL', label: 'Nội bộ — chọn từ tài khoản có sẵn' },
+                { value: 'EXTERNAL', label: 'Ngoài — mời qua email' },
+              ]}
             />
-            {mentors.length === 0 && !loadingUsers && (
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                Chưa có tài khoản nào có role Mentor.
-              </p>
-            )}
           </div>
+
+          {newMentorType === 'INTERNAL' ? (
+            <div>
+              <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Chọn Mentor</label>
+              <Select
+                value={newMentorId}
+                onChange={v => { setNewMentorId(v); setNewMentorTeams([]); }}
+                style={{ width: '100%' }}
+                placeholder="Tìm theo tên hoặc email..."
+                loading={loadingUsers}
+                showSearch
+                optionLabelProp="title"
+                filterOption={(input, opt) =>
+                  (opt.searchtext || '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={mentors.map(m => ({
+                  value: m._id,
+                  title: m.full_name || m.email,
+                  searchtext: `${m.full_name || ''} ${m.email || ''}`,
+                  label: (
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{m.full_name || m.email}</div>
+                      {m.email && <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>{m.email}</div>}
+                    </div>
+                  ),
+                }))}
+              />
+              {mentors.length === 0 && !loadingUsers && (
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Chưa có tài khoản nào có role Mentor.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
+                Email Mentor ngoài
+              </label>
+              <Input
+                type="email"
+                value={newMentorExternalEmail}
+                onChange={e => { setNewMentorExternalEmail(e.target.value); setNewMentorTeams([]); }}
+                placeholder="vd: mentor@company.com"
+              />
+              {foundInternalMentorUser ? (
+                <div
+                  className="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
+                  style={{
+                    backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                    border: '1px solid rgba(79, 70, 229, 0.25)',
+                    color: '#4f46e5',
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>ℹ️</span>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>
+                      Tài khoản nội bộ: {foundInternalMentorUser.full_name || foundInternalMentorUser.email}
+                    </div>
+                    <div style={{ opacity: 0.85, marginTop: 2 }}>
+                      Email này đã có tài khoản trên hệ thống. Khi bấm Phân công, hệ thống sẽ tự động gán trực tiếp.
+                    </div>
+                  </div>
+                </div>
+              ) : checkingMentorEmail ? (
+                <p className="text-xs mt-1 text-gray-400">Đang kiểm tra tài khoản hệ thống...</p>
+              ) : (
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Hệ thống sẽ gửi email mời có nút Chấp nhận/Từ chối. Nếu chấp nhận và chưa có tài khoản, hệ thống sẽ tự tạo tài khoản.
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
@@ -664,7 +787,7 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
               <Button
                 size="small"
                 type="link"
-                disabled={!newMentorId}
+                disabled={!mentorPicked}
                 style={{ padding: 0, height: 'auto' }}
                 onClick={selectAllTeams}
               >
@@ -676,8 +799,8 @@ export default function JudgeAssignmentTab({ config, contestId, contest }) {
               value={newMentorTeams}
               onChange={setNewMentorTeams}
               style={{ width: '100%' }}
-              placeholder={newMentorId ? 'Chọn một hoặc nhiều đội...' : 'Chọn mentor trước'}
-              disabled={!newMentorId}
+              placeholder={mentorPicked ? 'Chọn một hoặc nhiều đội...' : (newMentorType === 'EXTERNAL' ? 'Nhập email mentor trước' : 'Chọn mentor trước')}
+              disabled={!mentorPicked}
               showSearch
               allowClear
               maxTagCount="responsive"

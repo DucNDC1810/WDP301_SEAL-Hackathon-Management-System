@@ -1310,14 +1310,23 @@ export default function HackathonDetailPage({ defaultTab }) {
       return;
     }
 
-    // Chronological deadline validation relative to contest start date
-    const contestStartStr = contest.start_date ? contest.start_date.slice(0, 16) : null;
-    if (contestStartStr && new Date(roundForm.submission_deadline) < new Date(contestStartStr)) {
-      notification.warning({
-        message: 'Hạn nộp không hợp lệ',
-        description: 'Hạn nộp bài phải sau thời gian bắt đầu cuộc thi.',
-      });
-      return;
+    // Hạn nộp bài phải rơi đúng vào ngày thi thực tế (end_date) — start_date/kickoff chỉ là
+    // ngày khai mạc (phát áo, ăn uống, sự kiện mở màn), KHÔNG có thi nên round không được phép
+    // có deadline vào ngày đó. Cả 2 vòng cùng diễn ra trong ngày end_date.
+    if (contest.end_date) {
+      const examDate = new Date(contest.end_date);
+      const deadline = new Date(roundForm.submission_deadline);
+      const isSameDay =
+        deadline.getFullYear() === examDate.getFullYear() &&
+        deadline.getMonth() === examDate.getMonth() &&
+        deadline.getDate() === examDate.getDate();
+      if (!isSameDay) {
+        notification.warning({
+          message: 'Hạn nộp không hợp lệ',
+          description: `Hạn nộp bài phải rơi đúng vào ngày thi đấu chính thức (${new Date(contest.end_date).toLocaleDateString('vi-VN')}) — ngày khai mạc chỉ là sự kiện mở màn, không diễn ra thi đấu.`,
+        });
+        return;
+      }
     }
 
     const currentSeq = Number(roundForm.sequence_order);
@@ -1858,8 +1867,18 @@ export default function HackathonDetailPage({ defaultTab }) {
                         <span>📅 Hạn nộp bài: <strong style={{ color: '#ffffff' }}>{fmtDate(activeDbRound.submission_deadline)}</strong></span>
                       </div>
                       {isExpiredNotLocked && (
-                        <div className="hd-round-countdown-banner-dates" style={{ marginTop: 6, color: '#f87171' }}>
-                          <span>⚠ Đã qua hạn nộp bài. Đội nộp trễ vẫn được ghi nhận chờ duyệt (LATE_PENDING). Hãy kiểm tra bài nộp trễ, hoàn tất chấm điểm rồi khóa chấm điểm để kết thúc vòng.</span>
+                        <div style={{
+                          marginTop: 6,
+                          padding: '10px 14px',
+                          borderRadius: 10,
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          color: '#fca5a5',
+                          fontSize: '0.8rem',
+                          lineHeight: 1.5,
+                          maxWidth: 520,
+                        }}>
+                          ⚠ Đã qua hạn nộp bài. Đội nộp trễ vẫn được ghi nhận chờ duyệt (LATE_PENDING). Hãy kiểm tra bài nộp trễ, hoàn tất chấm điểm rồi khóa chấm điểm để kết thúc vòng.
                         </div>
                       )}
                     </div>
@@ -1968,7 +1987,7 @@ export default function HackathonDetailPage({ defaultTab }) {
                               const st = dbRound ? getRoundStatus(dbRound) : null;
                               if (st) {
                                 return (
-                                  <span className={`hd-round-status-tag ${st.key === 'active' ? 'active' : ''} ${st.key === 'ended' ? 'ended' : ''}`}>
+                                  <span className={`hd-round-status-tag ${st.key === 'active' ? 'active' : ''} ${st.key === 'ended' ? 'ended' : ''} ${st.key === 'overdue' ? 'overdue' : ''}`}>
                                     {st.label}
                                   </span>
                                 );

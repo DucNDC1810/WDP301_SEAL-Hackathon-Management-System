@@ -126,6 +126,12 @@ export const assignJudge = async ({
       }
     }
 
+    // Nếu email này từng từ chối 1 lời mời trước đó trong cùng contest (dù là
+    // role judge hay mentor — unique index là (contest_id, email), không phân
+    // biệt role), xóa Invitation "declined" cũ để không vướng unique index khi
+    // tạo lời mời mới — cho phép mời lại thoải mái, không còn chặn.
+    await Invitation.deleteOne({ contest_id, email, status: "declined" });
+
     const rawToken = crypto.randomBytes(32).toString("hex");
     const invitation = await Invitation.create({
       contest_id, email, role: "judge", invited_by: assigned_by,

@@ -1108,6 +1108,7 @@ input:checked + .hd-switch-slider:before {
   flex-direction: column;
   gap: 10px;
   z-index: 1;
+  max-width: 560px;
 }
 
 .hd-round-countdown-banner-status {
@@ -1541,6 +1542,11 @@ input:checked + .hd-switch-slider:before {
 .hd-round-status-tag.ended {
   background: rgba(148, 163, 184, 0.12);
   color: #94a3b8;
+}
+
+.hd-round-status-tag.overdue {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
 }
 
 /* Middle Section: Metadata details list */

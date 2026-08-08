@@ -377,6 +377,25 @@
   text-transform: uppercase;
 }
 
+.login-card__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.login-card__forgot-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cyan, #22d3ee);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.login-card__forgot-link:hover {
+  text-decoration: underline;
+}
+
 .login-card__remember {
   display: flex;
   align-items: center;

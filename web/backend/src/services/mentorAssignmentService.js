@@ -11,17 +11,10 @@ import { notifyMentorAssignedToTeam, notifyTeamMentorAssigned, createNotificatio
 const FPT_DOMAINS = ["@fpt.edu.vn", "@fe.edu.vn", "@fpt.com.vn"];
 const MAX_TEAMS_PER_MENTOR_PER_ROUND = 3;
 
-export const assignMentor = async ({ contest_id, round_id, board_id, team_id, mentor_id, assigned_by }) => {
-  const mentor = await User.findById(mentor_id).select("email full_name");
-  if (!mentor) {
-    const err = new Error("Không tìm thấy mentor"); err.statusCode = 404; throw err;
-  }
-  const isFptEmail = FPT_DOMAINS.some((d) => mentor.email.endsWith(d));
-  if (!isFptEmail) {
-    const err = new Error("Mentor phải có email FPT (@fpt.edu.vn / @fe.edu.vn / @fpt.com.vn)");
-    err.statusCode = 400; throw err;
-  }
-
+export const assignMentor = async ({
+  contest_id, round_id, board_id, team_id,
+  mentor_id, external_email, mentor_type = "INTERNAL", assigned_by,
+}) => {
   const contest = await Contest.findById(contest_id);
   if (!contest) {
     const err = new Error("Không tìm thấy cuộc thi"); err.statusCode = 404; throw err;
@@ -34,6 +27,87 @@ export const assignMentor = async ({ contest_id, round_id, board_id, team_id, me
   const team = await Team.findById(team_id);
   if (!team) {
     const err = new Error("Không tìm thấy đội thi"); err.statusCode = 404; throw err;
+  }
+
+  // ── EXTERNAL flow: email chưa chắc đã có tài khoản trong hệ thống ──────────
+  if (mentor_type === "EXTERNAL") {
+    if (!external_email || !external_email.trim()) {
+      const err = new Error("Vui lòng nhập email của mentor ngoài"); err.statusCode = 400; throw err;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(external_email.trim())) {
+      const err = new Error("Địa chỉ email của mentor ngoài không hợp lệ"); err.statusCode = 400; throw err;
+    }
+    const email = external_email.toLowerCase().trim();
+
+    // Nếu email này đã có tài khoản nội bộ, coi như phân công INTERNAL luôn —
+    // không cần đi qua bước "chờ xác nhận qua email tạo tài khoản".
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return assignMentor({
+        contest_id, round_id, board_id, team_id,
+        mentor_id: existingUser._id, mentor_type: "INTERNAL", assigned_by,
+      });
+    }
+
+    const conflictInBoard = await MentorAssignment.findOne({
+      external_email: email, contest_id, round_id, board_id, team_id: { $ne: team_id },
+    }).populate("team_id", "team_name");
+    if (conflictInBoard) {
+      const err = new Error(
+        `Mentor "${email}" đã phụ trách đội "${conflictInBoard.team_id?.team_name || 'khác'}" trong bảng này. Mỗi mentor chỉ được phụ trách 1 đội/bảng — các đội trong cùng bảng phải có mentor khác nhau.`
+      );
+      err.statusCode = 409; throw err;
+    }
+
+    const currentCount = await MentorAssignment.countDocuments({ external_email: email, contest_id, round_id });
+    const warnings = [];
+    if (currentCount >= MAX_TEAMS_PER_MENTOR_PER_ROUND) {
+      warnings.push(
+        `Mentor "${email}" đã phụ trách ${currentCount} đội trong vòng này (vượt giới hạn ${MAX_TEAMS_PER_MENTOR_PER_ROUND}). Hãy kiểm tra lại.`
+      );
+    }
+
+    const responseToken = crypto.randomBytes(32).toString("hex");
+    const assignment = new MentorAssignment({
+      contest_id, round_id, board_id, team_id,
+      mentor_id: null, mentor_type: "EXTERNAL", external_email: email,
+      assigned_by, assigned_at: new Date(),
+      status: "pending",
+      response_token: responseToken,
+      response_token_expires: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 ngày
+    });
+    await assignment.save();
+    await assignment.populate([
+      { path: "team_id",  select: "team_name status members leader_id" },
+      { path: "board_id", select: "pool_name" },
+    ]);
+
+    sendMentorAssignedEmail(
+      email,
+      email,
+      contest.title,
+      assignment.team_id?.team_name || "đội thi",
+      {
+        token: responseToken,
+        contestStart: contest.start_date,
+        contestEnd: contest.end_date,
+        roundName: round.name,
+      }
+    ).catch((mailErr) => console.error("[sendMentorAssignedEmail EXTERNAL error]", mailErr));
+
+    return { assignment, warnings: [...warnings, `Đã gửi email mời tới ${email}. Chờ xác nhận để kích hoạt.`] };
+  }
+
+  // ── INTERNAL flow ───────────────────────────────────────────────────────────
+  const mentor = await User.findById(mentor_id).select("email full_name");
+  if (!mentor) {
+    const err = new Error("Không tìm thấy mentor"); err.statusCode = 404; throw err;
+  }
+  const isFptEmail = FPT_DOMAINS.some((d) => mentor.email.endsWith(d));
+  if (!isFptEmail) {
+    const err = new Error("Mentor phải có email FPT (@fpt.edu.vn / @fe.edu.vn / @fpt.com.vn)");
+    err.statusCode = 400; throw err;
   }
 
   // Mỗi bảng chỉ được 1 mentor phụ trách 1 đội — các đội khác trong cùng bảng phải có mentor khác
@@ -60,7 +134,7 @@ export const assignMentor = async ({ contest_id, round_id, board_id, team_id, me
 
   const responseToken = crypto.randomBytes(32).toString("hex");
   const assignment = new MentorAssignment({
-    contest_id, round_id, board_id, team_id, mentor_id,
+    contest_id, round_id, board_id, team_id, mentor_id, mentor_type: "INTERNAL",
     assigned_by, assigned_at: new Date(),
     status: "pending",
     response_token: responseToken,
@@ -251,21 +325,25 @@ export const acceptMentorAssignmentByToken = async (token) => {
   let mentorUser = assignment.mentor_id;
   let isNewAccount = false;
 
+  // Email đích: từ user liên kết sẵn (INTERNAL) hoặc từ external_email (EXTERNAL,
+  // chưa từng có mentor_id — trường hợp phổ biến nhất cho luồng mời qua email).
+  const targetEmail = mentorUser?.email || assignment.external_email;
+  if (!targetEmail) {
+    const err = new Error("Không xác định được email mentor cho phân công này"); err.statusCode = 400; throw err;
+  }
+
   // Phòng thủ: tài khoản mentor_id tham chiếu có thể không còn tồn tại (bị xóa giữa chừng)
   // hoặc email chưa có tài khoản — tự tạo mới để không chặn luồng xác nhận.
   const existingUser = mentorUser ? await User.findById(mentorUser._id) : null;
   if (!existingUser) {
-    if (!mentorUser?.email) {
-      const err = new Error("Không xác định được email mentor cho phân công này"); err.statusCode = 400; throw err;
-    }
-    let user = await User.findOne({ email: mentorUser.email });
+    let user = await User.findOne({ email: targetEmail });
     if (!user) {
       isNewAccount = true;
       const randomPassword = crypto.randomBytes(16).toString("hex");
       const password_hash = await bcrypt.hash(randomPassword, 10);
       user = await User.create({
-        full_name: mentorUser.full_name || mentorUser.email.split("@")[0],
-        email: mentorUser.email,
+        full_name: mentorUser?.full_name || targetEmail.split("@")[0],
+        email: targetEmail,
         password_hash,
         provider: "local",
         is_verified: true,

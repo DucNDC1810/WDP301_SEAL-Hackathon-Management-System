@@ -28,6 +28,26 @@ const hasValidToken = () => {
   return !!(token && isTokenValid(token));
 };
 
+// Dùng refresh token (cookie httpOnly, sống 7 ngày) để lấy access token mới
+// khi access token (sống 15 phút) hết hạn. Trả về token mới hoặc null nếu
+// refresh token cũng đã hết hạn/bị thu hồi.
+const tryRefreshToken = async () => {
+  try {
+    const res = await fetch(`${API}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const newToken = data?.data?.accessToken;
+    if (!newToken) return null;
+    localStorage.setItem('accessToken', newToken);
+    return newToken;
+  } catch {
+    return null;
+  }
+};
+
 const ROLE_POLL_INTERVAL = 30000;
 
 const rolesKey = (roles) =>
@@ -38,17 +58,30 @@ export function AuthProvider({ children }) {
   // Start loading only when there is a valid token that needs verifying
   const [loading, setLoading] = useState(hasValidToken);
 
-  // On mount: if token exists & valid, fetch fresh user from API
+  // On mount: if token exists & valid, fetch fresh user from API.
+  // If it's expired, try refreshing via the httpOnly refresh-token cookie
+  // before giving up — the access token is short-lived (15m) by design and
+  // is expected to expire well before the refresh token (7d).
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token || !isTokenValid(token)) {
-      localStorage.removeItem('accessToken');
-      return;
-    }
-    fetchMe(token)
-      .then(setUser)
-      .catch(() => localStorage.removeItem('accessToken'))
-      .finally(() => setLoading(false));
+    const init = async () => {
+      let token = localStorage.getItem('accessToken');
+      if (token && !isTokenValid(token)) {
+        token = await tryRefreshToken();
+      }
+      if (!token) {
+        localStorage.removeItem('accessToken');
+        setLoading(false);
+        return;
+      }
+      try {
+        setUser(await fetchMe(token));
+      } catch {
+        localStorage.removeItem('accessToken');
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
   }, []);
 
   // Called after login / register / OAuth — save token then fetch fresh profile
@@ -93,10 +126,19 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user) return;
     const intervalId = setInterval(async () => {
-      const token = localStorage.getItem('accessToken');
-      if (!token || !isTokenValid(token)) {
+      let token = localStorage.getItem('accessToken');
+      if (!token) {
         logout();
         return;
+      }
+      // Access token hết hạn (15 phút) là chuyện bình thường, không phải lý do
+      // để đăng xuất — thử làm mới bằng refresh token (7 ngày) trước đã.
+      if (!isTokenValid(token)) {
+        token = await tryRefreshToken();
+        if (!token) {
+          logout();
+          return;
+        }
       }
       try {
         const fresh = await fetchMe(token);

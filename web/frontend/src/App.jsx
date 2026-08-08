@@ -10,6 +10,8 @@ import Footer from './components/Footer';
 // Pages
 import HomePage from './pages/homepage/HomePage';
 import LoginPage from './pages/login/LoginPage';
+import ForgotPasswordPage from './pages/login/ForgotPasswordPage';
+import ResetPasswordPage from './pages/login/ResetPasswordPage';
 import SignupPage from './pages/signup/SignupPage';
 import OAuthCallback from './pages/oauth-callback/OAuthCallback';
 
@@ -93,6 +95,8 @@ function App() {
             <Routes>
               {/* Auth */}
               <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+              <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/signup" element={<GuestRoute><SignupPage /></GuestRoute>} />
               <Route path="/oauth-callback" element={<OAuthCallback />} />
               <Route path="/complete-profile" element={<CompleteProfilePage />} />

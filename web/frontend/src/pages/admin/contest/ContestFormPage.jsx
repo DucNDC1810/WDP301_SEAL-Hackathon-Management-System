@@ -21,7 +21,7 @@ function fmtVN(date) {
   });
 }
 
-function DateField({ label, hint, selected, onChange, minDate, disabled, error, placeholder }) {
+function DateField({ label, hint, selected, onChange, minDate, maxDate, disabled, error, placeholder }) {
   return (
     <div className={`contest-field${error ? ' contest-field--error' : ''}`}>
       <label className="contest-label">
@@ -41,6 +41,7 @@ function DateField({ label, hint, selected, onChange, minDate, disabled, error, 
           selected={selected}
           onChange={onChange}
           minDate={minDate}
+          maxDate={maxDate}
           showTimeSelect
           timeFormat="HH:mm"
           timeIntervals={1}
@@ -193,8 +194,10 @@ function ContestFormPage() {
       }
 
       if (name === 'start_date' && date) {
-        // Hackathon diễn ra 2 ngày: ngày khai mạc + ngày thi chính thức/kết thúc kế tiếp.
-        // Tự đề xuất end_date = start_date + 1 ngày, admin vẫn có thể chỉnh lại sau.
+        // Hackathon diễn ra 2 ngày: ngày khai mạc (kickoff — phát áo, ăn uống, sự kiện mở màn,
+        // KHÔNG thi) rồi đến ngày thi đấu chính thức (cả 2 vòng diễn ra trong ngày này) kế tiếp,
+        // cũng là ngày kết thúc cuộc thi. Tự đề xuất end_date = start_date + 1 ngày, admin vẫn
+        // có thể chỉnh lại giờ sau.
         next.end_date = addDays(date, 1);
       }
 
@@ -289,9 +292,9 @@ function ContestFormPage() {
         start_date: contestData.start_date.toISOString(),
         end_date: contestData.end_date.toISOString(),
         registration_deadline: contestData.registration_deadline.toISOString(),
-        kickoff_date: new Date(
-          contestData.registration_deadline.getTime() + 12 * 60 * 60 * 1000
-        ).toISOString(),
+        // Kickoff = chính giờ khai mạc (start_date) — ngày phát áo/ăn uống/sự kiện mở màn,
+        // khác với end_date (ngày thi đấu chính thức, cả 2 vòng, cũng là ngày kết thúc).
+        kickoff_date: contestData.start_date.toISOString(),
         auto_close: contestData.auto_close,
         max_teams_per_pool: Number(contestData.max_teams_per_pool) || 10,
         min_team_size: Number(contestData.min_team_size) || 1,
@@ -309,9 +312,12 @@ function ContestFormPage() {
 
       const contestId = data.data._id;
 
-      // Sự kiện diễn ra trong ngày thi đấu chính thức (start_date): vòng sơ loại buổi sáng,
-      // vòng chung kết buổi chiều nối tiếp — không cộng dồn qua nhiều ngày.
-      const baseTime = contestData.start_date ? new Date(contestData.start_date).getTime() : Date.now();
+      // Cả 2 vòng diễn ra trong ngày thi đấu chính thức (end_date) — start_date chỉ là ngày
+      // khai mạc/kickoff (phát áo, ăn uống), KHÔNG có thi. Lấy đầu ngày end_date làm mốc gốc,
+      // vòng sơ loại buổi sáng, vòng chung kết buổi chiều nối tiếp trong cùng ngày đó.
+      const examDay = contestData.end_date ? new Date(contestData.end_date) : new Date();
+      examDay.setHours(9, 0, 0, 0);
+      const baseTime = examDay.getTime();
       const deadline1 = new Date(baseTime + 4 * 60 * 60 * 1000).toISOString().slice(0, 16);
       const deadline2 = new Date(new Date(deadline1).getTime() + 4 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
@@ -321,9 +327,7 @@ function ContestFormPage() {
         rules: contestData.rules,
         banner: contestData.banner,
         registration_open_date: contestData.registration_open_date.toISOString(),
-        kickoff_date: new Date(
-          contestData.registration_deadline.getTime() + 12 * 60 * 60 * 1000
-        ).toISOString().slice(0, 16),
+        kickoff_date: contestData.start_date.toISOString().slice(0, 16),
         mentors_assigned: false,
         tracks: [
           {
@@ -567,7 +571,7 @@ function ContestFormPage() {
 
                   <DateField
                     label="Ngày kết thúc cuộc thi *"
-                    hint="— ngày thi đấu chính thức / công bố kết quả"
+                    hint="— ngày thi đấu chính thức (cả 2 vòng) / công bố kết quả"
                     selected={contestData.end_date}
                     onChange={(d) => handleDateChange('end_date', d)}
                     minDate={minEnd}

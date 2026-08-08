@@ -12,13 +12,20 @@
 export const ROUND_STATUS = {
   ended: { key: 'ended', label: 'Đã kết thúc', color: 'default' },
   active: { key: 'active', label: 'Đang diễn ra', color: 'green' },
+  overdue: { key: 'overdue', label: 'Đã quá hạn', color: 'red' },
   upcoming: { key: 'upcoming', label: 'Sắp tới', color: 'blue' },
 };
 
 export const getRoundStatusKey = (round) => {
   if (!round) return 'upcoming';
   if (round.scoring_locked) return 'ended';
-  if (round.is_active) return 'active';
+  if (round.is_active) {
+    // is_active=true chỉ nói lên admin chưa tắt/khóa round — không tự động nghĩa là
+    // còn trong hạn. Nếu deadline đã qua mà round chưa được khóa, đây là trạng thái
+    // cần admin xử lý (khác với "đang chạy đúng hạn" và "đã kết thúc thật sự").
+    if (round.submission_deadline && new Date(round.submission_deadline) < new Date()) return 'overdue';
+    return 'active';
+  }
   // A round whose deadline has passed is over even if an admin never locked it.
   if (round.submission_deadline && new Date(round.submission_deadline) < new Date()) return 'ended';
   return 'upcoming';

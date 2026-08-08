@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 import User from "../models/User.js";
 
 const VALID_ROLES = ["admin", "mentor", "judge", "contestant", "organizer"];
-const FPT_EMAIL_DOMAINS = ["@fpt.edu.vn", "@fe.edu.vn", "@fpt.com.vn"];
 
 // ─── getUserById ────────────────────────────────────────────────────────────
 
@@ -123,19 +122,9 @@ export const assignRoleToUser = async (userId, role_name) => {
     throw err;
   }
 
-  // FPT email validation cho mentor
-  if (role_name === "mentor") {
-    const isFptEmail = FPT_EMAIL_DOMAINS.some((domain) =>
-      user.email.endsWith(domain)
-    );
-    if (!isFptEmail) {
-      const err = new Error(
-        `Chỉ tài khoản có email FPT (${FPT_EMAIL_DOMAINS.join(", ")}) mới được gán role mentor`
-      );
-      err.statusCode = 403;
-      throw err;
-    }
-  }
+  // Không giới hạn domain email khi admin tự gán role thủ công trong trang Quản lý Users —
+  // đây là hành động chủ động của admin (khác với luồng tự động mời mentor qua contest,
+  // nơi vẫn giữ ràng buộc email FPT ở mentorAssignmentService.js).
 
   // check duplicate role
   const hasRole = user.roles.some((r) => r.role_name === role_name);

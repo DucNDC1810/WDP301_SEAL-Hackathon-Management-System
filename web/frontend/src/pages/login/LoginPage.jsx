@@ -252,9 +252,14 @@ function LoginPage() {
               </div>
 
               <div className="login-card__field">
-                <label htmlFor="password" className="login-card__label">
-                  Mật khẩu
-                </label>
+                <div className="login-card__label-row">
+                  <label htmlFor="password" className="login-card__label">
+                    Mật khẩu
+                  </label>
+                  <Link to="/forgot-password" className="login-card__forgot-link" id="link-forgot-password">
+                    Quên mật khẩu?
+                  </Link>
+                </div>
                 <div className="login-card__input-wrap">
                   <svg className="login-card__input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />

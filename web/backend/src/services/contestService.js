@@ -118,6 +118,30 @@ export const updateContest = async (contestId, updateData) => {
     "rounds",
   ];
 
+  // Ngày kết thúc thi thực tế: dùng giá trị mới nếu có trong request này, không thì lấy giá trị hiện tại.
+  // start_date/kickoff_date chỉ là ngày khai mạc (phát áo, ăn uống, sự kiện mở màn) — KHÔNG có thi.
+  // Cả 2 vòng đấu diễn ra trong đúng ngày end_date, nên hạn nộp bài của mọi round phải rơi đúng
+  // vào ngày này, không được sớm hơn (rơi vào ngày kickoff) hay muộn hơn.
+  const effectiveEndDate = updateData.end_date !== undefined ? updateData.end_date : contest.end_date;
+  if (effectiveEndDate && Array.isArray(updateData.rounds)) {
+    const examDate = new Date(effectiveEndDate);
+    for (const r of updateData.rounds) {
+      if (!r.submission_deadline) continue;
+      const deadline = new Date(r.submission_deadline);
+      const isSameDay =
+        deadline.getFullYear() === examDate.getFullYear() &&
+        deadline.getMonth() === examDate.getMonth() &&
+        deadline.getDate() === examDate.getDate();
+      if (!isSameDay) {
+        const err = new Error(
+          `Hạn nộp bài của vòng "${r.name || r.round_number}" phải rơi đúng vào ngày thi đấu chính thức (ngày kết thúc cuộc thi).`
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+  }
+
   allowedUpdates.forEach((field) => {
     if (field === "rounds") {
       if (Array.isArray(updateData.rounds)) {

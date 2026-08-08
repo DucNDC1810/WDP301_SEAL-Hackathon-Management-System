@@ -51,7 +51,7 @@ export const sendInvitation = async (contestId, email, invitedBy) => {
       err.statusCode = 409;
       throw err;
     }
-    if (existing.status === "pending") {
+    if (existing.status === "declined" || existing.status === "pending") {
       // Tái sử dụng — cấp token mới và gửi lại
       const rawToken = crypto.randomBytes(32).toString("hex");
       existing.token = rawToken;
@@ -68,7 +68,7 @@ export const sendInvitation = async (contestId, email, invitedBy) => {
       );
       return existing;
     }
-    // cancelled / expired / declined → tạo lại
+    // cancelled / expired → tạo lại
     await Invitation.deleteOne({ _id: existing._id });
   }
 
@@ -190,6 +190,13 @@ export const declineInvitation = async (token, { reason } = {}) => {
   invitation.token = null;
   invitation.token_expires = null;
   await invitation.save();
+
+  // Đồng bộ: xóa luôn JudgeAssignment "Chờ xác nhận" gắn với lời mời này,
+  // nếu không nó sẽ đứng yên ở invitation_status="pending_invite" mãi mãi
+  // dù Invitation đã chuyển sang "declined" — khiến UI vẫn hiện "Chờ xác nhận".
+  if (invitation.role === "judge") {
+    await JudgeAssignment.deleteOne({ invitation_id: invitation._id, invitation_status: "pending_invite" });
+  }
 
   const roleLabel = invitation.role === "judge" ? "Giám khảo" : "Mentor";
   const contestTitle = invitation.contest_id?.title || "cuộc thi";
